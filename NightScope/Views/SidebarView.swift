@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 
 enum LocationInputMode {
-    case search, map, lightPollutionMap
+    case map, lightPollutionMap
 }
 
 struct SidebarView: View {
@@ -35,7 +35,6 @@ struct SidebarView: View {
 
             HStack(spacing: 8) {
                 Picker("", selection: $locationInputMode) {
-                    Text("検索").tag(LocationInputMode.search)
                     Text("地図").tag(LocationInputMode.map)
                     Text("光害").tag(LocationInputMode.lightPollutionMap)
                 }
@@ -50,58 +49,56 @@ struct SidebarView: View {
                 }
             }
 
-            if locationInputMode == .search {
-                TextField("場所を検索...", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        Task { await locationController.search(query: searchText) }
-                    }
-
-                if !locationController.searchResults.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(locationController.searchResults.prefix(5).enumerated()), id: \.offset) { pair in
-                            Button {
-                                locationController.select(pair.element)
-                                searchText = ""
-                            } label: {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(pair.element.name ?? "Unknown")
-                                        .font(.body)
-                                        .foregroundColor(.primary)
-                                    if let address = pair.element.address {
-                                        Text(address.shortAddress ?? address.fullAddress)
-                                            .font(.body)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                            }
-                            .buttonStyle(.plain)
-                            Divider()
-                        }
-                    }
-                    .glassEffect(in: RoundedRectangle(cornerRadius: 6))
+            TextField("場所を検索...", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit {
+                    Task { await locationController.search(query: searchText) }
                 }
-            } else {
-                MapLocationPicker(
-                    selectedCoordinate: locationController.selectedLocation,
-                    onSelect: { coord in locationController.selectCoordinate(coord) },
-                    isVisible: locationInputMode == .map || locationInputMode == .lightPollutionMap,
-                    syncState: MapKitSyncState(
-                        trigger: mapKitSyncTrigger,
-                        center: viewport.center,
-                        span: viewport.span
-                    ),
-                    onRegionChange: { center, span in
-                        viewport.center = center
-                        viewport.span = span
-                    },
-                    showLightPollution: locationInputMode == .lightPollutionMap
-                )
-                .equatable()
+
+            if !locationController.searchResults.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(locationController.searchResults.prefix(5).enumerated()), id: \.offset) { pair in
+                        Button {
+                            locationController.select(pair.element)
+                            searchText = ""
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(pair.element.name ?? "Unknown")
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                if let address = pair.element.address {
+                                    Text(address.shortAddress ?? address.fullAddress)
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                        Divider()
+                    }
+                }
+                .glassEffect(in: RoundedRectangle(cornerRadius: 6))
             }
+
+            MapLocationPicker(
+                selectedCoordinate: locationController.selectedLocation,
+                onSelect: { coord in locationController.selectCoordinate(coord) },
+                isVisible: true,
+                syncState: MapKitSyncState(
+                    trigger: mapKitSyncTrigger,
+                    center: viewport.center,
+                    span: viewport.span
+                ),
+                onRegionChange: { center, span in
+                    viewport.center = center
+                    viewport.span = span
+                },
+                showLightPollution: locationInputMode == .lightPollutionMap
+            )
+            .equatable()
 
             HStack(spacing: 6) {
                 Image(systemName: "mappin")
@@ -121,9 +118,7 @@ struct SidebarView: View {
             viewport.center = locationController.selectedLocation
         }
         .onChange(of: locationInputMode) {
-            if locationInputMode == .map || locationInputMode == .lightPollutionMap {
-                mapKitSyncTrigger += 1
-            }
+            mapKitSyncTrigger += 1
         }
     }
 
