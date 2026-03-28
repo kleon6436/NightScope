@@ -149,7 +149,7 @@ private struct MapContainerView<Content: View>: View {
                 )
             Text("地図をクリックして場所を選択")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 }

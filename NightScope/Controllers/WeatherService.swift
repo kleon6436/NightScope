@@ -20,7 +20,7 @@ struct OpenMeteoResponse: Decodable {
 // MARK: - Service
 
 @MainActor
-class WeatherService: ObservableObject {
+final class WeatherService: ObservableObject {
     // "yyyy-MM-dd" キー生成・復元に使う共有フォーマッタ
     private static let dateKeyFormatter: DateFormatter = {
         let f = DateFormatter()

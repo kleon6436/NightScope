@@ -65,11 +65,11 @@ struct SidebarView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(pair.element.name ?? "Unknown")
                                     .font(.body)
-                                    .foregroundColor(.primary)
+                                    .foregroundStyle(.primary)
                                 if let address = pair.element.address {
                                     Text(address.shortAddress ?? address.fullAddress)
                                         .font(.body)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -102,7 +102,7 @@ struct SidebarView: View {
 
             HStack(spacing: 6) {
                 Image(systemName: "mappin")
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                     .font(.body)
                 Text(locationController.locationName)
                     .font(.headline)
@@ -112,7 +112,7 @@ struct SidebarView: View {
                         locationController.selectedLocation.latitude,
                         locationController.selectedLocation.longitude))
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .onAppear {
             viewport.center = locationController.selectedLocation

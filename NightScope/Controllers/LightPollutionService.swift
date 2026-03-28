@@ -24,7 +24,7 @@ private struct NominatimResponse: Decodable {
 ///
 /// フォールバック: OSM Nominatim 逆ジオコーディング
 @MainActor
-class LightPollutionService: ObservableObject {
+final class LightPollutionService: ObservableObject {
     private enum Constants {
         /// 同一座標とみなすキャッシュ半径（度）≈ 5 km
         static let cacheRadiusDegrees = 0.05

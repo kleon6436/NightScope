@@ -3,20 +3,24 @@ import Combine
 
 @MainActor
 final class AppController: ObservableObject {
+    // MARK: - Dependencies
     let locationController: LocationController
     let weatherService: WeatherService
     let lightPollutionService: LightPollutionService
 
+    // MARK: - Published State
     @Published var selectedDate: Date = Date()
     @Published var nightSummary: NightSummary?
     @Published var upcomingNights: [NightSummary] = []
     @Published var starGazingIndex: StarGazingIndex?
     @Published var upcomingIndexes: [Date: StarGazingIndex] = [:]
-    @Published var isCalculating: Bool = false
+    @Published var isCalculating = false
 
+    // MARK: - Private State
     private let calculationService = NightCalculationService()
     private var cancellables: Set<AnyCancellable> = []
 
+    // MARK: - Init
     init(locationController: LocationController? = nil,
          weatherService: WeatherService? = nil,
          lightPollutionService: LightPollutionService? = nil) {
@@ -26,6 +30,7 @@ final class AppController: ObservableObject {
         setupObservers()
     }
 
+    // MARK: - Public Methods
     func onStart() {
         recalculate()
         recalculateUpcoming()
@@ -49,6 +54,7 @@ final class AppController: ObservableObject {
         )
     }
 
+    // MARK: - Calculation
     func recalculate() {
         if nightSummary == nil {
             isCalculating = true
@@ -95,6 +101,7 @@ final class AppController: ObservableObject {
         upcomingIndexes = indexes
     }
 
+    // MARK: - Private
     private func setupObservers() {
         locationController.$locationUpdateID
             .dropFirst()

@@ -2,7 +2,7 @@ import CoreLocation
 import MapKit
 
 @MainActor
-class LocationController: NSObject, ObservableObject {
+final class LocationController: NSObject, ObservableObject {
     @Published var selectedLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503) {
         didSet { locationUpdateID = UUID() }
     }

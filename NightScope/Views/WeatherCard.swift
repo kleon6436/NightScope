@@ -8,11 +8,11 @@ struct NightWeatherCard: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Image(systemName: "cloud")
-                    .foregroundColor(.cyan)
+                    .foregroundStyle(.cyan)
                     .font(.body)
                 Text("天気 (夜間)")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             if isLoading {
@@ -27,21 +27,21 @@ struct NightWeatherCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(String(format: "雲量 %.0f%%", w.avgCloudCover))
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text(String(format: "降水 %.1f mm", w.maxPrecipitation))
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Text(String(format: "風速 %.0f km/h", w.avgWindSpeed))
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 Text("データなし")
                     .font(.headline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Text("16日以内のみ")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(12)

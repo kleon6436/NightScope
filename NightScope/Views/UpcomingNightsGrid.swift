@@ -21,7 +21,7 @@ struct UpcomingNightsGrid: View {
             if displayNights.isEmpty {
                 Text("今後2週間は観測に適した夜がありません")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             } else {
                 GlassEffectContainer {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 8)], spacing: 8) {
@@ -51,29 +51,29 @@ struct UpcomingNightsGrid: View {
                     Text(weather.map { String(format: "%.0f%%", $0.avgCloudCover) } ?? "—")
                         .font(.system(size: 13))
                 }
-                .foregroundColor(Color.cyan.opacity(0.9))
+                .foregroundStyle(Color.cyan.opacity(0.9))
             }
 
             if let w = weather {
                 HStack(spacing: 4) {
                     Image(systemName: w.weatherIconName)
-                        .foregroundColor(weatherIconColor(code: w.representativeWeatherCode))
+                        .foregroundStyle(weatherIconColor(code: w.representativeWeatherCode))
                         .font(.body)
                     Text(w.weatherLabel == w.cloudLabel
                          ? w.weatherLabel
                          : "\(w.weatherLabel)（\(w.cloudLabel)）")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
             HStack(spacing: 4) {
                 Image(systemName: night.moonPhaseIcon)
-                    .foregroundColor(Color(NSColor.systemIndigo))
+                    .foregroundStyle(Color(NSColor.systemIndigo))
                     .font(.body)
                 Text(night.moonPhaseName)
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Divider()
@@ -84,7 +84,7 @@ struct UpcomingNightsGrid: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("星空")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     let darkRangeText: String = {
                         if let s = night.eveningDarkStart, let e = night.morningDarkEnd {
                             return "\(timeString(s))〜\(timeString(e))"
@@ -100,16 +100,16 @@ struct UpcomingNightsGrid: View {
                         GridRow {
                             Image(systemName: "sparkles")
                                 .frame(width: 14, alignment: .center)
-                                .foregroundColor(index.map { scoreColor(for: $0.tier) } ?? .secondary)
+                                .foregroundStyle(index.map { scoreColor(for: $0.tier) } ?? .secondary)
                             if let idx = index {
                                 Text("\(idx.label)")
                                     .font(.headline)
-                                    .foregroundColor(scoreColor(for: idx.tier))
+                                    .foregroundStyle(scoreColor(for: idx.tier))
                                     .lineLimit(1)
                             } else {
                                 Text("計算中…")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
                         }
@@ -121,7 +121,7 @@ struct UpcomingNightsGrid: View {
                                 .lineLimit(1)
                         }
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
 
@@ -131,7 +131,7 @@ struct UpcomingNightsGrid: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("天の川")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 5, verticalSpacing: 3) {
                         GridRow {
                             Image(systemName: "star")
@@ -157,7 +157,7 @@ struct UpcomingNightsGrid: View {
                             }
                         }
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }

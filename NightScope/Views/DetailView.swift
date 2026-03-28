@@ -9,7 +9,7 @@ struct DetailView: View {
                 VStack(spacing: 12) {
                     ProgressView()
                     Text("計算中...")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             } else if let summary = appController.nightSummary {
                 ScrollView {
@@ -31,7 +31,7 @@ struct DetailView: View {
             if let error = appController.weatherService.errorMessage {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                     Text(error)
                         .font(.body)
                 }
@@ -56,7 +56,7 @@ struct DetailView: View {
                     .font(.largeTitle.bold())
                 Text(summary.date, style: .date)
                     .font(.title3)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Spacer()
             }
 

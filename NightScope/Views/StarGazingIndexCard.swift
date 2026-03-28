@@ -15,14 +15,14 @@ struct StarGazingIndexCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("星空指数")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("\(index.score)")
                             .font(.system(size: 42, weight: .bold, design: .rounded))
-                            .foregroundColor(color)
+                            .foregroundStyle(color)
                         Text("/ 100")
                             .font(.body)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -34,13 +34,13 @@ struct StarGazingIndexCard: View {
                         HStack(spacing: 2) {
                             ForEach(0..<5) { i in
                                 Image(systemName: i < index.starCount ? "star.fill" : "star")
-                                    .foregroundColor(i < index.starCount ? color : Color.gray.opacity(0.4))
+                                    .foregroundStyle(i < index.starCount ? color : Color.gray.opacity(0.4))
                                     .font(.body)
                             }
                         }
                         Text(index.label)
                             .font(.headline)
-                            .foregroundColor(color)
+                            .foregroundStyle(color)
                     }
 
                     subScoreRow(label: "星空", score: index.constellationScore, maxScore: 50, color: Color(NSColor.systemIndigo))
@@ -51,11 +51,11 @@ struct StarGazingIndexCard: View {
                         HStack(spacing: 6) {
                             Text("気象")
                                 .font(.body)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .frame(width: 44, alignment: .leading)
                             Text("データなし")
                                 .font(.body)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                     }
 
@@ -65,7 +65,7 @@ struct StarGazingIndexCard: View {
                         HStack(spacing: 6) {
                             Text("光害")
                                 .font(.body)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .frame(width: 44, alignment: .leading)
                             if lightPollutionService.isLoading {
                                 ProgressView()
@@ -73,11 +73,11 @@ struct StarGazingIndexCard: View {
                             } else if lightPollutionService.fetchFailed {
                                 Text("取得失敗")
                                     .font(.body)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             } else {
                                 Text("取得中...")
                                     .font(.body)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -105,7 +105,7 @@ struct StarGazingIndexCard: View {
         HStack(spacing: 6) {
             Text(label)
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 44, alignment: .leading)
             ProgressView(value: Double(score), total: Double(maxScore))
                 .progressViewStyle(.linear)
@@ -113,7 +113,7 @@ struct StarGazingIndexCard: View {
                 .frame(width: 100)
             Text("\(score)/\(maxScore)")
                 .font(.body.monospacedDigit())
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
     }
 }

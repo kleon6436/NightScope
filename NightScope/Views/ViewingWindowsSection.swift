@@ -11,14 +11,14 @@ struct ViewingWindowsSection: View {
             if summary.viewingWindows.isEmpty {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                         .font(.title3)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("この日は天の川の観測に適した時間帯がありません")
                             .font(.body)
                         Text("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした")
                             .font(.body)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(14)
@@ -55,11 +55,11 @@ struct ViewingWindowsSection: View {
                 if isMoonFavorable {
                     Label("条件良好", systemImage: "checkmark.circle.fill")
                         .font(.body)
-                        .foregroundColor(.green)
+                        .foregroundStyle(.green)
                 } else {
                     Label("月明かりあり", systemImage: "moon.fill")
                         .font(.body)
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.orange)
                 }
             }
         }

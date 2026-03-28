@@ -7,17 +7,17 @@ struct MoonPhaseCard: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
                 Image(systemName: summary.moonPhaseIcon)
-                    .foregroundColor(Color(NSColor.systemIndigo))
+                    .foregroundStyle(Color(NSColor.systemIndigo))
                     .font(.body)
                 Text("月の状態")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             Text(summary.moonPhaseName)
                 .font(.headline)
             Text(summary.isMoonFavorable ? "撮影に適しています" : "月明かりに注意")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -44,11 +44,11 @@ struct DarkTimeCard: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
                 Image(systemName: "clock")
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
                     .font(.body)
                 Text("観測可能時間")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
             if rangeText.isEmpty {
                 Text("暗い時間なし")
@@ -58,7 +58,7 @@ struct DarkTimeCard: View {
                     .font(.headline)
                 Text(String(format: "暗い時間 %.1f時間", summary.totalDarkHours))
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(12)
@@ -66,10 +66,14 @@ struct DarkTimeCard: View {
         .glassEffect(in: RoundedRectangle(cornerRadius: 8))
     }
 
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        f.timeZone = .current
+        return f
+    }()
+
     private func timeString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        Self.timeFormatter.string(from: date)
     }
 }
