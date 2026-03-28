@@ -1,14 +1,19 @@
 import SwiftUI
+import MapKit
 
 enum LocationInputMode {
-    case search, map
+    case search, map, lightPollutionMap
 }
 
 struct SidebarView: View {
     @ObservedObject var locationController: LocationController
+    @ObservedObject var lightPollutionService: LightPollutionService
     @Binding var selectedDate: Date
     @State private var searchText: String = ""
     @State private var locationInputMode: LocationInputMode = .map
+    /// パン中の SwiftUI 再描画を発生させずにビューポートを保持する参照型コンテナ
+    @State private var viewport = ViewportBox()
+    @State private var mapKitSyncTrigger = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -28,12 +33,22 @@ struct SidebarView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
 
-            Picker("", selection: $locationInputMode) {
-                Text("検索").tag(LocationInputMode.search)
-                Text("地図").tag(LocationInputMode.map)
+            HStack(spacing: 8) {
+                Picker("", selection: $locationInputMode) {
+                    Text("検索").tag(LocationInputMode.search)
+                    Text("地図").tag(LocationInputMode.map)
+                    Text("光害").tag(LocationInputMode.lightPollutionMap)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+
+                Spacer()
+
+                if locationInputMode == .lightPollutionMap {
+                    bortleLabel
+                }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
 
             if locationInputMode == .search {
                 TextField("場所を検索...", text: $searchText)
@@ -70,10 +85,22 @@ struct SidebarView: View {
                     .glassEffect(in: RoundedRectangle(cornerRadius: 6))
                 }
             } else {
-                EquatableMapSection(
-                    coordinate: locationController.selectedLocation,
-                    onSelect: { coord in locationController.selectCoordinate(coord) }
+                MapLocationPicker(
+                    selectedCoordinate: locationController.selectedLocation,
+                    onSelect: { coord in locationController.selectCoordinate(coord) },
+                    isVisible: locationInputMode == .map || locationInputMode == .lightPollutionMap,
+                    syncState: MapKitSyncState(
+                        trigger: mapKitSyncTrigger,
+                        center: viewport.center,
+                        span: viewport.span
+                    ),
+                    onRegionChange: { center, span in
+                        viewport.center = center
+                        viewport.span = span
+                    },
+                    showLightPollution: locationInputMode == .lightPollutionMap
                 )
+                .equatable()
             }
 
             HStack(spacing: 6) {
@@ -89,6 +116,41 @@ struct SidebarView: View {
                         locationController.selectedLocation.longitude))
                 .font(.body)
                 .foregroundColor(.secondary)
+        }
+        .onAppear {
+            viewport.center = locationController.selectedLocation
+        }
+        .onChange(of: locationInputMode) {
+            if locationInputMode == .map || locationInputMode == .lightPollutionMap {
+                mapKitSyncTrigger += 1
+            }
+        }
+    }
+
+    private var bortleLabel: some View {
+        Group {
+            if lightPollutionService.isLoading {
+                ProgressView().controlSize(.small)
+            } else if let bortle = lightPollutionService.bortleClass {
+                Text(String(format: "Bortle %.0f", bortle))
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(bortleColor(bortle))
+            } else {
+                Text("--")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 62, alignment: .trailing)
+    }
+
+    private func bortleColor(_ bortle: Double) -> Color {
+        switch bortle {
+        case ..<4:  return .green
+        case ..<6:  return .yellow
+        case ..<8:  return .orange
+        default:    return .red
         }
     }
 

@@ -8,6 +8,7 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(
                 locationController: appController.locationController,
+                lightPollutionService: appController.lightPollutionService,
                 selectedDate: $appController.selectedDate
             )
             .navigationSplitViewColumnWidth(min: 260, ideal: 280, max: 300)
