@@ -4,7 +4,7 @@ struct UpcomingNightsGrid: View {
     @ObservedObject var appController: AppController
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 Text("今後2週間の予報")
                     .font(.title3.bold())
@@ -13,18 +13,21 @@ struct UpcomingNightsGrid: View {
                     Button("今日") { appController.selectedDate = Date() }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .accessibilityLabel("今日の日付に移動")
                 }
             }
 
             let displayNights = appController.upcomingNights.filter { !$0.viewingWindows.isEmpty }
 
             if displayNights.isEmpty {
-                Text("今後2週間は観測に適した夜がありません")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView(
+                    "観測に適した夜がありません",
+                    systemImage: "moon.zzz",
+                    description: Text("今後2週間は天の川の観測に適した夜がありませんでした")
+                )
             } else {
                 GlassEffectContainer {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 8)], spacing: 8) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: Spacing.xs)], spacing: Spacing.xs) {
                         ForEach(displayNights, id: \.date) { night in
                             upcomingNightCard(night: night)
                         }
@@ -39,7 +42,7 @@ struct UpcomingNightsGrid: View {
         let isSelected = Calendar.current.isDate(night.date, inSameDayAs: appController.selectedDate)
         let index = appController.upcomingIndexes[Calendar.current.startOfDay(for: night.date)]
 
-        return VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: Spacing.xs) {
             // ── ヘッダー ──
             HStack {
                 Text(night.date, style: .date)
@@ -47,18 +50,20 @@ struct UpcomingNightsGrid: View {
                 Spacer()
                 HStack(spacing: 2) {
                     Image(systemName: "cloud.fill")
-                        .font(.system(size: 13))
+                        .font(.body)
+                        .accessibilityHidden(true)
                     Text(weather.map { String(format: "%.0f%%", $0.avgCloudCover) } ?? "—")
-                        .font(.system(size: 13))
+                        .font(.body)
                 }
                 .foregroundStyle(Color.cyan.opacity(0.9))
             }
 
             if let w = weather {
-                HStack(spacing: 4) {
+                HStack(spacing: Spacing.xs / 2) {
                     Image(systemName: w.weatherIconName)
                         .foregroundStyle(weatherIconColor(code: w.representativeWeatherCode))
                         .font(.body)
+                        .accessibilityHidden(true)
                     Text(w.weatherLabel == w.cloudLabel
                          ? w.weatherLabel
                          : "\(w.weatherLabel)（\(w.cloudLabel)）")
@@ -67,10 +72,11 @@ struct UpcomingNightsGrid: View {
                 }
             }
 
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xs / 2) {
                 Image(systemName: night.moonPhaseIcon)
                     .foregroundStyle(Color(NSColor.systemIndigo))
                     .font(.body)
+                    .accessibilityHidden(true)
                 Text(night.moonPhaseName)
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -79,7 +85,7 @@ struct UpcomingNightsGrid: View {
             Divider()
 
             // ── 星空 / 天の川 2カラム ──
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: Spacing.xs) {
                 // 左: 星空
                 VStack(alignment: .leading, spacing: 3) {
                     Text("星空")
@@ -96,11 +102,12 @@ struct UpcomingNightsGrid: View {
                             return "—"
                         }
                     }()
-                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 5, verticalSpacing: 3) {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.xs / 2, verticalSpacing: 3) {
                         GridRow {
                             Image(systemName: "sparkles")
                                 .frame(width: 14, alignment: .center)
                                 .foregroundStyle(index.map { scoreColor(for: $0.tier) } ?? .secondary)
+                                .accessibilityHidden(true)
                             if let idx = index {
                                 Text("\(idx.label)")
                                     .font(.headline)
@@ -116,6 +123,7 @@ struct UpcomingNightsGrid: View {
                         GridRow {
                             Image(systemName: "moon.stars")
                                 .frame(width: 14, alignment: .center)
+                                .accessibilityHidden(true)
                             Text(darkRangeText)
                                 .font(.body)
                                 .lineLimit(1)
@@ -132,10 +140,11 @@ struct UpcomingNightsGrid: View {
                     Text("天の川")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 5, verticalSpacing: 3) {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.xs / 2, verticalSpacing: 3) {
                         GridRow {
                             Image(systemName: "star")
                                 .frame(width: 14, alignment: .center)
+                                .accessibilityHidden(true)
                             Text(night.bestViewingTime.map { "見頃 \(timeString($0))" } ?? "見頃 —")
                                 .font(.body)
                                 .lineLimit(1)
@@ -143,6 +152,7 @@ struct UpcomingNightsGrid: View {
                         GridRow {
                             Image(systemName: "clock")
                                 .frame(width: 14, alignment: .center)
+                                .accessibilityHidden(true)
                             Text(String(format: "観測 %.1f時間", night.totalViewingHours))
                                 .font(.body)
                                 .lineLimit(1)
@@ -151,6 +161,7 @@ struct UpcomingNightsGrid: View {
                             GridRow {
                                 Image(systemName: "location.north.fill")
                                     .frame(width: 14, alignment: .center)
+                                    .accessibilityHidden(true)
                                 Text(dir)
                                     .font(.body)
                                     .lineLimit(1)
@@ -163,18 +174,34 @@ struct UpcomingNightsGrid: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(10)
+        .padding(Layout.cardPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: 160)
-        .glassEffect(in: RoundedRectangle(cornerRadius: 8))
+        .frame(height: 170)
+        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
                 .stroke(Color.accentColor, lineWidth: isSelected ? 1.5 : 0)
         )
         .contentShape(Rectangle())
         .onTapGesture {
             appController.selectedDate = night.date
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(cardAccessibilityLabel(night: night, weather: weather, index: index))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func cardAccessibilityLabel(night: NightSummary, weather: DayWeatherSummary?, index: StarGazingIndex?) -> String {
+        var parts: [String] = []
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        parts.append(formatter.string(from: night.date))
+        if let idx = index { parts.append("星空指数\(idx.score)") }
+        if let w = weather { parts.append("天気\(w.weatherLabel)") }
+        parts.append("月: \(night.moonPhaseName)")
+        return parts.joined(separator: "、")
     }
 
     private func scoreColor(for tier: StarGazingIndex.Tier) -> Color {

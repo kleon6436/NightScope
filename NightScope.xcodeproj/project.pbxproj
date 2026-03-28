@@ -28,6 +28,7 @@
 		AA0000000000000000002B15 /* WeatherCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F15 /* WeatherCard.swift */; };
 		AA0000000000000000002B16 /* ViewingWindowsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F16 /* ViewingWindowsSection.swift */; };
 		AA0000000000000000002B17 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
+		AA0000000000000000002B19 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F19 /* UIConstants.swift */; };
 		AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */; };
 		AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF02 /* StarGazingIndexTests.swift */; };
 		AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF03 /* WeatherServiceTests.swift */; };
@@ -67,6 +68,7 @@
 		AA0000000000000000002F15 /* WeatherCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherCard.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F16 /* ViewingWindowsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingWindowsSection.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F17 /* UpcomingNightsGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGrid.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F19 /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIConstants.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				AA0000000000000000002F15 /* WeatherCard.swift */,
 				AA0000000000000000002F16 /* ViewingWindowsSection.swift */,
 				AA0000000000000000002F17 /* UpcomingNightsGrid.swift */,
+				AA0000000000000000002F19 /* UIConstants.swift */,
 				AA0000000000000000002F10 /* CalendarView.swift */,
 				AA0000000000000000002F11 /* MapLocationPicker.swift */,
 			);
@@ -282,6 +285,7 @@
 				AA0000000000000000002B15 /* WeatherCard.swift in Sources */,
 				AA0000000000000000002B16 /* ViewingWindowsSection.swift in Sources */,
 				AA0000000000000000002B17 /* UpcomingNightsGrid.swift in Sources */,
+				AA0000000000000000002B19 /* UIConstants.swift in Sources */,
 				AA0000000000000000002B10 /* CalendarView.swift in Sources */,
 				AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */,
 			);

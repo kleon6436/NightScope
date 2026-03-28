@@ -4,11 +4,12 @@ struct MoonPhaseCard: View {
     let summary: NightSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: summary.moonPhaseIcon)
                     .foregroundStyle(Color(NSColor.systemIndigo))
                     .font(.body)
+                    .accessibilityHidden(true)
                 Text("月の状態")
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -19,9 +20,9 @@ struct MoonPhaseCard: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassEffect(in: RoundedRectangle(cornerRadius: 8))
+        .glassCard()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("月の状態: \(summary.moonPhaseName)。\(summary.isMoonFavorable ? "撮影に適しています" : "月明かりに注意")")
     }
 }
 
@@ -41,11 +42,12 @@ struct DarkTimeCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: "clock")
                     .foregroundStyle(.green)
                     .font(.body)
+                    .accessibilityHidden(true)
                 Text("観測可能時間")
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -61,9 +63,11 @@ struct DarkTimeCard: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassEffect(in: RoundedRectangle(cornerRadius: 8))
+        .glassCard()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rangeText.isEmpty
+            ? "観測可能時間: 暗い時間なし"
+            : "観測可能時間: \(rangeText)、暗い時間\(String(format: "%.1f", summary.totalDarkHours))時間")
     }
 
     private static let timeFormatter: DateFormatter = {

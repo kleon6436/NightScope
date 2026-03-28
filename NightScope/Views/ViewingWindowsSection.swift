@@ -4,27 +4,16 @@ struct ViewingWindowsSection: View {
     let summary: NightSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("天の川 観測情報")
                 .font(.title3.bold())
 
             if summary.viewingWindows.isEmpty {
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                        .font(.title3)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("この日は天の川の観測に適した時間帯がありません")
-                            .font(.body)
-                        Text("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                ContentUnavailableView(
+                    "観測に適した時間帯がありません",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした")
+                )
             } else {
                 ForEach(summary.viewingWindows, id: \.start) { window in
                     windowRow(window: window, isMoonFavorable: summary.isMoonFavorable)
@@ -34,12 +23,12 @@ struct ViewingWindowsSection: View {
     }
 
     private func windowRow(window: ViewingWindow, isMoonFavorable: Bool) -> some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(spacing: Spacing.sm) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("\(timeString(window.start)) 〜 \(timeString(window.end))")
                     .font(.title3.bold())
 
-                HStack(spacing: 12) {
+                HStack(spacing: Spacing.sm) {
                     Label(String(format: "観測 %.1f時間", window.duration / 3600), systemImage: "clock")
                     Label(String(format: "最大高度 %.0f°", window.peakAltitude), systemImage: "arrow.up")
                     Label("見頃 \(timeString(window.peakTime))", systemImage: "star")
@@ -51,7 +40,7 @@ struct ViewingWindowsSection: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 6) {
+            VStack(alignment: .trailing, spacing: Spacing.xs) {
                 if isMoonFavorable {
                     Label("条件良好", systemImage: "checkmark.circle.fill")
                         .font(.body)
@@ -63,8 +52,18 @@ struct ViewingWindowsSection: View {
                 }
             }
         }
-        .padding(14)
-        .glassEffect(in: RoundedRectangle(cornerRadius: 8))
+        .padding(Layout.cardPadding)
+        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(windowAccessibilityLabel(window: window, isMoonFavorable: isMoonFavorable))
+    }
+
+    private func windowAccessibilityLabel(window: ViewingWindow, isMoonFavorable: Bool) -> String {
+        let timeRange = "\(timeString(window.start))から\(timeString(window.end))"
+        let duration = String(format: "観測%.1f時間", window.duration / 3600)
+        let altitude = String(format: "最大高度%.0f度", window.peakAltitude)
+        let moon = isMoonFavorable ? "月の条件良好" : "月明かりあり"
+        return "観測窓: \(timeRange)、\(duration)、\(altitude)、\(moon)"
     }
 
     private static let timeFormatter: DateFormatter = {

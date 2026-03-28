@@ -11,7 +11,11 @@ struct ContentView: View {
                 lightPollutionService: appController.lightPollutionService,
                 selectedDate: $appController.selectedDate
             )
-            .navigationSplitViewColumnWidth(min: 260, ideal: 280, max: 300)
+            .navigationSplitViewColumnWidth(
+                min: Layout.sidebarMinWidth,
+                ideal: Layout.sidebarIdealWidth,
+                max: Layout.sidebarMaxWidth
+            )
             .navigationTitle("NightScope")
             .toolbar(removing: .sidebarToggle)
             .toolbar {
@@ -22,7 +26,7 @@ struct ContentView: View {
         } detail: {
             DetailView(appController: appController)
         }
-        .frame(minWidth: 820, minHeight: 620)
+        .frame(minWidth: Layout.windowMinWidth, minHeight: Layout.windowMinHeight)
         .toolbar(removing: .sidebarToggle)
         .onChange(of: columnVisibility) {
             if columnVisibility != .all {

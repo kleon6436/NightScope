@@ -5,11 +5,12 @@ struct NightWeatherCard: View {
     let isLoading: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: "cloud")
                     .foregroundStyle(.cyan)
                     .font(.body)
+                    .accessibilityHidden(true)
                 Text("天気 (夜間)")
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -18,13 +19,13 @@ struct NightWeatherCard: View {
             if isLoading {
                 ProgressView()
                     .controlSize(.small)
-                    .frame(height: 20)
+                    .accessibilityLabel("天気データを取得中")
             } else if let w = weather {
                 Text(w.weatherLabel == w.cloudLabel
                      ? w.weatherLabel
                      : "\(w.weatherLabel)（\(w.cloudLabel)）")
                     .font(.headline)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(String(format: "雲量 %.0f%%", w.avgCloudCover))
                         .font(.body)
                         .foregroundStyle(.secondary)
@@ -44,8 +45,15 @@ struct NightWeatherCard: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassEffect(in: RoundedRectangle(cornerRadius: 8))
+        .glassCard()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        if isLoading { return "天気 夜間: 取得中" }
+        guard let w = weather else { return "天気 夜間: データなし" }
+        let label = w.weatherLabel == w.cloudLabel ? w.weatherLabel : "\(w.weatherLabel) \(w.cloudLabel)"
+        return "天気 夜間: \(label)、雲量\(Int(w.avgCloudCover))%、降水\(String(format: "%.1f", w.maxPrecipitation))mm、風速\(Int(w.avgWindSpeed))km/h"
     }
 }

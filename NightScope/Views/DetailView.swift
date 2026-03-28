@@ -2,56 +2,66 @@ import SwiftUI
 
 struct DetailView: View {
     @ObservedObject var appController: AppController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             if appController.isCalculating {
-                VStack(spacing: 12) {
+                VStack(spacing: Spacing.sm) {
                     ProgressView()
                     Text("計算中...")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("星空データを計算中")
             } else if let summary = appController.nightSummary {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: Spacing.lg) {
                         headerSection(summary: summary)
-                        Divider()
                         ViewingWindowsSection(summary: summary)
-                        Divider()
                         UpcomingNightsGrid(appController: appController)
                     }
-                    .padding(24)
+                    .padding(Spacing.md)
+                    .backgroundExtensionEffect()
                 }
                 .ignoresSafeArea(edges: .top)
+            } else {
+                ContentUnavailableView(
+                    "データがありません",
+                    systemImage: "moon.stars",
+                    description: Text("場所と日付を選択してください")
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbarBackground(.hidden, for: .windowToolbar)
         .overlay(alignment: .bottom) {
             if let error = appController.weatherService.errorMessage {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.xs) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
+                        .accessibilityHidden(true)
                     Text(error)
                         .font(.body)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.xs)
                 .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
                 .shadow(radius: 4)
-                .padding(.bottom, 16)
+                .padding(.bottom, Spacing.sm)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+                .accessibilityLabel("エラー: \(error)")
+                .accessibilityAddTraits(.isStaticText)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: appController.weatherService.errorMessage)
+        .animation(reduceMotion ? .none : .standard, value: appController.weatherService.errorMessage)
     }
 
     // MARK: - Header
 
     private func headerSection(summary: NightSummary) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .lastTextBaseline, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
                 Text(appController.locationController.locationName)
                     .font(.largeTitle.bold())
                 Text(summary.date, style: .date)
@@ -68,13 +78,13 @@ struct DetailView: View {
             }
 
             GlassEffectContainer {
-                HStack(alignment: .top, spacing: 6) {
-                    MoonPhaseCard(summary: summary)
+                HStack(alignment: .top, spacing: Spacing.xs) {
                     DarkTimeCard(summary: summary)
                     NightWeatherCard(
                         weather: appController.weatherService.summary(for: appController.selectedDate),
                         isLoading: appController.weatherService.isLoading
                     )
+                    MoonPhaseCard(summary: summary)
                 }
             }
         }

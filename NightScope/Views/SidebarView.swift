@@ -11,29 +11,30 @@ struct SidebarView: View {
     @Binding var selectedDate: Date
     @State private var searchText: String = ""
     @State private var locationInputMode: LocationInputMode = .map
+    @FocusState private var isSearchFocused: Bool
     /// パン中の SwiftUI 再描画を発生させずにビューポートを保持する参照型コンテナ
     @State private var viewport = ViewportBox()
     @State private var mapKitSyncTrigger = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             locationSection
             Divider()
             dateSection
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Layout.sidebarHorizontalPadding)
+        .padding(.vertical, Layout.sidebarVerticalPadding)
     }
 
     private var locationSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Label("場所", systemImage: "mappin.circle.fill")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.xs) {
                 Picker("", selection: $locationInputMode) {
                     Text("地図").tag(LocationInputMode.map)
                     Text("光害").tag(LocationInputMode.lightPollutionMap)
@@ -41,6 +42,7 @@ struct SidebarView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .fixedSize()
+                .accessibilityLabel("地図表示モード")
 
                 Spacer()
 
@@ -51,6 +53,8 @@ struct SidebarView: View {
 
             TextField("場所を検索...", text: $searchText)
                 .textFieldStyle(.roundedBorder)
+                .focused($isSearchFocused)
+                .accessibilityLabel("場所を検索")
                 .onSubmit {
                     Task { await locationController.search(query: searchText) }
                 }
@@ -61,8 +65,9 @@ struct SidebarView: View {
                         Button {
                             locationController.select(pair.element)
                             searchText = ""
+                            isSearchFocused = false
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: 0) {
                                 Text(pair.element.name ?? "Unknown")
                                     .font(.body)
                                     .foregroundStyle(.primary)
@@ -73,14 +78,15 @@ struct SidebarView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, Spacing.xs)
+                            .padding(.vertical, Spacing.xs / 2)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("場所を選択: \(pair.element.name ?? "Unknown")")
                         Divider()
                     }
                 }
-                .glassEffect(in: RoundedRectangle(cornerRadius: 6))
+                .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
             }
 
             MapLocationPicker(
@@ -100,10 +106,11 @@ struct SidebarView: View {
             )
             .equatable()
 
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: "mappin")
                     .foregroundStyle(Color.accentColor)
                     .font(.body)
+                    .accessibilityHidden(true)
                 Text(locationController.locationName)
                     .font(.headline)
             }
@@ -113,6 +120,9 @@ struct SidebarView: View {
                         locationController.selectedLocation.longitude))
                 .font(.body)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel(String(format: "緯度%.4f度、経度%.4f度",
+                    locationController.selectedLocation.latitude,
+                    locationController.selectedLocation.longitude))
         }
         .onAppear {
             viewport.center = locationController.selectedLocation
@@ -126,15 +136,18 @@ struct SidebarView: View {
         Group {
             if lightPollutionService.isLoading {
                 ProgressView().controlSize(.small)
+                    .accessibilityLabel("光害データを取得中")
             } else if let bortle = lightPollutionService.bortleClass {
                 Text(String(format: "Bortle %.0f", bortle))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(bortleColor(bortle))
+                    .accessibilityLabel(String(format: "光害レベル: Bortle %.0f", bortle))
             } else {
                 Text("--")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel("光害データなし")
             }
         }
         .frame(width: 62, alignment: .trailing)
@@ -150,14 +163,14 @@ struct SidebarView: View {
     }
 
     private var dateSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Label("日付", systemImage: "calendar")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
 
             CalendarView(selectedDate: $selectedDate)
-                .padding(.horizontal, -12)
+                .padding(.horizontal, -Layout.sidebarHorizontalPadding)
         }
     }
 }

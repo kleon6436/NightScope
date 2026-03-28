@@ -13,7 +13,7 @@ struct CalendarView: View {
     private let weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"]
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: Spacing.xs) {
             // 月ナビゲーションヘッダー
             HStack {
                 Button { shiftMonth(by: -1) } label: {
@@ -22,6 +22,7 @@ struct CalendarView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("前の月")
 
                 Spacer()
 
@@ -36,8 +37,8 @@ struct CalendarView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("次の月")
             }
-            .padding(.bottom, 2)
 
             // 曜日ヘッダー
             HStack(spacing: 0) {
@@ -48,11 +49,12 @@ struct CalendarView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
+            .accessibilityHidden(true)
 
             // 日付グリッド（7列）
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7),
-                spacing: 2
+                spacing: Spacing.xs / 4
             ) {
                 ForEach(Array(days.enumerated()), id: \.offset) { _, day in
                     if let day = day {
@@ -63,12 +65,12 @@ struct CalendarView: View {
                             onTap: { selectedDate = day }
                         )
                     } else {
-                        Color.clear.frame(maxWidth: .infinity, minHeight: 30)
+                        Color.clear.frame(maxWidth: .infinity, minHeight: 32)
                     }
                 }
             }
         }
-        .padding(10)
+        .padding(Spacing.xs)
         .frame(maxWidth: .infinity)
         .onChange(of: selectedDate) {
             if !calendar.isDate(selectedDate, equalTo: displayMonth, toGranularity: .month) {
@@ -111,12 +113,23 @@ struct CalendarDayCell: View {
     let isToday: Bool
     let onTap: () -> Void
 
-    private var dayNumber: Int { Calendar.current.component(.day, from: date) }
+    private let calendar = Calendar.current
+    private var dayNumber: Int { calendar.component(.day, from: date) }
+
+    private var accessibilityDateLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        var label = formatter.string(from: date)
+        if isSelected { label += "、選択中" }
+        if isToday { label += "、今日" }
+        return label
+    }
 
     var body: some View {
         Text("\(dayNumber)")
             .font(.body)
-            .frame(maxWidth: .infinity, minHeight: 30)
+            .frame(maxWidth: .infinity, minHeight: 32)
             .foregroundStyle(isSelected ? Color.white : isToday ? Color.accentColor : Color.primary)
             .background(
                 Circle()
@@ -129,6 +142,8 @@ struct CalendarDayCell: View {
             )
             .contentShape(Rectangle())
             .onTapGesture { onTap() }
+            .accessibilityLabel(accessibilityDateLabel)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
