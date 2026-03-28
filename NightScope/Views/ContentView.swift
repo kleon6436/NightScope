@@ -1,0 +1,45 @@
+import SwiftUI
+
+struct ContentView: View {
+    @StateObject private var appController = AppController()
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    var body: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            SidebarView(
+                locationController: appController.locationController,
+                selectedDate: $appController.selectedDate
+            )
+            .navigationSplitViewColumnWidth(min: 260, ideal: 280, max: 300)
+            .navigationTitle("NightScope")
+            .toolbar(removing: .sidebarToggle)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Color.clear.frame(width: 1)
+                }
+            }
+        } detail: {
+            DetailView(appController: appController)
+        }
+        .frame(minWidth: 820, minHeight: 620)
+        .toolbar(removing: .sidebarToggle)
+        .onChange(of: columnVisibility) {
+            if columnVisibility != .all {
+                DispatchQueue.main.async {
+                    columnVisibility = .all
+                }
+            }
+        }
+        .onAppear {
+            appController.onStart()
+        }
+        .onChange(of: appController.selectedDate) {
+            appController.recalculate()
+        }
+    }
+}
+
+#Preview {
+    ContentView()
+        .frame(width: 900, height: 700)
+}
