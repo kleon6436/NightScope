@@ -27,7 +27,10 @@
       "Bash(find /Applications/Xcode.app -path */MacOSX*.sdk/*/MapKit.framework/Headers/MKAddress.h)",
       "Bash(find /Applications/Xcode.app -path */MacOSX*sdk* -name MKAddress.h)",
       "Bash(find /Volumes/DataDisk/Developer/Xcode/NightScope/NightScope -type f -name \"*.swift\" -exec wc -l {} +)",
-      "Bash(find /Volumes/DataDisk/Developer/Xcode/NightScope -name GlassEffect* -o -name GlassEffect*)"
+      "Bash(find /Volumes/DataDisk/Developer/Xcode/NightScope -name GlassEffect* -o -name GlassEffect*)",
+      "Bash(wc -l /Volumes/DataDisk/Developer/Xcode/NightScope/NightScope/**/*.swift)",
+      "Bash(find /Volumes/DataDisk/Developer/Xcode/NightScope/NightScope -name \"*.swift\" -type f -exec ls -lT {})",
+      "Bash(sort -k6,8 -r)"
     ]
   }
 }

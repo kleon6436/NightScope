@@ -4,6 +4,12 @@ import CoreLocation
 // MARK: - Calculator
 
 enum MilkyWayCalculator {
+    private enum Constants {
+        static let sampleIntervalMinutes = 15
+        static let secondsPerDay: TimeInterval = 86400
+        static let windowMergeGapSeconds: TimeInterval = 30 * 60
+    }
+
     // 銀河系中心の赤経・赤緯 (J2000.0)
     // RA: 17h 45m 40.04s = 266.41683°, Dec: -29° 00' 28.1" = -29.00781°
     static let gcRA: Double = 266.41683
@@ -119,7 +125,7 @@ enum MilkyWayCalculator {
         let cal = Calendar(identifier: .gregorian)
         let startOfDay = cal.startOfDay(for: date)
 
-        for minutes in stride(from: 0, to: 24 * 60, by: 15) {
+        for minutes in stride(from: 0, to: 24 * 60, by: Constants.sampleIntervalMinutes) {
             let sampleDate = startOfDay.addingTimeInterval(Double(minutes) * 60)
             let jd = julianDate(from: sampleDate)
             let lst = localSiderealTime(jd: jd, longitude: location.longitude)
@@ -195,7 +201,7 @@ enum MilkyWayCalculator {
     }
 
     // 近接ウィンドウをマージ (ギャップ ≤ 30分を統合)
-    static func mergeNearbyWindows(_ windows: [ViewingWindow], gapThreshold: TimeInterval = 30 * 60) -> [ViewingWindow] {
+    static func mergeNearbyWindows(_ windows: [ViewingWindow], gapThreshold: TimeInterval = Constants.windowMergeGapSeconds) -> [ViewingWindow] {
         guard windows.count > 1 else { return windows }
         var result: [ViewingWindow] = []
         var current = windows[0]
@@ -225,7 +231,7 @@ enum MilkyWayCalculator {
         let windows = findViewingWindows(events: events)
 
         // 深夜0時の月の位相
-        let midnight = Calendar(identifier: .gregorian).startOfDay(for: date).addingTimeInterval(86400)
+        let midnight = Calendar(identifier: .gregorian).startOfDay(for: date).addingTimeInterval(Constants.secondsPerDay)
         let moonAtMidnight = moonRaDec(jd: julianDate(from: midnight))
 
         return NightSummary(
@@ -240,7 +246,7 @@ enum MilkyWayCalculator {
     // 今後N日間の各夜のサマリーを計算
     static func calculateUpcomingNights(from startDate: Date, location: CLLocationCoordinate2D, days: Int = 14) -> [NightSummary] {
         (0..<days).map { offset in
-            let date = startDate.addingTimeInterval(Double(offset) * 86400)
+            let date = startDate.addingTimeInterval(Double(offset) * Constants.secondsPerDay)
             return calculateNightSummary(date: date, location: location)
         }
     }

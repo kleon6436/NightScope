@@ -25,6 +25,13 @@ private struct NominatimResponse: Decodable {
 /// フォールバック: OSM Nominatim 逆ジオコーディング
 @MainActor
 class LightPollutionService: ObservableObject {
+    private enum Constants {
+        /// 同一座標とみなすキャッシュ半径（度）≈ 5 km
+        static let cacheRadiusDegrees = 0.05
+        /// 自然夜空輝度 (mcd/m²)。Bortle 換算の基準値。
+        static let naturalSkyBrightnessMcdPerSqm = 0.172
+    }
+
     @Published var bortleClass: Double?
     @Published var isLoading = false
     @Published var fetchFailed = false
@@ -34,8 +41,8 @@ class LightPollutionService: ObservableObject {
     func fetch(latitude: Double, longitude: Double) async {
         // 同じ座標（0.05度以内 ≈ 5km）では再取得しない（光害は静的データ）
         if let last = lastFetchedCoordinate,
-           abs(last.lat - latitude) < 0.05,
-           abs(last.lon - longitude) < 0.05 {
+           abs(last.lat - latitude) <= Constants.cacheRadiusDegrees,
+           abs(last.lon - longitude) <= Constants.cacheRadiusDegrees {
             return
         }
 
@@ -132,7 +139,7 @@ class LightPollutionService: ObservableObject {
     ///   - ratio = 人工輝度 / 自然輝度
     ///   - Falchi 2016 論文の比率–Bortle対応表を使用（lightpollutionmap.info と同一）
     private func wa2015ToBortle(_ brightness: Double) -> Double {
-        let ratio = brightness / 0.172
+        let ratio = brightness / Constants.naturalSkyBrightnessMcdPerSqm
         switch ratio {
         case ..<0.01:      return 1  // < 0.00172 mcd/m²  非常に暗い
         case 0.01..<0.03:  return 2  // 田舎の暗い空

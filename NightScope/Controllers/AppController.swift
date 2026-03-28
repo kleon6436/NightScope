@@ -14,6 +14,7 @@ final class AppController: ObservableObject {
     @Published var upcomingIndexes: [Date: StarGazingIndex] = [:]
     @Published var isCalculating: Bool = false
 
+    private let calculationService = NightCalculationService()
     private var cancellables: Set<AnyCancellable> = []
 
     init(locationController: LocationController? = nil,
@@ -54,25 +55,21 @@ final class AppController: ObservableObject {
         }
         let date = selectedDate
         let location = locationController.selectedLocation
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let summary = MilkyWayCalculator.calculateNightSummary(date: date, location: location)
-            await MainActor.run { [weak self] in
-                self?.nightSummary = summary
-                self?.isCalculating = false
-                self?.recomputeStarGazingIndex()
-            }
+        Task {
+            let summary = await calculationService.calculateNightSummary(date: date, location: location)
+            nightSummary = summary
+            isCalculating = false
+            recomputeStarGazingIndex()
         }
     }
 
     func recalculateUpcoming() {
         let today = Date()
         let location = locationController.selectedLocation
-        Task.detached(priority: .background) { [weak self] in
-            let upcoming = MilkyWayCalculator.calculateUpcomingNights(from: today, location: location, days: 14)
-            await MainActor.run { [weak self] in
-                self?.upcomingNights = upcoming
-                self?.recomputeUpcomingIndexes()
-            }
+        Task {
+            let upcoming = await calculationService.calculateUpcomingNights(from: today, location: location)
+            upcomingNights = upcoming
+            recomputeUpcomingIndexes()
         }
     }
 

@@ -43,15 +43,12 @@ struct NightSummary {
     let viewingWindows: [ViewingWindow]
     let moonPhaseAtMidnight: Double
 
-    var bestViewingTime: Date? {
-        viewingWindows.max(by: { $0.peakAltitude < $1.peakAltitude })?.peakTime
+    private var bestWindow: ViewingWindow? {
+        viewingWindows.max(by: { $0.peakAltitude < $1.peakAltitude })
     }
-    var maxAltitude: Double? {
-        viewingWindows.max(by: { $0.peakAltitude < $1.peakAltitude })?.peakAltitude
-    }
-    var bestDirection: String? {
-        viewingWindows.max(by: { $0.peakAltitude < $1.peakAltitude })?.peakDirectionName
-    }
+    var bestViewingTime: Date?  { bestWindow?.peakTime }
+    var maxAltitude: Double?    { bestWindow?.peakAltitude }
+    var bestDirection: String?  { bestWindow?.peakDirectionName }
     var totalViewingHours: Double {
         viewingWindows.reduce(0) { $0 + $1.duration } / 3600
     }

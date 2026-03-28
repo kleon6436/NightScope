@@ -17,34 +17,46 @@ struct DayWeatherSummary {
     let date: Date
     let nighttimeHours: [HourlyWeather]
 
+    private var nighttimeTotals: (cloud: Double, wind: Double, humidity: Double, dewpointSpread: Double, maxPrecip: Double, minTemp: Double) {
+        nighttimeHours.reduce((0, 0, 0, 0, -Double.infinity, Double.infinity)) { acc, h in
+            (acc.0 + h.cloudCoverPercent,
+             acc.1 + h.windSpeedKmh,
+             acc.2 + h.humidityPercent,
+             acc.3 + (h.temperatureCelsius - h.dewpointCelsius),
+             max(acc.4, h.precipitationMM),
+             min(acc.5, h.temperatureCelsius))
+        }
+    }
+
     var avgCloudCover: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeHours.reduce(0) { $0 + $1.cloudCoverPercent } / Double(nighttimeHours.count)
+        return nighttimeTotals.cloud / Double(nighttimeHours.count)
     }
 
     var maxPrecipitation: Double {
-        nighttimeHours.map(\.precipitationMM).max() ?? 0
+        guard !nighttimeHours.isEmpty else { return 0 }
+        return nighttimeTotals.maxPrecip
     }
 
     var avgWindSpeed: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeHours.reduce(0) { $0 + $1.windSpeedKmh } / Double(nighttimeHours.count)
+        return nighttimeTotals.wind / Double(nighttimeHours.count)
     }
 
     var minTemperature: Double {
-        nighttimeHours.map(\.temperatureCelsius).min() ?? 0
+        guard !nighttimeHours.isEmpty else { return 0 }
+        return nighttimeTotals.minTemp
     }
 
     var avgHumidity: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeHours.reduce(0) { $0 + $1.humidityPercent } / Double(nighttimeHours.count)
+        return nighttimeTotals.humidity / Double(nighttimeHours.count)
     }
 
     /// 気温と露点の平均差（大気の透明度の代理指標）
     var avgDewpointSpread: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        let spread = nighttimeHours.reduce(0) { $0 + ($1.temperatureCelsius - $1.dewpointCelsius) }
-        return spread / Double(nighttimeHours.count)
+        return nighttimeTotals.dewpointSpread / Double(nighttimeHours.count)
     }
 
     var cloudLabel: String {

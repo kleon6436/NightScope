@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - API Response
 
-private struct OpenMeteoResponse: Decodable {
+struct OpenMeteoResponse: Decodable {
     struct Hourly: Decodable {
         let time: [String]
         let temperature_2m: [Double?]
@@ -21,6 +21,15 @@ private struct OpenMeteoResponse: Decodable {
 
 @MainActor
 class WeatherService: ObservableObject {
+    // "yyyy-MM-dd" キー生成・復元に使う共有フォーマッタ
+    private static let dateKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        return f
+    }()
+
     @Published var weatherByDate: [String: DayWeatherSummary] = [:]
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -75,7 +84,7 @@ class WeatherService: ObservableObject {
         isLoading = false
     }
 
-    private func parse(response: OpenMeteoResponse) -> [String: DayWeatherSummary] {
+    func parse(response: OpenMeteoResponse) -> [String: DayWeatherSummary] {
         let hourly = response.hourly
 
         // Parse timestamps as local time (API returns local time when timezone=auto)
@@ -132,10 +141,7 @@ class WeatherService: ObservableObject {
 
         var result: [String: DayWeatherSummary] = [:]
         for (key, hours) in hoursByDate {
-            let formatter2 = DateFormatter()
-            formatter2.dateFormat = "yyyy-MM-dd"
-            formatter2.locale = Locale(identifier: "en_US_POSIX")
-            if let date = formatter2.date(from: key) {
+            if let date = WeatherService.dateKeyFormatter.date(from: key) {
                 result[key] = DayWeatherSummary(date: date, nighttimeHours: hours.sorted { $0.date < $1.date })
             }
         }
@@ -143,10 +149,6 @@ class WeatherService: ObservableObject {
     }
 
     func dateKey(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        return formatter.string(from: date)
+        WeatherService.dateKeyFormatter.string(from: date)
     }
 }

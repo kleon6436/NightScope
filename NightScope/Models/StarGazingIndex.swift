@@ -1,6 +1,14 @@
 import Foundation
 
 struct StarGazingIndex {
+    private enum Constants {
+        static let lightPollutionMaxScore = 10
+        /// Bortle スケールの最悪クラス（都市中心部）
+        static let bortleWorstClass: Double = 9.0
+        /// このクラス以下は満点（日本の最暗空相当）
+        static let bortleBestClass: Double = 3.0
+    }
+
     let score: Int
     let milkyWayScore: Int       // 0–25 (表示のみ、合計スコアに含まない)
     let constellationScore: Int  // 0–50
@@ -17,19 +25,19 @@ struct StarGazingIndex {
         switch score {
         case 90...100: return .excellent
         case 75..<90:  return .good
-        case 55..<75:  return .fair
-        case 35..<55:  return .poor
+        case 50..<75:  return .fair
+        case 35..<50:  return .poor
         default:       return .bad
         }
     }
 
     var label: String {
         switch tier {
-        case .excellent: return "絶好"
-        case .good:      return "良好"
-        case .fair:      return "まずまず"
-        case .poor:      return "不良"
-        case .bad:       return "不可"
+        case .excellent: return "絶好の星空"
+        case .good:      return "良い星空"
+        case .fair:      return "普通"
+        case .poor:      return "不向き"
+        case .bad:       return "観測困難"
         }
     }
 
@@ -228,6 +236,8 @@ struct StarGazingIndex {
         guard let bortle = bortleClass else { return 0 }
         // 日本の最暗空は Bortle 3 程度。3 以下はすべて満点 10。
         // Bortle 9 で 0 点になるよう線形スケール（3〜9 の範囲）。
-        return max(0, min(10, Int(round(10.0 * (9.0 - bortle) / 6.0))))
+        let range = Constants.bortleWorstClass - Constants.bortleBestClass
+        return max(0, min(Constants.lightPollutionMaxScore,
+                          Int(round(Double(Constants.lightPollutionMaxScore) * (Constants.bortleWorstClass - bortle) / range))))
     }
 }

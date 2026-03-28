@@ -22,7 +22,26 @@
 		AA0000000000000000002B10 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
 		AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F11 /* MapLocationPicker.swift */; };
 		AA0000000000000000002B12 /* LightPollutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F12 /* LightPollutionService.swift */; };
+		AA0000000000000000002B18 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
+		AA0000000000000000002B13 /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
+		AA0000000000000000002B14 /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
+		AA0000000000000000002B15 /* WeatherCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F15 /* WeatherCard.swift */; };
+		AA0000000000000000002B16 /* ViewingWindowsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F16 /* ViewingWindowsSection.swift */; };
+		AA0000000000000000002B17 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
+		AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */; };
+		AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF02 /* StarGazingIndexTests.swift */; };
+		AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF03 /* WeatherServiceTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AA000000000000000000CP01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA000000000000000000PJ01 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA000000000000000000TG01;
+			remoteInfo = NightScope;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		AA0000000000000000001F01 /* NightScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeApp.swift; sourceTree = "<group>"; };
@@ -42,10 +61,27 @@
 		AA0000000000000000002F10 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F11 /* MapLocationPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapLocationPicker.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F12 /* LightPollutionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightPollutionService.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F18 /* NightCalculationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightCalculationService.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F13 /* StarGazingIndexCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexCard.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F14 /* MoonPhaseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoonPhaseCard.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F15 /* WeatherCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherCard.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F16 /* ViewingWindowsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingWindowsSection.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F17 /* UpcomingNightsGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGrid.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA000000000000000000FP01 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000000000000000000FP02 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -59,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				AA000000000000000000GR02 /* NightScope */,
+				AA000000000000000000GR07 /* NightScopeTests */,
 				AA000000000000000000GR03 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -81,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000001F08 /* NightScope.app */,
+				AA000000000000000000TF09 /* NightScopeTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -99,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000002F04 /* AppController.swift */,
+				AA0000000000000000002F18 /* NightCalculationService.swift */,
 				AA0000000000000000002F05 /* LocationController.swift */,
 				AA0000000000000000002F06 /* WeatherService.swift */,
 				AA0000000000000000002F12 /* LightPollutionService.swift */,
@@ -112,10 +151,25 @@
 				AA0000000000000000002F07 /* ContentView.swift */,
 				AA0000000000000000002F08 /* SidebarView.swift */,
 				AA0000000000000000002F09 /* DetailView.swift */,
+				AA0000000000000000002F13 /* StarGazingIndexCard.swift */,
+				AA0000000000000000002F14 /* MoonPhaseCard.swift */,
+				AA0000000000000000002F15 /* WeatherCard.swift */,
+				AA0000000000000000002F16 /* ViewingWindowsSection.swift */,
+				AA0000000000000000002F17 /* UpcomingNightsGrid.swift */,
 				AA0000000000000000002F10 /* CalendarView.swift */,
 				AA0000000000000000002F11 /* MapLocationPicker.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		AA000000000000000000GR07 /* NightScopeTests */ = {
+			isa = PBXGroup;
+			children = (
+				AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */,
+				AA000000000000000000TF02 /* StarGazingIndexTests.swift */,
+				AA000000000000000000TF03 /* WeatherServiceTests.swift */,
+			);
+			path = NightScopeTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -138,6 +192,23 @@
 			productReference = AA0000000000000000001F08 /* NightScope.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AA000000000000000000TG02 /* NightScopeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA000000000000000000CL03 /* Build configuration list for PBXNativeTarget "NightScopeTests" */;
+			buildPhases = (
+				AA000000000000000000SP02 /* Sources */,
+				AA000000000000000000FP02 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA000000000000000000DP01 /* PBXTargetDependency */,
+			);
+			name = NightScopeTests;
+			productName = NightScopeTests;
+			productReference = AA000000000000000000TF09 /* NightScopeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -150,6 +221,10 @@
 				TargetAttributes = {
 					AA000000000000000000TG01 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					AA000000000000000000TG02 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = AA000000000000000000TG01;
 					};
 				};
 			};
@@ -168,6 +243,7 @@
 			projectRoot = "";
 			targets = (
 				AA000000000000000000TG01 /* NightScope */,
+				AA000000000000000000TG02 /* NightScopeTests */,
 			);
 		};
 /* End PBXProject section */
@@ -196,16 +272,40 @@
 				AA0000000000000000002B04 /* AppController.swift in Sources */,
 				AA0000000000000000002B05 /* LocationController.swift in Sources */,
 				AA0000000000000000002B06 /* WeatherService.swift in Sources */,
+				AA0000000000000000002B18 /* NightCalculationService.swift in Sources */,
 				AA0000000000000000002B12 /* LightPollutionService.swift in Sources */,
 				AA0000000000000000002B07 /* ContentView.swift in Sources */,
 				AA0000000000000000002B08 /* SidebarView.swift in Sources */,
 				AA0000000000000000002B09 /* DetailView.swift in Sources */,
+				AA0000000000000000002B13 /* StarGazingIndexCard.swift in Sources */,
+				AA0000000000000000002B14 /* MoonPhaseCard.swift in Sources */,
+				AA0000000000000000002B15 /* WeatherCard.swift in Sources */,
+				AA0000000000000000002B16 /* ViewingWindowsSection.swift in Sources */,
+				AA0000000000000000002B17 /* UpcomingNightsGrid.swift in Sources */,
 				AA0000000000000000002B10 /* CalendarView.swift in Sources */,
 				AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA000000000000000000SP02 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */,
+				AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */,
+				AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA000000000000000000DP01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA000000000000000000TG01 /* NightScope */;
+			targetProxy = AA000000000000000000CP01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA000000000000000000BC01 /* Debug */ = {
@@ -399,6 +499,42 @@
 			};
 			name = Release;
 		};
+		AA000000000000000000BC05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kleon.NightScopeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NightScope.app/Contents/MacOS/NightScope";
+			};
+			name = Debug;
+		};
+		AA000000000000000000BC06 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kleon.NightScopeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NightScope.app/Contents/MacOS/NightScope";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -416,6 +552,15 @@
 			buildConfigurations = (
 				AA000000000000000000BC03 /* Debug */,
 				AA000000000000000000BC04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA000000000000000000CL03 /* Build configuration list for PBXNativeTarget "NightScopeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000000000000000000BC05 /* Debug */,
+				AA000000000000000000BC06 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
