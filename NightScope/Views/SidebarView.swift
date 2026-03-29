@@ -11,6 +11,9 @@ struct SidebarView: View {
     @Binding var selectedDate: Date
     @State private var searchText: String = ""
     @State private var locationInputMode: LocationInputMode = .map
+    @State private var highlightedSearchIndex: Int = -1
+    /// searchText をコードから書き換えた際に onChange の再検索を抑制するフラグ
+    @State private var suppressNextSearch = false
     @FocusState private var isSearchFocused: Bool
     /// パン中の SwiftUI 再描画を発生させずにビューポートを保持する参照型コンテナ
     @State private var viewport = ViewportBox()
@@ -27,6 +30,8 @@ struct SidebarView: View {
         .padding(.vertical, Layout.sidebarVerticalPadding)
     }
 
+    // MARK: - Location Section
+
     private var locationSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Label("場所", systemImage: AppIcons.Navigation.locationPin)
@@ -34,103 +39,17 @@ struct SidebarView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: Spacing.xs) {
-                Picker("", selection: $locationInputMode) {
-                    Text("地図").tag(LocationInputMode.map)
-                    Text("光害").tag(LocationInputMode.lightPollutionMap)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .accessibilityLabel("地図表示モード")
-
-                Spacer()
-
-                if locationInputMode == .lightPollutionMap {
-                    bortleLabel
-                }
-            }
-
-            TextField("場所を検索...", text: $searchText)
-                .textFieldStyle(.roundedBorder)
-                .focused($isSearchFocused)
-                .accessibilityLabel("場所を検索")
-                .onSubmit {
-                    Task { await locationController.search(query: searchText) }
-                }
-                .onChange(of: locationController.searchFocusTrigger) {
-                    isSearchFocused = true
-                }
-
-            if !locationController.searchResults.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(locationController.searchResults.prefix(5).enumerated()), id: \.offset) { pair in
-                        Button {
-                            locationController.select(pair.element)
-                            searchText = ""
-                            isSearchFocused = false
-                        } label: {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(pair.element.name ?? "Unknown")
-                                    .font(.body)
-                                    .foregroundStyle(.primary)
-                                if let address = pair.element.address {
-                                    Text(address.shortAddress ?? address.fullAddress)
-                                        .font(.body)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, Spacing.xs)
-                            .padding(.vertical, Spacing.xs / 2)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("場所を選択: \(pair.element.name ?? "Unknown")")
-                        Divider()
-                    }
-                }
-                .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
-            }
-
-            MapLocationPicker(
-                selectedCoordinate: locationController.selectedLocation,
-                onSelect: { coord in locationController.selectCoordinate(coord) },
-                isVisible: true,
-                syncState: MapKitSyncState(
-                    trigger: mapKitSyncTrigger,
-                    center: viewport.center,
-                    span: viewport.span
-                ),
-                onRegionChange: { center, span in
-                    viewport.center = center
-                    viewport.span = span
-                },
-                showLightPollution: locationInputMode == .lightPollutionMap,
-                onCurrentLocation: { locationController.requestCurrentLocation() },
-                isLocating: locationController.isLocating
-            )
-            .equatable()
-
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcons.Navigation.locationPinPlain)
-                    .foregroundStyle(Color.accentColor)
-                    .font(.body)
-                    .accessibilityHidden(true)
-                Text(locationController.locationName)
-                    .font(.headline)
-            }
-
-            Text(String(format: "%.4f°, %.4f°",
-                        locationController.selectedLocation.latitude,
-                        locationController.selectedLocation.longitude))
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel(String(format: "緯度%.4f度、経度%.4f度",
-                    locationController.selectedLocation.latitude,
-                    locationController.selectedLocation.longitude))
+            mapModePickerRow
+            searchField
+            searchResultsList
+            mapView
+            selectedLocationLabel
         }
         .onAppear {
             viewport.center = locationController.selectedLocation
+        }
+        .onChange(of: locationController.locationUpdateID) {
+            setSearchText("")
         }
         .onChange(of: locationInputMode) {
             mapKitSyncTrigger += 1
@@ -148,6 +67,169 @@ struct SidebarView: View {
             Text(error.localizedDescription)
         }
     }
+
+    private var mapModePickerRow: some View {
+        HStack(spacing: Spacing.xs) {
+            Picker("", selection: $locationInputMode) {
+                Text("地図").tag(LocationInputMode.map)
+                Text("光害").tag(LocationInputMode.lightPollutionMap)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .accessibilityLabel("地図表示モード")
+
+            Spacer()
+
+            if locationInputMode == .lightPollutionMap {
+                bortleLabel
+            }
+        }
+    }
+
+    private var searchField: some View {
+        TextField("場所を検索...", text: $searchText)
+            .textFieldStyle(.roundedBorder)
+            .focused($isSearchFocused)
+            .accessibilityLabel("場所を検索")
+            .onSubmit(confirmHighlightedOrFirst)
+            .onChange(of: searchText) {
+                highlightedSearchIndex = -1
+                if suppressNextSearch {
+                    suppressNextSearch = false
+                    return
+                }
+                Task { await locationController.search(query: searchText) }
+            }
+            .onChange(of: locationController.searchFocusTrigger) {
+                isSearchFocused = true
+            }
+            .onKeyPress(.downArrow) {
+                let count = min(locationController.searchResults.count, 5)
+                if count > 0 {
+                    highlightedSearchIndex = min(highlightedSearchIndex + 1, count - 1)
+                }
+                return .handled
+            }
+            .onKeyPress(.upArrow) {
+                highlightedSearchIndex = max(highlightedSearchIndex - 1, -1)
+                return .handled
+            }
+            .onKeyPress(.escape) {
+                setSearchText("")
+                highlightedSearchIndex = -1
+                isSearchFocused = false
+                return .handled
+            }
+    }
+
+    @ViewBuilder
+    private var searchResultsList: some View {
+        if !locationController.searchResults.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(locationController.searchResults.prefix(5).enumerated()), id: \.offset) { index, item in
+                    searchResultRow(item: item, index: index)
+                    Divider()
+                }
+            }
+            .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        }
+    }
+
+    private func searchResultRow(item: MKMapItem, index: Int) -> some View {
+        Button { confirmSelection(item) } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(item.name ?? "Unknown")
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                if let address = item.address {
+                    Text(address.shortAddress ?? address.fullAddress)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, Spacing.xs / 2)
+            .contentShape(Rectangle())
+            .background(
+                highlightedSearchIndex == index ? Color.accentColor.opacity(0.2) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 4)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("場所を選択: \(item.name ?? "Unknown")")
+    }
+
+    private var mapView: some View {
+        MapLocationPicker(
+            selectedCoordinate: locationController.selectedLocation,
+            onSelect: { coord in locationController.selectCoordinate(coord) },
+            isVisible: true,
+            syncState: MapKitSyncState(
+                trigger: mapKitSyncTrigger,
+                center: viewport.center,
+                span: viewport.span
+            ),
+            onRegionChange: { center, span in
+                viewport.center = center
+                viewport.span = span
+            },
+            showLightPollution: locationInputMode == .lightPollutionMap,
+            onCurrentLocation: { locationController.requestCurrentLocation() },
+            isLocating: locationController.isLocating,
+            centerTrigger: locationController.currentLocationCenterTrigger
+        )
+        .equatable()
+    }
+
+    private var selectedLocationLabel: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: AppIcons.Navigation.locationPinPlain)
+                    .foregroundStyle(Color.accentColor)
+                    .font(.body)
+                    .accessibilityHidden(true)
+                Text(locationController.locationName)
+                    .font(.headline)
+            }
+            Text(String(format: "%.4f°, %.4f°",
+                        locationController.selectedLocation.latitude,
+                        locationController.selectedLocation.longitude))
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(String(format: "緯度%.4f度、経度%.4f度",
+                    locationController.selectedLocation.latitude,
+                    locationController.selectedLocation.longitude))
+        }
+    }
+
+    // MARK: - Search Helpers
+
+    /// searchText をプログラムからセットし、onChange による再検索を抑制する
+    private func setSearchText(_ text: String) {
+        suppressNextSearch = true
+        searchText = text
+    }
+
+    /// ハイライト中の候補（なければ先頭）を確定する
+    private func confirmHighlightedOrFirst() {
+        let results = locationController.searchResults
+        let target = results.indices.contains(highlightedSearchIndex) ? results[highlightedSearchIndex] : results.first
+        if let item = target {
+            confirmSelection(item)
+        }
+    }
+
+    /// 候補を選択して検索状態をリセットする
+    private func confirmSelection(_ item: MKMapItem) {
+        locationController.select(item)
+        setSearchText(item.name ?? "")
+        highlightedSearchIndex = -1
+        isSearchFocused = false
+    }
+
+    // MARK: - Bortle Label
 
     private var bortleLabel: some View {
         Group {
@@ -178,6 +260,8 @@ struct SidebarView: View {
         default:    return .red
         }
     }
+
+    // MARK: - Date Section
 
     private var dateSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {

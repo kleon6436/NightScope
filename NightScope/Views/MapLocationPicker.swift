@@ -342,6 +342,8 @@ struct MapKitViewRepresentable: NSViewRepresentable {
     let syncState: MapKitSyncState
     let onRegionChange: (CLLocationCoordinate2D, MKCoordinateSpan) -> Void
     let showLightPollution: Bool
+    /// 現在地取得成功時にインクリメントされるトリガー（変化時のみマップをセンタリング）
+    let centerTrigger: Int
 
     func makeNSView(context: Context) -> MKMapView {
         let mapView = MKMapView()
@@ -387,7 +389,9 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         // タブ切り替えによる外部ビューポート同期（最優先）
         if context.coordinator.lastSyncTrigger != syncState.trigger {
             context.coordinator.lastSyncTrigger = syncState.trigger
-            context.coordinator.suppressRegionChangeCount += 1
+            // suppressRegionChangeCount は使わない: 同期 setRegion が MKMapView に変化をもたらさない場合
+            // regionDidChangeAnimated が発火せずカウントが残り、次のユーザー操作を誤抑制するため。
+            // onRegionChange で viewport に同じ値が書き戻されても実害はない。
             if let existing {
                 existing.coordinate = newCoord
             } else {
@@ -410,6 +414,14 @@ struct MapKitViewRepresentable: NSViewRepresentable {
             ann.coordinate = newCoord
             nsView.addAnnotation(ann)
         }
+
+        // 現在地ボタンで取得した座標のときだけセンタリング
+        // suppressRegionChangeCount は使わない → onRegionChange で viewport が更新されタブ同期が維持される
+        if context.coordinator.lastCenterTrigger != centerTrigger {
+            context.coordinator.lastCenterTrigger = centerTrigger
+            let region = MKCoordinateRegion(center: newCoord, span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5))
+            Task { @MainActor in nsView.setRegion(region, animated: true) }
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -417,11 +429,13 @@ struct MapKitViewRepresentable: NSViewRepresentable {
     class Coordinator: NSObject, MKMapViewDelegate {
         var parent: MapKitViewRepresentable
         var lastSyncTrigger: Int
+        var lastCenterTrigger: Int
         /// syncState.trigger による setRegion 後に regionDidChangeAnimated を抑制するカウンタ
         var suppressRegionChangeCount = 0
         init(_ parent: MapKitViewRepresentable) {
             self.parent = parent
             self.lastSyncTrigger = parent.syncState.trigger
+            self.lastCenterTrigger = parent.centerTrigger
         }
 
         @objc func handleTap(_ gr: NSClickGestureRecognizer) {
@@ -461,6 +475,7 @@ struct MapLocationPicker: View, Equatable {
     let showLightPollution: Bool
     var onCurrentLocation: (() -> Void)? = nil
     var isLocating: Bool = false
+    var centerTrigger: Int = 0
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.selectedCoordinate.latitude == rhs.selectedCoordinate.latitude &&
@@ -468,7 +483,8 @@ struct MapLocationPicker: View, Equatable {
         lhs.isVisible == rhs.isVisible &&
         lhs.syncState == rhs.syncState &&
         lhs.showLightPollution == rhs.showLightPollution &&
-        lhs.isLocating == rhs.isLocating
+        lhs.isLocating == rhs.isLocating &&
+        lhs.centerTrigger == rhs.centerTrigger
     }
 
     var body: some View {
@@ -479,7 +495,8 @@ struct MapLocationPicker: View, Equatable {
                 isVisible: isVisible,
                 syncState: syncState,
                 onRegionChange: onRegionChange,
-                showLightPollution: showLightPollution
+                showLightPollution: showLightPollution,
+                centerTrigger: centerTrigger
             )
             .overlay(alignment: .bottomTrailing) {
                 if let onCurrentLocation {
