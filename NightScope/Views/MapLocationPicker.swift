@@ -29,32 +29,92 @@ struct MapKitSyncState: Equatable {
     }
 }
 
+// MARK: - CGImageBox
+
+/// NSCache に CGImage を格納するための参照型ラッパー。
+final class CGImageBox {
+    let image: CGImage
+    init(_ image: CGImage) { self.image = image }
+}
+
 // MARK: - LightPollutionTileOverlay
 
 final class LightPollutionTileOverlay: MKTileOverlay {
 
-    // サーバーの Cache-Control: no-store を無視してディスクキャッシュに保存する専用セッション
-    private static let session: URLSession = {
-        let cacheDir = FileManager.default
+    // Cache-Control: no-store を無視してタイルを保存する独自ディスクキャッシュ
+    private static let diskCacheDir: URL = {
+        let dir = FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("LightPollutionTiles")
-        let cache = URLCache(
-            memoryCapacity: 20 * 1024 * 1024,
-            diskCapacity: 200 * 1024 * 1024,
-            directory: cacheDir
-        )
+            .appendingPathComponent("LightPollutionTiles", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    // ネットワークリクエスト専用セッション（URLCache は Cache-Control: no-store を尊重するため使用しない）
+    private static let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.urlCache = cache
-        config.requestCachePolicy = .returnCacheDataElseLoad
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.httpMaximumConnectionsPerHost = 8
+        config.timeoutIntervalForRequest = 15
         return URLSession(configuration: config)
     }()
 
     // ズーム中のちらつきを抑えるメモリキャッシュ（ディスクI/Oより高速に即返す）
-    private static let memoryCache: NSCache<NSString, NSData> = {
+    // LightPollutionTileRenderer からもアクセスするため internal
+    static let memoryCache: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()
-        cache.totalCostLimit = 50 * 1024 * 1024  // 50MB
+        cache.totalCostLimit = 100 * 1024 * 1024  // 100MB（ズーム前後のタイルを保持）
         return cache
     }()
+
+    // レンダースレッドでの PNG デコードを排除するため、デコード済み CGImage を別途キャッシュ
+    // LightPollutionTileRenderer からもアクセスするため internal
+    static let cgImageCache: NSCache<NSString, CGImageBox> = {
+        let cache = NSCache<NSString, CGImageBox>()
+        cache.totalCostLimit = 80 * 1024 * 1024  // 80MB（ピクセル数ベースのコスト管理）
+        return cache
+    }()
+
+    /// CGImage のメモリコスト（ピクセル数 × 4 byte RGBA）を返す。
+    static func cgImageCost(_ image: CGImage) -> Int { image.width * image.height * 4 }
+
+    /// PNG データをデコードして自タイルを cgImageCache に格納し、CGImage を返す。
+    /// drawFallback が先に低品質クロップを書き込んでいても実タイルで上書きする。
+    private static func decodeAndCache(data: Data, forKey key: NSString) -> CGImage? {
+        guard let nsImage = NSImage(data: data),
+              let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else { return nil }
+        cgImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: cgImageCost(cgImage))
+        return cgImage
+    }
+
+    /// z+1〜z+2 の子孫タイルを実タイルから切り出してキャッシュする。
+    /// drawFallback が先に低品質な祖先クロップを書き込んでいた場合も実タイル品質で上書きする。
+    /// バックグラウンドスレッドから呼び出すこと。
+    private static func preCropDescendants(from cgImage: CGImage, path: MKTileOverlayPath) {
+        for dz in 1...2 {
+            let childZ = path.z + dz
+            guard childZ <= 19 else { break }
+            let scale = 1 << dz
+            let baseX = path.x * scale
+            let baseY = path.y * scale
+            let divisions = CGFloat(scale)
+            let tileW = CGFloat(cgImage.width) / divisions
+            let tileH = CGFloat(cgImage.height) / divisions
+            for dy in 0..<scale {
+                for dx in 0..<scale {
+                    let childKey = "\(childZ)_\(baseX + dx)_\(baseY + dy)" as NSString
+                    let srcRect = CGRect(x: CGFloat(dx) * tileW, y: CGFloat(dy) * tileH,
+                                        width: tileW, height: tileH)
+                    if let cropped = cgImage.cropping(to: srcRect) {
+                        cgImageCache.setObject(CGImageBox(cropped), forKey: childKey,
+                                               cost: cgImageCost(cropped))
+                    }
+                }
+            }
+        }
+    }
 
     override init(urlTemplate: String?) {
         super.init(urlTemplate: urlTemplate)
@@ -64,25 +124,55 @@ final class LightPollutionTileOverlay: MKTileOverlay {
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        // WMS は BBOX で画像を生成するため、任意のズームレベルで実際の座標をそのまま使用する
-        let cacheKey = "\(path.z)/\(path.x)/\(path.y)" as NSString
+        let cacheKey = "\(path.z)_\(path.x)_\(path.y)" as NSString
 
-        // メモリキャッシュに存在すれば即返す（ズーム中のちらつき防止）
+        // 1: メモリキャッシュに存在すれば即返す
         if let cached = Self.memoryCache.object(forKey: cacheKey) {
+            // cgImageCache が evict されていた場合はバックグラウンドで再構築
+            if Self.cgImageCache.object(forKey: cacheKey) == nil {
+                let data = cached as Data
+                DispatchQueue.global(qos: .utility).async {
+                    if let img = Self.decodeAndCache(data: data, forKey: cacheKey) {
+                        Self.preCropDescendants(from: img, path: path)
+                    }
+                }
+            }
             result(cached as Data, nil)
             return
         }
 
-        let request = URLRequest(
-            url: url(forTilePath: path),
-            cachePolicy: .returnCacheDataElseLoad,
-            timeoutInterval: 15
-        )
-        Self.session.dataTask(with: request) { data, _, error in
-            if let data {
-                Self.memoryCache.setObject(data as NSData, forKey: cacheKey, cost: data.count)
+        // 2: ディスクキャッシュを確認
+        let diskURL = Self.diskCacheDir.appendingPathComponent("\(cacheKey).png")
+        if let diskData = try? Data(contentsOf: diskURL, options: .mappedIfSafe) {
+            Self.memoryCache.setObject(diskData as NSData, forKey: cacheKey, cost: diskData.count)
+            // 自タイルのデコードは result() 前に完了させ、子孫クロップは result() 後にバックグラウンドへ
+            let img = Self.decodeAndCache(data: diskData, forKey: cacheKey)
+            result(diskData, nil)
+            if let img {
+                DispatchQueue.global(qos: .utility).async {
+                    Self.preCropDescendants(from: img, path: path)
+                }
             }
-            result(data, error)
+            return
+        }
+
+        // 3: ネットワークから取得してキャッシュに保存
+        let request = URLRequest(url: url(forTilePath: path), timeoutInterval: 15)
+        Self.session.dataTask(with: request) { data, response, error in
+            guard let data, let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                result(data, error)
+                return
+            }
+            Self.memoryCache.setObject(data as NSData, forKey: cacheKey, cost: data.count)
+            // 自タイルのデコードは result() 前に完了させ、子孫クロップは result() 後にバックグラウンドへ
+            let img = Self.decodeAndCache(data: data, forKey: cacheKey)
+            try? data.write(to: diskURL, options: .atomic)
+            result(data, nil)
+            if let img {
+                DispatchQueue.global(qos: .utility).async {
+                    Self.preCropDescendants(from: img, path: path)
+                }
+            }
         }.resume()
     }
 
@@ -113,6 +203,110 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         let maxY = 20037508.342789244 - Double(y) * tileSize
         let minY = maxY - tileSize
         return (minX, minY, maxX, maxY)
+    }
+}
+
+// MARK: - LightPollutionTileRenderer
+
+/// 光害タイルのカスタムレンダラー。
+/// キャッシュミスのタイルが読み込まれるまでの間、低ズームのキャッシュ済みタイルを
+/// スケールアップしてフォールバック描画し、ズーム時の空白（ちらつき）を防ぐ。
+final class LightPollutionTileRenderer: MKTileOverlayRenderer {
+
+    override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
+        // alpha=0（非表示）のときは一切描画しない。super.draw() が非ゼロ alpha を要求するため。
+        guard alpha > 0 else { return }
+
+        guard let path = tilePath(for: mapRect, zoomScale: zoomScale) else {
+            super.draw(mapRect, zoomScale: zoomScale, in: context)
+            return
+        }
+
+        let key = "\(path.z)_\(path.x)_\(path.y)" as NSString
+        let tileLoaded = LightPollutionTileOverlay.memoryCache.object(forKey: key) != nil
+
+        if !tileLoaded {
+            // loadTile 未完了：super.draw() はタイルデータなしで alpha=0 fill を試みアサーションが発生する。
+            // フォールバック描画のみ行い、loadTile 完了後の再描画コールで super.draw() を呼ぶ。
+            drawFallback(for: path, mapRect: mapRect, in: context)
+            return
+        }
+
+        // タイルロード済み：cgImageCache 未デコードならフォールバックで補完してから正規描画
+        if LightPollutionTileOverlay.cgImageCache.object(forKey: key) == nil {
+            drawFallback(for: path, mapRect: mapRect, in: context)
+        }
+        super.draw(mapRect, zoomScale: zoomScale, in: context)
+    }
+
+    /// mapRect + zoomScale から対応するタイルパスを算出
+    private func tilePath(for mapRect: MKMapRect, zoomScale: MKZoomScale) -> MKTileOverlayPath? {
+        let worldWidth = MKMapRect.world.size.width
+        let z = Int(log2(worldWidth * Double(zoomScale) / 256.0).rounded())
+        guard z >= 1 else { return nil }
+        let n = pow(2.0, Double(z))
+        let x = max(0, min(Int(n) - 1, Int(mapRect.minX / worldWidth * n)))
+        let y = max(0, min(Int(n) - 1, Int(mapRect.minY / worldWidth * n)))
+        return MKTileOverlayPath(x: x, y: y, z: z, contentScaleFactor: 1)
+    }
+
+    /// 低ズームのキャッシュ済みタイルをサブ領域切り出し＋スケールアップして描画
+    private func drawFallback(for path: MKTileOverlayPath, mapRect: MKMapRect, in context: CGContext) {
+        let selfKey = "\(path.z)_\(path.x)_\(path.y)" as NSString
+
+        // クロップ済み画像が既にキャッシュされていれば即描画（2フレーム目以降はゼロコスト）
+        if let box = LightPollutionTileOverlay.cgImageCache.object(forKey: selfKey) {
+            drawImage(box.image, in: mapRect, context: context)
+            return
+        }
+
+        // 親ズームのタイルを探してクロップ（dz=1,2 は preCropDescendants でほぼヒット）
+        for dz in 1...4 {
+            let parentZ = path.z - dz
+            guard parentZ >= 1 else { break }
+            let parentX = path.x >> dz
+            let parentY = path.y >> dz
+            let parentKey = "\(parentZ)_\(parentX)_\(parentY)" as NSString
+
+            // CGImage キャッシュを優先（PNG デコード不要・レンダースレッドをブロックしない）
+            let parentImage: CGImage
+            if let box = LightPollutionTileOverlay.cgImageCache.object(forKey: parentKey) {
+                parentImage = box.image
+            } else if let nsData = LightPollutionTileOverlay.memoryCache.object(forKey: parentKey) as Data?,
+                      let nsImage = NSImage(data: nsData),
+                      let img = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                LightPollutionTileOverlay.cgImageCache.setObject(
+                    CGImageBox(img), forKey: parentKey,
+                    cost: LightPollutionTileOverlay.cgImageCost(img))
+                parentImage = img
+            } else {
+                continue
+            }
+
+            // 親タイル内の対応サブ領域（ピクセル座標）を算出
+            let divisions = CGFloat(1 << dz)
+            let subX = CGFloat(path.x % (1 << dz))
+            let subY = CGFloat(path.y % (1 << dz))
+            let tileW = CGFloat(parentImage.width) / divisions
+            let tileH = CGFloat(parentImage.height) / divisions
+            let srcRect = CGRect(x: subX * tileW, y: subY * tileH, width: tileW, height: tileH)
+            guard let cropped = parentImage.cropping(to: srcRect) else { continue }
+
+            // 次フレーム以降はクロップ不要にするためキャッシュ（実タイル到着時に preCropDescendants が上書きする）
+            LightPollutionTileOverlay.cgImageCache.setObject(
+                CGImageBox(cropped), forKey: selfKey,
+                cost: LightPollutionTileOverlay.cgImageCost(cropped))
+            drawImage(cropped, in: mapRect, context: context)
+            break
+        }
+    }
+
+    private func drawImage(_ image: CGImage, in mapRect: MKMapRect, context: CGContext) {
+        let drawRect = rect(for: mapRect)
+        context.saveGState()
+        context.interpolationQuality = .medium
+        context.draw(image, in: drawRect)
+        context.restoreGState()
     }
 }
 
@@ -173,10 +367,14 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         context.coordinator.parent = self
 
         // alpha で光害オーバーレイの表示/非表示を切り替える（削除・再追加しない）
+        // nsView.renderer(for:) で常に最新のレンダラーを取得し、古い参照による消失を防ぐ
         let targetAlpha: CGFloat = showLightPollution ? 0.8 : 0.0
-        if let renderer = context.coordinator.tileRenderer, renderer.alpha != targetAlpha {
-            renderer.alpha = targetAlpha
-            renderer.setNeedsDisplay(MKMapRect.world)
+        if let overlay = nsView.overlays.first(where: { $0 is LightPollutionTileOverlay }),
+           let renderer = nsView.renderer(for: overlay) as? LightPollutionTileRenderer {
+            if renderer.alpha != targetAlpha {
+                renderer.alpha = targetAlpha
+                renderer.setNeedsDisplay(MKMapRect.world)
+            }
         }
 
         let existing = nsView.annotations.compactMap { $0 as? MKPointAnnotation }.first
@@ -232,9 +430,6 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         var lastSyncTrigger: Int
         /// syncState.trigger による setRegion 後に regionDidChangeAnimated を抑制するカウンタ
         var suppressRegionChangeCount = 0
-        /// 光害タイルレンダラーへの参照（alpha 制御用）
-        var tileRenderer: MKTileOverlayRenderer?
-
         init(_ parent: MapKitViewRepresentable) {
             self.parent = parent
             self.lastSyncTrigger = parent.syncState.trigger
@@ -257,9 +452,8 @@ struct MapKitViewRepresentable: NSViewRepresentable {
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let tileOverlay = overlay as? LightPollutionTileOverlay {
-                let renderer = MKTileOverlayRenderer(tileOverlay: tileOverlay)
+                let renderer = LightPollutionTileRenderer(tileOverlay: tileOverlay)
                 renderer.alpha = parent.showLightPollution ? 0.8 : 0.0
-                tileRenderer = renderer
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)
