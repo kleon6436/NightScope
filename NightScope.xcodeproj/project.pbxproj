@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */; };
 		AA0000000000000000001B01 /* NightScopeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F01 /* NightScopeApp.swift */; };
 		AA0000000000000000001B03 /* MilkyWayCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F03 /* MilkyWayCalculator.swift */; };
 		AA0000000000000000001B05 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F05 /* Assets.xcassets */; };
@@ -22,12 +23,12 @@
 		AA0000000000000000002B10 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
 		AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F11 /* MapLocationPicker.swift */; };
 		AA0000000000000000002B12 /* LightPollutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F12 /* LightPollutionService.swift */; };
-		AA0000000000000000002B18 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
 		AA0000000000000000002B13 /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
 		AA0000000000000000002B14 /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
 		AA0000000000000000002B15 /* WeatherCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F15 /* WeatherCard.swift */; };
 		AA0000000000000000002B16 /* ViewingWindowsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F16 /* ViewingWindowsSection.swift */; };
 		AA0000000000000000002B17 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
+		AA0000000000000000002B18 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
 		AA0000000000000000002B19 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F19 /* UIConstants.swift */; };
 		AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */; };
 		AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF02 /* StarGazingIndexTests.swift */; };
@@ -45,6 +46,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NightScope.icon; sourceTree = "<group>"; };
 		AA0000000000000000001F01 /* NightScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F03 /* MilkyWayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculator.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F05 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -62,12 +64,12 @@
 		AA0000000000000000002F10 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F11 /* MapLocationPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapLocationPicker.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F12 /* LightPollutionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightPollutionService.swift; sourceTree = "<group>"; };
-		AA0000000000000000002F18 /* NightCalculationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightCalculationService.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F13 /* StarGazingIndexCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexCard.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F14 /* MoonPhaseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoonPhaseCard.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F15 /* WeatherCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherCard.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F16 /* ViewingWindowsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingWindowsSection.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F17 /* UpcomingNightsGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGrid.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F18 /* NightCalculationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightCalculationService.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F19 /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIConstants.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
@@ -111,6 +113,7 @@
 				AA000000000000000000GR05 /* Controllers */,
 				AA000000000000000000GR06 /* Views */,
 				AA0000000000000000001F05 /* Assets.xcassets */,
+				6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */,
 				AA0000000000000000001F06 /* NightScope.entitlements */,
 			);
 			path = NightScope;
@@ -256,6 +259,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */,
 				AA0000000000000000001B05 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -440,8 +444,9 @@
 		AA000000000000000000BC03 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = NightScope;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = NightScope/NightScope.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -473,8 +478,9 @@
 		AA000000000000000000BC04 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = NightScope;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = NightScope/NightScope.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
