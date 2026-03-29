@@ -56,32 +56,16 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         return cache
     }()
 
-    // データが存在する実質的な上限ズーム。これを超えたリクエストは上限タイルで代替する
-    private static let dataMaxZ = 12
-
     override init(urlTemplate: String?) {
         super.init(urlTemplate: urlTemplate)
         canReplaceMapContent = false
         minimumZ = 1
-        maximumZ = 19  // MapKit がすべてのズームで loadTile を呼ぶように高く設定
+        maximumZ = 19
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        // dataMaxZ を超えるズームは上位タイルで代替する
-        let clampedPath: MKTileOverlayPath
-        if path.z > Self.dataMaxZ {
-            let diff = path.z - Self.dataMaxZ
-            clampedPath = MKTileOverlayPath(
-                x: path.x >> diff,
-                y: path.y >> diff,
-                z: Self.dataMaxZ,
-                contentScaleFactor: path.contentScaleFactor
-            )
-        } else {
-            clampedPath = path
-        }
-
-        let cacheKey = "\(clampedPath.z)/\(clampedPath.x)/\(clampedPath.y)" as NSString
+        // WMS は BBOX で画像を生成するため、任意のズームレベルで実際の座標をそのまま使用する
+        let cacheKey = "\(path.z)/\(path.x)/\(path.y)" as NSString
 
         // メモリキャッシュに存在すれば即返す（ズーム中のちらつき防止）
         if let cached = Self.memoryCache.object(forKey: cacheKey) {
@@ -90,7 +74,7 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         }
 
         let request = URLRequest(
-            url: url(forTilePath: clampedPath),
+            url: url(forTilePath: path),
             cachePolicy: .returnCacheDataElseLoad,
             timeoutInterval: 15
         )
@@ -141,7 +125,7 @@ private struct MapContainerView<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             content()
-                .frame(height: 200)
+                .frame(height: 280)
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -168,13 +152,13 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         // カメラ距離 10km 未満へのズームインを禁止（光害タイルの解像度上限に対応）
-        mapView.cameraZoomRange = MKMapView.CameraZoomRange(minCenterCoordinateDistance: 10_000)
+        mapView.cameraZoomRange = MKMapView.CameraZoomRange(minCenterCoordinateDistance: 100)
         // 光害オーバーレイを常駐させタブ切り替え時のタイル再描画を防ぐ（alpha で表示/非表示を切り替える）
         mapView.addOverlay(LightPollutionTileOverlay(urlTemplate: nil), level: .aboveRoads)
         if let coord = pinCoordinate {
             DispatchQueue.main.async {
                 mapView.setRegion(
-                    MKCoordinateRegion(center: coord, span: MKCoordinateSpan(latitudeDelta: 2.0, longitudeDelta: 2.0)),
+                    MKCoordinateRegion(center: coord, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)),
                     animated: false
                 )
             }
