@@ -118,4 +118,15 @@ struct NightSummary {
             return ""
         }
     }
+
+    /// スケルトン表示用のプレースホルダー
+    static var placeholder: NightSummary {
+        NightSummary(
+            date: Date(),
+            location: CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503),
+            events: [],
+            viewingWindows: [],
+            moonPhaseAtMidnight: 0.0
+        )
+    }
 }

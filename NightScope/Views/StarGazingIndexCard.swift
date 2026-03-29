@@ -120,7 +120,9 @@ struct StarGazingIndexCard: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(isExpanded ? "詳細スコアを閉じる" : "詳細スコアを表示")
+        .accessibilityLabel("詳細スコア")
+        .accessibilityValue(isExpanded ? "展開中" : "折り畳み中")
+        .accessibilityHint(isExpanded ? "タップして折り畳む" : "タップして詳細を表示")
     }
 
     private func subScoreRow(label: String, score: Int, maxScore: Int, color: Color) -> some View {

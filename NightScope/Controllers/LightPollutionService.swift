@@ -64,6 +64,8 @@ final class LightPollutionService: ObservableObject {
 
         bortleClass = nil
         fetchFailed = true
+        // 失敗時はキャッシュをクリアして再試行ボタンが有効に動作するようにする
+        lastFetchedCoordinate = nil
     }
 
     // MARK: - Primary: lightpollutionmap.info

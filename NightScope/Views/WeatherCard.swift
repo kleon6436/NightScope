@@ -3,6 +3,11 @@ import SwiftUI
 struct NightWeatherCard: View {
     let weather: DayWeatherSummary?
     let isLoading: Bool
+    @AppStorage("windSpeedUnit") private var windSpeedUnitRaw: String = WindSpeedUnit.kmh.rawValue
+
+    private var windSpeedUnit: WindSpeedUnit {
+        WindSpeedUnit(rawValue: windSpeedUnitRaw) ?? .kmh
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -32,7 +37,7 @@ struct NightWeatherCard: View {
                     Text(String(format: "降水 %.1f mm", w.maxPrecipitation))
                         .font(.body)
                         .foregroundStyle(.secondary)
-                    Text(String(format: "風速 %.0f km/h", w.avgWindSpeed))
+                    Text(windSpeedUnit.format(w.avgWindSpeed))
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }

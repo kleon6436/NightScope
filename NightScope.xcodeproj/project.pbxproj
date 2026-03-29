@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6C18B7702F791309007949F3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18B76F2F791309007949F3 /* SettingsView.swift */; };
 		6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */; };
 		AA0000000000000000001B01 /* NightScopeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F01 /* NightScopeApp.swift */; };
 		AA0000000000000000001B03 /* MilkyWayCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F03 /* MilkyWayCalculator.swift */; };
@@ -47,6 +48,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		6C18B76F2F791309007949F3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NightScope.icon; sourceTree = "<group>"; };
 		AA0000000000000000001F01 /* NightScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F03 /* MilkyWayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculator.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 		AA000000000000000000GR06 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				6C18B76F2F791309007949F3 /* SettingsView.swift */,
 				AA0000000000000000002F07 /* ContentView.swift */,
 				AA0000000000000000002F08 /* SidebarView.swift */,
 				AA0000000000000000002F09 /* DetailView.swift */,
@@ -275,6 +278,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000000000000000001B01 /* NightScopeApp.swift in Sources */,
+				6C18B7702F791309007949F3 /* SettingsView.swift in Sources */,
 				AA0000000000000000001B03 /* MilkyWayCalculator.swift in Sources */,
 				AA0000000000000000002B01 /* AstroModels.swift in Sources */,
 				AA0000000000000000002B02 /* WeatherModels.swift in Sources */,

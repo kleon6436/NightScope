@@ -9,7 +9,14 @@ final class AppController: ObservableObject {
     let lightPollutionService: LightPollutionService
 
     // MARK: - Published State
-    @Published var selectedDate: Date = Date()
+    @Published var selectedDate: Date = {
+        let saved = UserDefaults.standard.double(forKey: "selectedDate")
+        return saved > 0 ? Date(timeIntervalSince1970: saved) : Date()
+    }() {
+        didSet {
+            UserDefaults.standard.set(selectedDate.timeIntervalSince1970, forKey: "selectedDate")
+        }
+    }
     @Published var nightSummary: NightSummary?
     @Published var upcomingNights: [NightSummary] = []
     @Published var starGazingIndex: StarGazingIndex?
@@ -18,6 +25,9 @@ final class AppController: ObservableObject {
 
     // MARK: - Private State
     private let calculationService = NightCalculationService()
+    private var calculationTask: Task<Void, Never>?
+    private var upcomingTask: Task<Void, Never>?
+    private var locationTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
 
     // MARK: - Init
@@ -56,13 +66,15 @@ final class AppController: ObservableObject {
 
     // MARK: - Calculation
     func recalculate() {
+        calculationTask?.cancel()
         if nightSummary == nil {
             isCalculating = true
         }
         let date = selectedDate
         let location = locationController.selectedLocation
-        Task {
+        calculationTask = Task {
             let summary = await calculationService.calculateNightSummary(date: date, location: location)
+            guard !Task.isCancelled else { return }
             nightSummary = summary
             isCalculating = false
             recomputeStarGazingIndex()
@@ -70,10 +82,12 @@ final class AppController: ObservableObject {
     }
 
     func recalculateUpcoming() {
+        upcomingTask?.cancel()
         let today = Date()
         let location = locationController.selectedLocation
-        Task {
+        upcomingTask = Task {
             let upcoming = await calculationService.calculateUpcomingNights(from: today, location: location)
+            guard !Task.isCancelled else { return }
             upcomingNights = upcoming
             recomputeUpcomingIndexes()
         }
@@ -106,11 +120,15 @@ final class AppController: ObservableObject {
         locationController.$locationUpdateID
             .dropFirst()
             .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.recalculate()
-                    self?.recalculateUpcoming()
-                    await self?.refreshWeather()
-                    await self?.refreshLightPollution()
+                self?.locationTask?.cancel()
+                self?.locationTask = Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    recalculate()
+                    recalculateUpcoming()
+                    guard !Task.isCancelled else { return }
+                    await refreshWeather()
+                    guard !Task.isCancelled else { return }
+                    await refreshLightPollution()
                 }
             }
             .store(in: &cancellables)

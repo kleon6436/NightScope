@@ -131,7 +131,7 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             // cgImageCache が evict されていた場合はバックグラウンドで再構築
             if Self.cgImageCache.object(forKey: cacheKey) == nil {
                 let data = cached as Data
-                DispatchQueue.global(qos: .utility).async {
+                Task.detached(priority: .utility) {
                     if let img = Self.decodeAndCache(data: data, forKey: cacheKey) {
                         Self.preCropDescendants(from: img, path: path)
                     }
@@ -149,7 +149,7 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             let img = Self.decodeAndCache(data: diskData, forKey: cacheKey)
             result(diskData, nil)
             if let img {
-                DispatchQueue.global(qos: .utility).async {
+                Task.detached(priority: .utility) {
                     Self.preCropDescendants(from: img, path: path)
                 }
             }
@@ -169,7 +169,7 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             try? data.write(to: diskURL, options: .atomic)
             result(data, nil)
             if let img {
-                DispatchQueue.global(qos: .utility).async {
+                Task.detached(priority: .utility) {
                     Self.preCropDescendants(from: img, path: path)
                 }
             }
@@ -400,26 +400,15 @@ struct MapKitViewRepresentable: NSViewRepresentable {
             return
         }
 
-        // 通常のピン位置更新
+        // 通常のピン位置更新（マップのビューポートは変更しない）
         if let existing {
             let coordChanged = existing.coordinate.latitude != newCoord.latitude ||
                                existing.coordinate.longitude != newCoord.longitude
             if coordChanged { existing.coordinate = newCoord }
-            if coordChanged && isVisible {
-                let region = MKCoordinateRegion(center: newCoord, span: nsView.region.span)
-                DispatchQueue.main.async { nsView.setRegion(region, animated: true) }
-            }
         } else {
             let ann = MKPointAnnotation()
             ann.coordinate = newCoord
             nsView.addAnnotation(ann)
-            if isVisible {
-                let region = MKCoordinateRegion(
-                    center: newCoord,
-                    span: MKCoordinateSpan(latitudeDelta: 2.0, longitudeDelta: 2.0)
-                )
-                DispatchQueue.main.async { nsView.setRegion(region, animated: true) }
-            }
         }
     }
 

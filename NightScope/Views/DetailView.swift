@@ -6,14 +6,7 @@ struct DetailView: View {
 
     var body: some View {
         Group {
-            if appController.isCalculating {
-                VStack(spacing: Spacing.sm) {
-                    ProgressView()
-                    Text("計算中...")
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("星空データを計算中")
-            } else if let summary = appController.nightSummary {
+            if let summary = appController.nightSummary {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.lg) {
                         headerSection(summary: summary)
@@ -23,6 +16,16 @@ struct DetailView: View {
                     .padding(Spacing.md)
                 }
                 .ignoresSafeArea(edges: .top)
+            } else if appController.isCalculating {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.lg) {
+                        headerSection(summary: .placeholder)
+                    }
+                    .padding(Spacing.md)
+                    .redacted(reason: .placeholder)
+                }
+                .ignoresSafeArea(edges: .top)
+                .accessibilityLabel("星空データを計算中")
             } else {
                 ContentUnavailableView(
                     "データがありません",
@@ -34,26 +37,47 @@ struct DetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbarBackground(.hidden, for: .windowToolbar)
         .overlay(alignment: .bottom) {
-            if let error = appController.weatherService.errorMessage {
-                HStack(spacing: Spacing.xs) {
-                    Image(systemName: AppIcons.Status.warning)
-                        .foregroundStyle(.orange)
-                        .accessibilityHidden(true)
-                    Text(error)
-                        .font(.body)
+            VStack(spacing: Spacing.xs) {
+                if appController.lightPollutionService.fetchFailed {
+                    errorBanner(
+                        message: "光害データの取得に失敗しました",
+                        retryAction: { Task { await appController.refreshLightPollution() } }
+                    )
                 }
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, Spacing.xs)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
-                .shadow(radius: 4)
-                .padding(.bottom, Spacing.sm)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .accessibilityLabel("エラー: \(error)")
-                .accessibilityAddTraits(.isStaticText)
+                if let error = appController.weatherService.errorMessage {
+                    errorBanner(
+                        message: error,
+                        retryAction: { Task { await appController.refreshWeather() } }
+                    )
+                }
             }
+            .padding(.bottom, Spacing.sm)
         }
         .animation(reduceMotion ? .none : .standard, value: appController.weatherService.errorMessage)
+        .animation(reduceMotion ? .none : .standard, value: appController.lightPollutionService.fetchFailed)
+    }
+
+    // MARK: - Error Banner
+
+    private func errorBanner(message: String, retryAction: @escaping () -> Void) -> some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: AppIcons.Status.warning)
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            Text(message)
+                .font(.body)
+            Spacer()
+            Button("再試行", action: retryAction)
+                .buttonStyle(.glass)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        .shadow(radius: 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("エラー: \(message)")
     }
 
     // MARK: - Header

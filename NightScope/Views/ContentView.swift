@@ -30,7 +30,7 @@ struct ContentView: View {
         .toolbar(removing: .sidebarToggle)
         .onChange(of: columnVisibility) {
             if columnVisibility != .all {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     columnVisibility = .all
                 }
             }
@@ -41,6 +41,19 @@ struct ContentView: View {
         .onChange(of: appController.selectedDate) {
             appController.recalculate()
         }
+        .focusedValue(\.selectedDate, $appController.selectedDate)
+        .focusedValue(\.refreshAction, {
+            Task {
+                await appController.refreshWeather()
+                await appController.refreshLightPollution()
+            }
+        })
+        .focusedValue(\.focusSearchAction, {
+            appController.locationController.searchFocusTrigger += 1
+        })
+        .focusedValue(\.currentLocationAction, {
+            appController.locationController.requestCurrentLocation()
+        })
     }
 }
 

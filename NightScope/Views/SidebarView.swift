@@ -58,6 +58,9 @@ struct SidebarView: View {
                 .onSubmit {
                     Task { await locationController.search(query: searchText) }
                 }
+                .onChange(of: locationController.searchFocusTrigger) {
+                    isSearchFocused = true
+                }
 
             if !locationController.searchResults.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {

@@ -77,7 +77,20 @@ final class WeatherService: ObservableObject {
             weatherByDate = summaries
         } catch {
             if !Task.isCancelled {
-                errorMessage = "天気データの取得に失敗しました"
+                if let urlError = error as? URLError {
+                    switch urlError.code {
+                    case .notConnectedToInternet, .networkConnectionLost:
+                        errorMessage = "インターネット接続を確認してください"
+                    case .timedOut:
+                        errorMessage = "サーバーへの接続がタイムアウトしました"
+                    default:
+                        errorMessage = "天気データの取得に失敗しました"
+                    }
+                } else if error is DecodingError {
+                    errorMessage = "データの解析に失敗しました"
+                } else {
+                    errorMessage = "天気データの取得に失敗しました"
+                }
             }
         }
 
@@ -123,16 +136,17 @@ final class WeatherService: ObservableObject {
                 weatherCode: wcode
             )
 
-            // Nighttime: hours 20-23 belong to "today", hours 0-4 belong to "yesterday" (previous night)
+            // Nighttime: hours 18-23 belong to "today", hours 0-6 belong to "yesterday" (previous night)
+            // This covers astronomical twilight (18:00-20:00 / 04:00-06:00) as part of the night
             let cal = Calendar(identifier: .gregorian)
             let hour = cal.component(.hour, from: date)
 
-            if hour >= 20 {
-                // Evening: key = this date
+            if hour >= 18 {
+                // Evening (incl. astronomical twilight): key = this date
                 let key = dateKey(date)
                 hoursByDate[key, default: []].append(hw)
-            } else if hour <= 4 {
-                // Early morning: key = previous date (same night)
+            } else if hour <= 6 {
+                // Early morning (incl. astronomical twilight): key = previous date (same night)
                 guard let prevDate = cal.date(byAdding: .day, value: -1, to: date) else { continue }
                 let key = dateKey(prevDate)
                 hoursByDate[key, default: []].append(hw)

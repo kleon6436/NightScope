@@ -161,3 +161,39 @@ enum AppIcons {
         static let azimuthArrow  = "location.north.fill"
     }
 }
+
+// MARK: - FocusedValues
+
+extension FocusedValues {
+    @Entry var selectedDate: Binding<Date>? = nil
+    @Entry var refreshAction: (() -> Void)? = nil
+    @Entry var focusSearchAction: (() -> Void)? = nil
+    @Entry var currentLocationAction: (() -> Void)? = nil
+}
+
+// MARK: - WindSpeedUnit
+
+enum WindSpeedUnit: String, CaseIterable, Identifiable {
+    case kmh  = "km/h"
+    case ms   = "m/s"
+    case knot = "kn"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .kmh:  return "km/h"
+        case .ms:   return "m/s"
+        case .knot: return "ノット (kn)"
+        }
+    }
+
+    /// Open-Meteo が返す km/h 値をこの単位に変換してフォーマットする
+    func format(_ kmh: Double) -> String {
+        switch self {
+        case .kmh:  return String(format: "風速 %.0f km/h", kmh)
+        case .ms:   return String(format: "風速 %.1f m/s", kmh / 3.6)
+        case .knot: return String(format: "風速 %.0f kn", kmh / 1.852)
+        }
+    }
+}

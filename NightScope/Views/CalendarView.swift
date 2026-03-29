@@ -147,6 +147,7 @@ struct CalendarDayCell: View {
             .contentShape(Rectangle())
             .onTapGesture { onTap() }
             .accessibilityLabel(accessibilityDateLabel)
+            .accessibilityAddTraits(.isButton)
             .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

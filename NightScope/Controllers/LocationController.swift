@@ -4,13 +4,20 @@ import MapKit
 @MainActor
 final class LocationController: NSObject, ObservableObject {
     @Published var selectedLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503) {
-        didSet { locationUpdateID = UUID() }
+        didSet {
+            locationUpdateID = UUID()
+            UserDefaults.standard.set(selectedLocation.latitude, forKey: "location.latitude")
+            UserDefaults.standard.set(selectedLocation.longitude, forKey: "location.longitude")
+        }
     }
     @Published var locationUpdateID: UUID = UUID()
-    @Published var locationName: String = "東京"
+    @Published var locationName: String = "東京" {
+        didSet { UserDefaults.standard.set(locationName, forKey: "location.name") }
+    }
     @Published var searchResults: [MKMapItem] = []
     @Published var isLocating: Bool = false
     @Published var locationError: LocationError? = nil
+    @Published var searchFocusTrigger: Int = 0
 
     enum LocationError: LocalizedError {
         case denied
@@ -29,6 +36,15 @@ final class LocationController: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        // Restore persisted location
+        let savedLat = UserDefaults.standard.double(forKey: "location.latitude")
+        let savedLon = UserDefaults.standard.double(forKey: "location.longitude")
+        if savedLat != 0 || savedLon != 0 {
+            selectedLocation = CLLocationCoordinate2D(latitude: savedLat, longitude: savedLon)
+        }
+        if let name = UserDefaults.standard.string(forKey: "location.name") {
+            locationName = name
+        }
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
     }
@@ -51,9 +67,10 @@ final class LocationController: NSObject, ObservableObject {
     private func startLocationUpdatesWithTimeout() {
         locationManager.startUpdatingLocation()
         locationTimeoutTask?.cancel()
-        locationTimeoutTask = Task {
+        locationTimeoutTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(60))
             guard !Task.isCancelled else { return }
+            guard let self else { return }
             if self.isLocating {
                 self.locationManager.stopUpdatingLocation()
                 self.isLocating = false

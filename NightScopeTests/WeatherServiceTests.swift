@@ -78,7 +78,7 @@ final class WeatherServiceTests: XCTestCase {
     }
 
     func test_parse_earlyMorningHour_assignedToPreviousDay() {
-        // hour=02 (≤4) → 前日夜のキーに入る (翌02h → 前日の夜)
+        // hour=02 (≤6) → 前日夜のキーに入る (翌02h → 前日の夜)
         let t02 = makeTimeString(year: 2024, month: 6, day: 16, hour: 2)
         let result = service.parse(response: makeResponse(times: [t02]))
         XCTAssertEqual(result.count, 1)
@@ -86,18 +86,34 @@ final class WeatherServiceTests: XCTestCase {
     }
 
     func test_parse_hour4_includedAsEarlyMorning() {
-        // hour=4 は ≤4 に含まれる → 前日キーに入る
+        // hour=4 は ≤6 に含まれる → 前日キーに入る
         let t04 = makeTimeString(year: 2024, month: 6, day: 16, hour: 4)
         let result = service.parse(response: makeResponse(times: [t04]))
         XCTAssertEqual(result.count, 1)
         XCTAssertNotNil(result["2024-06-15"], "hour=4 は前日キーに入るはず")
     }
 
-    func test_parse_hour5_excluded() {
-        // hour=5 はどちらの範囲にも含まれない → 除外
-        let t05 = makeTimeString(year: 2024, month: 6, day: 15, hour: 5)
+    func test_parse_hour5_includedAsEarlyMorning() {
+        // hour=5 は ≤6 に含まれる → 天文薄明として前日キーに入る
+        let t05 = makeTimeString(year: 2024, month: 6, day: 16, hour: 5)
         let result = service.parse(response: makeResponse(times: [t05]))
-        XCTAssertTrue(result.isEmpty, "hour=5 は夜間範囲外なので除外されるはず")
+        XCTAssertEqual(result.count, 1)
+        XCTAssertNotNil(result["2024-06-15"], "hour=5 は天文薄明として前日キー '2024-06-15' に入るはず")
+    }
+
+    func test_parse_hour6_includedAsEarlyMorning() {
+        // hour=6 は ≤6 の上限 → 天文薄明として前日キーに入る
+        let t06 = makeTimeString(year: 2024, month: 6, day: 16, hour: 6)
+        let result = service.parse(response: makeResponse(times: [t06]))
+        XCTAssertEqual(result.count, 1)
+        XCTAssertNotNil(result["2024-06-15"], "hour=6 は天文薄明として前日キー '2024-06-15' に入るはず")
+    }
+
+    func test_parse_hour7_excluded() {
+        // hour=7 はどちらの範囲にも含まれない → 除外
+        let t07 = makeTimeString(year: 2024, month: 6, day: 15, hour: 7)
+        let result = service.parse(response: makeResponse(times: [t07]))
+        XCTAssertTrue(result.isEmpty, "hour=7 は夜間範囲外なので除外されるはず")
     }
 
     func test_parse_middayHour_excluded() {
@@ -108,7 +124,7 @@ final class WeatherServiceTests: XCTestCase {
     }
 
     func test_parse_hour20_includedAsEvening() {
-        // hour=20 は ≥20 の下限 → 当日キーに入る
+        // hour=20 は ≥18 の範囲内 → 当日キーに入る
         let t20 = makeTimeString(year: 2024, month: 6, day: 15, hour: 20)
         let result = service.parse(response: makeResponse(times: [t20]))
         XCTAssertNotNil(result["2024-06-15"], "hour=20 は当日キーに入るはず")
