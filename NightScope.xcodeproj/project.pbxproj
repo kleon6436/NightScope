@@ -30,6 +30,7 @@
 		AA0000000000000000002B17 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
 		AA0000000000000000002B18 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
 		AA0000000000000000002B19 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F19 /* UIConstants.swift */; };
+		AA0000000000000000002B20 /* DarkTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F20 /* DarkTimeCard.swift */; };
 		AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */; };
 		AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF02 /* StarGazingIndexTests.swift */; };
 		AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF03 /* WeatherServiceTests.swift */; };
@@ -71,6 +72,7 @@
 		AA0000000000000000002F17 /* UpcomingNightsGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGrid.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F18 /* NightCalculationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightCalculationService.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F19 /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIConstants.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F20 /* DarkTimeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTimeCard.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
@@ -108,7 +110,6 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000001F01 /* NightScopeApp.swift */,
-				AA0000000000000000001F03 /* MilkyWayCalculator.swift */,
 				AA000000000000000000GR04 /* Models */,
 				AA000000000000000000GR05 /* Controllers */,
 				AA000000000000000000GR06 /* Views */,
@@ -141,6 +142,7 @@
 		AA000000000000000000GR05 /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
+				AA0000000000000000001F03 /* MilkyWayCalculator.swift */,
 				AA0000000000000000002F04 /* AppController.swift */,
 				AA0000000000000000002F18 /* NightCalculationService.swift */,
 				AA0000000000000000002F05 /* LocationController.swift */,
@@ -158,6 +160,7 @@
 				AA0000000000000000002F09 /* DetailView.swift */,
 				AA0000000000000000002F13 /* StarGazingIndexCard.swift */,
 				AA0000000000000000002F14 /* MoonPhaseCard.swift */,
+				AA0000000000000000002F20 /* DarkTimeCard.swift */,
 				AA0000000000000000002F15 /* WeatherCard.swift */,
 				AA0000000000000000002F16 /* ViewingWindowsSection.swift */,
 				AA0000000000000000002F17 /* UpcomingNightsGrid.swift */,
@@ -286,6 +289,7 @@
 				AA0000000000000000002B09 /* DetailView.swift in Sources */,
 				AA0000000000000000002B13 /* StarGazingIndexCard.swift in Sources */,
 				AA0000000000000000002B14 /* MoonPhaseCard.swift in Sources */,
+				AA0000000000000000002B20 /* DarkTimeCard.swift in Sources */,
 				AA0000000000000000002B15 /* WeatherCard.swift in Sources */,
 				AA0000000000000000002B16 /* ViewingWindowsSection.swift in Sources */,
 				AA0000000000000000002B17 /* UpcomingNightsGrid.swift in Sources */,

@@ -96,10 +96,14 @@ struct CalendarView: View {
         return result
     }
 
-    private var monthTitle: String {
+    private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy年M月"
-        return f.string(from: displayMonth)
+        return f
+    }()
+
+    private var monthTitle: String {
+        Self.monthFormatter.string(from: displayMonth)
     }
 
     private func shiftMonth(by value: Int) {

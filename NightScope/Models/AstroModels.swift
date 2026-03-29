@@ -106,12 +106,16 @@ struct NightSummary {
         }
     }
 
-    var overallRating: Int {
-        guard !viewingWindows.isEmpty else { return 0 }
-        var score = 0
-        if totalViewingHours > 3 { score += 2 } else if totalViewingHours > 1 { score += 1 }
-        if (maxAltitude ?? 0) > 30 { score += 2 } else if (maxAltitude ?? 0) > 15 { score += 1 }
-        if isMoonFavorable { score += 1 }
-        return min(score, 5)
+    /// 暗い観測時間帯の範囲文字列（例: "21:00 〜 03:30"）
+    var darkRangeText: String {
+        if let eStart = eveningDarkStart, let mEnd = morningDarkEnd {
+            return "\(eStart.nightTimeString()) 〜 \(mEnd.nightTimeString())"
+        } else if let eStart = eveningDarkStart {
+            return "\(eStart.nightTimeString()) 〜 翌朝"
+        } else if let mEnd = morningDarkEnd {
+            return "深夜 〜 \(mEnd.nightTimeString())"
+        } else {
+            return ""
+        }
     }
 }

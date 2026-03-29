@@ -91,27 +91,16 @@ struct UpcomingNightsGrid: View {
                     Text("星空")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    let darkRangeText: String = {
-                        if let s = night.eveningDarkStart, let e = night.morningDarkEnd {
-                            return "\(timeString(s))〜\(timeString(e))"
-                        } else if let s = night.eveningDarkStart {
-                            return "\(timeString(s))〜翌朝"
-                        } else if let e = night.morningDarkEnd {
-                            return "深夜〜\(timeString(e))"
-                        } else {
-                            return "—"
-                        }
-                    }()
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.xs / 2, verticalSpacing: 3) {
                         GridRow {
                             Image(systemName: AppIcons.Astronomy.sparkles)
-                                .frame(width: 14, alignment: .center)
-                                .foregroundStyle(index.map { scoreColor(for: $0.tier) } ?? .secondary)
+                                .frame(width: Layout.gridIconWidth, alignment: .center)
+                                .foregroundStyle(index.map { $0.tier.color } ?? .secondary)
                                 .accessibilityHidden(true)
                             if let idx = index {
                                 Text("\(idx.label)")
                                     .font(.headline)
-                                    .foregroundStyle(scoreColor(for: idx.tier))
+                                    .foregroundStyle(idx.tier.color)
                                     .lineLimit(1)
                             } else {
                                 Text("計算中…")
@@ -122,9 +111,9 @@ struct UpcomingNightsGrid: View {
                         }
                         GridRow {
                             Image(systemName: AppIcons.Astronomy.moonStars)
-                                .frame(width: 14, alignment: .center)
+                                .frame(width: Layout.gridIconWidth, alignment: .center)
                                 .accessibilityHidden(true)
-                            Text(darkRangeText)
+                            Text(night.darkRangeText.isEmpty ? "—" : night.darkRangeText)
                                 .font(.body)
                                 .lineLimit(1)
                         }
@@ -143,15 +132,15 @@ struct UpcomingNightsGrid: View {
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.xs / 2, verticalSpacing: 3) {
                         GridRow {
                             Image(systemName: AppIcons.Astronomy.star)
-                                .frame(width: 14, alignment: .center)
+                                .frame(width: Layout.gridIconWidth, alignment: .center)
                                 .accessibilityHidden(true)
-                            Text(night.bestViewingTime.map { "見頃 \(timeString($0))" } ?? "見頃 —")
+                            Text(night.bestViewingTime.map { "見頃 \($0.nightTimeString())" } ?? "見頃 —")
                                 .font(.body)
                                 .lineLimit(1)
                         }
                         GridRow {
                             Image(systemName: AppIcons.Observation.clock)
-                                .frame(width: 14, alignment: .center)
+                                .frame(width: Layout.gridIconWidth, alignment: .center)
                                 .accessibilityHidden(true)
                             Text(String(format: "観測 %.1f時間", night.totalViewingHours))
                                 .font(.body)
@@ -160,7 +149,7 @@ struct UpcomingNightsGrid: View {
                         if let dir = night.bestDirection {
                             GridRow {
                                 Image(systemName: AppIcons.Observation.azimuthArrow)
-                                    .frame(width: 14, alignment: .center)
+                                    .frame(width: Layout.gridIconWidth, alignment: .center)
                                     .accessibilityHidden(true)
                                 Text(dir)
                                     .font(.body)
@@ -176,7 +165,7 @@ struct UpcomingNightsGrid: View {
         }
         .padding(Layout.cardPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: 170)
+        .frame(height: Layout.upcomingCardHeight)
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
@@ -192,25 +181,20 @@ struct UpcomingNightsGrid: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    private static let cardDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .full
+        f.timeStyle = .none
+        return f
+    }()
+
     private func cardAccessibilityLabel(night: NightSummary, weather: DayWeatherSummary?, index: StarGazingIndex?) -> String {
         var parts: [String] = []
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        parts.append(formatter.string(from: night.date))
+        parts.append(Self.cardDateFormatter.string(from: night.date))
         if let idx = index { parts.append("星空指数\(idx.score)") }
         if let w = weather { parts.append("天気\(w.weatherLabel)") }
         parts.append("月: \(night.moonPhaseName)")
         return parts.joined(separator: "、")
-    }
-
-    private func scoreColor(for tier: StarGazingIndex.Tier) -> Color {
-        switch tier {
-        case .excellent, .good: return .green
-        case .fair:             return .yellow
-        case .poor:             return .orange
-        case .bad:              return .red
-        }
     }
 
     private func weatherIconColor(code: Int) -> Color {
@@ -226,16 +210,5 @@ struct UpcomingNightsGrid: View {
         case 95...99:    return .orange
         default:         return .secondary
         }
-    }
-
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        f.timeZone = .current
-        return f
-    }()
-
-    private func timeString(_ date: Date) -> String {
-        Self.timeFormatter.string(from: date)
     }
 }

@@ -36,6 +36,20 @@ enum Layout {
     static let sidebarIdealWidth: CGFloat = 280
     /// サイドバー最大幅
     static let sidebarMaxWidth: CGFloat = 300
+    /// 地図コンテナの角丸半径
+    static let mapCornerRadius: CGFloat = 8
+    /// 地図上ボタン（現在地）の角丸半径
+    static let mapButtonCornerRadius: CGFloat = 6
+    /// 地図上ボタン（現在地）のサイズ
+    static let mapButtonSize: CGFloat = 28
+    /// 地図上のアイコンサイズ
+    static let mapIconSize: CGFloat = 14
+    /// 地図コンテナの枠線太さ
+    static let mapSeparatorLineWidth: CGFloat = 0.5
+    /// 今後2週間グリッドカードの高さ
+    static let upcomingCardHeight: CGFloat = 170
+    /// グリッドのアイコン列幅
+    static let gridIconWidth: CGFloat = 14
 }
 
 // MARK: - GlassCard ViewModifier
@@ -60,6 +74,38 @@ extension View {
 extension Animation {
     /// アプリ標準スプリングアニメーション
     static let standard: Animation = .spring(duration: 0.3)
+}
+
+// MARK: - Time Formatting
+
+extension DateFormatter {
+    /// HH:mm 形式の夜間時刻フォーマッタ
+    static let nightTime: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        f.timeZone = .current
+        return f
+    }()
+}
+
+extension Date {
+    /// HH:mm 形式の時刻文字列を返す
+    func nightTimeString() -> String {
+        DateFormatter.nightTime.string(from: self)
+    }
+}
+
+// MARK: - StarGazingIndex.Tier Color
+
+extension StarGazingIndex.Tier {
+    var color: Color {
+        switch self {
+        case .excellent, .good: return .green
+        case .fair:             return .yellow
+        case .poor:             return .orange
+        case .bad:              return .red
+        }
+    }
 }
 
 // MARK: - AppIcons

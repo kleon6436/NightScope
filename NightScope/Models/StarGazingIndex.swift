@@ -51,16 +51,6 @@ struct StarGazingIndex {
         }
     }
 
-    var scoreColor: String {
-        switch tier {
-        case .excellent: return "green"
-        case .good:      return "green"
-        case .fair:      return "yellow"
-        case .poor:      return "orange"
-        case .bad:       return "red"
-        }
-    }
-
     // MARK: - Computation
 
     static func compute(

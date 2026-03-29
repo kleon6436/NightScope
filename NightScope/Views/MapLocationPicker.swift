@@ -127,10 +127,10 @@ private struct MapContainerView<Content: View>: View {
             content()
                 .frame(minHeight: 160, maxHeight: 280)
                 .frame(maxHeight: .infinity)
-                .cornerRadius(8)
+                .clipShape(RoundedRectangle(cornerRadius: Layout.mapCornerRadius))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: Layout.mapCornerRadius)
+                        .stroke(Color(NSColor.separatorColor), lineWidth: Layout.mapSeparatorLineWidth)
                 )
             Text("地図をクリックして場所を選択")
                 .font(.caption)
@@ -308,14 +308,14 @@ struct MapLocationPicker: View, Equatable {
                                 ProgressView().controlSize(.small)
                             } else {
                                 Image(systemName: "location.fill")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: Layout.mapIconSize))
                             }
                         }
-                        .frame(width: 28, height: 28)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                        .frame(width: Layout.mapButtonSize, height: Layout.mapButtonSize)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Layout.mapButtonCornerRadius))
                     }
                     .buttonStyle(.plain)
-                    .padding(8)
+                    .padding(Spacing.xs)
                     .disabled(isLocating)
                     .accessibilityLabel("現在地を取得")
                 }

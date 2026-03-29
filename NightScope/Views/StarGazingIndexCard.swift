@@ -7,7 +7,7 @@ struct StarGazingIndexCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let color = scoreColor(for: index.tier)
+        let color = index.tier.color
         HStack(spacing: 0) {
             Rectangle()
                 .fill(color)
@@ -121,15 +121,6 @@ struct StarGazingIndexCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(isExpanded ? "詳細スコアを閉じる" : "詳細スコアを表示")
-    }
-
-    private func scoreColor(for tier: StarGazingIndex.Tier) -> Color {
-        switch tier {
-        case .excellent, .good: return .green
-        case .fair:             return .yellow
-        case .poor:             return .orange
-        case .bad:              return .red
-        }
     }
 
     private func subScoreRow(label: String, score: Int, maxScore: Int, color: Color) -> some View {
