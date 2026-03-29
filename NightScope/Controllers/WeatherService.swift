@@ -133,7 +133,7 @@ final class WeatherService: ObservableObject {
                 hoursByDate[key, default: []].append(hw)
             } else if hour <= 4 {
                 // Early morning: key = previous date (same night)
-                let prevDate = cal.date(byAdding: .day, value: -1, to: date)!
+                guard let prevDate = cal.date(byAdding: .day, value: -1, to: date) else { continue }
                 let key = dateKey(prevDate)
                 hoursByDate[key, default: []].append(hw)
             }

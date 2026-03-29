@@ -169,12 +169,13 @@ enum MilkyWayCalculator {
                 if windowStart == nil { windowStart = event.date }
                 windowSamples.append(event)
             } else if let start = windowStart {
-                if !windowSamples.isEmpty {
-                    let bestAlt = windowSamples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude })!
-                    let bestViewing = windowSamples.max(by: { viewingScore($0) < viewingScore($1) })!
+                if !windowSamples.isEmpty,
+                   let bestAlt = windowSamples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude }),
+                   let bestViewing = windowSamples.max(by: { viewingScore($0) < viewingScore($1) }),
+                   let lastSample = windowSamples.last {
                     windows.append(ViewingWindow(
                         start: start,
-                        end: windowSamples.last!.date,
+                        end: lastSample.date,
                         peakTime: bestViewing.date,
                         peakAltitude: bestAlt.galacticCenterAltitude,
                         peakAzimuth: bestViewing.galacticCenterAzimuth
@@ -185,12 +186,14 @@ enum MilkyWayCalculator {
             }
         }
 
-        if let start = windowStart, !windowSamples.isEmpty {
-            let bestAlt = windowSamples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude })!
-            let bestViewing = windowSamples.max(by: { viewingScore($0) < viewingScore($1) })!
+        if let start = windowStart,
+           !windowSamples.isEmpty,
+           let bestAlt = windowSamples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude }),
+           let bestViewing = windowSamples.max(by: { viewingScore($0) < viewingScore($1) }),
+           let lastSample = windowSamples.last {
             windows.append(ViewingWindow(
                 start: start,
-                end: windowSamples.last!.date,
+                end: lastSample.date,
                 peakTime: bestViewing.date,
                 peakAltitude: bestAlt.galacticCenterAltitude,
                 peakAzimuth: bestViewing.galacticCenterAzimuth
