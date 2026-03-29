@@ -215,6 +215,9 @@ struct SidebarView: View {
     // MARK: - Search Helpers
 
     private func setSearchText(_ text: String) {
+        // text が変化しない場合 onChange が発火しないため、suppressNextSearch を
+        // セットしても解除されずに次のユーザー入力が抑制されてしまう
+        guard text != searchText else { return }
         suppressNextSearch = true
         searchText = text
     }
