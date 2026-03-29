@@ -41,7 +41,7 @@ struct StarGazingIndexCard: View {
                         HStack(spacing: Spacing.xs / 4) {
                             ForEach(0..<5) { i in
                                 Image(systemName: i < index.starCount ? AppIcons.Astronomy.starFill : AppIcons.Astronomy.star)
-                                    .foregroundStyle(i < index.starCount ? color : Color.gray.opacity(0.4))
+                                    .foregroundStyle(i < index.starCount ? color : Color.secondary.opacity(0.4))
                                     .font(.body)
                             }
                         }
@@ -61,7 +61,7 @@ struct StarGazingIndexCard: View {
 
                     if isExpanded {
                         Group {
-                            subScoreRow(label: "星空", score: index.constellationScore, maxScore: 50, color: Color(NSColor.systemIndigo))
+                            subScoreRow(label: "星空", score: index.constellationScore, maxScore: 50, color: Color.indigo)
 
                             if index.hasWeatherData {
                                 subScoreRow(label: "気象", score: index.weatherScore, maxScore: 40, color: .cyan)

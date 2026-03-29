@@ -324,7 +324,7 @@ private struct MapContainerView<Content: View>: View {
                 .clipShape(RoundedRectangle(cornerRadius: Layout.mapCornerRadius))
                 .overlay(
                     RoundedRectangle(cornerRadius: Layout.mapCornerRadius)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: Layout.mapSeparatorLineWidth)
+                        .stroke(.separator, lineWidth: Layout.mapSeparatorLineWidth)
                 )
             Text("地図をクリックして場所を選択")
                 .font(.caption)

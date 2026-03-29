@@ -7,7 +7,7 @@ struct MoonPhaseCard: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: summary.moonPhaseIcon)
-                    .foregroundStyle(Color(NSColor.systemIndigo))
+                    .foregroundStyle(Color.indigo)
                     .font(.body)
                     .accessibilityHidden(true)
                 Text("月の状態")

@@ -74,7 +74,7 @@ struct UpcomingNightsGrid: View {
 
             HStack(spacing: Spacing.xs / 2) {
                 Image(systemName: night.moonPhaseIcon)
-                    .foregroundStyle(Color(NSColor.systemIndigo))
+                    .foregroundStyle(Color.indigo)
                     .font(.body)
                     .accessibilityHidden(true)
                 Text(night.moonPhaseName)
