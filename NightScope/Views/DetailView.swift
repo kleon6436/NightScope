@@ -21,7 +21,6 @@ struct DetailView: View {
                         UpcomingNightsGrid(appController: appController)
                     }
                     .padding(Spacing.md)
-                    .backgroundExtensionEffect()
                 }
                 .ignoresSafeArea(edges: .top)
             } else {
