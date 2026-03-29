@@ -29,7 +29,7 @@ struct SidebarView: View {
 
     private var locationSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Label("場所", systemImage: "mappin.circle.fill")
+            Label("場所", systemImage: AppIcons.Navigation.locationPin)
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
@@ -107,7 +107,7 @@ struct SidebarView: View {
             .equatable()
 
             HStack(spacing: Spacing.xs) {
-                Image(systemName: "mappin")
+                Image(systemName: AppIcons.Navigation.locationPinPlain)
                     .foregroundStyle(Color.accentColor)
                     .font(.body)
                     .accessibilityHidden(true)
@@ -164,7 +164,7 @@ struct SidebarView: View {
 
     private var dateSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Label("日付", systemImage: "calendar")
+            Label("日付", systemImage: AppIcons.Navigation.calendar)
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)

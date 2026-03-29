@@ -44,7 +44,7 @@ struct DarkTimeCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.xs) {
-                Image(systemName: "clock")
+                Image(systemName: AppIcons.Observation.clock)
                     .foregroundStyle(.green)
                     .font(.body)
                     .accessibilityHidden(true)

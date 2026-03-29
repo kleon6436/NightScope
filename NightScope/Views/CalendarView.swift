@@ -17,7 +17,7 @@ struct CalendarView: View {
             // 月ナビゲーションヘッダー
             HStack {
                 Button { shiftMonth(by: -1) } label: {
-                    Image(systemName: "chevron.left")
+                    Image(systemName: AppIcons.Controls.chevronLeft)
                         .font(.body.bold())
                 }
                 .buttonStyle(.plain)
@@ -32,7 +32,7 @@ struct CalendarView: View {
                 Spacer()
 
                 Button { shiftMonth(by: 1) } label: {
-                    Image(systemName: "chevron.right")
+                    Image(systemName: AppIcons.Controls.chevronRight)
                         .font(.body.bold())
                 }
                 .buttonStyle(.plain)

@@ -22,7 +22,7 @@ struct UpcomingNightsGrid: View {
             if displayNights.isEmpty {
                 ContentUnavailableView(
                     "観測に適した夜がありません",
-                    systemImage: "moon.zzz",
+                    systemImage: AppIcons.Astronomy.moonZzz,
                     description: Text("今後2週間は天の川の観測に適した夜がありませんでした")
                 )
             } else {
@@ -49,7 +49,7 @@ struct UpcomingNightsGrid: View {
                     .font(.headline)
                 Spacer()
                 HStack(spacing: 2) {
-                    Image(systemName: "cloud.fill")
+                    Image(systemName: AppIcons.Weather.cloudFill)
                         .font(.body)
                         .accessibilityHidden(true)
                     Text(weather.map { String(format: "%.0f%%", $0.avgCloudCover) } ?? "—")
@@ -104,7 +104,7 @@ struct UpcomingNightsGrid: View {
                     }()
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.xs / 2, verticalSpacing: 3) {
                         GridRow {
-                            Image(systemName: "sparkles")
+                            Image(systemName: AppIcons.Astronomy.sparkles)
                                 .frame(width: 14, alignment: .center)
                                 .foregroundStyle(index.map { scoreColor(for: $0.tier) } ?? .secondary)
                                 .accessibilityHidden(true)
@@ -121,7 +121,7 @@ struct UpcomingNightsGrid: View {
                             }
                         }
                         GridRow {
-                            Image(systemName: "moon.stars")
+                            Image(systemName: AppIcons.Astronomy.moonStars)
                                 .frame(width: 14, alignment: .center)
                                 .accessibilityHidden(true)
                             Text(darkRangeText)
@@ -142,7 +142,7 @@ struct UpcomingNightsGrid: View {
                         .foregroundStyle(.secondary)
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: Spacing.xs / 2, verticalSpacing: 3) {
                         GridRow {
-                            Image(systemName: "star")
+                            Image(systemName: AppIcons.Astronomy.star)
                                 .frame(width: 14, alignment: .center)
                                 .accessibilityHidden(true)
                             Text(night.bestViewingTime.map { "見頃 \(timeString($0))" } ?? "見頃 —")
@@ -150,7 +150,7 @@ struct UpcomingNightsGrid: View {
                                 .lineLimit(1)
                         }
                         GridRow {
-                            Image(systemName: "clock")
+                            Image(systemName: AppIcons.Observation.clock)
                                 .frame(width: 14, alignment: .center)
                                 .accessibilityHidden(true)
                             Text(String(format: "観測 %.1f時間", night.totalViewingHours))
@@ -159,7 +159,7 @@ struct UpcomingNightsGrid: View {
                         }
                         if let dir = night.bestDirection {
                             GridRow {
-                                Image(systemName: "location.north.fill")
+                                Image(systemName: AppIcons.Observation.azimuthArrow)
                                     .frame(width: 14, alignment: .center)
                                     .accessibilityHidden(true)
                                 Text(dir)

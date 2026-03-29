@@ -77,22 +77,22 @@ struct DayWeatherSummary {
     var weatherIconName: String {
         let code = representativeWeatherCode
         switch code {
-        case 0:          return "sun.max.fill"
-        case 1:          return "sun.max.fill"
-        case 2:          return "cloud.sun.fill"
-        case 3:          return "cloud.fill"
-        case 45, 48:     return "cloud.fog.fill"
-        case 51, 53, 55: return "cloud.drizzle.fill"
-        case 61:         return "cloud.rain.fill"
-        case 63:         return "cloud.rain.fill"
-        case 65:         return "cloud.heavyrain.fill"
-        case 71, 73, 75: return "cloud.snow.fill"
-        case 77:         return "cloud.snow.fill"
-        case 80, 81, 82: return "cloud.rain.fill"
-        case 85, 86:     return "cloud.snow.fill"
-        case 95:         return "cloud.bolt.fill"
-        case 96, 99:     return "cloud.bolt.rain.fill"
-        default:         return "cloud.fill"
+        case 0:          return AppIcons.Weather.sunMaxFill
+        case 1:          return AppIcons.Weather.sunMaxFill
+        case 2:          return AppIcons.Weather.cloudSunFill
+        case 3:          return AppIcons.Weather.cloudFill
+        case 45, 48:     return AppIcons.Weather.cloudFogFill
+        case 51, 53, 55: return AppIcons.Weather.cloudDrizzleFill
+        case 61:         return AppIcons.Weather.cloudRainFill
+        case 63:         return AppIcons.Weather.cloudRainFill
+        case 65:         return AppIcons.Weather.cloudHeavyrainFill
+        case 71, 73, 75: return AppIcons.Weather.cloudSnowFill
+        case 77:         return AppIcons.Weather.cloudSnowFill
+        case 80, 81, 82: return AppIcons.Weather.cloudRainFill
+        case 85, 86:     return AppIcons.Weather.cloudSnowFill
+        case 95:         return AppIcons.Weather.cloudBoltFill
+        case 96, 99:     return AppIcons.Weather.cloudBoltRainFill
+        default:         return AppIcons.Weather.cloudFill
         }
     }
 

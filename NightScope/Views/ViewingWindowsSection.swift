@@ -11,7 +11,7 @@ struct ViewingWindowsSection: View {
             if summary.viewingWindows.isEmpty {
                 ContentUnavailableView(
                     "観測に適した時間帯がありません",
-                    systemImage: "exclamationmark.triangle",
+                    systemImage: AppIcons.Status.warning,
                     description: Text("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした")
                 )
             } else {
@@ -29,10 +29,10 @@ struct ViewingWindowsSection: View {
                     .font(.title3.bold())
 
                 HStack(spacing: Spacing.sm) {
-                    Label(String(format: "観測 %.1f時間", window.duration / 3600), systemImage: "clock")
-                    Label(String(format: "最大高度 %.0f°", window.peakAltitude), systemImage: "arrow.up")
-                    Label("見頃 \(timeString(window.peakTime))", systemImage: "star")
-                    Label(window.peakDirectionName, systemImage: "location.north.fill")
+                    Label(String(format: "観測 %.1f時間", window.duration / 3600), systemImage: AppIcons.Observation.clock)
+                    Label(String(format: "最大高度 %.0f°", window.peakAltitude), systemImage: AppIcons.Observation.altitudeArrow)
+                    Label("見頃 \(timeString(window.peakTime))", systemImage: AppIcons.Astronomy.star)
+                    Label(window.peakDirectionName, systemImage: AppIcons.Observation.azimuthArrow)
                 }
                 .font(.body)
                 .foregroundColor(.secondary)
@@ -42,11 +42,11 @@ struct ViewingWindowsSection: View {
 
             VStack(alignment: .trailing, spacing: Spacing.xs) {
                 if isMoonFavorable {
-                    Label("条件良好", systemImage: "checkmark.circle.fill")
+                    Label("条件良好", systemImage: AppIcons.Status.checkmarkFill)
                         .font(.body)
                         .foregroundStyle(.green)
                 } else {
-                    Label("月明かりあり", systemImage: "moon.fill")
+                    Label("月明かりあり", systemImage: AppIcons.Astronomy.moonFill)
                         .font(.body)
                         .foregroundStyle(.orange)
                 }

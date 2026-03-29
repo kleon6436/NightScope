@@ -7,7 +7,7 @@ struct NightWeatherCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.xs) {
-                Image(systemName: "cloud")
+                Image(systemName: AppIcons.Weather.cloud)
                     .foregroundStyle(.cyan)
                     .font(.body)
                     .accessibilityHidden(true)

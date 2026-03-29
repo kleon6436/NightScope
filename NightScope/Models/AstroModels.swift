@@ -70,14 +70,14 @@ struct NightSummary {
 
     var moonPhaseIcon: String {
         switch moonPhaseAtMidnight {
-        case 0..<0.04, 0.96...1: return "moonphase.new.moon"
-        case 0.04..<0.25: return "moonphase.waxing.crescent"
-        case 0.25..<0.30: return "moonphase.first.quarter"
-        case 0.30..<0.46: return "moonphase.waxing.gibbous"
-        case 0.46..<0.54: return "moonphase.full.moon"
-        case 0.54..<0.70: return "moonphase.waning.gibbous"
-        case 0.70..<0.80: return "moonphase.last.quarter"
-        default: return "moonphase.waning.crescent"
+        case 0..<0.04, 0.96...1: return AppIcons.Astronomy.moonPhaseNew
+        case 0.04..<0.25: return AppIcons.Astronomy.moonPhaseWaxingCrescent
+        case 0.25..<0.30: return AppIcons.Astronomy.moonPhaseFirstQuarter
+        case 0.30..<0.46: return AppIcons.Astronomy.moonPhaseWaxingGibbous
+        case 0.46..<0.54: return AppIcons.Astronomy.moonPhaseFull
+        case 0.54..<0.70: return AppIcons.Astronomy.moonPhaseWaningGibbous
+        case 0.70..<0.80: return AppIcons.Astronomy.moonPhaseLastQuarter
+        default: return AppIcons.Astronomy.moonPhaseWaningCrescent
         }
     }
 

@@ -26,7 +26,7 @@ struct DetailView: View {
             } else {
                 ContentUnavailableView(
                     "データがありません",
-                    systemImage: "moon.stars",
+                    systemImage: AppIcons.Astronomy.moonStars,
                     description: Text("場所と日付を選択してください")
                 )
             }
@@ -36,7 +36,7 @@ struct DetailView: View {
         .overlay(alignment: .bottom) {
             if let error = appController.weatherService.errorMessage {
                 HStack(spacing: Spacing.xs) {
-                    Image(systemName: "exclamationmark.triangle")
+                    Image(systemName: AppIcons.Status.warning)
                         .foregroundStyle(.orange)
                         .accessibilityHidden(true)
                     Text(error)

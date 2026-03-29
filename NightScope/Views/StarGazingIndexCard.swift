@@ -40,7 +40,7 @@ struct StarGazingIndexCard: View {
                     HStack(spacing: Spacing.xs) {
                         HStack(spacing: Spacing.xs / 4) {
                             ForEach(0..<5) { i in
-                                Image(systemName: i < index.starCount ? "star.fill" : "star")
+                                Image(systemName: i < index.starCount ? AppIcons.Astronomy.starFill : AppIcons.Astronomy.star)
                                     .foregroundStyle(i < index.starCount ? color : Color.gray.opacity(0.4))
                                     .font(.body)
                             }
@@ -51,7 +51,7 @@ struct StarGazingIndexCard: View {
                             .font(.headline)
                             .foregroundStyle(color)
                         Spacer()
-                        Image(systemName: "chevron.down")
+                        Image(systemName: AppIcons.Controls.chevronDown)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
