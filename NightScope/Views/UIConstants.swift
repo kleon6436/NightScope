@@ -29,7 +29,7 @@ enum Layout {
     /// ウィンドウ最小幅
     static let windowMinWidth: CGFloat = 820
     /// ウィンドウ最小高
-    static let windowMinHeight: CGFloat = 620
+    static let windowMinHeight: CGFloat = 750
     /// サイドバー最小幅
     static let sidebarMinWidth: CGFloat = 260
     /// サイドバー理想幅

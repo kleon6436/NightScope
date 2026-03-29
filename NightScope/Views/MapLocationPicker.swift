@@ -125,7 +125,8 @@ private struct MapContainerView<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             content()
-                .frame(height: 280)
+                .frame(minHeight: 160, maxHeight: 280)
+                .frame(maxHeight: .infinity)
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -275,13 +276,16 @@ struct MapLocationPicker: View, Equatable {
     let syncState: MapKitSyncState
     let onRegionChange: (CLLocationCoordinate2D, MKCoordinateSpan) -> Void
     let showLightPollution: Bool
+    var onCurrentLocation: (() -> Void)? = nil
+    var isLocating: Bool = false
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.selectedCoordinate.latitude == rhs.selectedCoordinate.latitude &&
         lhs.selectedCoordinate.longitude == rhs.selectedCoordinate.longitude &&
         lhs.isVisible == rhs.isVisible &&
         lhs.syncState == rhs.syncState &&
-        lhs.showLightPollution == rhs.showLightPollution
+        lhs.showLightPollution == rhs.showLightPollution &&
+        lhs.isLocating == rhs.isLocating
     }
 
     var body: some View {
@@ -294,6 +298,28 @@ struct MapLocationPicker: View, Equatable {
                 onRegionChange: onRegionChange,
                 showLightPollution: showLightPollution
             )
+            .overlay(alignment: .bottomTrailing) {
+                if let onCurrentLocation {
+                    Button {
+                        onCurrentLocation()
+                    } label: {
+                        Group {
+                            if isLocating {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "location.fill")
+                                    .font(.system(size: 14))
+                            }
+                        }
+                        .frame(width: 28, height: 28)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(8)
+                    .disabled(isLocating)
+                    .accessibilityLabel("現在地を取得")
+                }
+            }
         }
     }
 }

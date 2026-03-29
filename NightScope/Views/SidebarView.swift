@@ -102,7 +102,9 @@ struct SidebarView: View {
                     viewport.center = center
                     viewport.span = span
                 },
-                showLightPollution: locationInputMode == .lightPollutionMap
+                showLightPollution: locationInputMode == .lightPollutionMap,
+                onCurrentLocation: { locationController.requestCurrentLocation() },
+                isLocating: locationController.isLocating
             )
             .equatable()
 
@@ -129,6 +131,18 @@ struct SidebarView: View {
         }
         .onChange(of: locationInputMode) {
             mapKitSyncTrigger += 1
+        }
+        .alert(
+            "位置情報エラー",
+            isPresented: Binding(
+                get: { locationController.locationError != nil },
+                set: { if !$0 { locationController.locationError = nil } }
+            ),
+            presenting: locationController.locationError
+        ) { _ in
+            Button("OK") { locationController.locationError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
         }
     }
 
