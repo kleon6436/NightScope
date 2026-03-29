@@ -1,11 +1,12 @@
 import SwiftUI
 import MapKit
 
-enum LocationInputMode {
-    case map, lightPollutionMap
-}
-
 struct SidebarView: View {
+
+    private enum LocationInputMode {
+        case map, lightPollutionMap
+    }
+
     @ObservedObject var locationController: LocationController
     @ObservedObject var lightPollutionService: LightPollutionService
     @Binding var selectedDate: Date
@@ -92,6 +93,13 @@ struct SidebarView: View {
             .textFieldStyle(.roundedBorder)
             .focused($isSearchFocused)
             .accessibilityLabel("場所を検索")
+            .overlay(alignment: .trailing) {
+                if locationController.isSearching {
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding(.trailing, Spacing.xs)
+                }
+            }
             .onSubmit(confirmHighlightedOrFirst)
             .onChange(of: searchText) {
                 highlightedSearchIndex = -1
@@ -99,7 +107,7 @@ struct SidebarView: View {
                     suppressNextSearch = false
                     return
                 }
-                Task { await locationController.search(query: searchText) }
+                locationController.search(query: searchText)
             }
             .onChange(of: locationController.searchFocusTrigger) {
                 isSearchFocused = true
@@ -206,7 +214,6 @@ struct SidebarView: View {
 
     // MARK: - Search Helpers
 
-    /// searchText をプログラムからセットし、onChange による再検索を抑制する
     private func setSearchText(_ text: String) {
         suppressNextSearch = true
         searchText = text

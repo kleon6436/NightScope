@@ -19,6 +19,7 @@ final class LocationController: NSObject, ObservableObject {
         didSet { UserDefaults.standard.set(locationName, forKey: Keys.name) }
     }
     @Published var searchResults: [MKMapItem] = []
+    @Published var isSearching = false
     @Published var isLocating = false
     @Published var locationError: LocationError?
     @Published var searchFocusTrigger = 0
@@ -51,6 +52,7 @@ final class LocationController: NSObject, ObservableObject {
 
     private let locationManager = CLLocationManager()
     private var locationTimeoutTask: Task<Void, Never>?
+    private var searchTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -76,7 +78,7 @@ final class LocationController: NSObject, ObservableObject {
 
     func requestCurrentLocation() {
         let status = locationManager.authorizationStatus
-        guard status != .denied && status != .restricted else {
+        guard status != .denied, status != .restricted else {
             locationError = .denied
             return
         }
@@ -89,52 +91,71 @@ final class LocationController: NSObject, ObservableObject {
         }
     }
 
-    func search(query: String) async {
+    func search(query: String) {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
-            searchResults = []
+            clearSearch()
             return
         }
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-        do {
-            let response = try await MKLocalSearch(request: request).start()
-            searchResults = response.mapItems
-        } catch {
-            searchResults = []
+        searchTask?.cancel()
+        isSearching = true
+        searchTask = Task {
+            // キャンセルされた場合は isSearching をリセットしない（次の検索が既に true にセット済み）
+            defer { if !Task.isCancelled { isSearching = false } }
+            // デバウンス: 150ms 以内に次の入力があればキャンセルされる
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            do {
+                let response = try await MKLocalSearch(request: request).start()
+                guard !Task.isCancelled else { return }
+                searchResults = response.mapItems
+            } catch {
+                guard !Task.isCancelled else { return }
+                searchResults = []
+            }
         }
     }
 
     /// 検索候補から場所を確定する（マップをセンタリングする）
     func select(_ mapItem: MKMapItem) {
+        clearSearch()
         selectedLocation = mapItem.location.coordinate
-        searchResults = []
         currentLocationCenterTrigger += 1
         Task { locationName = await reverseGeocode(coordinate: mapItem.location.coordinate) }
     }
 
     /// マップタップなど座標から場所を選択する（センタリングしない）
     func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
-        if isLocating {
-            cancelLocationTimeout()
-            isLocating = false
-            locationManager.stopUpdatingLocation()
-        }
+        if isLocating { stopLocating() }
+        clearSearch()
         selectedLocation = coordinate
-        searchResults = []
         Task { locationName = await reverseGeocode(coordinate: coordinate) }
     }
 
     // MARK: - Private Helpers
 
+    private func clearSearch() {
+        searchTask?.cancel()
+        searchResults = []
+        isSearching = false
+    }
+
+    private func stopLocating() {
+        cancelLocationTimeout()
+        isLocating = false
+        locationManager.stopUpdatingLocation()
+    }
+
     private func startLocationUpdatesWithTimeout() {
+        cancelLocationTimeout()
         locationManager.startUpdatingLocation()
-        locationTimeoutTask?.cancel()
         locationTimeoutTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(60))
             guard !Task.isCancelled, let self else { return }
             if self.isLocating {
-                self.locationManager.stopUpdatingLocation()
-                self.isLocating = false
+                self.stopLocating()
                 self.locationError = .failed
             }
         }
@@ -170,25 +191,21 @@ extension LocationController: CLLocationManagerDelegate {
         guard let location = locations.first else { return }
         manager.stopUpdatingLocation()
         Task { @MainActor in
-            self.cancelLocationTimeout()
-            self.isLocating = false
             self.selectCoordinate(location.coordinate)
             self.currentLocationCenterTrigger += 1
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        let clError = error as? CLError
-        Task { @MainActor in
-            if clError?.code == .denied {
-                // 権限エラーは致命的なので停止してエラー表示
-                self.cancelLocationTimeout()
-                manager.stopUpdatingLocation()
-                self.isLocating = false
-                self.locationError = .denied
-            }
+        guard (error as? CLError)?.code == .denied else {
             // kCLErrorLocationUnknown など一時的なエラーは無視して待ち続ける
-            // (startUpdatingLocation は内部で再試行するため、ここでは何もしない)
+            // (startUpdatingLocation は内部で再試行するため)
+            return
+        }
+        Task { @MainActor in
+            // 権限エラーは致命的なので停止してエラー表示
+            self.stopLocating()
+            self.locationError = .denied
         }
     }
 
@@ -199,8 +216,7 @@ extension LocationController: CLLocationManagerDelegate {
                 if self.isLocating { self.startLocationUpdatesWithTimeout() }
             case .denied, .restricted:
                 if self.isLocating {
-                    self.cancelLocationTimeout()
-                    self.isLocating = false
+                    self.stopLocating()
                     self.locationError = .denied
                 }
             default:
