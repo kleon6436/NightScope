@@ -15,7 +15,8 @@ struct AstroEvent: Identifiable {
     var isDark: Bool { sunAltitude < -18.0 }           // 天文薄明終了
     var isNauticalDark: Bool { sunAltitude < -12.0 }   // 航海薄明終了
     var isCivilDark: Bool { sunAltitude < -6.0 }       // 市民薄明終了
-    var galacticCenterVisible: Bool { galacticCenterAltitude > 5.0 && isDark }
+    /// 根拠: 高度 < 10° では大気差・地物遮蔽により実用的な観測が困難
+    var galacticCenterVisible: Bool { galacticCenterAltitude > 10.0 && isDark }
     var isGoodForPhotography: Bool {
         galacticCenterAltitude > 15.0 && isDark && (moonPhase < 0.25 || moonPhase > 0.75)
     }
@@ -88,6 +89,15 @@ struct NightSummary {
     var totalDarkHours: Double {
         let count = events.filter { $0.isDark }.count
         return Double(count) * 15.0 / 60.0
+    }
+
+    /// 天文薄明中に月が地平線上（高度 > 0°）にある時間の割合 (0.0–1.0)
+    /// 根拠: 月が地平線以下の時間帯は照明影響を受けないため、スコア計算で減点不要
+    var moonAboveHorizonFractionDuringDark: Double {
+        let darkEvents = events.filter { $0.isDark }
+        guard !darkEvents.isEmpty else { return 0 }
+        let visibleCount = darkEvents.filter { $0.moonAltitude > 0 }.count
+        return Double(visibleCount) / Double(darkEvents.count)
     }
 
     private var darkEvents: [AstroEvent] { events.filter { $0.isDark } }

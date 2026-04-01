@@ -11,6 +11,18 @@ struct HourlyWeather {
     let humidityPercent: Double
     let dewpointCelsius: Double
     let weatherCode: Int
+    /// 視程（メートル）。大気透明度の直接測定値。nil = データなし
+    let visibilityMeters: Double?
+    /// 瞬間最大風速（km/h）。シーイング評価に使用。nil = データなし
+    let windGustsKmh: Double?
+    /// 低層雲量（< 2km）0-100%。nil = データなし
+    let cloudCoverLowPercent: Double?
+    /// 中層雲量（2-6km）0-100%。nil = データなし
+    let cloudCoverMidPercent: Double?
+    /// 高層雲量（> 6km）0-100%。nil = データなし
+    let cloudCoverHighPercent: Double?
+    /// 500hPa 高度（≈ 5.5km）の風速（km/h）。シーイング評価に使用。nil = データなし
+    let windSpeedKmh500hpa: Double?
 }
 
 struct DayWeatherSummary {
@@ -53,10 +65,62 @@ struct DayWeatherSummary {
         return nighttimeTotals.humidity / Double(nighttimeHours.count)
     }
 
-    /// 気温と露点の平均差（大気の透明度の代理指標）
+    /// 気温と露点の平均差（大気の透明度の代理指標・結露リスク評価）
     var avgDewpointSpread: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
         return nighttimeTotals.dewpointSpread / Double(nighttimeHours.count)
+    }
+
+    /// 低層雲量（< 2km）の夜間平均。データなし時は nil
+    var avgCloudCoverLow: Double? {
+        let values = nighttimeHours.compactMap(\.cloudCoverLowPercent)
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// 中層雲量（2-6km）の夜間平均。データなし時は nil
+    var avgCloudCoverMid: Double? {
+        let values = nighttimeHours.compactMap(\.cloudCoverMidPercent)
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// 高層雲量（> 6km）の夜間平均。データなし時は nil
+    var avgCloudCoverHigh: Double? {
+        let values = nighttimeHours.compactMap(\.cloudCoverHighPercent)
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// 層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3
+    /// 根拠: 低層雲は不透明（遮断率1.0）、高層雲は半透明（遮断率0.3）
+    /// 3層すべてのデータが揃わない場合は nil（フォールバック用）
+    var effectiveCloudCover: Double? {
+        guard let low = avgCloudCoverLow,
+              let mid = avgCloudCoverMid,
+              let high = avgCloudCoverHigh else { return nil }
+        return low * 1.0 + mid * 0.7 + high * 0.3
+    }
+
+    /// 視程の夜間平均（メートル）。データなし時は nil
+    var avgVisibilityMeters: Double? {
+        let values = nighttimeHours.compactMap(\.visibilityMeters)
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    /// 夜間の最大突風速度（km/h）。データなし時は nil
+    var maxWindGusts: Double? {
+        let values = nighttimeHours.compactMap(\.windGustsKmh)
+        guard !values.isEmpty else { return nil }
+        return values.max()
+    }
+
+    /// 500hPa（≈ 5.5km）の夜間平均風速（km/h）。データなし時は nil
+    var avgWindSpeed500hpa: Double? {
+        let values = nighttimeHours.compactMap(\.windSpeedKmh500hpa)
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
     }
 
     var cloudLabel: String {

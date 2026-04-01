@@ -160,11 +160,12 @@ final class MilkyWayCalculatorTests: XCTestCase {
     /// galacticCenterVisible が連続するイベントは1つのウィンドウにまとまる
     func test_findViewingWindows_continuousVisible_singleWindow() {
         let base = Date(timeIntervalSince1970: 0)
-        // galacticCenterVisible: altitude > 5° && isDark (sunAlt < -18°)
+        // galacticCenterVisible: altitude > 10° && isDark (sunAlt < -18°)
+        // 高度15°を使用 (大気差・地物遮蔽を考慮した実用最低高度10°を上回る)
         let events = (0..<4).map { i in
             AstroEvent(
                 date: base.addingTimeInterval(Double(i) * 900),
-                galacticCenterAltitude: 10.0,
+                galacticCenterAltitude: 15.0,
                 galacticCenterAzimuth: 180.0,
                 sunAltitude: -20.0,
                 moonAltitude: -5.0,

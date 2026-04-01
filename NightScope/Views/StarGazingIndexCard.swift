@@ -61,10 +61,10 @@ struct StarGazingIndexCard: View {
 
                     if isExpanded {
                         Group {
-                            subScoreRow(label: "星空", score: index.constellationScore, maxScore: 50, color: Color.indigo)
+                            subScoreRow(label: "星空", score: index.constellationScore, maxScore: StarGazingIndex.maxConstellationScore, color: Color.indigo)
 
                             if index.hasWeatherData {
-                                subScoreRow(label: "気象", score: index.weatherScore, maxScore: 40, color: .cyan)
+                                subScoreRow(label: "気象", score: index.weatherScore, maxScore: StarGazingIndex.maxWeatherScore, color: .cyan)
                             } else {
                                 HStack(spacing: Spacing.xs) {
                                     Text("気象")
@@ -78,7 +78,7 @@ struct StarGazingIndexCard: View {
                             }
 
                             if index.hasLightPollutionData {
-                                subScoreRow(label: "光害", score: index.lightPollutionScore, maxScore: 10, color: .orange)
+                                subScoreRow(label: "光害", score: index.lightPollutionScore, maxScore: StarGazingIndex.maxLightPollutionScore, color: .orange)
                             } else {
                                 HStack(spacing: Spacing.xs) {
                                     Text("光害")
@@ -101,7 +101,6 @@ struct StarGazingIndexCard: View {
                                 }
                             }
 
-                            subScoreRow(label: "天の川", score: index.milkyWayScore, maxScore: 25, color: .yellow)
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }

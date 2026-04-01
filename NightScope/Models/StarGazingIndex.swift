@@ -2,18 +2,27 @@ import Foundation
 
 struct StarGazingIndex {
     private enum Constants {
-        static let lightPollutionMaxScore = 10
+        /// 光害スコア最大値。全体100点中の30点（旧10点から引き上げ）。
+        /// 根拠: 光害（Bortle値）は観測可能な天体の限界等級を直接決定し、
+        ///       全観測条件の中で最も根本的な制約要因となる。
+        static let lightPollutionMaxScore = 30
         /// Bortle スケールの最悪クラス（都市中心部）
         static let bortleWorstClass: Double = 9.0
         /// このクラス以下は満点（日本の最暗空相当）
         static let bortleBestClass: Double = 3.0
     }
 
+    // MARK: - 各スコアの最大値（UI表示用）
+    static let maxMilkyWayScore       = 25
+    static let maxConstellationScore  = 30
+    static let maxWeatherScore        = 40
+    static let maxLightPollutionScore = Constants.lightPollutionMaxScore  // 30
+
     let score: Int
     let milkyWayScore: Int       // 0–25 (表示のみ、合計スコアに含まない)
-    let constellationScore: Int  // 0–50
+    let constellationScore: Int  // 0–30
     let weatherScore: Int        // 0–40 (気象データなし時は 0)
-    let lightPollutionScore: Int // 0–10 (未取得時は 0)
+    let lightPollutionScore: Int // 0–30 (未取得時は 0)
     let hasWeatherData: Bool
     let hasLightPollutionData: Bool
 
@@ -65,7 +74,7 @@ struct StarGazingIndex {
 
         if let weather = weather {
             let weatherPts = computeWeatherScore(weather: weather)
-            // 合計: 星座(0-50) + 気象(0-40) + 光害(0-10) = 0-100
+            // 合計: 星座(0-30) + 気象(0-40) + 光害(0-30) = 0-100
             let total = min(100, constellation + weatherPts + lightPollution)
             return StarGazingIndex(
                 score: total,
@@ -77,8 +86,8 @@ struct StarGazingIndex {
                 hasLightPollutionData: hasLP
             )
         } else {
-            // 気象データなし: 星座(0-50) + 光害(0-10) を 60点満点として換算
-            let maxBase = hasLP ? 60 : 50
+            // 気象データなし: 星座(0-30) + 光害(0-30) を 60点満点として換算
+            let maxBase = hasLP ? 60 : 30
             let base = constellation + lightPollution
             let scaled = min(100, Int(Double(base) / Double(maxBase) * 100.0))
             return StarGazingIndex(
@@ -125,39 +134,56 @@ struct StarGazingIndex {
         return min(score, 25)
     }
 
-    // MARK: - Sky Score (0–50)
+    // MARK: - Sky Score (0–30)
 
     private static func computeConstellationScore(nightSummary: NightSummary) -> Int {
         var score = 0
 
-        // 天文薄明中の暗い時間 (0–30 pts)
+        // 天文薄明中の暗い時間 (0–20 pts)
+        // 根拠: 天文薄明（太陽高度 < -18°、IAU標準）のみを有効な観測時間として評価。
+        //       0–2時間は銀河の高度変化を追跡できず実用的な観測が難しいため最低点（1点）。
         let darkHours = nightSummary.totalDarkHours
+        guard darkHours > 0 else { return 0 }
+
         if darkHours > 6 {
-            score += 30
+            score += 20
         } else if darkHours > 4 {
-            score += 22
+            score += 15
         } else if darkHours > 2 {
-            score += 14
-        } else if darkHours > 0 {
-            score += 5
+            score += 9
+        } else {
+            score += 1  // 0–2時間: 観測時間が極端に短く実用性が低い
         }
 
-        // 月の照明度 (0–20 pts)
+        // 月の照明度 (0–10 pts) × 月が地平線上にある割合
         // illumination = (1 - cos(phase × 2π)) / 2
         // phase=0 → 新月(illumination=0), phase=0.5 → 満月(illumination=1)
+        //
+        // 根拠: Krisciunas & Schaefer (1991) の実測データに基づく非線形評価。
+        //   illumination 0.15以上では空輝度が自然夜空の10倍以上増加し天の川はほぼ消失。
+        //   illumination 0.30以上（上弦付近）では空輝度が自然夜空の30〜50倍に達し観測不可。
+        // moonFraction: 天文薄明中に月が地平線上にある割合（0=ずっと地平線以下, 1=常に地平線上）
+        //   月が地平線以下の時間帯は照明影響なし（満点10点相当）として加重平均する。
         let phase = nightSummary.moonPhaseAtMidnight
         let illumination = (1.0 - cos(phase * 2.0 * .pi)) / 2.0
-        if illumination < 0.10 {
-            score += 20
-        } else if illumination < 0.30 {
-            score += 14
-        } else if illumination < 0.50 {
-            score += 8
-        } else if illumination < 0.70 {
-            score += 3
-        }
+        let moonFraction = nightSummary.moonAboveHorizonFractionDuringDark
 
-        return min(score, 50)
+        let moonScoreWhenVisible: Int
+        if illumination < 0.05 {
+            moonScoreWhenVisible = 10  // 新月付近: 最良条件
+        } else if illumination < 0.15 {
+            moonScoreWhenVisible = 6   // 繊月: 空輝度が数倍に増加
+        } else if illumination < 0.30 {
+            moonScoreWhenVisible = 2   // 三日月以降: 空輝度が10倍超、天の川はほぼ消失
+        } else {
+            moonScoreWhenVisible = 0   // 上弦〜満月: 観測困難
+        }
+        // 月が地平線以下の時間帯は理想条件(10点)として扱い加重平均
+        let weightedMoonScore = Int(round(Double(moonScoreWhenVisible) * moonFraction
+                                          + 10.0 * (1.0 - moonFraction)))
+        score += weightedMoonScore
+
+        return min(score, 30)
     }
 
     // MARK: - Weather Score (0–40)
@@ -165,67 +191,125 @@ struct StarGazingIndex {
     private static func computeWeatherScore(weather: DayWeatherSummary) -> Int {
         var score = 0
 
-        // 雲量 (0–18 pts)
-        let cloud = weather.avgCloudCover
-        if cloud < 15 {
+        // a. 雲量 (0–18 pts)
+        // 根拠: 低層雲(< 2km)は不透明で星を完全遮断。高層雲(> 6km)は巻雲等の氷晶雲で半透明。
+        //       層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3 で精度向上。
+        //       層別データなし時は総合雲量にフォールバック。
+        let effectiveCloud = weather.effectiveCloudCover ?? weather.avgCloudCover
+        if effectiveCloud < 15 {
             score += 18
-        } else if cloud < 35 {
+        } else if effectiveCloud < 35 {
             score += 13
-        } else if cloud < 55 {
+        } else if effectiveCloud < 55 {
             score += 7
-        } else if cloud < 75 {
+        } else if effectiveCloud < 75 {
             score += 2
         }
 
-        // 降水量 (0–8 pts)
+        // b. 大気透明度 (0–10 pts)
+        // 根拠: 視程(visibility)は大気中のエアロゾル・水蒸気量を反映し、制限等級（限界等級）に直結する。
+        //       視程 ≥ 20km = NOAAの「非常に良好」基準。6等星以上の観測が期待できる条件。
+        //       視程データなし時は露点差のみで評価（最大7点に制限してデータなしのペナルティを反映）。
+        if let vis = weather.avgVisibilityMeters {
+            let km = vis / 1000.0
+            if km >= 20 {
+                score += 8
+            } else if km >= 10 {
+                score += 5
+            } else if km >= 5 {
+                score += 2
+            }
+            // 露点差による補正 (0–2 pts): 乾燥した大気ほど透明度が高い
+            let spread = weather.avgDewpointSpread
+            if spread > 15 {
+                score += 2
+            } else if spread > 10 {
+                score += 1
+            }
+        } else {
+            // フォールバック: 視程データなし時は露点差のみで 0–7 pts
+            let spread = weather.avgDewpointSpread
+            if spread > 15 {
+                score += 7
+            } else if spread > 10 {
+                score += 5
+            } else if spread > 5 {
+                score += 2
+            }
+        }
+
+        // c. 降水 (0–6 pts)
+        // 根拠: 霧(WMO コード 45, 48)は降水量ゼロでも視程をほぼゼロにし観測不可となる。
+        //       51以上（霧雨・雨・雪）は即時観測中止に相当。
         let precip = weather.maxPrecipitation
-        if precip == 0 {
-            score += 8
+        let wcode = weather.representativeWeatherCode
+        if precip == 0 && wcode < 45 {
+            score += 6
+        } else if precip == 0 && wcode <= 48 {
+            // 霧のみ: 視程がほぼゼロのため最低点
+            score += 1
         } else if precip < 0.1 {
-            score += 5
+            score += 4
         } else if precip < 0.5 {
             score += 2
         }
 
-        // 風速 (0–6 pts)
-        let wind = weather.avgWindSpeed
-        if wind < 10 {
-            score += 6
-        } else if wind < 20 {
-            score += 4
-        } else if wind < 35 {
-            score += 2
+        // d. シーイング・風 (0–4 pts)
+        // 根拠: 天文シーイング（大気の揺らぎ）は地表から対流圏全体の乱流で決まる。
+        //       地表突風データ(0–4pts): 突風（瞬間最大風速）は地表乱流の直接指標。
+        //       上空風データ(500hPa ≈ 5.5km)がある場合は地表+上空の複合評価(各0–2pts)に切り替え。
+        //       上空風なし時は地表突風のみで評価（フォールバック）。
+        let avgWind = weather.avgWindSpeed
+        let gusts = weather.maxWindGusts ?? avgWind
+        if let upperWind = weather.avgWindSpeed500hpa {
+            // 地表 (0–2pts) + 上空 (0–2pts) の複合シーイング評価
+            let surfaceScore: Int
+            if gusts < 20 && avgWind < 10      { surfaceScore = 2 }
+            else if gusts < 35 && avgWind < 20 { surfaceScore = 1 }
+            else                                { surfaceScore = 0 }
+            // 500hPa ≈ 5.5km。30km/h未満は良好、60km/h以上は乱流強く観測困難
+            let upperScore: Int
+            if upperWind < 30      { upperScore = 2 }
+            else if upperWind < 60 { upperScore = 1 }
+            else                   { upperScore = 0 }
+            score += min(4, surfaceScore + upperScore)
+        } else {
+            // フォールバック: 地表突風データのみで評価（最大4点）
+            if gusts < 20 && avgWind < 10 {
+                score += 4
+            } else if gusts < 35 && avgWind < 20 {
+                score += 2
+            } else if gusts < 50 && avgWind < 35 {
+                score += 1
+            }
         }
 
-        // 湿度 (0–5 pts)
-        let humidity = weather.avgHumidity
-        if humidity < 50 {
-            score += 5
-        } else if humidity < 65 {
-            score += 3
-        } else if humidity < 80 {
-            score += 1
-        }
-
-        // 大気の透明度（露点温度差）(0–3 pts)
-        let spread = weather.avgDewpointSpread
-        if spread > 15 {
-            score += 3
-        } else if spread > 10 {
+        // e. 露リスク (0–2 pts)
+        // 根拠: 気温と露点の差（露点差）< 3°C で相対湿度が約90%以上となり、
+        //       光学部品（レンズ・反射鏡）への結露が発生する。旧「湿度スコア」を置き換え。
+        let dewpointSpread = weather.avgDewpointSpread
+        if dewpointSpread > 5 {
             score += 2
-        } else if spread > 5 {
+        } else if dewpointSpread > 3 {
             score += 1
         }
 
         return min(score, 40)
     }
 
-    // MARK: - Light Pollution Score (0–10)
+    // MARK: - Light Pollution Score (0–30)
 
     private static func computeLightPollutionScore(bortleClass: Double?) -> Int {
         guard let bortle = bortleClass else { return 0 }
-        // 日本の最暗空は Bortle 3 程度。3 以下はすべて満点 10。
+        // 日本の最暗空は Bortle 3 程度。3 以下はすべて満点 30。
         // Bortle 9 で 0 点になるよう線形スケール（3〜9 の範囲）。
+        // 変換元データ: Falchi et al. (2016, Science Advances) World Atlas 2015
+        //
+        // 線形マッピングの根拠:
+        //   Bortle スケールは各クラス間が約3倍の輝度差（対数スケール）で定義されている。
+        //   したがって Bortle → スコアの線形変換は、実際の輝度に対して対数スケールの
+        //   変換と等価であり、等しい輝度倍率の変化を等しいスコア変化として扱う。
+        //   限界等級も Bortle にほぼ線形に対応するため、実用上の評価としても適切。
         let range = Constants.bortleWorstClass - Constants.bortleBestClass
         return max(0, min(Constants.lightPollutionMaxScore,
                           Int(round(Double(Constants.lightPollutionMaxScore) * (Constants.bortleWorstClass - bortle) / range))))

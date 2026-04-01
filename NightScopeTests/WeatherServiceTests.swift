@@ -29,7 +29,13 @@ final class WeatherServiceTests: XCTestCase {
     private func makeResponse(
         times: [String],
         clouds: [Double?]? = nil,
-        timezone: String? = nil
+        timezone: String? = nil,
+        visibility: [Double?]? = nil,
+        windGusts: [Double?]? = nil,
+        cloudLow: [Double?]? = nil,
+        cloudMid: [Double?]? = nil,
+        cloudHigh: [Double?]? = nil,
+        windSpeed500hpa: [Double?]? = nil
     ) -> OpenMeteoResponse {
         let n = times.count
         let tz = timezone ?? TimeZone.current.identifier
@@ -43,7 +49,13 @@ final class WeatherServiceTests: XCTestCase {
                 windspeed_10m: Array(repeating: 5.0, count: n),
                 relative_humidity_2m: Array(repeating: 50.0, count: n),
                 dewpoint_2m: Array(repeating: 10.0, count: n),
-                weathercode: Array(repeating: 0, count: n)
+                weathercode: Array(repeating: 0, count: n),
+                visibility: visibility,
+                windgusts_10m: windGusts,
+                cloud_cover_low: cloudLow,
+                cloud_cover_mid: cloudMid,
+                cloud_cover_high: cloudHigh,
+                windspeed_500hpa: windSpeed500hpa
             ),
             timezone: tz
         )
@@ -164,7 +176,13 @@ final class WeatherServiceTests: XCTestCase {
                 windspeed_10m: [nil],
                 relative_humidity_2m: [nil],
                 dewpoint_2m: [nil],
-                weathercode: [nil]
+                weathercode: [nil],
+                visibility: nil,
+                windgusts_10m: nil,
+                cloud_cover_low: nil,
+                cloud_cover_mid: nil,
+                cloud_cover_high: nil,
+                windspeed_500hpa: nil
             ),
             timezone: TimeZone.current.identifier
         )
@@ -191,7 +209,13 @@ final class WeatherServiceTests: XCTestCase {
                 windspeed_10m: [0.0],
                 relative_humidity_2m: [0.0],
                 dewpoint_2m: [nil], // nil → temp にフォールバック
-                weathercode: [0]
+                weathercode: [0],
+                visibility: nil,
+                windgusts_10m: nil,
+                cloud_cover_low: nil,
+                cloud_cover_mid: nil,
+                cloud_cover_high: nil,
+                windspeed_500hpa: nil
             ),
             timezone: TimeZone.current.identifier
         )

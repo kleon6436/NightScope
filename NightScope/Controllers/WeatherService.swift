@@ -12,6 +12,31 @@ struct OpenMeteoResponse: Decodable {
         let relative_humidity_2m: [Double?]
         let dewpoint_2m: [Double?]
         let weathercode: [Int?]
+        // 新規追加フィールド（配列自体もオプショナル — 後方互換性のため）
+        let visibility: [Double?]?
+        let windgusts_10m: [Double?]?
+        let cloud_cover_low: [Double?]?
+        let cloud_cover_mid: [Double?]?
+        let cloud_cover_high: [Double?]?
+        let windspeed_500hpa: [Double?]?
+
+        // API キー名（wind_gusts_10m / windspeed_500hPa）と Swift プロパティ名のマッピング
+        enum CodingKeys: String, CodingKey {
+            case time
+            case temperature_2m
+            case cloudcover
+            case precipitation
+            case windspeed_10m
+            case relative_humidity_2m
+            case dewpoint_2m
+            case weathercode
+            case visibility
+            case windgusts_10m = "wind_gusts_10m"
+            case cloud_cover_low
+            case cloud_cover_mid
+            case cloud_cover_high
+            case windspeed_500hpa = "windspeed_500hPa"
+        }
     }
     let hourly: Hourly
     let timezone: String
@@ -58,7 +83,7 @@ final class WeatherService: ObservableObject {
         let urlString = "https://api.open-meteo.com/v1/forecast" +
             "?latitude=\(latitude)" +
             "&longitude=\(longitude)" +
-            "&hourly=temperature_2m,cloudcover,precipitation,windspeed_10m,relative_humidity_2m,dewpoint_2m,weathercode" +
+            "&hourly=temperature_2m,cloudcover,precipitation,windspeed_10m,relative_humidity_2m,dewpoint_2m,weathercode,visibility,wind_gusts_10m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,windspeed_500hPa" +
             "&forecast_days=14" +
             "&past_days=2" +
             "&timezone=auto"
@@ -124,6 +149,12 @@ final class WeatherService: ObservableObject {
             let humidity = hourly.relative_humidity_2m[i] ?? 0
             let dewpoint = hourly.dewpoint_2m[i] ?? temp
             let wcode = hourly.weathercode[i] ?? 0
+            let visibility = hourly.visibility?[i] ?? nil
+            let windGusts = hourly.windgusts_10m?[i] ?? nil
+            let cloudLow = hourly.cloud_cover_low?[i] ?? nil
+            let cloudMid = hourly.cloud_cover_mid?[i] ?? nil
+            let cloudHigh = hourly.cloud_cover_high?[i] ?? nil
+            let wind500hpa = hourly.windspeed_500hpa?[i] ?? nil
 
             let hw = HourlyWeather(
                 date: date,
@@ -133,7 +164,13 @@ final class WeatherService: ObservableObject {
                 windSpeedKmh: wind,
                 humidityPercent: humidity,
                 dewpointCelsius: dewpoint,
-                weatherCode: wcode
+                weatherCode: wcode,
+                visibilityMeters: visibility,
+                windGustsKmh: windGusts,
+                cloudCoverLowPercent: cloudLow,
+                cloudCoverMidPercent: cloudMid,
+                cloudCoverHighPercent: cloudHigh,
+                windSpeedKmh500hpa: wind500hpa
             )
 
             // Nighttime: hours 18-23 belong to "today", hours 0-6 belong to "yesterday" (previous night)

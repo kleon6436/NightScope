@@ -9,8 +9,11 @@ private struct NominatimResponse: Decodable {
         let village: String?
         let hamlet: String?
         let suburb: String?
+        let county: String?   // 郡（農村地域の指標）
     }
     let address: Address?
+    /// OSM の place type（"city", "town", "village", "hamlet", "suburb" など）
+    let type: String?
 }
 
 // MARK: - Service
@@ -126,7 +129,7 @@ final class LightPollutionService: ObservableObject {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             let response = try JSONDecoder().decode(NominatimResponse.self, from: data)
-            return estimateBortleFromAddress(response.address)
+            return estimateBortleFromAddress(response)
         } catch {
             return nil
         }
@@ -140,38 +143,86 @@ final class LightPollutionService: ObservableObject {
     ///   - 自然夜空輝度 ≈ 0.172 mcd/m²
     ///   - ratio = 人工輝度 / 自然輝度
     ///   - Falchi 2016 論文の比率–Bortle対応表を使用（lightpollutionmap.info と同一）
+    ///
+    /// 補間方式:
+    ///   - 対数スケール: 各 Bortle クラス間は約3倍の輝度差（対数スケール）
+    ///   - クラス内: 隣接 ratio アンカーポイント間で対数補間
+    ///   - 例: ratio 3.0（Bortle 7.0）→ 6.0（Bortle 7.63）→ 9.0（Bortle 8.0）
     private func wa2015ToBortle(_ brightness: Double) -> Double {
         let ratio = brightness / Constants.naturalSkyBrightnessMcdPerSqm
-        switch ratio {
-        case ..<0.01:      return 1  // < 0.00172 mcd/m²  非常に暗い
-        case 0.01..<0.03:  return 2  // 田舎の暗い空
-        case 0.03..<0.10:  return 3  // 農村部
-        case 0.10..<0.30:  return 4  // 農村–郊外境界
-        case 0.30..<1.0:   return 5  // 郊外
-        case 1.0..<3.0:    return 6  // 明るい郊外
-        case 3.0..<9.0:    return 7  // 郊外–都市境界
-        case 9.0..<27.0:   return 8  // 都市
-        default:           return 9  // > 4.64 mcd/m²  都市中心部
+
+        // アンカーポイント: (ratio の下限, Bortle 値)
+        let anchors: [(Double, Double)] = [
+            (0.01, 2.0),
+            (0.03, 3.0),
+            (0.10, 4.0),
+            (0.30, 5.0),
+            (1.0, 6.0),
+            (3.0, 7.0),
+            (9.0, 8.0),
+            (27.0, 9.0)
+        ]
+
+        // ratio < 0.01 → Bortle 1
+        if ratio < 0.01 { return 1.0 }
+
+        // ratio >= 27.0 → Bortle 9
+        if ratio >= 27.0 { return 9.0 }
+
+        // 隣接アンカー (lo, hi) を見つけて対数補間
+        for i in 0..<(anchors.count - 1) {
+            let (ratioLo, bortleLo) = anchors[i]
+            let (ratioHi, bortleHi) = anchors[i + 1]
+
+            if ratio >= ratioLo && ratio < ratioHi {
+                // 対数補間: t = log(ratio / ratioLo) / log(ratioHi / ratioLo)
+                let t = log(ratio / ratioLo) / log(ratioHi / ratioLo)
+                return bortleLo + t * (bortleHi - bortleLo)
+            }
         }
+
+        // フォールバック（到達不可通）
+        return 9.0
     }
 
-    /// Nominatim アドレスから Bortle を推定（フォールバック用）
-    private func estimateBortleFromAddress(_ addr: NominatimResponse.Address?) -> Double {
+    /// Nominatim レスポンスから Bortle を推定（フォールバック用）
+    ///
+    /// 推定根拠:
+    ///   1. type フィールド（OSM place type）: 人口規模・都市機能と強く相関
+    ///   2. address フィールド: type が取得できない場合のフォールバック
+    ///   精度はおよそ ±1.5 Bortle クラス（lightpollutionmap.info 主戦略の補完用）
+    private func estimateBortleFromAddress(_ response: NominatimResponse?) -> Double {
+        // 1. type フィールドによる一次推定（Nominatim jsonv2 で利用可能）
+        switch response?.type {
+        case "city":               return 7.5  // 都市（数万〜数百万人規模）
+        case "town":               return 5.5  // 町（1万〜10万人規模）
+        case "village":            return 3.5  // 村（数百〜数千人規模）
+        case "hamlet":             return 2.5  // 集落（数十〜数百人）
+        case "isolated_dwelling":  return 2.0  // 孤立した建物
+        case "suburb":             return 6.5  // 郊外住宅地
+        case "quarter", "neighbourhood": return 6.0  // 市内の地区
+        default: break
+        }
+
+        // 2. アドレスフィールドによる推定（フォールバック）
+        let addr = response?.address
         let hasCity    = addr?.city    != nil
         let hasSuburb  = addr?.suburb  != nil
         let hasTown    = addr?.town    != nil
         let hasVillage = addr?.village != nil
         let hasHamlet  = addr?.hamlet  != nil
+        let hasCounty  = addr?.county  != nil
 
         switch (hasCity, hasSuburb) {
-        case (true, true):  return 7.0
-        case (false, true): return 6.0
-        case (true, false): return 5.0
+        case (true, true):  return 7.5  // 都市内の郊外（市街地）
+        case (false, true): return 6.5  // 郊外（suburb のみ）
+        case (true, false): return 6.0  // 都市（suburb なし）
         default: break
         }
-        if hasTown    { return 4.0 }
-        if hasVillage { return 3.0 }
-        if hasHamlet  { return 2.0 }
-        return 2.0
+        if hasTown    { return 5.0 }  // 町
+        if hasVillage { return 3.5 }  // 村
+        if hasHamlet  { return 2.5 }  // 集落
+        if hasCounty  { return 4.0 }  // 郡（農村地域）
+        return 3.0                    // 不明（農村として推定）
     }
 }

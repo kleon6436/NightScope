@@ -11,7 +11,8 @@ final class StarGazingIndexTests: XCTestCase {
         darkEventCount: Int,
         moonPhase: Double,
         viewingHours: Double = 0,
-        maxAltitude: Double = 0
+        maxAltitude: Double = 0,
+        moonAltitude: Double = 30.0  // デフォルトは地平線上 (月スコアが月相に従って評価される)
     ) -> NightSummary {
         let base = Date(timeIntervalSince1970: 0)
         let location = CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0)
@@ -23,7 +24,7 @@ final class StarGazingIndexTests: XCTestCase {
                 galacticCenterAltitude: 0,
                 galacticCenterAzimuth: 0,
                 sunAltitude: -20.0,
-                moonAltitude: 0,
+                moonAltitude: moonAltitude,
                 moonPhase: moonPhase
             )
         }
@@ -52,7 +53,14 @@ final class StarGazingIndexTests: XCTestCase {
         precip: Double,
         wind: Double,
         humidity: Double,
-        dewpointSpread: Double
+        dewpointSpread: Double,
+        visibility: Double? = nil,
+        windGusts: Double? = nil,
+        cloudLow: Double? = nil,
+        cloudMid: Double? = nil,
+        cloudHigh: Double? = nil,
+        weatherCode: Int = 0,
+        windSpeed500hpa: Double? = nil
     ) -> DayWeatherSummary {
         let temp = 20.0
         let hour = HourlyWeather(
@@ -63,7 +71,13 @@ final class StarGazingIndexTests: XCTestCase {
             windSpeedKmh: wind,
             humidityPercent: humidity,
             dewpointCelsius: temp - dewpointSpread,
-            weatherCode: 0
+            weatherCode: weatherCode,
+            visibilityMeters: visibility,
+            windGustsKmh: windGusts,
+            cloudCoverLowPercent: cloudLow,
+            cloudCoverMidPercent: cloudMid,
+            cloudCoverHighPercent: cloudHigh,
+            windSpeedKmh500hpa: windSpeed500hpa
         )
         return DayWeatherSummary(date: Date(), nighttimeHours: [hour])
     }
@@ -155,17 +169,17 @@ final class StarGazingIndexTests: XCTestCase {
     // MARK: - Light Pollution Score
 
     func test_lightPollutionScore_bortle3_isMax() {
-        // bortle=3: 10*(9-3)/6 = 10 → 満点
+        // bortle=3: 30*(9-3)/6 = 30 → 満点
         let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: 3.0)
-        XCTAssertEqual(idx.lightPollutionScore, 10)
+        XCTAssertEqual(idx.lightPollutionScore, 30)
     }
 
     func test_lightPollutionScore_bortle6_isMid() {
-        // bortle=6: 10*(9-6)/6 = 5
+        // bortle=6: 30*(9-6)/6 = 15
         let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: 6.0)
-        XCTAssertEqual(idx.lightPollutionScore, 5)
+        XCTAssertEqual(idx.lightPollutionScore, 15)
     }
 
     func test_lightPollutionScore_bortle9_isZero() {
@@ -184,12 +198,12 @@ final class StarGazingIndexTests: XCTestCase {
     // MARK: - Constellation Score (暗時間 × 月照度)
 
     func test_constellationScore_maxDarkHours_newMoon() {
-        // darkEvents=25 → 6.25h > 6h → +30pts
-        // phase=0 (新月) → illumination=0 → +20pts
-        // total = 50 (上限)
+        // darkEvents=25 → 6.25h > 6h → +20pts
+        // phase=0 (新月) → illumination=0 < 0.05 → +10pts
+        // total = 30 (上限)
         let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: nil)
-        XCTAssertEqual(idx.constellationScore, 50)
+        XCTAssertEqual(idx.constellationScore, 30)
     }
 
     func test_constellationScore_noDarkHours_fullMoon() {
@@ -201,37 +215,46 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_constellationScore_moderateDark_newMoon() {
-        // darkEvents=9 → 2.25h > 2h → +14pts
-        // phase=0 → +20pts → total=34
+        // darkEvents=9 → 2.25h > 2h → +9pts
+        // phase=0 → illumination=0 < 0.05 → +10pts → total=19
         let summary = makeNightSummary(darkEventCount: 9, moonPhase: 0.0)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: nil)
-        XCTAssertEqual(idx.constellationScore, 34)
+        XCTAssertEqual(idx.constellationScore, 19)
     }
 
     func test_constellationScore_smallDark_waxingGibbousMoon() {
-        // darkEvents=1 → 0.25h > 0h → +5pts
-        // phase=0.3 → illumination=(1-cos(0.6π))/2 ≈ 0.655 → 0.50≤x<0.70 → +3pts
-        // total = 8
-        // ※ phase=0.25 は cos(π/2) の浮動小数点誤差で illumination が 0.5 をわずかに下回り
-        //   < 0.50 ブランチに入るため使用しない
+        // darkEvents=1 → 0.25h > 0h → +1pt（0–2時間は観測時間が短く最低点）
+        // phase=0.3 → illumination=(1-cos(0.6π))/2 ≈ 0.655 → ≥0.30 → +0pts
+        // total = 1
         let summary = makeNightSummary(darkEventCount: 1, moonPhase: 0.3)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: nil)
-        XCTAssertEqual(idx.constellationScore, 8)
+        XCTAssertEqual(idx.constellationScore, 1)
     }
 
     // MARK: - Weather Score
 
     func test_weatherScore_bestConditions() {
-        // cloud=10(<15)→+18, precip=0→+8, wind=5(<10)→+6, humidity=40(<50)→+5, spread=20(>15)→+3
+        // cloud=10(<15)→+18
+        // visibility=25000m(25km≥20)+spread=20(>15)→+8+2=10
+        // precip=0, wcode=0(<45)→+6
+        // gusts=15(<20), wind=5(<10)→+4
+        // spread=20(>5)→+2
         // total = 40
         let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
-        let weather = makeWeather(cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20)
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: nil)
         XCTAssertEqual(idx.weatherScore, 40)
     }
 
     func test_weatherScore_worstConditions() {
-        // cloud=80(≥75)→+0, precip=1.0(≥0.5)→+0, wind=40(≥35)→+0, humidity=90(≥80)→+0, spread=3(≤5)→+0
+        // cloud=80(≥75)→+0
+        // visibility=nil, spread=3(≤5)→+0
+        // precip=1.0(≥0.5)→+0
+        // gusts=nil→40(fallback), 40≥35 and not <50&&<35 combo → +0
+        // spread=3(≤3)→+0
         let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
         let weather = makeWeather(cloud: 80, precip: 1.0, wind: 40, humidity: 90, dewpointSpread: 3)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: nil)
@@ -239,20 +262,119 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_weatherScore_moderateConditions() {
-        // cloud=25(15-35)→+13, precip=0.3(0.1-0.5)→+2, wind=15(10-20)→+4,
-        // humidity=60(50-65)→+3, spread=12(10-15)→+2 → total=24
+        // cloud=25(15-35)→+13
+        // visibility=nil, spread=12(10-15)→+5(fallback)
+        // precip=0.3(0.1-0.5)→+2
+        // gusts=nil→15(fallback), gusts=15(<35), wind=15(<20)→+2
+        // spread=12(>5)→+2
+        // total = 24
         let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
         let weather = makeWeather(cloud: 25, precip: 0.3, wind: 15, humidity: 60, dewpointSpread: 12)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: nil)
         XCTAssertEqual(idx.weatherScore, 24)
     }
 
+    // MARK: - Weather Score: 新指標テスト
+
+    func test_weatherScore_layeredClouds_highOnly_lowsEffectiveCloud() {
+        // low=0, mid=0, high=60 → effectiveCloud = 0×1.0 + 0×0.7 + 60×0.3 = 18
+        // 総合雲量60%なら+7だが、実効雲量18%(<35)なら+13 になることを確認
+        let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
+        let weatherLayered = makeWeather(
+            cloud: 60, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            cloudLow: 0, cloudMid: 0, cloudHigh: 60
+        )
+        let weatherTotal = makeWeather(
+            cloud: 60, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20
+        )
+        let idxLayered = StarGazingIndex.compute(nightSummary: summary, weather: weatherLayered, bortleClass: nil)
+        let idxTotal = StarGazingIndex.compute(nightSummary: summary, weather: weatherTotal, bortleClass: nil)
+        // 層別データありの方が高いスコアになる（高層雲は半透明で遮断率低いため）
+        XCTAssertGreaterThan(idxLayered.weatherScore, idxTotal.weatherScore,
+            "高層雲のみの場合、層別加重の方が総合雲量より高スコアになるべき")
+    }
+
+    func test_weatherScore_transparencyScore_withExcellentVisibility() {
+        // visibility=25km(≥20)→+8, spread=20(>15)→+2, 透明度 = 10点
+        let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
+        let withVis = makeWeather(
+            cloud: 0, precip: 0, wind: 5, humidity: 30, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let withoutVis = makeWeather(
+            cloud: 0, precip: 0, wind: 5, humidity: 30, dewpointSpread: 20,
+            windGusts: 15
+        )
+        let idxWith = StarGazingIndex.compute(nightSummary: summary, weather: withVis, bortleClass: nil)
+        let idxWithout = StarGazingIndex.compute(nightSummary: summary, weather: withoutVis, bortleClass: nil)
+        // 視程データありの方が透明度スコアが高い（最大10点 vs フォールバック最大7点）
+        XCTAssertGreaterThan(idxWith.weatherScore, idxWithout.weatherScore,
+            "視程データありの方が高スコアになるべき")
+    }
+
+    func test_weatherScore_fogWeatherCode_reducesPrecipScore() {
+        // precip=0 だが weatherCode=45(霧) → 降水スコアは1点のみ
+        let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
+        let fog = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 10,
+            weatherCode: 45
+        )
+        let clear = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 10,
+            weatherCode: 0
+        )
+        let idxFog = StarGazingIndex.compute(nightSummary: summary, weather: fog, bortleClass: nil)
+        let idxClear = StarGazingIndex.compute(nightSummary: summary, weather: clear, bortleClass: nil)
+        // 霧コードにより降水スコアが下がる（6点差）
+        XCTAssertEqual(idxClear.weatherScore - idxFog.weatherScore, 5,
+            "霧コード(45)で降水スコアが6点から1点に減るため差は5点")
+    }
+
+    func test_weatherScore_highWindGusts_reducesSeeingScore() {
+        // avgWind=5(良好) でも windGusts=45(< 50 && avgWind < 35) → シーイング1点のみ
+        let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
+        let highGusts = makeWeather(
+            cloud: 0, precip: 0, wind: 5, humidity: 30, dewpointSpread: 20,
+            visibility: 25000, windGusts: 45
+        )
+        let lowGusts = makeWeather(
+            cloud: 0, precip: 0, wind: 5, humidity: 30, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idxHigh = StarGazingIndex.compute(nightSummary: summary, weather: highGusts, bortleClass: nil)
+        let idxLow = StarGazingIndex.compute(nightSummary: summary, weather: lowGusts, bortleClass: nil)
+        // 突風差でシーイングスコアが4点→1点に落ちる
+        XCTAssertEqual(idxLow.weatherScore - idxHigh.weatherScore, 3,
+            "突風45km/hでシーイングが4点から1点に落ちるため差は3点")
+    }
+
+    func test_weatherScore_dewRisk_highRisk_zeroPoints() {
+        // spread=2°C → 気温-露点差 < 3°C → 結露リスク高 → 露リスク0点
+        let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
+        let highRisk = makeWeather(
+            cloud: 0, precip: 0, wind: 5, humidity: 95, dewpointSpread: 2,
+            visibility: 25000, windGusts: 15
+        )
+        let lowRisk = makeWeather(
+            cloud: 0, precip: 0, wind: 5, humidity: 30, dewpointSpread: 6,
+            visibility: 25000, windGusts: 15
+        )
+        let idxHigh = StarGazingIndex.compute(nightSummary: summary, weather: highRisk, bortleClass: nil)
+        let idxLow = StarGazingIndex.compute(nightSummary: summary, weather: lowRisk, bortleClass: nil)
+        // spread=2 → 0点, spread=6 → 2点, 差は2点
+        XCTAssertEqual(idxLow.weatherScore - idxHigh.weatherScore, 2,
+            "露点差 6°C(2点) vs 2°C(0点) で差は2点")
+    }
+
     // MARK: - compute() 統合テスト
 
     func test_compute_allBest_isExcellent() {
-        // constellation=50, weather=40, lightPollution=10 → total=100
+        // constellation=30(dark6h+20 + newMoon10), weather=40, lightPollution=30 → total=100
         let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
-        let weather = makeWeather(cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20)
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: 3.0)
         XCTAssertEqual(idx.score, 100)
         XCTAssertEqual(idx.tier, .excellent)
@@ -261,7 +383,7 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_compute_noWeather_scaledFromConstellationAndLP() {
-        // constellation=50, LP=10 → base=60, maxBase=60 → scaled=100
+        // constellation=30(max), LP=30(max) → base=60, maxBase=60 → scaled=100
         let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: 3.0)
         XCTAssertEqual(idx.score, 100)
@@ -270,7 +392,7 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_compute_noWeather_noLP_scaledFromConstellationOnly() {
-        // constellation=50, LP=0 → base=50, maxBase=50 → scaled=100
+        // constellation=30(max), LP=0 → base=30, maxBase=30 → scaled=100
         let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: nil)
         XCTAssertEqual(idx.score, 100)
@@ -279,11 +401,12 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_compute_noWeather_partialScore_scalesCorrectly() {
-        // constellation=14(darkEvents=9,phase=0→+14+20=34だが... moonPhase=0.5なら+0 → 14+0=14)
-        // LP=5(bortle=6), base=14+5=19, maxBase=60 → scaled = Int(19/60*100) = Int(31.67) = 31
+        // constellation: darkEvents=9 → 2.25h → +9pts, moonPhase=0.5 → illumination=1.0 → +0pts → 9pts
+        // LP: bortle=6 → 30*(9-6)/6 = 15pts
+        // base=9+15=24, maxBase=60 → scaled = Int(24/60*100) = 40
         let summary = makeNightSummary(darkEventCount: 9, moonPhase: 0.5)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: 6.0)
-        let expected = Int(Double(14 + 5) / 60.0 * 100.0)
+        let expected = Int(Double(9 + 15) / 60.0 * 100.0)
         XCTAssertEqual(idx.score, expected)
     }
 }
