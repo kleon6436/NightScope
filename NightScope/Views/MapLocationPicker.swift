@@ -29,151 +29,38 @@ struct MapKitSyncState: Equatable {
     }
 }
 
-// MARK: - CGImageBox
-
-/// NSCache に CGImage を格納するための参照型ラッパー。
-final class CGImageBox {
-    let image: CGImage
-    init(_ image: CGImage) { self.image = image }
-}
-
 // MARK: - LightPollutionTileOverlay
 
 final class LightPollutionTileOverlay: MKTileOverlay {
 
-    // Cache-Control: no-store を無視してタイルを保存する独自ディスクキャッシュ
-    private static let diskCacheDir: URL = {
-        let dir = FileManager.default
-            .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("LightPollutionTiles", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }()
-
-    // ネットワークリクエスト専用セッション（URLCache は Cache-Control: no-store を尊重するため使用しない）
-    private static let session: URLSession = {
-        let config = URLSessionConfiguration.default
-        config.urlCache = nil
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.httpMaximumConnectionsPerHost = 8
-        config.timeoutIntervalForRequest = 15
-        return URLSession(configuration: config)
-    }()
-
-    // ズーム中のちらつきを抑えるメモリキャッシュ（ディスクI/Oより高速に即返す）
-    // LightPollutionTileRenderer からもアクセスするため internal
-    static let memoryCache: NSCache<NSString, NSData> = {
-        let cache = NSCache<NSString, NSData>()
-        cache.totalCostLimit = 100 * 1024 * 1024  // 100MB（ズーム前後のタイルを保持）
-        return cache
-    }()
-
-    // レンダースレッドでの PNG デコードを排除するため、デコード済み CGImage を別途キャッシュ
-    // LightPollutionTileRenderer からもアクセスするため internal
-    static let cgImageCache: NSCache<NSString, CGImageBox> = {
-        let cache = NSCache<NSString, CGImageBox>()
-        cache.totalCostLimit = 80 * 1024 * 1024  // 80MB（ピクセル数ベースのコスト管理）
-        return cache
-    }()
-
-    /// CGImage のメモリコスト（ピクセル数 × 4 byte RGBA）を返す。
-    static func cgImageCost(_ image: CGImage) -> Int { image.width * image.height * 4 }
-
-    /// PNG データをデコードして自タイルを cgImageCache に格納し、CGImage を返す。
-    /// drawFallback が先に低品質クロップを書き込んでいても実タイルで上書きする。
-    private static func decodeAndCache(data: Data, forKey key: NSString) -> CGImage? {
-        guard let nsImage = NSImage(data: data),
-              let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        else { return nil }
-        cgImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: cgImageCost(cgImage))
-        return cgImage
+    private enum OverlayConfig {
+        static let minimumZoomLevel = 1
+        static let maximumZoomLevel = 19
+        static let tilePixelSize = 256
+        static let worldMeters = 40075016.685578488
+        static let worldOriginShift = 20037508.342789244
     }
 
-    /// z+1〜z+2 の子孫タイルを実タイルから切り出してキャッシュする。
-    /// drawFallback が先に低品質な祖先クロップを書き込んでいた場合も実タイル品質で上書きする。
-    /// バックグラウンドスレッドから呼び出すこと。
-    private static func preCropDescendants(from cgImage: CGImage, path: MKTileOverlayPath) {
-        for dz in 1...2 {
-            let childZ = path.z + dz
-            guard childZ <= 19 else { break }
-            let scale = 1 << dz
-            let baseX = path.x * scale
-            let baseY = path.y * scale
-            let divisions = CGFloat(scale)
-            let tileW = CGFloat(cgImage.width) / divisions
-            let tileH = CGFloat(cgImage.height) / divisions
-            for dy in 0..<scale {
-                for dx in 0..<scale {
-                    let childKey = "\(childZ)_\(baseX + dx)_\(baseY + dy)" as NSString
-                    let srcRect = CGRect(x: CGFloat(dx) * tileW, y: CGFloat(dy) * tileH,
-                                        width: tileW, height: tileH)
-                    if let cropped = cgImage.cropping(to: srcRect) {
-                        cgImageCache.setObject(CGImageBox(cropped), forKey: childKey,
-                                               cost: cgImageCost(cropped))
-                    }
-                }
-            }
-        }
-    }
+    let tileService: LightPollutionTileService
 
     override init(urlTemplate: String?) {
+        self.tileService = .shared
         super.init(urlTemplate: urlTemplate)
         canReplaceMapContent = false
-        minimumZ = 1
-        maximumZ = 19
+        minimumZ = OverlayConfig.minimumZoomLevel
+        maximumZ = OverlayConfig.maximumZoomLevel
+    }
+
+    init(urlTemplate: String?, tileService: LightPollutionTileService) {
+        self.tileService = tileService
+        super.init(urlTemplate: urlTemplate)
+        canReplaceMapContent = false
+        minimumZ = OverlayConfig.minimumZoomLevel
+        maximumZ = OverlayConfig.maximumZoomLevel
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        let cacheKey = "\(path.z)_\(path.x)_\(path.y)" as NSString
-
-        // 1: メモリキャッシュに存在すれば即返す
-        if let cached = Self.memoryCache.object(forKey: cacheKey) {
-            // cgImageCache が evict されていた場合はバックグラウンドで再構築
-            if Self.cgImageCache.object(forKey: cacheKey) == nil {
-                let data = cached as Data
-                Task.detached(priority: .utility) {
-                    if let img = Self.decodeAndCache(data: data, forKey: cacheKey) {
-                        Self.preCropDescendants(from: img, path: path)
-                    }
-                }
-            }
-            result(cached as Data, nil)
-            return
-        }
-
-        // 2: ディスクキャッシュを確認
-        let diskURL = Self.diskCacheDir.appendingPathComponent("\(cacheKey).png")
-        if let diskData = try? Data(contentsOf: diskURL, options: .mappedIfSafe) {
-            Self.memoryCache.setObject(diskData as NSData, forKey: cacheKey, cost: diskData.count)
-            // 自タイルのデコードは result() 前に完了させ、子孫クロップは result() 後にバックグラウンドへ
-            let img = Self.decodeAndCache(data: diskData, forKey: cacheKey)
-            result(diskData, nil)
-            if let img {
-                Task.detached(priority: .utility) {
-                    Self.preCropDescendants(from: img, path: path)
-                }
-            }
-            return
-        }
-
-        // 3: ネットワークから取得してキャッシュに保存
-        let request = URLRequest(url: url(forTilePath: path), timeoutInterval: 15)
-        Self.session.dataTask(with: request) { data, response, error in
-            guard let data, let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                result(data, error)
-                return
-            }
-            Self.memoryCache.setObject(data as NSData, forKey: cacheKey, cost: data.count)
-            // 自タイルのデコードは result() 前に完了させ、子孫クロップは result() 後にバックグラウンドへ
-            let img = Self.decodeAndCache(data: data, forKey: cacheKey)
-            try? data.write(to: diskURL, options: .atomic)
-            result(data, nil)
-            if let img {
-                Task.detached(priority: .utility) {
-                    Self.preCropDescendants(from: img, path: path)
-                }
-            }
-        }.resume()
+        tileService.loadTile(path: path, url: url(forTilePath: path), result: result)
     }
 
     override func url(forTilePath path: MKTileOverlayPath) -> URL {
@@ -188,8 +75,8 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             URLQueryItem(name: "FORMAT",      value: "image/png"),
             URLQueryItem(name: "TRANSPARENT", value: "TRUE"),
             URLQueryItem(name: "SRS",         value: "EPSG:3857"),
-            URLQueryItem(name: "WIDTH",       value: "256"),
-            URLQueryItem(name: "HEIGHT",      value: "256"),
+            URLQueryItem(name: "WIDTH",       value: "\(OverlayConfig.tilePixelSize)"),
+            URLQueryItem(name: "HEIGHT",      value: "\(OverlayConfig.tilePixelSize)"),
             URLQueryItem(name: "BBOX",        value: "\(minX),\(minY),\(maxX),\(maxY)"),
         ]
         return comps.url!
@@ -197,10 +84,10 @@ final class LightPollutionTileOverlay: MKTileOverlay {
 
     // タイル座標 → EPSG:3857バウンディングボックス（GeoWebCache均一グリッド）
     private func tileBounds(x: Int, y: Int, z: Int) -> (Double, Double, Double, Double) {
-        let tileSize = 40075016.685578488 / pow(2.0, Double(z))
-        let minX = -20037508.342789244 + Double(x) * tileSize
+        let tileSize = OverlayConfig.worldMeters / pow(2.0, Double(z))
+        let minX = -OverlayConfig.worldOriginShift + Double(x) * tileSize
         let maxX = minX + tileSize
-        let maxY = 20037508.342789244 - Double(y) * tileSize
+        let maxY = OverlayConfig.worldOriginShift - Double(y) * tileSize
         let minY = maxY - tileSize
         return (minX, minY, maxX, maxY)
     }
@@ -213,17 +100,25 @@ final class LightPollutionTileOverlay: MKTileOverlay {
 /// スケールアップしてフォールバック描画し、ズーム時の空白（ちらつき）を防ぐ。
 final class LightPollutionTileRenderer: MKTileOverlayRenderer {
 
+    private enum FallbackConfig {
+        static let minimumZoomLevel = 1
+        static let maxAncestorDepth = 4
+    }
+
     override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
         // alpha=0（非表示）のときは一切描画しない。super.draw() が非ゼロ alpha を要求するため。
         guard alpha > 0 else { return }
+        guard let tileService else {
+            super.draw(mapRect, zoomScale: zoomScale, in: context)
+            return
+        }
 
         guard let path = tilePath(for: mapRect, zoomScale: zoomScale) else {
             super.draw(mapRect, zoomScale: zoomScale, in: context)
             return
         }
 
-        let key = "\(path.z)_\(path.x)_\(path.y)" as NSString
-        let tileLoaded = LightPollutionTileOverlay.memoryCache.object(forKey: key) != nil
+        let tileLoaded = tileService.hasTileData(for: path)
 
         if !tileLoaded {
             // loadTile 未完了：super.draw() はタイルデータなしで alpha=0 fill を試みアサーションが発生する。
@@ -233,7 +128,7 @@ final class LightPollutionTileRenderer: MKTileOverlayRenderer {
         }
 
         // タイルロード済み：cgImageCache 未デコードならフォールバックで補完してから正規描画
-        if LightPollutionTileOverlay.cgImageCache.object(forKey: key) == nil {
+        if tileService.cachedImage(for: path) == nil {
             drawFallback(for: path, mapRect: mapRect, in: context)
         }
         super.draw(mapRect, zoomScale: zoomScale, in: context)
@@ -252,53 +147,52 @@ final class LightPollutionTileRenderer: MKTileOverlayRenderer {
 
     /// 低ズームのキャッシュ済みタイルをサブ領域切り出し＋スケールアップして描画
     private func drawFallback(for path: MKTileOverlayPath, mapRect: MKMapRect, in context: CGContext) {
-        let selfKey = "\(path.z)_\(path.x)_\(path.y)" as NSString
+        guard let tileService else { return }
 
         // クロップ済み画像が既にキャッシュされていれば即描画（2フレーム目以降はゼロコスト）
-        if let box = LightPollutionTileOverlay.cgImageCache.object(forKey: selfKey) {
-            drawImage(box.image, in: mapRect, context: context)
+        if let cached = tileService.cachedImage(for: path) {
+            drawImage(cached, in: mapRect, context: context)
             return
         }
 
         // 親ズームのタイルを探してクロップ（dz=1,2 は preCropDescendants でほぼヒット）
-        for dz in 1...4 {
-            let parentZ = path.z - dz
-            guard parentZ >= 1 else { break }
-            let parentX = path.x >> dz
-            let parentY = path.y >> dz
-            let parentKey = "\(parentZ)_\(parentX)_\(parentY)" as NSString
-
-            // CGImage キャッシュを優先（PNG デコード不要・レンダースレッドをブロックしない）
-            let parentImage: CGImage
-            if let box = LightPollutionTileOverlay.cgImageCache.object(forKey: parentKey) {
-                parentImage = box.image
-            } else if let nsData = LightPollutionTileOverlay.memoryCache.object(forKey: parentKey) as Data?,
-                      let nsImage = NSImage(data: nsData),
-                      let img = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                LightPollutionTileOverlay.cgImageCache.setObject(
-                    CGImageBox(img), forKey: parentKey,
-                    cost: LightPollutionTileOverlay.cgImageCost(img))
-                parentImage = img
-            } else {
-                continue
-            }
-
-            // 親タイル内の対応サブ領域（ピクセル座標）を算出
-            let divisions = CGFloat(1 << dz)
-            let subX = CGFloat(path.x % (1 << dz))
-            let subY = CGFloat(path.y % (1 << dz))
-            let tileW = CGFloat(parentImage.width) / divisions
-            let tileH = CGFloat(parentImage.height) / divisions
-            let srcRect = CGRect(x: subX * tileW, y: subY * tileH, width: tileW, height: tileH)
+        for dz in 1...FallbackConfig.maxAncestorDepth {
+            guard let parentPath = parentPath(for: path, dz: dz) else { break }
+            guard let parentImage = resolveCachedImage(for: parentPath) else { continue }
+            let srcRect = cropRect(for: path, dz: dz, image: parentImage)
             guard let cropped = parentImage.cropping(to: srcRect) else { continue }
 
-            // 次フレーム以降はクロップ不要にするためキャッシュ（実タイル到着時に preCropDescendants が上書きする）
-            LightPollutionTileOverlay.cgImageCache.setObject(
-                CGImageBox(cropped), forKey: selfKey,
-                cost: LightPollutionTileOverlay.cgImageCost(cropped))
+            tileService.cacheCroppedImage(cropped, for: path)
             drawImage(cropped, in: mapRect, context: context)
             break
         }
+    }
+
+    private var tileService: LightPollutionTileService? {
+        (overlay as? LightPollutionTileOverlay)?.tileService
+    }
+
+    private func parentPath(for path: MKTileOverlayPath, dz: Int) -> MKTileOverlayPath? {
+        let parentZ = path.z - dz
+        guard parentZ >= FallbackConfig.minimumZoomLevel else { return nil }
+        let parentX = path.x >> dz
+        let parentY = path.y >> dz
+        return MKTileOverlayPath(x: parentX, y: parentY, z: parentZ, contentScaleFactor: 1)
+    }
+
+    private func resolveCachedImage(for path: MKTileOverlayPath) -> CGImage? {
+        guard let tileService else { return nil }
+        return tileService.cachedImage(for: path) ?? tileService.decodeImageFromMemoryIfNeeded(for: path)
+    }
+
+    private func cropRect(for path: MKTileOverlayPath, dz: Int, image: CGImage) -> CGRect {
+        let scale = 1 << dz
+        let divisions = CGFloat(scale)
+        let subX = CGFloat(path.x % scale)
+        let subY = CGFloat(path.y % scale)
+        let tileW = CGFloat(image.width) / divisions
+        let tileH = CGFloat(image.height) / divisions
+        return CGRect(x: subX * tileW, y: subY * tileH, width: tileW, height: tileH)
     }
 
     private func drawImage(_ image: CGImage, in mapRect: MKMapRect, context: CGContext) {
@@ -316,46 +210,78 @@ final class LightPollutionTileRenderer: MKTileOverlayRenderer {
 private struct MapContainerView<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
+    private var verticalSpacing: CGFloat { 4 }
+    private var minMapHeight: CGFloat { 160 }
+    private var maxMapHeight: CGFloat { 280 }
+    private var instructionText: String { "地図をクリックして場所を選択" }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            content()
-                .frame(minHeight: 160, maxHeight: 280)
-                .frame(maxHeight: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: Layout.mapCornerRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Layout.mapCornerRadius)
-                        .stroke(.separator, lineWidth: Layout.mapSeparatorLineWidth)
-                )
-            Text("地図をクリックして場所を選択")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: verticalSpacing) {
+            mapSurface
+            instructionLabel
         }
+    }
+
+    private var mapSurface: some View {
+        content()
+            .frame(minHeight: minMapHeight, maxHeight: maxMapHeight)
+            .frame(maxHeight: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: Layout.mapCornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Layout.mapCornerRadius)
+                    .stroke(.separator, lineWidth: Layout.mapSeparatorLineWidth)
+            )
+    }
+
+    private var instructionLabel: some View {
+        Text(instructionText)
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 }
 
 // MARK: - NSViewRepresentable wrapper for MKMapView
 
 struct MapKitViewRepresentable: NSViewRepresentable {
+    private enum MapViewConfig {
+        static let minCenterCoordinateDistance: CLLocationDistance = 100
+        static let visibleOverlayAlpha: CGFloat = 0.8
+        static let hiddenOverlayAlpha: CGFloat = 0.0
+        static let initialPinLatitudeDelta: CLLocationDegrees = 0.05
+        static let initialPinLongitudeDelta: CLLocationDegrees = 0.05
+        static let currentLocationLatitudeDelta: CLLocationDegrees = 0.5
+        static let currentLocationLongitudeDelta: CLLocationDegrees = 0.5
+    }
+
     let pinCoordinate: CLLocationCoordinate2D?
     var onTap: (CLLocationCoordinate2D) -> Void
-    let isVisible: Bool
     let syncState: MapKitSyncState
     let onRegionChange: (CLLocationCoordinate2D, MKCoordinateSpan) -> Void
     let showLightPollution: Bool
     /// 現在地取得成功時にインクリメントされるトリガー（変化時のみマップをセンタリング）
     let centerTrigger: Int
 
+    private var overlayAlpha: CGFloat {
+        showLightPollution ? MapViewConfig.visibleOverlayAlpha : MapViewConfig.hiddenOverlayAlpha
+    }
+
     func makeNSView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         // カメラ距離 10km 未満へのズームインを禁止（光害タイルの解像度上限に対応）
-        mapView.cameraZoomRange = MKMapView.CameraZoomRange(minCenterCoordinateDistance: 100)
+        mapView.cameraZoomRange = MKMapView.CameraZoomRange(minCenterCoordinateDistance: MapViewConfig.minCenterCoordinateDistance)
         // 光害オーバーレイを常駐させタブ切り替え時のタイル再描画を防ぐ（alpha で表示/非表示を切り替える）
         mapView.addOverlay(LightPollutionTileOverlay(urlTemplate: nil), level: .aboveRoads)
         if let coord = pinCoordinate {
             DispatchQueue.main.async {
                 mapView.setRegion(
-                    MKCoordinateRegion(center: coord, span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)),
+                    MKCoordinateRegion(
+                        center: coord,
+                        span: MKCoordinateSpan(
+                            latitudeDelta: MapViewConfig.initialPinLatitudeDelta,
+                            longitudeDelta: MapViewConfig.initialPinLongitudeDelta
+                        )
+                    ),
                     animated: false
                 )
             }
@@ -367,60 +293,106 @@ struct MapKitViewRepresentable: NSViewRepresentable {
 
     func updateNSView(_ nsView: MKMapView, context: Context) {
         context.coordinator.parent = self
+        updateLightPollutionOverlayAlpha(on: nsView)
 
-        // alpha で光害オーバーレイの表示/非表示を切り替える（削除・再追加しない）
-        // nsView.renderer(for:) で常に最新のレンダラーを取得し、古い参照による消失を防ぐ
-        let targetAlpha: CGFloat = showLightPollution ? 0.8 : 0.0
-        if let overlay = nsView.overlays.first(where: { $0 is LightPollutionTileOverlay }),
-           let renderer = nsView.renderer(for: overlay) as? LightPollutionTileRenderer {
-            if renderer.alpha != targetAlpha {
-                renderer.alpha = targetAlpha
-                renderer.setNeedsDisplay(MKMapRect.world)
-            }
-        }
-
-        let existing = nsView.annotations.compactMap { $0 as? MKPointAnnotation }.first
+        let existing = currentPinAnnotation(in: nsView)
 
         guard let newCoord = pinCoordinate else {
-            if existing != nil { nsView.removeAnnotations(nsView.annotations) }
+            removeAnnotationsIfNeeded(from: nsView, existing: existing)
             return
         }
 
-        // タブ切り替えによる外部ビューポート同期（最優先）
-        if context.coordinator.lastSyncTrigger != syncState.trigger {
-            context.coordinator.lastSyncTrigger = syncState.trigger
-            // suppressRegionChangeCount は使わない: 同期 setRegion が MKMapView に変化をもたらさない場合
-            // regionDidChangeAnimated が発火せずカウントが残り、次のユーザー操作を誤抑制するため。
-            // onRegionChange で viewport に同じ値が書き戻されても実害はない。
-            if let existing {
-                existing.coordinate = newCoord
-            } else {
-                let ann = MKPointAnnotation()
-                ann.coordinate = newCoord
-                nsView.addAnnotation(ann)
-            }
-            let region = MKCoordinateRegion(center: syncState.center, span: syncState.span)
-            DispatchQueue.main.async { nsView.setRegion(region, animated: false) }
+        if applyViewportSyncIfNeeded(
+            on: nsView,
+            existing: existing,
+            coordinate: newCoord,
+            coordinator: context.coordinator
+        ) {
             return
         }
 
-        // 通常のピン位置更新（マップのビューポートは変更しない）
+        upsertPinAnnotation(on: nsView, existing: existing, coordinate: newCoord)
+        centerOnCurrentLocationIfNeeded(on: nsView, coordinate: newCoord, coordinator: context.coordinator)
+    }
+
+    private func updateLightPollutionOverlayAlpha(on mapView: MKMapView) {
+        let targetAlpha = overlayAlpha
+        if let overlay = mapView.overlays.first(where: { $0 is LightPollutionTileOverlay }),
+           let renderer = mapView.renderer(for: overlay) as? LightPollutionTileRenderer,
+           renderer.alpha != targetAlpha {
+            renderer.alpha = targetAlpha
+            renderer.setNeedsDisplay(MKMapRect.world)
+        }
+    }
+
+    private func currentPinAnnotation(in mapView: MKMapView) -> MKPointAnnotation? {
+        mapView.annotations.compactMap { $0 as? MKPointAnnotation }.first
+    }
+
+    private func removeAnnotationsIfNeeded(from mapView: MKMapView, existing: MKPointAnnotation?) {
+        if existing != nil {
+            mapView.removeAnnotations(mapView.annotations)
+        }
+    }
+
+    private func applyViewportSyncIfNeeded(
+        on mapView: MKMapView,
+        existing: MKPointAnnotation?,
+        coordinate: CLLocationCoordinate2D,
+        coordinator: Coordinator
+    ) -> Bool {
+        guard coordinator.lastSyncTrigger != syncState.trigger else {
+            return false
+        }
+
+        coordinator.lastSyncTrigger = syncState.trigger
+        upsertPinAnnotation(on: mapView, existing: existing, coordinate: coordinate)
+        let region = MKCoordinateRegion(center: syncState.center, span: syncState.span)
+        DispatchQueue.main.async { mapView.setRegion(region, animated: false) }
+        return true
+    }
+
+    private func upsertPinAnnotation(
+        on mapView: MKMapView,
+        existing: MKPointAnnotation?,
+        coordinate: CLLocationCoordinate2D
+    ) {
         if let existing {
-            let coordChanged = existing.coordinate.latitude != newCoord.latitude ||
-                               existing.coordinate.longitude != newCoord.longitude
-            if coordChanged { existing.coordinate = newCoord }
-        } else {
-            let ann = MKPointAnnotation()
-            ann.coordinate = newCoord
-            nsView.addAnnotation(ann)
+            let coordChanged = !coordinatesEqual(existing.coordinate, coordinate)
+            if coordChanged {
+                existing.coordinate = coordinate
+            }
+            return
         }
 
-        // 現在地ボタンで取得した座標のときだけセンタリング
-        // suppressRegionChangeCount は使わない → onRegionChange で viewport が更新されタブ同期が維持される
-        if context.coordinator.lastCenterTrigger != centerTrigger {
-            context.coordinator.lastCenterTrigger = centerTrigger
-            let region = MKCoordinateRegion(center: newCoord, span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5))
-            Task { @MainActor in nsView.setRegion(region, animated: true) }
+        let annotation = MKPointAnnotation()
+        annotation.coordinate = coordinate
+        mapView.addAnnotation(annotation)
+    }
+
+    private func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
+        lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
+    }
+
+    private func centerOnCurrentLocationIfNeeded(
+        on mapView: MKMapView,
+        coordinate: CLLocationCoordinate2D,
+        coordinator: Coordinator
+    ) {
+        guard coordinator.lastCenterTrigger != centerTrigger else {
+            return
+        }
+
+        coordinator.lastCenterTrigger = centerTrigger
+        let region = MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(
+                latitudeDelta: MapViewConfig.currentLocationLatitudeDelta,
+                longitudeDelta: MapViewConfig.currentLocationLongitudeDelta
+            )
+        )
+        Task { @MainActor in
+            mapView.setRegion(region, animated: true)
         }
     }
 
@@ -430,8 +402,7 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         var parent: MapKitViewRepresentable
         var lastSyncTrigger: Int
         var lastCenterTrigger: Int
-        /// syncState.trigger による setRegion 後に regionDidChangeAnimated を抑制するカウンタ
-        var suppressRegionChangeCount = 0
+
         init(_ parent: MapKitViewRepresentable) {
             self.parent = parent
             self.lastSyncTrigger = parent.syncState.trigger
@@ -446,17 +417,13 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            if suppressRegionChangeCount > 0 {
-                suppressRegionChangeCount -= 1
-                return
-            }
             parent.onRegionChange(mapView.region.center, mapView.region.span)
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let tileOverlay = overlay as? LightPollutionTileOverlay {
                 let renderer = LightPollutionTileRenderer(tileOverlay: tileOverlay)
-                renderer.alpha = parent.showLightPollution ? 0.8 : 0.0
+                renderer.alpha = parent.overlayAlpha
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)
@@ -469,7 +436,6 @@ struct MapKitViewRepresentable: NSViewRepresentable {
 struct MapLocationPicker: View, Equatable {
     let selectedCoordinate: CLLocationCoordinate2D
     let onSelect: (CLLocationCoordinate2D) -> Void
-    let isVisible: Bool
     let syncState: MapKitSyncState
     let onRegionChange: (CLLocationCoordinate2D, MKCoordinateSpan) -> Void
     let showLightPollution: Bool
@@ -478,48 +444,61 @@ struct MapLocationPicker: View, Equatable {
     var centerTrigger: Int = 0
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.selectedCoordinate.latitude == rhs.selectedCoordinate.latitude &&
-        lhs.selectedCoordinate.longitude == rhs.selectedCoordinate.longitude &&
-        lhs.isVisible == rhs.isVisible &&
+        coordinatesEqual(lhs.selectedCoordinate, rhs.selectedCoordinate) &&
         lhs.syncState == rhs.syncState &&
         lhs.showLightPollution == rhs.showLightPollution &&
         lhs.isLocating == rhs.isLocating &&
         lhs.centerTrigger == rhs.centerTrigger
     }
 
+    private static func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
+        lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
+    }
+
     var body: some View {
         MapContainerView {
-            MapKitViewRepresentable(
-                pinCoordinate: selectedCoordinate,
-                onTap: { coord in onSelect(coord) },
-                isVisible: isVisible,
-                syncState: syncState,
-                onRegionChange: onRegionChange,
-                showLightPollution: showLightPollution,
-                centerTrigger: centerTrigger
-            )
-            .overlay(alignment: .bottomTrailing) {
-                if let onCurrentLocation {
-                    Button {
-                        onCurrentLocation()
-                    } label: {
-                        Group {
-                            if isLocating {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "location.fill")
-                                    .font(.system(size: Layout.mapIconSize))
-                            }
-                        }
-                        .frame(width: Layout.mapButtonSize, height: Layout.mapButtonSize)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Layout.mapButtonCornerRadius))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(Spacing.xs)
-                    .disabled(isLocating)
-                    .accessibilityLabel("現在地を取得")
-                }
+            mapViewContent
+        }
+    }
+
+    private var mapViewContent: some View {
+        MapKitViewRepresentable(
+            pinCoordinate: selectedCoordinate,
+            onTap: onSelect,
+            syncState: syncState,
+            onRegionChange: onRegionChange,
+            showLightPollution: showLightPollution,
+            centerTrigger: centerTrigger
+        )
+        .overlay(alignment: .bottomTrailing) {
+            currentLocationOverlay
+        }
+    }
+
+    @ViewBuilder
+    private var currentLocationOverlay: some View {
+        if let onCurrentLocation {
+            Button(action: onCurrentLocation) {
+                currentLocationButtonLabel
+            }
+            .buttonStyle(.plain)
+            .padding(Spacing.xs)
+            .disabled(isLocating)
+            .accessibilityLabel("現在地を取得")
+        }
+    }
+
+    @ViewBuilder
+    private var currentLocationButtonLabel: some View {
+        Group {
+            if isLocating {
+                ProgressView().controlSize(.small)
+            } else {
+                Image(systemName: "location.fill")
+                    .font(.system(size: Layout.mapIconSize))
             }
         }
+        .frame(width: Layout.mapButtonSize, height: Layout.mapButtonSize)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Layout.mapButtonCornerRadius))
     }
 }

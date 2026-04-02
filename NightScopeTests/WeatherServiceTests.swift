@@ -246,3 +246,135 @@ final class WeatherServiceTests: XCTestCase {
         }
     }
 }
+
+@MainActor
+final class LightPollutionServiceTests: XCTestCase {
+
+    override func tearDown() {
+        MockURLProtocol.requestHandler = nil
+        super.tearDown()
+    }
+
+    func test_fetch_primarySuccess_usesLightPollutionMap() async {
+        let session = makeMockSession()
+        let service = LightPollutionService(session: session, qkTimestampProvider: { 1 })
+
+        MockURLProtocol.requestHandler = { request in
+            guard let url = request.url else {
+                throw URLError(.badURL)
+            }
+
+            if url.host?.contains("lightpollutionmap.info") == true {
+                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let data = Data("6.6520867347717285,36.0".utf8)
+                return (response, data)
+            }
+
+            XCTFail("主戦略成功時に Nominatim フォールバックは呼ばれない想定")
+            let response = HTTPURLResponse(url: url, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        await service.fetch(latitude: 35.6762, longitude: 139.6503)
+
+        XCTAssertFalse(service.fetchFailed)
+        guard let bortleClass = service.bortleClass else {
+            return XCTFail("Bortle 値が取得されませんでした")
+        }
+        XCTAssertEqual(bortleClass, 9.0, accuracy: 0.001)
+    }
+
+    func test_fetch_primaryFailure_fallsBackToNominatim() async {
+        let session = makeMockSession()
+        let service = LightPollutionService(session: session, qkTimestampProvider: { 1 })
+
+        MockURLProtocol.requestHandler = { request in
+            guard let url = request.url else {
+                throw URLError(.badURL)
+            }
+
+            if url.host?.contains("lightpollutionmap.info") == true {
+                let response = HTTPURLResponse(url: url, statusCode: 500, httpVersion: nil, headerFields: nil)!
+                return (response, Data("server error".utf8))
+            }
+
+            if url.host?.contains("openstreetmap.org") == true {
+                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let json = """
+                {
+                  "type": "town",
+                  "address": {
+                    "town": "Hakuba"
+                  }
+                }
+                """
+                return (response, Data(json.utf8))
+            }
+
+            let response = HTTPURLResponse(url: url, statusCode: 404, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        await service.fetch(latitude: 36.6982, longitude: 137.8618)
+
+        XCTAssertFalse(service.fetchFailed)
+        guard let bortleClass = service.bortleClass else {
+            return XCTFail("フォールバック後の Bortle 値が nil でした")
+        }
+        XCTAssertEqual(bortleClass, 5.5, accuracy: 0.001)
+    }
+
+    func test_fetch_allStrategiesFail_setsFailureState() async {
+        let session = makeMockSession()
+        let service = LightPollutionService(session: session, qkTimestampProvider: { 1 })
+
+        MockURLProtocol.requestHandler = { request in
+            guard let url = request.url else {
+                throw URLError(.badURL)
+            }
+            let response = HTTPURLResponse(url: url, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+
+        await service.fetch(latitude: 0, longitude: 0)
+
+        XCTAssertTrue(service.fetchFailed)
+        XCTAssertNil(service.bortleClass)
+    }
+
+    private func makeMockSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockURLProtocol.self]
+        return URLSession(configuration: configuration)
+    }
+}
+
+final class MockURLProtocol: URLProtocol {
+    static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let handler = Self.requestHandler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
+        do {
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
+}

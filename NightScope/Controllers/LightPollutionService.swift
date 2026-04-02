@@ -1,4 +1,6 @@
 import Foundation
+import AppKit
+import MapKit
 
 // MARK: - Nominatim Response (fallback)
 
@@ -14,6 +16,234 @@ private struct NominatimResponse: Decodable {
     let address: Address?
     /// OSM の place type（"city", "town", "village", "hamlet", "suburb" など）
     let type: String?
+}
+
+// MARK: - Tile Image Cache Box
+
+/// NSCache に CGImage を格納するための参照型ラッパー。
+final class CGImageBox {
+    let image: CGImage
+    init(_ image: CGImage) { self.image = image }
+}
+
+// MARK: - Tile Service
+
+/// 光害タイルの取得・キャッシュ・デコードを担うサービス層。
+/// View / Renderer からネットワーク・ディスクI/Oを分離する。
+final class LightPollutionTileService {
+    private enum TileConfig {
+        static let cacheDirectoryName = "LightPollutionTiles"
+        static let requestTimeout: TimeInterval = 15
+        static let maxConnectionsPerHost = 8
+        static let memoryCacheCostLimit = 100 * 1024 * 1024
+        static let cgImageCacheCostLimit = 80 * 1024 * 1024
+        static let descendantPreCropDepth = 2
+        static let maximumZoomLevel = 19
+    }
+
+    static let shared = LightPollutionTileService()
+
+    private let diskCacheDir: URL
+    private let session: URLSession
+
+    private let memoryCache: NSCache<NSString, NSData> = {
+        let cache = NSCache<NSString, NSData>()
+        cache.totalCostLimit = TileConfig.memoryCacheCostLimit
+        return cache
+    }()
+
+    private let cgImageCache: NSCache<NSString, CGImageBox> = {
+        let cache = NSCache<NSString, CGImageBox>()
+        cache.totalCostLimit = TileConfig.cgImageCacheCostLimit
+        return cache
+    }()
+
+    init(
+        fileManager: FileManager = .default,
+        cachesDirectory: URL? = nil,
+        session: URLSession? = nil
+    ) {
+        let cacheBase = cachesDirectory ?? fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let dir = cacheBase.appendingPathComponent(TileConfig.cacheDirectoryName, isDirectory: true)
+        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        self.diskCacheDir = dir
+
+        if let session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.urlCache = nil
+            config.requestCachePolicy = .reloadIgnoringLocalCacheData
+            config.httpMaximumConnectionsPerHost = TileConfig.maxConnectionsPerHost
+            config.timeoutIntervalForRequest = TileConfig.requestTimeout
+            self.session = URLSession(configuration: config)
+        }
+    }
+
+    func loadTile(path: MKTileOverlayPath, url: URL, result: @escaping (Data?, Error?) -> Void) {
+        let cacheKey = cacheKey(for: path)
+        let diskURL = diskURL(for: cacheKey)
+
+        if respondFromMemoryCache(cacheKey: cacheKey, path: path, result: result) {
+            return
+        }
+
+        if respondFromDiskCache(cacheKey: cacheKey, path: path, diskURL: diskURL, result: result) {
+            return
+        }
+
+        loadFromNetwork(path: path, cacheKey: cacheKey, diskURL: diskURL, url: url, result: result)
+    }
+
+    func hasTileData(for path: MKTileOverlayPath) -> Bool {
+        memoryCache.object(forKey: cacheKey(for: path)) != nil
+    }
+
+    func cachedImage(for path: MKTileOverlayPath) -> CGImage? {
+        cgImageCache.object(forKey: cacheKey(for: path))?.image
+    }
+
+    func decodeImageFromMemoryIfNeeded(for path: MKTileOverlayPath) -> CGImage? {
+        let key = cacheKey(for: path)
+        if let image = cgImageCache.object(forKey: key)?.image {
+            return image
+        }
+        guard let data = memoryCache.object(forKey: key) as Data?,
+              let nsImage = NSImage(data: data),
+              let image = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else {
+            return nil
+        }
+        cgImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
+        return image
+    }
+
+    func cacheCroppedImage(_ image: CGImage, for path: MKTileOverlayPath) {
+        let key = cacheKey(for: path)
+        cgImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
+    }
+
+    static func cgImageCost(_ image: CGImage) -> Int { image.width * image.height * 4 }
+
+    private func cacheKey(for path: MKTileOverlayPath) -> NSString {
+        "\(path.z)_\(path.x)_\(path.y)" as NSString
+    }
+
+    private func diskURL(for cacheKey: NSString) -> URL {
+        diskCacheDir.appendingPathComponent("\(cacheKey).png")
+    }
+
+    private func respondFromMemoryCache(
+        cacheKey: NSString,
+        path: MKTileOverlayPath,
+        result: @escaping (Data?, Error?) -> Void
+    ) -> Bool {
+        guard let cached = memoryCache.object(forKey: cacheKey) else {
+            return false
+        }
+
+        if cgImageCache.object(forKey: cacheKey) == nil {
+            let data = cached as Data
+            Task.detached(priority: .utility) { [weak self] in
+                guard let self else { return }
+                if let image = self.decodeAndCache(data: data, forKey: cacheKey) {
+                    self.scheduleDescendantPreCrop(from: image, path: path)
+                }
+            }
+        }
+
+        result(cached as Data, nil)
+        return true
+    }
+
+    private func respondFromDiskCache(
+        cacheKey: NSString,
+        path: MKTileOverlayPath,
+        diskURL: URL,
+        result: @escaping (Data?, Error?) -> Void
+    ) -> Bool {
+        guard let diskData = try? Data(contentsOf: diskURL, options: .mappedIfSafe) else {
+            return false
+        }
+
+        memoryCache.setObject(diskData as NSData, forKey: cacheKey, cost: diskData.count)
+        let image = decodeAndCache(data: diskData, forKey: cacheKey)
+        result(diskData, nil)
+
+        if let image {
+            scheduleDescendantPreCrop(from: image, path: path)
+        }
+
+        return true
+    }
+
+    private func loadFromNetwork(
+        path: MKTileOverlayPath,
+        cacheKey: NSString,
+        diskURL: URL,
+        url: URL,
+        result: @escaping (Data?, Error?) -> Void
+    ) {
+        let request = URLRequest(url: url, timeoutInterval: TileConfig.requestTimeout)
+        session.dataTask(with: request) { [weak self] data, response, error in
+            guard let self else { return }
+            guard let data, let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                result(data, error)
+                return
+            }
+
+            self.memoryCache.setObject(data as NSData, forKey: cacheKey, cost: data.count)
+            let image = self.decodeAndCache(data: data, forKey: cacheKey)
+            try? data.write(to: diskURL, options: .atomic)
+            result(data, nil)
+
+            if let image {
+                self.scheduleDescendantPreCrop(from: image, path: path)
+            }
+        }.resume()
+    }
+
+    private func decodeAndCache(data: Data, forKey key: NSString) -> CGImage? {
+        guard let nsImage = NSImage(data: data),
+              let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else { return nil }
+        cgImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: Self.cgImageCost(cgImage))
+        return cgImage
+    }
+
+    private func preCropDescendants(from cgImage: CGImage, path: MKTileOverlayPath) {
+        for dz in 1...TileConfig.descendantPreCropDepth {
+            let childZ = path.z + dz
+            guard childZ <= TileConfig.maximumZoomLevel else { break }
+            let scale = 1 << dz
+            let baseX = path.x * scale
+            let baseY = path.y * scale
+            let divisions = CGFloat(scale)
+            let tileW = CGFloat(cgImage.width) / divisions
+            let tileH = CGFloat(cgImage.height) / divisions
+
+            for dy in 0..<scale {
+                for dx in 0..<scale {
+                    let childPath = MKTileOverlayPath(x: baseX + dx, y: baseY + dy, z: childZ, contentScaleFactor: 1)
+                    let srcRect = CGRect(
+                        x: CGFloat(dx) * tileW,
+                        y: CGFloat(dy) * tileH,
+                        width: tileW,
+                        height: tileH
+                    )
+                    if let cropped = cgImage.cropping(to: srcRect) {
+                        cacheCroppedImage(cropped, for: childPath)
+                    }
+                }
+            }
+        }
+    }
+
+    private func scheduleDescendantPreCrop(from image: CGImage, path: MKTileOverlayPath) {
+        Task.detached(priority: .utility) { [weak self] in
+            self?.preCropDescendants(from: image, path: path)
+        }
+    }
 }
 
 // MARK: - Service
@@ -40,6 +270,17 @@ final class LightPollutionService: ObservableObject {
     @Published var fetchFailed = false
 
     private var lastFetchedCoordinate: (lat: Double, lon: Double)?
+
+    private let session: URLSession
+    private let qkTimestampProvider: () -> Int64
+
+    init(
+        session: URLSession = .shared,
+        qkTimestampProvider: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
+    ) {
+        self.session = session
+        self.qkTimestampProvider = qkTimestampProvider
+    }
 
     func fetch(latitude: Double, longitude: Double) async {
         // 同じ座標（0.05度以内 ≈ 5km）では再取得しない（光害は静的データ）
@@ -75,7 +316,7 @@ final class LightPollutionService: ObservableObject {
 
     private func fetchFromLightPollutionMap(lat: Double, lon: Double) async -> Double? {
         // qk トークン: btoa(Date.now() + ";isuckdicks:)")  ← JS ソースより
-        let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
+        let timestamp = qkTimestampProvider()
         let raw = "\(timestamp);isuckdicks:)"
         let qk = Data(raw.utf8).base64EncodedString()
 
@@ -94,7 +335,7 @@ final class LightPollutionService: ObservableObject {
         request.timeoutInterval = 10
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
             guard let body = String(data: data, encoding: .utf8) else { return nil }
 
@@ -127,7 +368,7 @@ final class LightPollutionService: ObservableObject {
         request.timeoutInterval = 10
 
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await session.data(for: request)
             let response = try JSONDecoder().decode(NominatimResponse.self, from: data)
             return estimateBortleFromAddress(response)
         } catch {
