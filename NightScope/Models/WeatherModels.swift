@@ -26,70 +26,167 @@ struct HourlyWeather {
 }
 
 struct DayWeatherSummary {
+    private struct Aggregates {
+        let cloudSum: Double
+        let windSum: Double
+        let humiditySum: Double
+        let dewpointSpreadSum: Double
+        let maxPrecipitation: Double
+        let minTemperature: Double
+        let maxWeatherCode: Int
+
+        let visibilitySum: Double
+        let visibilityCount: Int
+        let maxWindGusts: Double?
+
+        let cloudLowSum: Double
+        let cloudLowCount: Int
+        let cloudMidSum: Double
+        let cloudMidCount: Int
+        let cloudHighSum: Double
+        let cloudHighCount: Int
+
+        let wind500Sum: Double
+        let wind500Count: Int
+
+        static func build(from hours: [HourlyWeather]) -> Aggregates {
+            var cloudSum = 0.0
+            var windSum = 0.0
+            var humiditySum = 0.0
+            var dewpointSpreadSum = 0.0
+            var maxPrecipitation = -Double.infinity
+            var minTemperature = Double.infinity
+            var maxWeatherCode = 0
+
+            var visibilitySum = 0.0
+            var visibilityCount = 0
+            var maxWindGusts: Double?
+
+            var cloudLowSum = 0.0
+            var cloudLowCount = 0
+            var cloudMidSum = 0.0
+            var cloudMidCount = 0
+            var cloudHighSum = 0.0
+            var cloudHighCount = 0
+
+            var wind500Sum = 0.0
+            var wind500Count = 0
+
+            for hour in hours {
+                cloudSum += hour.cloudCoverPercent
+                windSum += hour.windSpeedKmh
+                humiditySum += hour.humidityPercent
+                dewpointSpreadSum += (hour.temperatureCelsius - hour.dewpointCelsius)
+                maxPrecipitation = max(maxPrecipitation, hour.precipitationMM)
+                minTemperature = min(minTemperature, hour.temperatureCelsius)
+                maxWeatherCode = max(maxWeatherCode, hour.weatherCode)
+
+                if let visibility = hour.visibilityMeters {
+                    visibilitySum += visibility
+                    visibilityCount += 1
+                }
+                if let gust = hour.windGustsKmh {
+                    maxWindGusts = max(maxWindGusts ?? -Double.infinity, gust)
+                }
+                if let low = hour.cloudCoverLowPercent {
+                    cloudLowSum += low
+                    cloudLowCount += 1
+                }
+                if let mid = hour.cloudCoverMidPercent {
+                    cloudMidSum += mid
+                    cloudMidCount += 1
+                }
+                if let high = hour.cloudCoverHighPercent {
+                    cloudHighSum += high
+                    cloudHighCount += 1
+                }
+                if let wind500 = hour.windSpeedKmh500hpa {
+                    wind500Sum += wind500
+                    wind500Count += 1
+                }
+            }
+
+            return Aggregates(
+                cloudSum: cloudSum,
+                windSum: windSum,
+                humiditySum: humiditySum,
+                dewpointSpreadSum: dewpointSpreadSum,
+                maxPrecipitation: maxPrecipitation,
+                minTemperature: minTemperature,
+                maxWeatherCode: maxWeatherCode,
+                visibilitySum: visibilitySum,
+                visibilityCount: visibilityCount,
+                maxWindGusts: maxWindGusts,
+                cloudLowSum: cloudLowSum,
+                cloudLowCount: cloudLowCount,
+                cloudMidSum: cloudMidSum,
+                cloudMidCount: cloudMidCount,
+                cloudHighSum: cloudHighSum,
+                cloudHighCount: cloudHighCount,
+                wind500Sum: wind500Sum,
+                wind500Count: wind500Count
+            )
+        }
+    }
+
     let date: Date
     let nighttimeHours: [HourlyWeather]
 
-    private var nighttimeTotals: (cloud: Double, wind: Double, humidity: Double, dewpointSpread: Double, maxPrecip: Double, minTemp: Double) {
-        nighttimeHours.reduce((0, 0, 0, 0, -Double.infinity, Double.infinity)) { acc, h in
-            (acc.0 + h.cloudCoverPercent,
-             acc.1 + h.windSpeedKmh,
-             acc.2 + h.humidityPercent,
-             acc.3 + (h.temperatureCelsius - h.dewpointCelsius),
-             max(acc.4, h.precipitationMM),
-             min(acc.5, h.temperatureCelsius))
-        }
+    private let aggregates: Aggregates
+
+    init(date: Date, nighttimeHours: [HourlyWeather]) {
+        self.date = date
+        self.nighttimeHours = nighttimeHours
+        self.aggregates = Aggregates.build(from: nighttimeHours)
     }
 
     var avgCloudCover: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeTotals.cloud / Double(nighttimeHours.count)
+        return aggregates.cloudSum / Double(nighttimeHours.count)
     }
 
     var maxPrecipitation: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeTotals.maxPrecip
+        return aggregates.maxPrecipitation
     }
 
     var avgWindSpeed: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeTotals.wind / Double(nighttimeHours.count)
+        return aggregates.windSum / Double(nighttimeHours.count)
     }
 
     var minTemperature: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeTotals.minTemp
+        return aggregates.minTemperature
     }
 
     var avgHumidity: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeTotals.humidity / Double(nighttimeHours.count)
+        return aggregates.humiditySum / Double(nighttimeHours.count)
     }
 
     /// 気温と露点の平均差（大気の透明度の代理指標・結露リスク評価）
     var avgDewpointSpread: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
-        return nighttimeTotals.dewpointSpread / Double(nighttimeHours.count)
+        return aggregates.dewpointSpreadSum / Double(nighttimeHours.count)
     }
 
     /// 低層雲量（< 2km）の夜間平均。データなし時は nil
     var avgCloudCoverLow: Double? {
-        let values = nighttimeHours.compactMap(\.cloudCoverLowPercent)
-        guard !values.isEmpty else { return nil }
-        return values.reduce(0, +) / Double(values.count)
+        guard aggregates.cloudLowCount > 0 else { return nil }
+        return aggregates.cloudLowSum / Double(aggregates.cloudLowCount)
     }
 
     /// 中層雲量（2-6km）の夜間平均。データなし時は nil
     var avgCloudCoverMid: Double? {
-        let values = nighttimeHours.compactMap(\.cloudCoverMidPercent)
-        guard !values.isEmpty else { return nil }
-        return values.reduce(0, +) / Double(values.count)
+        guard aggregates.cloudMidCount > 0 else { return nil }
+        return aggregates.cloudMidSum / Double(aggregates.cloudMidCount)
     }
 
     /// 高層雲量（> 6km）の夜間平均。データなし時は nil
     var avgCloudCoverHigh: Double? {
-        let values = nighttimeHours.compactMap(\.cloudCoverHighPercent)
-        guard !values.isEmpty else { return nil }
-        return values.reduce(0, +) / Double(values.count)
+        guard aggregates.cloudHighCount > 0 else { return nil }
+        return aggregates.cloudHighSum / Double(aggregates.cloudHighCount)
     }
 
     /// 層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3
@@ -104,23 +201,19 @@ struct DayWeatherSummary {
 
     /// 視程の夜間平均（メートル）。データなし時は nil
     var avgVisibilityMeters: Double? {
-        let values = nighttimeHours.compactMap(\.visibilityMeters)
-        guard !values.isEmpty else { return nil }
-        return values.reduce(0, +) / Double(values.count)
+        guard aggregates.visibilityCount > 0 else { return nil }
+        return aggregates.visibilitySum / Double(aggregates.visibilityCount)
     }
 
     /// 夜間の最大突風速度（km/h）。データなし時は nil
     var maxWindGusts: Double? {
-        let values = nighttimeHours.compactMap(\.windGustsKmh)
-        guard !values.isEmpty else { return nil }
-        return values.max()
+        aggregates.maxWindGusts
     }
 
     /// 500hPa（≈ 5.5km）の夜間平均風速（km/h）。データなし時は nil
     var avgWindSpeed500hpa: Double? {
-        let values = nighttimeHours.compactMap(\.windSpeedKmh500hpa)
-        guard !values.isEmpty else { return nil }
-        return values.reduce(0, +) / Double(values.count)
+        guard aggregates.wind500Count > 0 else { return nil }
+        return aggregates.wind500Sum / Double(aggregates.wind500Count)
     }
 
     var cloudLabel: String {
@@ -135,7 +228,7 @@ struct DayWeatherSummary {
 
     /// 夜間で最も深刻な天気コード（WMO）
     var representativeWeatherCode: Int {
-        nighttimeHours.map(\.weatherCode).max() ?? 0
+        aggregates.maxWeatherCode
     }
 
     var weatherIconName: String {

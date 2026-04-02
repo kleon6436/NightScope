@@ -189,112 +189,154 @@ struct StarGazingIndex {
     // MARK: - Weather Score (0–40)
 
     private static func computeWeatherScore(weather: DayWeatherSummary) -> Int {
-        var score = 0
+        let score = computeCloudScore(weather: weather)
+        + computeTransparencyScore(weather: weather)
+        + computePrecipitationScore(weather: weather)
+        + computeSeeingScore(weather: weather)
+        + computeDewRiskScore(weather: weather)
+        return min(score, 40)
+    }
 
-        // a. 雲量 (0–18 pts)
-        // 根拠: 低層雲(< 2km)は不透明で星を完全遮断。高層雲(> 6km)は巻雲等の氷晶雲で半透明。
-        //       層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3 で精度向上。
-        //       層別データなし時は総合雲量にフォールバック。
+    // a. 雲量 (0–18 pts)
+    // 根拠: 低層雲(< 2km)は不透明で星を完全遮断。高層雲(> 6km)は巻雲等の氷晶雲で半透明。
+    //       層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3 で精度向上。
+    //       層別データなし時は総合雲量にフォールバック。
+    private static func computeCloudScore(weather: DayWeatherSummary) -> Int {
         let effectiveCloud = weather.effectiveCloudCover ?? weather.avgCloudCover
         if effectiveCloud < 15 {
-            score += 18
-        } else if effectiveCloud < 35 {
-            score += 13
-        } else if effectiveCloud < 55 {
-            score += 7
-        } else if effectiveCloud < 75 {
-            score += 2
+            return 18
         }
+        if effectiveCloud < 35 {
+            return 13
+        }
+        if effectiveCloud < 55 {
+            return 7
+        }
+        if effectiveCloud < 75 {
+            return 2
+        }
+        return 0
+    }
 
-        // b. 大気透明度 (0–10 pts)
-        // 根拠: 視程(visibility)は大気中のエアロゾル・水蒸気量を反映し、制限等級（限界等級）に直結する。
-        //       視程 ≥ 20km = NOAAの「非常に良好」基準。6等星以上の観測が期待できる条件。
-        //       視程データなし時は露点差のみで評価（最大7点に制限してデータなしのペナルティを反映）。
+    // b. 大気透明度 (0–10 pts)
+    // 根拠: 視程(visibility)は大気中のエアロゾル・水蒸気量を反映し、制限等級（限界等級）に直結する。
+    //       視程 ≥ 20km = NOAAの「非常に良好」基準。6等星以上の観測が期待できる条件。
+    //       視程データなし時は露点差のみで評価（最大7点に制限してデータなしのペナルティを反映）。
+    private static func computeTransparencyScore(weather: DayWeatherSummary) -> Int {
+        let spread = weather.avgDewpointSpread
+
         if let vis = weather.avgVisibilityMeters {
-            let km = vis / 1000.0
-            if km >= 20 {
+            var score = 0
+            let visibilityKm = vis / 1000.0
+            if visibilityKm >= 20 {
                 score += 8
-            } else if km >= 10 {
+            } else if visibilityKm >= 10 {
                 score += 5
-            } else if km >= 5 {
+            } else if visibilityKm >= 5 {
                 score += 2
             }
             // 露点差による補正 (0–2 pts): 乾燥した大気ほど透明度が高い
-            let spread = weather.avgDewpointSpread
             if spread > 15 {
                 score += 2
             } else if spread > 10 {
                 score += 1
             }
-        } else {
-            // フォールバック: 視程データなし時は露点差のみで 0–7 pts
-            let spread = weather.avgDewpointSpread
-            if spread > 15 {
-                score += 7
-            } else if spread > 10 {
-                score += 5
-            } else if spread > 5 {
-                score += 2
-            }
+            return score
         }
 
-        // c. 降水 (0–6 pts)
-        // 根拠: 霧(WMO コード 45, 48)は降水量ゼロでも視程をほぼゼロにし観測不可となる。
-        //       51以上（霧雨・雨・雪）は即時観測中止に相当。
-        let precip = weather.maxPrecipitation
-        let wcode = weather.representativeWeatherCode
-        if precip == 0 && wcode < 45 {
-            score += 6
-        } else if precip == 0 && wcode <= 48 {
+        // フォールバック: 視程データなし時は露点差のみで 0–7 pts
+        if spread > 15 {
+            return 7
+        }
+        if spread > 10 {
+            return 5
+        }
+        if spread > 5 {
+            return 2
+        }
+        return 0
+    }
+
+    // c. 降水 (0–6 pts)
+    // 根拠: 霧(WMO コード 45, 48)は降水量ゼロでも視程をほぼゼロにし観測不可となる。
+    //       51以上（霧雨・雨・雪）は即時観測中止に相当。
+    private static func computePrecipitationScore(weather: DayWeatherSummary) -> Int {
+        let precipitation = weather.maxPrecipitation
+        let weatherCode = weather.representativeWeatherCode
+
+        if precipitation == 0 && weatherCode < 45 {
+            return 6
+        }
+        if precipitation == 0 && weatherCode <= 48 {
             // 霧のみ: 視程がほぼゼロのため最低点
-            score += 1
-        } else if precip < 0.1 {
-            score += 4
-        } else if precip < 0.5 {
-            score += 2
+            return 1
         }
+        if precipitation < 0.1 {
+            return 4
+        }
+        if precipitation < 0.5 {
+            return 2
+        }
+        return 0
+    }
 
-        // d. シーイング・風 (0–4 pts)
-        // 根拠: 天文シーイング（大気の揺らぎ）は地表から対流圏全体の乱流で決まる。
-        //       地表突風データ(0–4pts): 突風（瞬間最大風速）は地表乱流の直接指標。
-        //       上空風データ(500hPa ≈ 5.5km)がある場合は地表+上空の複合評価(各0–2pts)に切り替え。
-        //       上空風なし時は地表突風のみで評価（フォールバック）。
-        let avgWind = weather.avgWindSpeed
-        let gusts = weather.maxWindGusts ?? avgWind
+    // d. シーイング・風 (0–4 pts)
+    // 根拠: 天文シーイング（大気の揺らぎ）は地表から対流圏全体の乱流で決まる。
+    //       地表突風データ(0–4pts): 突風（瞬間最大風速）は地表乱流の直接指標。
+    //       上空風データ(500hPa ≈ 5.5km)がある場合は地表+上空の複合評価(各0–2pts)に切り替え。
+    //       上空風なし時は地表突風のみで評価（フォールバック）。
+    private static func computeSeeingScore(weather: DayWeatherSummary) -> Int {
+        let averageWind = weather.avgWindSpeed
+        let gusts = weather.maxWindGusts ?? averageWind
+
         if let upperWind = weather.avgWindSpeed500hpa {
             // 地表 (0–2pts) + 上空 (0–2pts) の複合シーイング評価
             let surfaceScore: Int
-            if gusts < 20 && avgWind < 10      { surfaceScore = 2 }
-            else if gusts < 35 && avgWind < 20 { surfaceScore = 1 }
-            else                                { surfaceScore = 0 }
+            if gusts < 20 && averageWind < 10 {
+                surfaceScore = 2
+            } else if gusts < 35 && averageWind < 20 {
+                surfaceScore = 1
+            } else {
+                surfaceScore = 0
+            }
+
             // 500hPa ≈ 5.5km。30km/h未満は良好、60km/h以上は乱流強く観測困難
             let upperScore: Int
-            if upperWind < 30      { upperScore = 2 }
-            else if upperWind < 60 { upperScore = 1 }
-            else                   { upperScore = 0 }
-            score += min(4, surfaceScore + upperScore)
-        } else {
-            // フォールバック: 地表突風データのみで評価（最大4点）
-            if gusts < 20 && avgWind < 10 {
-                score += 4
-            } else if gusts < 35 && avgWind < 20 {
-                score += 2
-            } else if gusts < 50 && avgWind < 35 {
-                score += 1
+            if upperWind < 30 {
+                upperScore = 2
+            } else if upperWind < 60 {
+                upperScore = 1
+            } else {
+                upperScore = 0
             }
+            return min(4, surfaceScore + upperScore)
         }
 
-        // e. 露リスク (0–2 pts)
-        // 根拠: 気温と露点の差（露点差）< 3°C で相対湿度が約90%以上となり、
-        //       光学部品（レンズ・反射鏡）への結露が発生する。旧「湿度スコア」を置き換え。
+        // フォールバック: 地表突風データのみで評価（最大4点）
+        if gusts < 20 && averageWind < 10 {
+            return 4
+        }
+        if gusts < 35 && averageWind < 20 {
+            return 2
+        }
+        if gusts < 50 && averageWind < 35 {
+            return 1
+        }
+        return 0
+    }
+
+    // e. 露リスク (0–2 pts)
+    // 根拠: 気温と露点の差（露点差）< 3°C で相対湿度が約90%以上となり、
+    //       光学部品（レンズ・反射鏡）への結露が発生する。旧「湿度スコア」を置き換え。
+    private static func computeDewRiskScore(weather: DayWeatherSummary) -> Int {
         let dewpointSpread = weather.avgDewpointSpread
         if dewpointSpread > 5 {
-            score += 2
-        } else if dewpointSpread > 3 {
-            score += 1
+            return 2
         }
-
-        return min(score, 40)
+        if dewpointSpread > 3 {
+            return 1
+        }
+        return 0
     }
 
     // MARK: - Light Pollution Score (0–30)
