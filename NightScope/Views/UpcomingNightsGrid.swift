@@ -187,16 +187,9 @@ struct UpcomingNightsGrid: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private static let cardDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .full
-        f.timeStyle = .none
-        return f
-    }()
-
     private func cardAccessibilityLabel(night: NightSummary, weather: DayWeatherSummary?, index: StarGazingIndex?) -> String {
         var parts: [String] = []
-        parts.append(Self.cardDateFormatter.string(from: night.date))
+        parts.append(DateFormatters.fullDate.string(from: night.date))
         if let idx = index { parts.append("星空指数\(idx.score)") }
         if let w = weather { parts.append("天気\(w.weatherLabel)") }
         parts.append("月: \(night.moonPhaseName)")

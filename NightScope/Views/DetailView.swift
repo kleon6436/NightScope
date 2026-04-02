@@ -7,54 +7,71 @@ struct DetailView: View {
     var body: some View {
         Group {
             if let summary = appController.nightSummary {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.lg) {
-                        headerSection(summary: summary)
-                        ViewingWindowsSection(summary: summary)
-                        UpcomingNightsGrid(appController: appController)
-                    }
-                    .padding(Spacing.md)
-                }
-                .ignoresSafeArea(edges: .top)
+                detailContent(summary: summary)
             } else if appController.isCalculating {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.lg) {
-                        headerSection(summary: .placeholder)
-                    }
-                    .padding(Spacing.md)
-                    .redacted(reason: .placeholder)
-                }
-                .ignoresSafeArea(edges: .top)
-                .accessibilityLabel("星空データを計算中")
+                loadingContent
             } else {
-                ContentUnavailableView(
-                    "データがありません",
-                    systemImage: AppIcons.Astronomy.moonStars,
-                    description: Text("場所と日付を選択してください")
-                )
+                emptyContent
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // NightScope は没入型体験を重視するため、HIG 例外として
+        // ウィンドウツールバー背景を一時的に非表示にしている。
         .toolbarBackground(.hidden, for: .windowToolbar)
-        .overlay(alignment: .bottom) {
-            VStack(spacing: Spacing.xs) {
-                if appController.lightPollutionService.fetchFailed {
-                    errorBanner(
-                        message: "光害データの取得に失敗しました",
-                        retryAction: { Task { await appController.refreshLightPollution() } }
-                    )
-                }
-                if let error = appController.weatherService.errorMessage {
-                    errorBanner(
-                        message: error,
-                        retryAction: { Task { await appController.refreshWeather() } }
-                    )
-                }
-            }
-            .padding(.bottom, Spacing.sm)
-        }
+        .overlay(alignment: .bottom, content: errorOverlay)
         .animation(reduceMotion ? .none : .standard, value: appController.weatherService.errorMessage)
         .animation(reduceMotion ? .none : .standard, value: appController.lightPollutionService.fetchFailed)
+    }
+
+    private func detailContent(summary: NightSummary) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                headerSection(summary: summary)
+                ViewingWindowsSection(summary: summary)
+                UpcomingNightsGrid(appController: appController)
+            }
+            .padding(Spacing.md)
+        }
+        .ignoresSafeArea(edges: .top)
+    }
+
+    private var loadingContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                headerSection(summary: .placeholder)
+            }
+            .padding(Spacing.md)
+            .redacted(reason: .placeholder)
+        }
+        .ignoresSafeArea(edges: .top)
+        .accessibilityLabel("星空データを計算中")
+    }
+
+    private var emptyContent: some View {
+        ContentUnavailableView(
+            "データがありません",
+            systemImage: AppIcons.Astronomy.moonStars,
+            description: Text("場所と日付を選択してください")
+        )
+    }
+
+    @ViewBuilder
+    private func errorOverlay() -> some View {
+        VStack(spacing: Spacing.xs) {
+            if appController.lightPollutionService.fetchFailed {
+                errorBanner(
+                    message: "光害データの取得に失敗しました",
+                    retryAction: { Task { await appController.refreshLightPollution() } }
+                )
+            }
+            if let error = appController.weatherService.errorMessage {
+                errorBanner(
+                    message: error,
+                    retryAction: { Task { await appController.refreshWeather() } }
+                )
+            }
+        }
+        .padding(.bottom, Spacing.sm)
     }
 
     // MARK: - Error Banner

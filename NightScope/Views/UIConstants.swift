@@ -78,20 +78,37 @@ extension Animation {
 
 // MARK: - Time Formatting
 
-extension DateFormatter {
+enum DateFormatters {
     /// HH:mm 形式の夜間時刻フォーマッタ
     static let nightTime: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        f.timeZone = .current
-        return f
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = .current
+        return formatter
+    }()
+
+    /// カレンダー見出し（yyyy年M月）
+    static let monthTitle: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月"
+        formatter.timeZone = .current
+        return formatter
+    }()
+
+    /// アクセシビリティ用の完全日付
+    static let fullDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        formatter.timeZone = .current
+        return formatter
     }()
 }
 
 extension Date {
     /// HH:mm 形式の時刻文字列を返す
     func nightTimeString() -> String {
-        DateFormatter.nightTime.string(from: self)
+        DateFormatters.nightTime.string(from: self)
     }
 }
 

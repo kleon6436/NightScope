@@ -35,6 +35,14 @@ struct ViewingWindow {
         let index = Int((peakAzimuth + 11.25) / 22.5) % 16
         return directions[index]
     }
+
+    func accessibilityDescription(isMoonFavorable: Bool) -> String {
+        let timeRange = "\(start.nightTimeString())から\(end.nightTimeString())"
+        let duration = String(format: "観測%.1f時間", self.duration / 3600)
+        let altitude = String(format: "最大高度%.0f度", peakAltitude)
+        let moon = isMoonFavorable ? "月の条件良好" : "月明かりあり"
+        return "観測窓: \(timeRange)、\(duration)、\(altitude)、\(moon)"
+    }
 }
 
 struct NightSummary {

@@ -96,14 +96,8 @@ struct CalendarView: View {
         return result
     }
 
-    private static let monthFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy年M月"
-        return f
-    }()
-
     private var monthTitle: String {
-        Self.monthFormatter.string(from: displayMonth)
+        DateFormatters.monthTitle.string(from: displayMonth)
     }
 
     private func shiftMonth(by value: Int) {
@@ -121,10 +115,7 @@ struct CalendarDayCell: View {
     private var dayNumber: Int { calendar.component(.day, from: date) }
 
     private var accessibilityDateLabel: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        var label = formatter.string(from: date)
+        var label = DateFormatters.fullDate.string(from: date)
         if isSelected { label += "、選択中" }
         if isToday { label += "、今日" }
         return label

@@ -55,14 +55,6 @@ struct ViewingWindowsSection: View {
         .padding(Layout.cardPadding)
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(windowAccessibilityLabel(window: window, isMoonFavorable: isMoonFavorable))
-    }
-
-    private func windowAccessibilityLabel(window: ViewingWindow, isMoonFavorable: Bool) -> String {
-        let timeRange = "\(window.start.nightTimeString())から\(window.end.nightTimeString())"
-        let duration = String(format: "観測%.1f時間", window.duration / 3600)
-        let altitude = String(format: "最大高度%.0f度", window.peakAltitude)
-        let moon = isMoonFavorable ? "月の条件良好" : "月明かりあり"
-        return "観測窓: \(timeRange)、\(duration)、\(altitude)、\(moon)"
+        .accessibilityLabel(window.accessibilityDescription(isMoonFavorable: isMoonFavorable))
     }
 }

@@ -141,6 +141,10 @@ struct SidebarView: View {
                 }
             }
             .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        } else if !locationController.isSearching,
+                  !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ContentUnavailableView.search(text: searchText)
+                .padding(.vertical, Spacing.xs)
         }
     }
 
