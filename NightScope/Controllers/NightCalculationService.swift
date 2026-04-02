@@ -1,10 +1,15 @@
 import Foundation
 import CoreLocation
 
+protocol NightCalculating {
+    func calculateNightSummary(date: Date, location: CLLocationCoordinate2D) async -> NightSummary
+    func calculateUpcomingNights(from date: Date, location: CLLocationCoordinate2D, days: Int) async -> [NightSummary]
+}
+
 /// 天文計算をバックグラウンドで実行するサービス。
 /// MilkyWayCalculator の static 呼び出しをラップし、
 /// AppController がメインスレッドをブロックせずに await できるようにする。
-final class NightCalculationService {
+final class NightCalculationService: NightCalculating {
 
     func calculateNightSummary(date: Date, location: CLLocationCoordinate2D) async -> NightSummary {
         await Task.detached(priority: .userInitiated) {

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CoreLocation
 
 @MainActor
 final class AppController: ObservableObject {
@@ -24,7 +25,7 @@ final class AppController: ObservableObject {
     @Published var isCalculating = false
 
     // MARK: - Private State
-    private let calculationService = NightCalculationService()
+    private let calculationService: NightCalculating
     private var calculationTask: Task<Void, Never>?
     private var upcomingTask: Task<Void, Never>?
     private var locationTask: Task<Void, Never>?
@@ -33,11 +34,19 @@ final class AppController: ObservableObject {
     // MARK: - Init
     init(locationController: LocationController? = nil,
          weatherService: WeatherService? = nil,
-         lightPollutionService: LightPollutionService? = nil) {
+         lightPollutionService: LightPollutionService? = nil,
+         calculationService: NightCalculating? = nil) {
         self.locationController = locationController ?? LocationController()
         self.weatherService = weatherService ?? WeatherService()
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
+        self.calculationService = calculationService ?? NightCalculationService()
         setupObservers()
+    }
+
+    deinit {
+        calculationTask?.cancel()
+        upcomingTask?.cancel()
+        locationTask?.cancel()
     }
 
     // MARK: - Public Methods
@@ -45,22 +54,23 @@ final class AppController: ObservableObject {
         recalculate()
         recalculateUpcoming()
         Task {
-            await refreshWeather()
-            await refreshLightPollution()
+            await refreshExternalData()
         }
     }
 
     func refreshWeather() async {
+        let coordinate = selectedCoordinate
         await weatherService.fetchWeather(
-            latitude: locationController.selectedLocation.latitude,
-            longitude: locationController.selectedLocation.longitude
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
         )
     }
 
     func refreshLightPollution() async {
+        let coordinate = selectedCoordinate
         await lightPollutionService.fetch(
-            latitude: locationController.selectedLocation.latitude,
-            longitude: locationController.selectedLocation.longitude
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
         )
     }
 
@@ -71,7 +81,7 @@ final class AppController: ObservableObject {
             isCalculating = true
         }
         let date = selectedDate
-        let location = locationController.selectedLocation
+        let location = selectedCoordinate
         calculationTask = Task {
             let summary = await calculationService.calculateNightSummary(date: date, location: location)
             guard !Task.isCancelled else { return }
@@ -84,9 +94,9 @@ final class AppController: ObservableObject {
     func recalculateUpcoming() {
         upcomingTask?.cancel()
         let today = Date()
-        let location = locationController.selectedLocation
+        let location = selectedCoordinate
         upcomingTask = Task {
-            let upcoming = await calculationService.calculateUpcomingNights(from: today, location: location)
+            let upcoming = await calculationService.calculateUpcomingNights(from: today, location: location, days: 14)
             guard !Task.isCancelled else { return }
             upcomingNights = upcoming
             recomputeUpcomingIndexes()
@@ -116,6 +126,27 @@ final class AppController: ObservableObject {
     }
 
     // MARK: - Private
+    private var selectedCoordinate: CLLocationCoordinate2D {
+        locationController.selectedLocation
+    }
+
+    private func refreshExternalData() async {
+        await refreshWeather()
+        await refreshLightPollution()
+    }
+
+    private func recomputeAllIndexes() {
+        recomputeStarGazingIndex()
+        recomputeUpcomingIndexes()
+    }
+
+    private func handleLocationChanged() async {
+        recalculate()
+        recalculateUpcoming()
+        guard !Task.isCancelled else { return }
+        await refreshExternalData()
+    }
+
     private func setupObservers() {
         locationController.$locationUpdateID
             .dropFirst()
@@ -123,12 +154,7 @@ final class AppController: ObservableObject {
                 self?.locationTask?.cancel()
                 self?.locationTask = Task { @MainActor [weak self] in
                     guard let self else { return }
-                    recalculate()
-                    recalculateUpcoming()
-                    guard !Task.isCancelled else { return }
-                    await refreshWeather()
-                    guard !Task.isCancelled else { return }
-                    await refreshLightPollution()
+                    await handleLocationChanged()
                 }
             }
             .store(in: &cancellables)
@@ -137,8 +163,7 @@ final class AppController: ObservableObject {
             .dropFirst()
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    self?.recomputeStarGazingIndex()
-                    self?.recomputeUpcomingIndexes()
+                    self?.recomputeAllIndexes()
                 }
             }
             .store(in: &cancellables)
@@ -147,8 +172,7 @@ final class AppController: ObservableObject {
             .dropFirst()
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    self?.recomputeStarGazingIndex()
-                    self?.recomputeUpcomingIndexes()
+                    self?.recomputeAllIndexes()
                 }
             }
             .store(in: &cancellables)

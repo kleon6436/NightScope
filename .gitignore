@@ -35,3 +35,6 @@ build/
 
 # Claude Code
 .claude/
+
+# VS Code
+.vscode/
