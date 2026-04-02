@@ -141,7 +141,7 @@ final class AppControllerTests: XCTestCase {
     }
 }
 
-private actor MockNightCalculationService: NightCalculating {
+actor MockNightCalculationService: NightCalculating {
     private var nightSummaryResponses: [(summary: NightSummary, delayNanoseconds: UInt64)] = []
     private var upcomingResponses: [(summaries: [NightSummary], delayNanoseconds: UInt64)] = []
 

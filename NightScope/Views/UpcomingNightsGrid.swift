@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct UpcomingNightsGrid: View {
-    @ObservedObject var appController: AppController
+    @ObservedObject var viewModel: UpcomingNightsGridViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -9,15 +9,15 @@ struct UpcomingNightsGrid: View {
                 Text("今後2週間の予報")
                     .font(.title3.bold())
                 Spacer()
-                if !Calendar.current.isDateInToday(appController.selectedDate) {
-                    Button("今日") { appController.selectedDate = Date() }
+                if !Calendar.current.isDateInToday(viewModel.selectedDate) {
+                    Button("今日") { viewModel.setSelectedDate(Date()) }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                         .accessibilityLabel("今日の日付に移動")
                 }
             }
 
-            let displayNights = appController.upcomingNights.filter { !$0.viewingWindows.isEmpty }
+            let displayNights = viewModel.displayNights
 
             if displayNights.isEmpty {
                 ContentUnavailableView(
@@ -38,9 +38,9 @@ struct UpcomingNightsGrid: View {
     }
 
     private func upcomingNightCard(night: NightSummary) -> some View {
-        let weather = appController.weatherService.summary(for: night.date)
-        let isSelected = Calendar.current.isDate(night.date, inSameDayAs: appController.selectedDate)
-        let index = appController.upcomingIndexes[Calendar.current.startOfDay(for: night.date)]
+        let weather = viewModel.weatherSummary(for: night.date)
+        let isSelected = Calendar.current.isDate(night.date, inSameDayAs: viewModel.selectedDate)
+        let index = viewModel.starGazingIndex(for: night.date)
 
         return VStack(alignment: .leading, spacing: Spacing.xs) {
             cardHeader(night: night, weather: weather)
@@ -63,10 +63,10 @@ struct UpcomingNightsGrid: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            appController.selectedDate = night.date
+            viewModel.setSelectedDate(night.date)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(cardAccessibilityLabel(night: night, weather: weather, index: index))
+        .accessibilityLabel(viewModel.cardAccessibilityLabel(night: night, weather: weather, index: index))
         .accessibilityAddTraits(.isButton)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -90,7 +90,7 @@ struct UpcomingNightsGrid: View {
     private func weatherDetailRow(weather: DayWeatherSummary) -> some View {
         HStack(spacing: Spacing.xs / 2) {
             Image(systemName: weather.weatherIconName)
-                .foregroundStyle(weatherIconColor(code: weather.representativeWeatherCode))
+                .foregroundStyle(viewModel.weatherIconColor(code: weather.representativeWeatherCode))
                 .font(.body)
                 .accessibilityHidden(true)
             Text(weather.weatherLabel == weather.cloudLabel
@@ -157,7 +157,7 @@ struct UpcomingNightsGrid: View {
                     Image(systemName: AppIcons.Astronomy.moonStars)
                         .frame(width: Layout.gridIconWidth, alignment: .center)
                         .accessibilityHidden(true)
-                    Text(observableRangeText(night: night, weather: weather))
+                    Text(viewModel.observableRangeText(night: night, weather: weather))
                         .font(.body)
                         .lineLimit(1)
                 }
@@ -165,14 +165,6 @@ struct UpcomingNightsGrid: View {
             .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    private func observableRangeText(night: NightSummary, weather: DayWeatherSummary?) -> String {
-        if let weather,
-           let text = night.weatherAwareRangeText(nighttimeHours: weather.nighttimeHours) {
-            return text.isEmpty ? "天候不良" : text
-        }
-        return night.darkRangeText.isEmpty ? "—" : night.darkRangeText
     }
 
     private func milkyWayColumn(night: NightSummary) -> some View {
@@ -211,29 +203,5 @@ struct UpcomingNightsGrid: View {
             .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    private func cardAccessibilityLabel(night: NightSummary, weather: DayWeatherSummary?, index: StarGazingIndex?) -> String {
-        var parts: [String] = []
-        parts.append(DateFormatters.fullDate.string(from: night.date))
-        if let idx = index { parts.append("星空指数\(idx.score)") }
-        if let w = weather { parts.append("天気\(w.weatherLabel)") }
-        parts.append("月: \(night.moonPhaseName)")
-        return parts.joined(separator: "、")
-    }
-
-    private func weatherIconColor(code: Int) -> Color {
-        switch code {
-        case 0, 1:       return .yellow
-        case 2:          return .secondary
-        case 3:          return .secondary
-        case 45, 48:     return .secondary
-        case 51...65:    return .blue
-        case 71...77:    return Color.blue.opacity(0.7)
-        case 80...82:    return .blue
-        case 85, 86:     return Color.blue.opacity(0.7)
-        case 95...99:    return .orange
-        default:         return .secondary
-        }
     }
 }

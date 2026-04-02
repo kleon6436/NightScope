@@ -1,0 +1,37 @@
+import SwiftUI
+
+@MainActor
+final class NightWeatherCardViewModel: ObservableObject {
+    @AppStorage("windSpeedUnit") private var windSpeedUnitRaw: String = WindSpeedUnit.kmh.rawValue
+
+    private var windSpeedUnit: WindSpeedUnit {
+        WindSpeedUnit(rawValue: windSpeedUnitRaw) ?? .kmh
+    }
+
+    // MARK: - Formatting Methods
+
+    func weatherLabel(_ weather: DayWeatherSummary) -> String {
+        weather.weatherLabel == weather.cloudLabel
+            ? weather.weatherLabel
+            : "\(weather.weatherLabel)（\(weather.cloudLabel)）"
+    }
+
+    func formatCloudCover(_ value: Double) -> String {
+        String(format: "雲量 %.0f%%", value)
+    }
+
+    func formatPrecipitation(_ value: Double) -> String {
+        String(format: "降水 %.1f mm", value)
+    }
+
+    func formatWindSpeed(_ value: Double) -> String {
+        windSpeedUnit.format(value)
+    }
+
+    func accessibilityDescription(weather: DayWeatherSummary?, isLoading: Bool) -> String {
+        if isLoading { return "天気 夜間: 取得中" }
+        guard let w = weather else { return "天気 夜間: データなし" }
+        let label = w.weatherLabel == w.cloudLabel ? w.weatherLabel : "\(w.weatherLabel) \(w.cloudLabel)"
+        return "天気 夜間: \(label)、雲量\(Int(w.avgCloudCover))%、降水\(String(format: "%.1f", w.maxPrecipitation))mm、風速\(Int(w.avgWindSpeed))km/h"
+    }
+}

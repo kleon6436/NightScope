@@ -1,5 +1,39 @@
 import Foundation
 
+enum WeatherServiceError: Error, LocalizedError {
+    case invalidURL
+    case invalidResponse(statusCode: Int)
+    case invalidData
+    case decodingError(underlying: Error)
+    case networkError(underlying: Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "URLの生成に失敗しました。"
+        case .invalidResponse(let statusCode):
+            return "天気APIのステータスコードが不正です: \(statusCode)"
+        case .invalidData:
+            return "天気APIの取得データが不正です。"
+        case .decodingError(let underlying):
+            return "天気データの解析に失敗しました: \(underlying.localizedDescription)"
+        case .networkError(let underlying):
+            return "ネットワークエラーが発生しました: \(underlying.localizedDescription)"
+        }
+    }
+}
+
+@MainActor
+protocol WeatherProviding: AnyObject, ObservableObject {
+    var weatherByDate: [String: DayWeatherSummary] { get }
+    var weatherByDatePublisher: Published<[String: DayWeatherSummary]>.Publisher { get }
+    var isLoading: Bool { get }
+    var errorMessage: String? { get }
+
+    func fetchWeather(latitude: Double, longitude: Double) async
+    func summary(for date: Date) -> DayWeatherSummary?
+}
+
 // MARK: - API Response
 
 struct OpenMeteoResponse: Decodable {
@@ -45,7 +79,7 @@ struct OpenMeteoResponse: Decodable {
 // MARK: - Service
 
 @MainActor
-final class WeatherService: ObservableObject {
+final class WeatherService: ObservableObject, WeatherProviding {
     // "yyyy-MM-dd" キー生成・復元に使う共有フォーマッタ
     private static let dateKeyFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -55,7 +89,16 @@ final class WeatherService: ObservableObject {
         return f
     }()
 
+    private static let isoTimestampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        return f
+    }()
+
     @Published var weatherByDate: [String: DayWeatherSummary] = [:]
+    var weatherByDatePublisher: Published<[String: DayWeatherSummary]>.Publisher { $weatherByDate }
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -95,26 +138,41 @@ final class WeatherService: ObservableObject {
         }
 
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 15
+            let (data, response) = try await URLSession.shared.data(for: request)
             if Task.isCancelled { return }
-            let response = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
-            let summaries = parse(response: response)
+
+            guard let http = response as? HTTPURLResponse else {
+                throw WeatherServiceError.invalidResponse(statusCode: -1)
+            }
+            guard http.statusCode == 200 else {
+                throw WeatherServiceError.invalidResponse(statusCode: http.statusCode)
+            }
+
+            let apiResponse: OpenMeteoResponse
+            do {
+                apiResponse = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
+            } catch {
+                throw WeatherServiceError.decodingError(underlying: error)
+            }
+
+            let summaries = parse(response: apiResponse)
             weatherByDate = summaries
         } catch {
             if !Task.isCancelled {
-                if let urlError = error as? URLError {
-                    switch urlError.code {
-                    case .notConnectedToInternet, .networkConnectionLost:
-                        errorMessage = "インターネット接続を確認してください"
-                    case .timedOut:
-                        errorMessage = "サーバーへの接続がタイムアウトしました"
-                    default:
-                        errorMessage = "天気データの取得に失敗しました"
-                    }
-                } else if error is DecodingError {
-                    errorMessage = "データの解析に失敗しました"
-                } else {
-                    errorMessage = "天気データの取得に失敗しました"
+                let serviceError = (error as? WeatherServiceError) ?? .networkError(underlying: error)
+                switch serviceError {
+                case .invalidURL:
+                    errorMessage = serviceError.localizedDescription
+                case .invalidResponse(let code):
+                    errorMessage = "天気APIのステータスコードが不正です: \(code)"
+                case .invalidData:
+                    errorMessage = serviceError.localizedDescription
+                case .decodingError:
+                    errorMessage = serviceError.localizedDescription
+                case .networkError:
+                    errorMessage = serviceError.localizedDescription
                 }
             }
         }
@@ -126,11 +184,7 @@ final class WeatherService: ObservableObject {
         let hourly = response.hourly
 
         // Parse timestamps as local time (API returns local time when timezone=auto)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-
-        // Try to use the timezone from the response
+        let formatter = WeatherService.isoTimestampFormatter
         if let tz = TimeZone(identifier: response.timezone) {
             formatter.timeZone = tz
         } else {

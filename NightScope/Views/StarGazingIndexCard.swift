@@ -2,7 +2,7 @@ import SwiftUI
 
 struct StarGazingIndexCard: View {
     let index: StarGazingIndex
-    @ObservedObject var lightPollutionService: LightPollutionService
+    @ObservedObject var lightPollutionViewModel: StarGazingIndexCardViewModel
     @State private var isExpanded: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -85,11 +85,11 @@ struct StarGazingIndexCard: View {
                                         .font(.body)
                                         .foregroundStyle(.secondary)
                                         .frame(width: 44, alignment: .leading)
-                                    if lightPollutionService.isLoading {
+                                    if lightPollutionViewModel.isLoading {
                                         ProgressView()
                                             .controlSize(.mini)
                                             .accessibilityLabel("光害データを取得中")
-                                    } else if lightPollutionService.fetchFailed {
+                                    } else if lightPollutionViewModel.fetchFailed {
                                         Text("取得失敗")
                                             .font(.body)
                                             .foregroundStyle(.secondary)

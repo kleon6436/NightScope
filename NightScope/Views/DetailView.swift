@@ -1,14 +1,25 @@
 import SwiftUI
 
 struct DetailView: View {
-    @ObservedObject var appController: AppController
+    @ObservedObject var viewModel: DetailViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @StateObject private var starGazingIndexCardViewModel: StarGazingIndexCardViewModel
+    @StateObject private var nightWeatherCardViewModel: NightWeatherCardViewModel
+    @StateObject private var upcomingGridViewModel: UpcomingNightsGridViewModel
+
+    init(viewModel: DetailViewModel) {
+        self.viewModel = viewModel
+        _starGazingIndexCardViewModel = StateObject(wrappedValue: StarGazingIndexCardViewModel(lightPollutionService: viewModel.lightPollutionService))
+        _nightWeatherCardViewModel = StateObject(wrappedValue: NightWeatherCardViewModel())
+        _upcomingGridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: viewModel))
+    }
 
     var body: some View {
         Group {
-            if let summary = appController.nightSummary {
+            if let summary = viewModel.nightSummary {
                 detailContent(summary: summary)
-            } else if appController.isCalculating {
+            } else if viewModel.isCalculating {
                 loadingContent
             } else {
                 emptyContent
@@ -19,8 +30,8 @@ struct DetailView: View {
         // ウィンドウツールバー背景を一時的に非表示にしている。
         .toolbarBackground(.hidden, for: .windowToolbar)
         .overlay(alignment: .bottom, content: errorOverlay)
-        .animation(reduceMotion ? .none : .standard, value: appController.weatherService.errorMessage)
-        .animation(reduceMotion ? .none : .standard, value: appController.lightPollutionService.fetchFailed)
+        .animation(reduceMotion ? .none : .standard, value: viewModel.hasWeatherError)
+        .animation(reduceMotion ? .none : .standard, value: viewModel.hasLightPollutionError)
     }
 
     private func detailContent(summary: NightSummary) -> some View {
@@ -28,7 +39,7 @@ struct DetailView: View {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 headerSection(summary: summary)
                 ViewingWindowsSection(summary: summary)
-                UpcomingNightsGrid(appController: appController)
+                UpcomingNightsGrid(viewModel: upcomingGridViewModel)
             }
             .padding(Spacing.md)
         }
@@ -58,16 +69,16 @@ struct DetailView: View {
     @ViewBuilder
     private func errorOverlay() -> some View {
         VStack(spacing: Spacing.xs) {
-            if appController.lightPollutionService.fetchFailed {
+            if viewModel.hasLightPollutionError {
                 errorBanner(
                     message: "光害データの取得に失敗しました",
-                    retryAction: { Task { await appController.refreshLightPollution() } }
+                    retryAction: { Task { await viewModel.refreshLightPollution() } }
                 )
             }
-            if let error = appController.weatherService.errorMessage {
+            if let error = viewModel.weatherErrorMessage {
                 errorBanner(
                     message: error,
-                    retryAction: { Task { await appController.refreshWeather() } }
+                    retryAction: { Task { await viewModel.refreshWeather() } }
                 )
             }
         }
@@ -102,7 +113,7 @@ struct DetailView: View {
     private func headerSection(summary: NightSummary) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
-                Text(appController.locationController.locationName)
+                Text(viewModel.locationName)
                     .font(.largeTitle.bold())
                 Text(summary.date, style: .date)
                     .font(.title3)
@@ -110,22 +121,22 @@ struct DetailView: View {
                 Spacer()
             }
 
-            if let index = appController.starGazingIndex {
+            if let index = viewModel.starGazingIndex {
                 Divider()
                 Text("星空観測情報")
                     .font(.title3.bold())
-                StarGazingIndexCard(index: index, lightPollutionService: appController.lightPollutionService)
+                StarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
             }
 
             GlassEffectContainer {
                 HStack(alignment: .top, spacing: Spacing.xs) {
                     DarkTimeCard(
                         summary: summary,
-                        weather: appController.weatherService.summary(for: appController.selectedDate)
+                        weather: viewModel.weatherService.summary(for: viewModel.selectedDate)
                     )
                     NightWeatherCard(
-                        weather: appController.weatherService.summary(for: appController.selectedDate),
-                        isLoading: appController.weatherService.isLoading
+                        weather: viewModel.weatherService.summary(for: viewModel.selectedDate),
+                        viewModel: nightWeatherCardViewModel
                     )
                     MoonPhaseCard(summary: summary)
                 }

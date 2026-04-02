@@ -2,6 +2,43 @@ import Foundation
 import AppKit
 import MapKit
 
+enum LightPollutionServiceError: Error, LocalizedError {
+    case invalidURL
+    case invalidResponse(statusCode: Int)
+    case invalidData
+    case decodingError(underlying: Error)
+    case networkFailure(underlying: Error)
+    case noData
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "有効なURLが生成できませんでした。"
+        case .invalidResponse(let statusCode):
+            return "予期しないHTTPステータスコード: \(statusCode)"
+        case .invalidData:
+            return "レスポンスの形式が不正です。"
+        case .decodingError(let underlying):
+            return "デコード中にエラーが発生しました: \(underlying.localizedDescription)"
+        case .networkFailure(let underlying):
+            return "ネットワークエラー: \(underlying.localizedDescription)"
+        case .noData:
+            return "現在地の光害データが取得できませんでした。"
+        }
+    }
+}
+
+@MainActor
+protocol LightPollutionProviding: AnyObject, ObservableObject {
+    var bortleClass: Double? { get }
+    var bortleClassPublisher: Published<Double?>.Publisher { get }
+    var isLoading: Bool { get }
+    var fetchFailed: Bool { get }
+
+    func fetch(latitude: Double, longitude: Double) async
+    func fetchBortle(latitude: Double, longitude: Double) async throws -> Double
+}
+
 // MARK: - Nominatim Response (fallback)
 
 private struct NominatimResponse: Decodable {
@@ -257,15 +294,18 @@ final class LightPollutionTileService {
 ///
 /// フォールバック: OSM Nominatim 逆ジオコーディング
 @MainActor
-final class LightPollutionService: ObservableObject {
+final class LightPollutionService: ObservableObject, LightPollutionProviding {
     private enum Constants {
         /// 同一座標とみなすキャッシュ半径（度）≈ 5 km
         static let cacheRadiusDegrees = 0.05
         /// 自然夜空輝度 (mcd/m²)。Bortle 換算の基準値。
         static let naturalSkyBrightnessMcdPerSqm = 0.172
+        /// qk トークン組み立て時の suffix（外部 API 固有）
+        static let qkTokenSuffix = ";isuckdicks:)"
     }
 
     @Published var bortleClass: Double?
+    var bortleClassPublisher: Published<Double?>.Publisher { $bortleClass }
     @Published var isLoading = false
     @Published var fetchFailed = false
 
@@ -294,30 +334,41 @@ final class LightPollutionService: ObservableObject {
         fetchFailed = false
         defer { isLoading = false }
 
-        if let bortle = await fetchFromLightPollutionMap(lat: latitude, lon: longitude) {
+        do {
+            let bortle = try await fetchBortle(latitude: latitude, longitude: longitude)
             bortleClass = bortle
             lastFetchedCoordinate = (latitude, longitude)
+            fetchFailed = false
             return
+        } catch {
+            // 主戦略失敗: フォールバックを試行
         }
 
-        if let bortle = await fetchFromNominatim(lat: latitude, lon: longitude) {
+        do {
+            let bortle = try await fetchBortleFromNominatim(lat: latitude, lon: longitude)
             bortleClass = bortle
             lastFetchedCoordinate = (latitude, longitude)
+            fetchFailed = false
             return
+        } catch {
+            // 失敗
         }
 
         bortleClass = nil
         fetchFailed = true
-        // 失敗時はキャッシュをクリアして再試行ボタンが有効に動作するようにする
         lastFetchedCoordinate = nil
+    }
+
+    func fetchBortle(latitude: Double, longitude: Double) async throws -> Double {
+        try await fetchBortleFromLightPollutionMap(lat: latitude, lon: longitude)
     }
 
     // MARK: - Primary: lightpollutionmap.info
 
-    private func fetchFromLightPollutionMap(lat: Double, lon: Double) async -> Double? {
-        // qk トークン: btoa(Date.now() + ";isuckdicks:)")  ← JS ソースより
+    private func fetchBortleFromLightPollutionMap(lat: Double, lon: Double) async throws -> Double {
+        // qk トークン: btoa(Date.now() + Constants.qkTokenSuffix)  ← JS ソースより
         let timestamp = qkTimestampProvider()
-        let raw = "\(timestamp);isuckdicks:)"
+        let raw = "\(timestamp)\(Constants.qkTokenSuffix)"
         let qk = Data(raw.utf8).base64EncodedString()
 
         // 座標順序は lon,lat（OpenLayers の慣例）
@@ -328,7 +379,9 @@ final class LightPollutionService: ObservableObject {
             + "&qt=point"
             + "&qd=\(lon),\(lat)"
 
-        guard let url = URL(string: urlString) else { return nil }
+        guard let url = URL(string: urlString) else {
+            throw LightPollutionServiceError.invalidURL
+        }
 
         var request = URLRequest(url: url)
         request.setValue("NightScope/1.0", forHTTPHeaderField: "User-Agent")
@@ -336,24 +389,32 @@ final class LightPollutionService: ObservableObject {
 
         do {
             let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
-            guard let body = String(data: data, encoding: .utf8) else { return nil }
+            guard let http = response as? HTTPURLResponse else {
+                throw LightPollutionServiceError.invalidResponse(statusCode: -1)
+            }
+            guard http.statusCode == 200 else {
+                throw LightPollutionServiceError.invalidResponse(statusCode: http.statusCode)
+            }
+            guard let body = String(data: data, encoding: .utf8) else {
+                throw LightPollutionServiceError.invalidData
+            }
 
-            // レスポンス形式: "{輝度_mcd/m²},{標高_m}"
-            // 例: "6.6520867347717285,36.0" (東京)
-            //      "0.023789362981915474,1500.0" (長野山地)
             let parts = body.split(separator: ",")
-            guard let brightness = Double(parts[0]) else { return nil }
+            guard let value = parts.first, let brightness = Double(value) else {
+                throw LightPollutionServiceError.invalidData
+            }
 
             return wa2015ToBortle(brightness)
+        } catch let error as LightPollutionServiceError {
+            throw error
         } catch {
-            return nil
+            throw LightPollutionServiceError.networkFailure(underlying: error)
         }
     }
 
     // MARK: - Fallback: OSM Nominatim
 
-    private func fetchFromNominatim(lat: Double, lon: Double) async -> Double? {
+    private func fetchBortleFromNominatim(lat: Double, lon: Double) async throws -> Double {
         let urlString = "https://nominatim.openstreetmap.org/reverse"
             + "?format=jsonv2"
             + "&lat=\(lat)"
@@ -361,18 +422,35 @@ final class LightPollutionService: ObservableObject {
             + "&addressdetails=1"
             + "&zoom=14"
 
-        guard let url = URL(string: urlString) else { return nil }
+        guard let url = URL(string: urlString) else {
+            throw LightPollutionServiceError.invalidURL
+        }
 
         var request = URLRequest(url: url)
         request.setValue("NightScope/1.0", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         do {
-            let (data, _) = try await session.data(for: request)
-            let response = try JSONDecoder().decode(NominatimResponse.self, from: data)
-            return estimateBortleFromAddress(response)
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                throw LightPollutionServiceError.invalidResponse(statusCode: -1)
+            }
+            guard http.statusCode == 200 else {
+                throw LightPollutionServiceError.invalidResponse(statusCode: http.statusCode)
+            }
+
+            let decoded: NominatimResponse
+            do {
+                decoded = try JSONDecoder().decode(NominatimResponse.self, from: data)
+            } catch {
+                throw LightPollutionServiceError.decodingError(underlying: error)
+            }
+
+            return estimateBortleFromAddress(decoded)
+        } catch let error as LightPollutionServiceError {
+            throw error
         } catch {
-            return nil
+            throw LightPollutionServiceError.networkFailure(underlying: error)
         }
     }
 

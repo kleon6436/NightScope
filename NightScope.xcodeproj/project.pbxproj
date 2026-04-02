@@ -23,6 +23,14 @@
 		AA0000000000000000002B09 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F09 /* DetailView.swift */; };
 		AA0000000000000000002B10 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
 		AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F11 /* MapLocationPicker.swift */; };
+		AA0000000000000000003B01 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
+		AA0000000000000000003B02 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F02 /* SidebarViewModel.swift */; };
+		AA0000000000000000003B03 /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
+		AA0000000000000000003B04 /* StarGazingIndexCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */; };
+		AA0000000000000000003B05 /* NightWeatherCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */; };
+		AA0000000000000000003B06 /* DarkTimeCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */; };
+		AA0000000000000000003B07 /* ViewingWindowsSectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */; };
+		AA000000000000000000TB06 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF06 /* ViewModelTests.swift */; };
 		AA0000000000000000002B12 /* LightPollutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F12 /* LightPollutionService.swift */; };
 		AA0000000000000000002B13 /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
 		AA0000000000000000002B14 /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
@@ -82,6 +90,14 @@
 		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF04 /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF05 /* AstroModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModelsTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF06 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
+		AA0000000000000000003F01 /* DetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000003F02 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexCardViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightWeatherCardViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTimeCardViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingWindowsSectionViewModel.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -118,12 +134,27 @@
 				AA0000000000000000001F01 /* NightScopeApp.swift */,
 				AA000000000000000000GR04 /* Models */,
 				AA000000000000000000GR05 /* Controllers */,
+				AA000000000000000000GR08 /* ViewModels */,
 				AA000000000000000000GR06 /* Views */,
 				AA0000000000000000001F05 /* Assets.xcassets */,
 				6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */,
 				AA0000000000000000001F06 /* NightScope.entitlements */,
 			);
 			path = NightScope;
+			sourceTree = "<group>";
+		};
+		AA000000000000000000GR08 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000003F01 /* DetailViewModel.swift */,
+				AA0000000000000000003F02 /* SidebarViewModel.swift */,
+				AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */,
+				AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */,
+				AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */,
+				AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */,
+				AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		AA000000000000000000GR03 /* Products */ = {
@@ -186,6 +217,7 @@
 				AA000000000000000000TF03 /* WeatherServiceTests.swift */,
 				AA000000000000000000TF04 /* AppControllerTests.swift */,
 				AA000000000000000000TF05 /* AstroModelsTests.swift */,
+				AA000000000000000000TF06 /* ViewModelTests.swift */,
 			);
 			path = NightScopeTests;
 			sourceTree = "<group>";
@@ -306,6 +338,13 @@
 				AA0000000000000000002B19 /* UIConstants.swift in Sources */,
 				AA0000000000000000002B10 /* CalendarView.swift in Sources */,
 				AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */,
+				AA0000000000000000003B01 /* DetailViewModel.swift in Sources */,
+				AA0000000000000000003B02 /* SidebarViewModel.swift in Sources */,
+				AA0000000000000000003B03 /* UpcomingNightsGridViewModel.swift in Sources */,
+				AA0000000000000000003B04 /* StarGazingIndexCardViewModel.swift in Sources */,
+				AA0000000000000000003B05 /* NightWeatherCardViewModel.swift in Sources */,
+				AA0000000000000000003B06 /* DarkTimeCardViewModel.swift in Sources */,
+				AA0000000000000000003B07 /* ViewingWindowsSectionViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -318,6 +357,7 @@
 				AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */,
 				AA000000000000000000TB04 /* AppControllerTests.swift in Sources */,
 				AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */,
+				AA000000000000000000TB06 /* ViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

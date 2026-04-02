@@ -3,6 +3,10 @@ import SwiftUI
 struct ViewingWindowsSection: View {
     let summary: NightSummary
 
+    private var viewModel: ViewingWindowsSectionViewModel {
+        ViewingWindowsSectionViewModel(summary: summary)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("天の川 観測情報")
@@ -16,22 +20,22 @@ struct ViewingWindowsSection: View {
                 )
             } else {
                 ForEach(summary.viewingWindows, id: \.start) { window in
-                    windowRow(window: window, isMoonFavorable: summary.isMoonFavorable)
+                    windowRow(window: window)
                 }
             }
         }
     }
 
-    private func windowRow(window: ViewingWindow, isMoonFavorable: Bool) -> some View {
+    private func windowRow(window: ViewingWindow) -> some View {
         HStack(spacing: Spacing.sm) {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("\(window.start.nightTimeString()) 〜 \(window.end.nightTimeString())")
+                Text(viewModel.windowTimeText(window))
                     .font(.title3.bold())
 
                 HStack(spacing: Spacing.sm) {
-                    Label(String(format: "観測 %.1f時間", window.duration / 3600), systemImage: AppIcons.Observation.clock)
-                    Label(String(format: "最大高度 %.0f°", window.peakAltitude), systemImage: AppIcons.Observation.altitudeArrow)
-                    Label("見頃 \(window.peakTime.nightTimeString())", systemImage: AppIcons.Astronomy.star)
+                    Label(viewModel.durationText(window), systemImage: AppIcons.Observation.clock)
+                    Label(viewModel.altitudeText(window), systemImage: AppIcons.Observation.altitudeArrow)
+                    Label(viewModel.peakTimeText(window), systemImage: AppIcons.Astronomy.star)
                     Label(window.peakDirectionName, systemImage: AppIcons.Observation.azimuthArrow)
                 }
                 .font(.body)
@@ -41,20 +45,14 @@ struct ViewingWindowsSection: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: Spacing.xs) {
-                if isMoonFavorable {
-                    Label("条件良好", systemImage: AppIcons.Status.checkmarkFill)
-                        .font(.body)
-                        .foregroundStyle(.green)
-                } else {
-                    Label("月明かりあり", systemImage: AppIcons.Astronomy.moonFill)
-                        .font(.body)
-                        .foregroundStyle(.orange)
-                }
+                Label(viewModel.moonStatusLabel(for: window), systemImage: summary.isMoonFavorable ? AppIcons.Status.checkmarkFill : AppIcons.Astronomy.moonFill)
+                    .font(.body)
+                    .foregroundStyle(summary.isMoonFavorable ? .green : .orange)
             }
         }
         .padding(Layout.cardPadding)
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(window.accessibilityDescription(isMoonFavorable: isMoonFavorable))
+        .accessibilityLabel(viewModel.accessibilityDescription(for: window))
     }
 }

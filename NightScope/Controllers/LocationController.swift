@@ -1,22 +1,79 @@
 import CoreLocation
 import MapKit
 
+protocol LocationStorage: AnyObject {
+    var latitude: Double? { get set }
+    var longitude: Double? { get set }
+    var name: String? { get set }
+}
+
+final class UserDefaultsLocationStorage: LocationStorage {
+    private let userDefaults: UserDefaults
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+    }
+
+    var latitude: Double? {
+        get {
+            let v = userDefaults.double(forKey: "location.latitude")
+            return v == 0 ? nil : v
+        }
+        set {
+            if let value = newValue {
+                userDefaults.set(value, forKey: "location.latitude")
+            } else {
+                userDefaults.removeObject(forKey: "location.latitude")
+            }
+        }
+    }
+
+    var longitude: Double? {
+        get {
+            let v = userDefaults.double(forKey: "location.longitude")
+            return v == 0 ? nil : v
+        }
+        set {
+            if let value = newValue {
+                userDefaults.set(value, forKey: "location.longitude")
+            } else {
+                userDefaults.removeObject(forKey: "location.longitude")
+            }
+        }
+    }
+
+    var name: String? {
+        get { userDefaults.string(forKey: "location.name") }
+        set {
+            if let value = newValue {
+                userDefaults.set(value, forKey: "location.name")
+            } else {
+                userDefaults.removeObject(forKey: "location.name")
+            }
+        }
+    }
+}
+
 @MainActor
-final class LocationController: NSObject, ObservableObject {
+final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     // MARK: - Published State
+
+    private let storage: LocationStorage
 
     @Published var selectedLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503) {
         didSet {
             locationUpdateID = UUID()
-            UserDefaults.standard.set(selectedLocation.latitude, forKey: Keys.latitude)
-            UserDefaults.standard.set(selectedLocation.longitude, forKey: Keys.longitude)
+            storage.latitude = selectedLocation.latitude
+            storage.longitude = selectedLocation.longitude
         }
     }
     /// 場所が変わるたびに更新される ID（View 側での onChange 検知用）
     @Published private(set) var locationUpdateID: UUID = UUID()
+    var locationUpdateIDPublisher: Published<UUID>.Publisher { $locationUpdateID }
+
     @Published var locationName: String = "東京" {
-        didSet { UserDefaults.standard.set(locationName, forKey: Keys.name) }
+        didSet { storage.name = locationName }
     }
     @Published var searchResults: [MKMapItem] = []
     @Published var isSearching = false
@@ -44,19 +101,14 @@ final class LocationController: NSObject, ObservableObject {
 
     // MARK: - Private
 
-    private enum Keys {
-        static let latitude  = "location.latitude"
-        static let longitude = "location.longitude"
-        static let name      = "location.name"
-    }
-
     private let locationManager = CLLocationManager()
     private var locationTimeoutTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
 
     // MARK: - Init
 
-    override init() {
+    init(storage: LocationStorage = UserDefaultsLocationStorage()) {
+        self.storage = storage
         super.init()
         restorePersistedLocation()
         locationManager.delegate = self
@@ -64,12 +116,10 @@ final class LocationController: NSObject, ObservableObject {
     }
 
     private func restorePersistedLocation() {
-        let lat = UserDefaults.standard.double(forKey: Keys.latitude)
-        let lon = UserDefaults.standard.double(forKey: Keys.longitude)
-        if lat != 0 || lon != 0 {
+        if let lat = storage.latitude, let lon = storage.longitude {
             selectedLocation = CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
-        if let name = UserDefaults.standard.string(forKey: Keys.name) {
+        if let name = storage.name {
             locationName = name
         }
     }
