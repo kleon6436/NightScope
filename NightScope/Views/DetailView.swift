@@ -102,7 +102,10 @@ struct DetailView: View {
 
             GlassEffectContainer {
                 HStack(alignment: .top, spacing: Spacing.xs) {
-                    DarkTimeCard(summary: summary)
+                    DarkTimeCard(
+                        summary: summary,
+                        weather: appController.weatherService.summary(for: appController.selectedDate)
+                    )
                     NightWeatherCard(
                         weather: appController.weatherService.summary(for: appController.selectedDate),
                         isLoading: appController.weatherService.isLoading

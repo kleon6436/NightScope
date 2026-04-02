@@ -2,6 +2,21 @@ import SwiftUI
 
 struct DarkTimeCard: View {
     let summary: NightSummary
+    let weather: DayWeatherSummary?
+
+    private var displayText: String {
+        if let w = weather, let text = summary.weatherAwareRangeText(nighttimeHours: w.nighttimeHours) {
+            return text.isEmpty ? "天候不良" : text
+        }
+        return summary.darkRangeText.isEmpty ? "暗い時間なし" : summary.darkRangeText
+    }
+
+    private var isUnavailable: Bool {
+        if let w = weather, let text = summary.weatherAwareRangeText(nighttimeHours: w.nighttimeHours) {
+            return !text.contains("〜")  // 時間帯文字列以外（天候不良・月明かり・空文字）はすべて不可
+        }
+        return summary.darkRangeText.isEmpty
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -14,12 +29,10 @@ struct DarkTimeCard: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
             }
-            if summary.darkRangeText.isEmpty {
-                Text("暗い時間なし")
-                    .font(.headline)
-            } else {
-                Text(summary.darkRangeText)
-                    .font(.headline)
+            Text(displayText)
+                .font(.headline)
+                .foregroundStyle(isUnavailable ? .secondary : .primary)
+            if !isUnavailable {
                 Text(String(format: "暗い時間 %.1f時間", summary.totalDarkHours))
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -27,8 +40,6 @@ struct DarkTimeCard: View {
         }
         .glassCard()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(summary.darkRangeText.isEmpty
-            ? "観測可能時間: 暗い時間なし"
-            : "観測可能時間: \(summary.darkRangeText)、暗い時間\(String(format: "%.1f", summary.totalDarkHours))時間")
+        .accessibilityLabel("観測可能時間: \(displayText)")
     }
 }

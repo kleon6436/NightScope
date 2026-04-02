@@ -113,7 +113,13 @@ struct UpcomingNightsGrid: View {
                             Image(systemName: AppIcons.Astronomy.moonStars)
                                 .frame(width: Layout.gridIconWidth, alignment: .center)
                                 .accessibilityHidden(true)
-                            Text(night.darkRangeText.isEmpty ? "—" : night.darkRangeText)
+                            Text({
+                                if let w = weather,
+                                   let text = night.weatherAwareRangeText(nighttimeHours: w.nighttimeHours) {
+                                    return text.isEmpty ? "天候不良" : text
+                                }
+                                return night.darkRangeText.isEmpty ? "—" : night.darkRangeText
+                            }())
                                 .font(.body)
                                 .lineLimit(1)
                         }

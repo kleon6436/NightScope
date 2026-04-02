@@ -4,9 +4,12 @@ import CoreLocation
 // MARK: - Calculator
 
 enum MilkyWayCalculator {
-    private enum Constants {
+    enum Constants {
         static let sampleIntervalMinutes = 15
         static let secondsPerDay: TimeInterval = 86400
+        /// 近接ウィンドウをマージするギャップ許容値（秒）
+        /// 根拠: 銀河系中心が高度10°以下に短時間沈むケースや一時的な雲の通過を
+        ///       連続した観測ウィンドウとして扱うための許容値。AstroModels と共有。
         static let windowMergeGapSeconds: TimeInterval = 30 * 60
     }
 
