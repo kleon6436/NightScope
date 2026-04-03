@@ -144,6 +144,8 @@ final class AppControllerTests: XCTestCase {
 actor MockNightCalculationService: NightCalculating {
     private var nightSummaryResponses: [(summary: NightSummary, delayNanoseconds: UInt64)] = []
     private var upcomingResponses: [(summaries: [NightSummary], delayNanoseconds: UInt64)] = []
+    private var nightSummaryCallCount = 0
+    private var upcomingCallCount = 0
 
     func enqueueNightSummary(_ summary: NightSummary, delayMilliseconds: UInt64 = 0) {
         nightSummaryResponses.append((summary, delayMilliseconds * 1_000_000))
@@ -154,6 +156,7 @@ actor MockNightCalculationService: NightCalculating {
     }
 
     func calculateNightSummary(date: Date, location: CLLocationCoordinate2D) async -> NightSummary {
+        nightSummaryCallCount += 1
         guard !nightSummaryResponses.isEmpty else {
             return .placeholder
         }
@@ -165,6 +168,7 @@ actor MockNightCalculationService: NightCalculating {
     }
 
     func calculateUpcomingNights(from date: Date, location: CLLocationCoordinate2D, days: Int) async -> [NightSummary] {
+        upcomingCallCount += 1
         guard !upcomingResponses.isEmpty else {
             return []
         }
@@ -173,5 +177,13 @@ actor MockNightCalculationService: NightCalculating {
             try? await Task.sleep(nanoseconds: response.delayNanoseconds)
         }
         return response.summaries
+    }
+
+    func getNightSummaryCallCount() -> Int {
+        nightSummaryCallCount
+    }
+
+    func getUpcomingCallCount() -> Int {
+        upcomingCallCount
     }
 }

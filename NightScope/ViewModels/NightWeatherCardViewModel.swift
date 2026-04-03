@@ -20,9 +20,7 @@ final class NightWeatherCardViewModel: ObservableObject {
     // MARK: - Formatting Methods
 
     func weatherLabel(_ weather: DayWeatherSummary) -> String {
-        weather.weatherLabel == weather.cloudLabel
-            ? weather.weatherLabel
-            : "\(weather.weatherLabel)（\(weather.cloudLabel)）"
+        WeatherPresentation.combinedLabel(for: weather)
     }
 
     func formatCloudCover(_ value: Double) -> String {

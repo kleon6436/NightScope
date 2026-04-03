@@ -118,8 +118,9 @@ struct UpcomingNightsGrid: View {
         weather: DayWeatherSummary?,
         index: StarGazingIndex?
     ) -> some View {
-        HStack(alignment: .top, spacing: Spacing.xs) {
-            starGazingColumn(night: night, weather: weather, index: index)
+        let isIndexLoading = index == nil
+        return HStack(alignment: .top, spacing: Spacing.xs) {
+            starGazingColumn(night: night, weather: weather, index: index, isIndexLoading: isIndexLoading)
             Divider()
             milkyWayColumn(night: night)
         }
@@ -129,7 +130,8 @@ struct UpcomingNightsGrid: View {
     private func starGazingColumn(
         night: NightSummary,
         weather: DayWeatherSummary?,
-        index: StarGazingIndex?
+        index: StarGazingIndex?,
+        isIndexLoading: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text("星空")
@@ -163,6 +165,7 @@ struct UpcomingNightsGrid: View {
                 }
             }
             .foregroundStyle(.secondary)
+            .redacted(reason: isIndexLoading ? .placeholder : [])
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }

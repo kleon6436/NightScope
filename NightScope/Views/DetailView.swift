@@ -101,8 +101,7 @@ struct DetailView: View {
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
         .shadow(radius: 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("エラー: \(message)")

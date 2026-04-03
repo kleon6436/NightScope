@@ -14,7 +14,7 @@ final class SidebarViewModel: ObservableObject {
     @Published var searchState = SidebarSearchState()
     @Published var locationInputMode: LocationInputMode = .map
     @Published var viewport = ViewportBox()
-    @Published var mapKitSyncTrigger = 0
+    @Published var mapViewportSyncTrigger = 0
 
     let locationController: any LocationProviding
     let lightPollutionService: any LightPollutionProviding
@@ -48,7 +48,7 @@ final class SidebarViewModel: ObservableObject {
     }
 
     func handleLocationInputModeChanged() {
-        mapKitSyncTrigger += 1
+        mapViewportSyncTrigger += 1
     }
 
     func clearLocationError() {
@@ -67,37 +67,6 @@ final class SidebarViewModel: ObservableObject {
         if searchState.setProgrammaticText(text) {
             locationController.searchResults = []
         }
-    }
-
-    func handleDownArrow() -> KeyPress.Result {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(
-                current: searchState.highlightedIndex,
-                totalResults: locationController.searchResults.count
-            )
-        }
-        return .handled
-    }
-
-    func handleUpArrow() -> KeyPress.Result {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            searchState.highlightedIndex = SidebarSearchInteraction.previousHighlightedIndex(
-                current: searchState.highlightedIndex
-            )
-        }
-        return .handled
-    }
-
-    func handleEscape() -> KeyPress.Result {
-        setSearchTextProgrammatically("")
-        resetSearchSelectionAndFocus()
-        return .handled
-    }
-
-    func resetSearchSelectionAndFocus() {
-        searchState.clearHighlight()
     }
 
     func clearSearchState() {
@@ -119,12 +88,12 @@ final class SidebarViewModel: ObservableObject {
 struct SidebarSearchState {
     var text: String = ""
     var highlightedIndex: Int = SidebarSearchInteraction.noSelectionIndex
-    var suppressNextSearch = false
+    var shouldSuppressNextSearch = false
 
     @discardableResult
     mutating func setProgrammaticText(_ newText: String) -> Bool {
         guard newText != text else { return false }
-        suppressNextSearch = true
+        shouldSuppressNextSearch = true
         text = newText
         return true
     }
@@ -134,8 +103,8 @@ struct SidebarSearchState {
     }
 
     mutating func consumeSearchSuppression() -> Bool {
-        guard suppressNextSearch else { return false }
-        suppressNextSearch = false
+        guard shouldSuppressNextSearch else { return false }
+        shouldSuppressNextSearch = false
         return true
     }
 }

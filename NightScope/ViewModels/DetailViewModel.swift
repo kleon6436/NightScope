@@ -24,8 +24,6 @@ final class DetailViewModel: ObservableObject {
         bind()
     }
 
-    private var suppressSelectedDatePropagation = false
-
     private func bind() {
         appController.$nightSummary
             .assign(to: &$nightSummary)
@@ -40,18 +38,15 @@ final class DetailViewModel: ObservableObject {
             .assign(to: &$upcomingIndexes)
 
         appController.$selectedDate
-            .sink { [weak self] date in
-                guard let self else { return }
-                self.suppressSelectedDatePropagation = true
-                self.selectedDate = date
-                self.suppressSelectedDatePropagation = false
-            }
-            .store(in: &cancellables)
+            .removeDuplicates()
+            .assign(to: &$selectedDate)
 
         $selectedDate
             .dropFirst()
+            .removeDuplicates()
             .sink { [weak self] date in
-                guard let self, !self.suppressSelectedDatePropagation else { return }
+                guard let self else { return }
+                guard self.appController.selectedDate != date else { return }
                 self.appController.selectedDate = date
                 self.appController.recalculate()
                 self.appController.recalculateUpcoming()

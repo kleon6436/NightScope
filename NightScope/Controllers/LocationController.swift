@@ -2,6 +2,49 @@ import Combine
 import CoreLocation
 import MapKit
 
+protocol LocationSearchServicing {
+    func search(query: String) async throws -> [MKMapItem]
+}
+
+struct MKLocationSearchService: LocationSearchServicing {
+    func search(query: String) async throws -> [MKMapItem] {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        let response = try await MKLocalSearch(request: request).start()
+        return response.mapItems
+    }
+}
+
+protocol LocationNameResolving {
+    func resolveName(for coordinate: CLLocationCoordinate2D) async -> String
+}
+
+struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
+    func resolveName(for coordinate: CLLocationCoordinate2D) async -> String {
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        guard let request = MKReverseGeocodingRequest(location: location) else { return "現在地" }
+
+        request.preferredLocale = Locale(identifier: "ja_JP")
+        let mapItems = try? await request.mapItems
+        guard let item = mapItems?.first else { return "現在地" }
+
+        if let repr = item.addressRepresentations,
+           let city = repr.cityWithContext,
+           !city.isEmpty {
+            return city
+        }
+
+        if let address = item.address {
+            let text = address.shortAddress ?? address.fullAddress
+            if !text.isEmpty {
+                return text
+            }
+        }
+
+        return item.name ?? "現在地"
+    }
+}
+
 protocol LocationStorage: AnyObject {
     var latitude: Double? { get set }
     var longitude: Double? { get set }
@@ -61,6 +104,8 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     // MARK: - Published State
 
     private let storage: LocationStorage
+    private let searchService: LocationSearchServicing
+    private let locationNameResolver: LocationNameResolving
 
     @Published var selectedLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503) {
         didSet {
@@ -112,8 +157,14 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     // MARK: - Init
 
-    init(storage: LocationStorage = UserDefaultsLocationStorage()) {
+    init(
+        storage: LocationStorage = UserDefaultsLocationStorage(),
+        searchService: LocationSearchServicing = MKLocationSearchService(),
+        locationNameResolver: LocationNameResolving = ReverseGeocodingLocationNameResolver()
+    ) {
         self.storage = storage
+        self.searchService = searchService
+        self.locationNameResolver = locationNameResolver
         super.init()
         restorePersistedLocation()
         locationManager.delegate = self
@@ -160,12 +211,10 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
 
-            let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = query
             do {
-                let response = try await MKLocalSearch(request: request).start()
+                let mapItems = try await searchService.search(query: query)
                 guard !Task.isCancelled else { return }
-                searchResults = response.mapItems
+                searchResults = mapItems
             } catch {
                 guard !Task.isCancelled else { return }
                 searchResults = []
@@ -178,7 +227,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         clearSearch()
         selectedLocation = mapItem.location.coordinate
         currentLocationCenterTrigger += 1
-        Task { locationName = await reverseGeocode(coordinate: mapItem.location.coordinate) }
+        Task { locationName = await locationNameResolver.resolveName(for: mapItem.location.coordinate) }
     }
 
     /// マップタップなど座標から場所を選択する（センタリングしない）
@@ -186,7 +235,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         if isLocating { stopLocating() }
         clearSearch()
         selectedLocation = coordinate
-        Task { locationName = await reverseGeocode(coordinate: coordinate) }
+        Task { locationName = await locationNameResolver.resolveName(for: coordinate) }
     }
 
     // MARK: - Private Helpers
@@ -221,22 +270,6 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         locationTimeoutTask = nil
     }
 
-    private func reverseGeocode(coordinate: CLLocationCoordinate2D) async -> String {
-        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        guard let request = MKReverseGeocodingRequest(location: location) else { return "現在地" }
-        request.preferredLocale = Locale(identifier: "ja_JP")
-        let mapItems = try? await request.mapItems
-        guard let item = mapItems?.first else { return "現在地" }
-        if let repr = item.addressRepresentations,
-           let city = repr.cityWithContext, !city.isEmpty {
-            return city
-        }
-        if let addr = item.address {
-            let text = addr.shortAddress ?? addr.fullAddress
-            if !text.isEmpty { return text }
-        }
-        return item.name ?? "現在地"
-    }
 }
 
 // MARK: - CLLocationManagerDelegate

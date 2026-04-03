@@ -125,6 +125,31 @@ extension StarGazingIndex.Tier {
     }
 }
 
+// MARK: - Weather Presentation
+
+enum WeatherPresentation {
+    static func combinedLabel(for weather: DayWeatherSummary) -> String {
+        weather.weatherLabel == weather.cloudLabel
+            ? weather.weatherLabel
+            : "\(weather.weatherLabel)（\(weather.cloudLabel)）"
+    }
+
+    static func color(forWeatherCode code: Int) -> Color {
+        switch code {
+        case 0, 1:       return .yellow
+        case 2:          return .secondary
+        case 3:          return .secondary
+        case 45, 48:     return .secondary
+        case 51...65:    return .blue
+        case 71...77:    return Color.blue.opacity(0.7)
+        case 80...82:    return .blue
+        case 85, 86:     return Color.blue.opacity(0.7)
+        case 95...99:    return .orange
+        default:         return .secondary
+        }
+    }
+}
+
 // MARK: - AppIcons
 
 enum AppIcons {

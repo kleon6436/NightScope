@@ -62,6 +62,22 @@ final class ViewModelTests: XCTestCase {
         )
     }
 
+    private func waitUntil(
+        timeout: TimeInterval = 1.0,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        condition: @escaping @MainActor () -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("条件を満たすまでにタイムアウトしました", file: file, line: line)
+    }
+
     // MARK: - Mock Types
 
     final class MockLocationController: LocationProviding {
@@ -124,6 +140,44 @@ final class ViewModelTests: XCTestCase {
         }
     }
 
+    final class InMemoryLocationStorage: LocationStorage {
+        var latitude: Double?
+        var longitude: Double?
+        var name: String?
+    }
+
+    enum MockLocationSearchError: Error {
+        case failed
+    }
+
+    final class MockLocationSearchService: LocationSearchServicing {
+        var result: Result<[MKMapItem], Error>
+        private(set) var lastQuery: String?
+
+        init(result: Result<[MKMapItem], Error>) {
+            self.result = result
+        }
+
+        func search(query: String) async throws -> [MKMapItem] {
+            lastQuery = query
+            return try result.get()
+        }
+    }
+
+    final class MockLocationNameResolver: LocationNameResolving {
+        var resolvedName: String
+        private(set) var lastCoordinate: CLLocationCoordinate2D?
+
+        init(resolvedName: String) {
+            self.resolvedName = resolvedName
+        }
+
+        func resolveName(for coordinate: CLLocationCoordinate2D) async -> String {
+            lastCoordinate = coordinate
+            return resolvedName
+        }
+    }
+
     func test_SidebarViewModel_handleSearchTextChanged_triggersSearch() {
         let locationController = MockLocationController()
         let lightService = MockLightPollutionService()
@@ -149,6 +203,102 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(locationController.currentLocationCenterTrigger, 1)
     }
 
+    // MARK: - LocationController
+
+    func test_LocationController_search_success_updatesResults() async {
+        let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
+        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        item.name = "東京駅"
+
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([item]))
+        let resolver = MockLocationNameResolver(resolvedName: "東京")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+
+        sut.search(query: "東京駅")
+
+        await waitUntil {
+            sut.isSearching == false && sut.searchResults.count == 1
+        }
+
+        XCTAssertEqual(searchService.lastQuery, "東京駅")
+        XCTAssertEqual(sut.searchResults.first?.name, "東京駅")
+    }
+
+    func test_LocationController_search_failure_clearsResults() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .failure(MockLocationSearchError.failed))
+        let resolver = MockLocationNameResolver(resolvedName: "東京")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        sut.searchResults = [MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0)))]
+
+        sut.search(query: "invalid")
+
+        await waitUntil {
+            sut.isSearching == false
+        }
+
+        XCTAssertEqual(searchService.lastQuery, "invalid")
+        XCTAssertTrue(sut.searchResults.isEmpty)
+    }
+
+    func test_LocationController_select_updatesCenterTriggerAndResolvedName() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "新宿区")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+
+        let coordinate = CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034)
+        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        item.name = "新宿"
+        let baseTrigger = sut.currentLocationCenterTrigger
+
+        sut.searchResults = [item]
+        sut.isSearching = true
+        sut.select(item)
+
+        await waitUntil {
+            sut.locationName == "新宿区"
+        }
+
+        XCTAssertEqual(sut.selectedLocation.latitude, coordinate.latitude, accuracy: 0.000001)
+        XCTAssertEqual(sut.selectedLocation.longitude, coordinate.longitude, accuracy: 0.000001)
+        XCTAssertEqual(sut.currentLocationCenterTrigger, baseTrigger + 1)
+        XCTAssertFalse(sut.isSearching)
+        XCTAssertTrue(sut.searchResults.isEmpty)
+        guard let resolvedLatitude = resolver.lastCoordinate?.latitude else {
+            return XCTFail("resolver に座標が渡されていません")
+        }
+        XCTAssertEqual(resolvedLatitude, coordinate.latitude, accuracy: 0.000001)
+    }
+
+    func test_LocationController_selectCoordinate_updatesNameWithoutCenterIncrement() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "渋谷区")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+
+        let baseTrigger = sut.currentLocationCenterTrigger
+        let coordinate = CLLocationCoordinate2D(latitude: 35.6580, longitude: 139.7016)
+        sut.isLocating = true
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "渋谷区"
+        }
+
+        XCTAssertEqual(sut.currentLocationCenterTrigger, baseTrigger)
+        XCTAssertFalse(sut.isLocating)
+        XCTAssertEqual(sut.selectedLocation.latitude, coordinate.latitude, accuracy: 0.000001)
+        XCTAssertEqual(sut.selectedLocation.longitude, coordinate.longitude, accuracy: 0.000001)
+                guard let storedLatitude = storage.latitude,
+                            let storedLongitude = storage.longitude else {
+                        return XCTFail("選択座標が storage に保存されていません")
+                }
+                XCTAssertEqual(storedLatitude, coordinate.latitude, accuracy: 0.000001)
+                XCTAssertEqual(storedLongitude, coordinate.longitude, accuracy: 0.000001)
+    }
+
     func test_DetailViewModel_selectedDate_syncsBidirectionally() async {
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
@@ -165,6 +315,54 @@ final class ViewModelTests: XCTestCase {
 
         try? await Task.sleep(nanoseconds: 10_000_000)
         XCTAssertEqual(vm.selectedDate, afterTomorrow)
+    }
+
+    func test_DetailViewModel_selectedDate_sameValue_doesNotTriggerRecalculation() async {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let vm = DetailViewModel(appController: appController)
+
+        let sameDate = vm.selectedDate
+        vm.selectedDate = sameDate
+
+        try? await Task.sleep(nanoseconds: 30_000_000)
+        let nightCallCount = await mockCalculationService.getNightSummaryCallCount()
+        let upcomingCallCount = await mockCalculationService.getUpcomingCallCount()
+        XCTAssertEqual(nightCallCount, 0)
+        XCTAssertEqual(upcomingCallCount, 0)
+    }
+
+    func test_DetailViewModel_selectedDate_newValue_triggersRecalculation() async {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let vm = DetailViewModel(appController: appController)
+
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: vm.selectedDate)!
+        vm.selectedDate = nextDate
+
+        for _ in 0..<30 {
+            let nightCalls = await mockCalculationService.getNightSummaryCallCount()
+            let upcomingCalls = await mockCalculationService.getUpcomingCallCount()
+            if nightCalls > 0 && upcomingCalls > 0 {
+                break
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        let nightCallCount = await mockCalculationService.getNightSummaryCallCount()
+        let upcomingCallCount = await mockCalculationService.getUpcomingCallCount()
+        XCTAssertGreaterThanOrEqual(nightCallCount, 1)
+        XCTAssertGreaterThanOrEqual(upcomingCallCount, 1)
+    }
+
+    // MARK: - SidebarSearchState
+
+    func test_SidebarSearchState_programmaticText_suppressesOnlyNextSearch() {
+        var state = SidebarSearchState()
+
+        XCTAssertTrue(state.setProgrammaticText("Tokyo"))
+        XCTAssertTrue(state.consumeSearchSuppression())
+        XCTAssertFalse(state.consumeSearchSuppression())
     }
 
     // MARK: - DetailViewModel error properties
@@ -237,6 +435,24 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(desc.hasPrefix("天気 夜間: "))
         XCTAssertTrue(desc.contains("雲量20%"))
         XCTAssertTrue(desc.contains("降水0.0mm"))
+    }
+
+    // MARK: - WeatherPresentation
+
+    func test_WeatherPresentation_combinedLabel_collapsesWhenSame() {
+        let weather = makeDayWeatherSummary(cloudCover: 0, weatherCode: 0)
+        XCTAssertEqual(WeatherPresentation.combinedLabel(for: weather), "快晴")
+    }
+
+    func test_WeatherPresentation_combinedLabel_includesCloudLabelWhenDifferent() {
+        let weather = makeDayWeatherSummary(cloudCover: 0, weatherCode: 61)
+        XCTAssertEqual(WeatherPresentation.combinedLabel(for: weather), "小雨（快晴）")
+    }
+
+    func test_WeatherPresentation_color_mappingRepresentativeCases() {
+        XCTAssertEqual(WeatherPresentation.color(forWeatherCode: 0), .yellow)
+        XCTAssertEqual(WeatherPresentation.color(forWeatherCode: 61), .blue)
+        XCTAssertEqual(WeatherPresentation.color(forWeatherCode: 95), .orange)
     }
 
     // MARK: - DarkTimeCardViewModel

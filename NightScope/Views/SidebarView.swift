@@ -99,9 +99,9 @@ struct SidebarView: View {
             isSearchFocused: $isSearchFocused,
             onSubmit: confirmHighlightedOrFirst,
             onSearchTextChanged: viewModel.handleSearchTextChanged,
-            onDownArrow: viewModel.handleDownArrow,
-            onUpArrow: viewModel.handleUpArrow,
-            onEscape: viewModel.handleEscape
+            onDownArrow: handleSearchDownArrow,
+            onUpArrow: handleSearchUpArrow,
+            onEscape: handleSearchEscape
         )
         .onChange(of: viewModel.searchFocusTrigger) {
             Task { @MainActor in isSearchFocused = true }
@@ -174,7 +174,7 @@ struct SidebarView: View {
 
     private var mapSyncState: MapKitSyncState {
         MapKitSyncState(
-            trigger: viewModel.mapKitSyncTrigger,
+            trigger: viewModel.mapViewportSyncTrigger,
             center: viewModel.viewport.center,
             span: viewModel.viewport.span
         )
@@ -232,6 +232,33 @@ struct SidebarView: View {
         viewModel.locationController.select(item)
         setSearchTextProgrammatically(item.name ?? "")
         resetSearchSelectionAndFocus()
+    }
+
+    private func handleSearchDownArrow() -> KeyPress.Result {
+        Task { @MainActor in
+            viewModel.searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(
+                current: viewModel.searchState.highlightedIndex,
+                totalResults: searchResults.count
+            )
+        }
+        return .handled
+    }
+
+    private func handleSearchUpArrow() -> KeyPress.Result {
+        Task { @MainActor in
+            viewModel.searchState.highlightedIndex = SidebarSearchInteraction.previousHighlightedIndex(
+                current: viewModel.searchState.highlightedIndex
+            )
+        }
+        return .handled
+    }
+
+    private func handleSearchEscape() -> KeyPress.Result {
+        Task { @MainActor in
+            setSearchTextProgrammatically("")
+            resetSearchSelectionAndFocus()
+        }
+        return .handled
     }
 
     // MARK: - Date Section

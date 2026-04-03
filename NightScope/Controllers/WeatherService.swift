@@ -227,19 +227,8 @@ final class WeatherService: ObservableObject, WeatherProviding {
                 windSpeedKmh500hpa: wind500hpa
             )
 
-            // Nighttime: hours 18-23 belong to "today", hours 0-6 belong to "yesterday" (previous night)
-            // This covers astronomical twilight (18:00-20:00 / 04:00-06:00) as part of the night
             let cal = Calendar(identifier: .gregorian)
-            let hour = cal.component(.hour, from: date)
-
-            if hour >= 18 {
-                // Evening (incl. astronomical twilight): key = this date
-                let key = dateKey(date)
-                hoursByDate[key, default: []].append(hw)
-            } else if hour <= 6 {
-                // Early morning (incl. astronomical twilight): key = previous date (same night)
-                guard let prevDate = cal.date(byAdding: .day, value: -1, to: date) else { continue }
-                let key = dateKey(prevDate)
+            if let key = nightDateKey(for: date, calendar: cal) {
                 hoursByDate[key, default: []].append(hw)
             }
         }
@@ -255,5 +244,22 @@ final class WeatherService: ObservableObject, WeatherProviding {
 
     func dateKey(_ date: Date) -> String {
         WeatherService.dateKeyFormatter.string(from: date)
+    }
+
+    /// 夜間観測の集約キー（18:00-23:59 は当日、00:00-06:59 は前日）
+    /// 07:00-17:59 は夜間集計対象外として nil を返す
+    private func nightDateKey(for date: Date, calendar: Calendar) -> String? {
+        let hour = calendar.component(.hour, from: date)
+
+        if hour >= 18 {
+            return dateKey(date)
+        }
+
+        if hour <= 6,
+           let previousDate = calendar.date(byAdding: .day, value: -1, to: date) {
+            return dateKey(previousDate)
+        }
+
+        return nil
     }
 }

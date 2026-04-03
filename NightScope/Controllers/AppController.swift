@@ -25,7 +25,7 @@ protocol LocationProviding: AnyObject, ObservableObject {
 }
 
 @MainActor
-final class AppController: ObservableObject, LocationProviding, WeatherProviding {
+final class AppController: ObservableObject {
     // MARK: - Dependencies
     let locationController: LocationController
     let weatherService: WeatherService
@@ -167,95 +167,6 @@ final class AppController: ObservableObject, LocationProviding, WeatherProviding
         recalculateUpcoming()
         guard !Task.isCancelled else { return }
         await refreshExternalData()
-    }
-
-    // MARK: - LocationProviding
-
-    var selectedLocation: CLLocationCoordinate2D {
-        get { locationController.selectedLocation }
-        set { locationController.selectedLocation = newValue }
-    }
-
-    var locationName: String {
-        get { locationController.locationName }
-        set { locationController.locationName = newValue }
-    }
-
-    var locationUpdateID: UUID { locationController.locationUpdateID }
-    var locationUpdateIDPublisher: Published<UUID>.Publisher { locationController.locationUpdateIDPublisher }
-    var locationNamePublisher: Published<String>.Publisher { locationController.locationNamePublisher }
-    var anyChangePublisher: AnyPublisher<Void, Never> { locationController.anyChangePublisher }
-
-    var searchResults: [MKMapItem] {
-        get { locationController.searchResults }
-        set { locationController.searchResults = newValue }
-    }
-
-    var isSearching: Bool {
-        get { locationController.isSearching }
-        set { locationController.isSearching = newValue }
-    }
-
-    var isLocating: Bool {
-        get { locationController.isLocating }
-        set { locationController.isLocating = newValue }
-    }
-
-    var locationError: LocationController.LocationError? {
-        get { locationController.locationError }
-        set { locationController.locationError = newValue }
-    }
-
-    var searchFocusTrigger: Int {
-        get { locationController.searchFocusTrigger }
-        set { locationController.searchFocusTrigger = newValue }
-    }
-
-    var currentLocationCenterTrigger: Int {
-        get { locationController.currentLocationCenterTrigger }
-        set { locationController.currentLocationCenterTrigger = newValue }
-    }
-
-    func requestCurrentLocation() {
-        locationController.requestCurrentLocation()
-    }
-
-    func search(query: String) {
-        locationController.search(query: query)
-    }
-
-    func select(_ mapItem: MKMapItem) {
-        locationController.select(mapItem)
-    }
-
-    func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
-        locationController.selectCoordinate(coordinate)
-    }
-
-    // MARK: - WeatherProviding
-
-    var weatherByDate: [String: DayWeatherSummary] {
-        weatherService.weatherByDate
-    }
-
-    var weatherByDatePublisher: Published<[String: DayWeatherSummary]>.Publisher {
-        weatherService.weatherByDatePublisher
-    }
-
-    var isLoading: Bool {
-        weatherService.isLoading
-    }
-
-    var errorMessage: String? {
-        weatherService.errorMessage
-    }
-
-    func fetchWeather(latitude: Double, longitude: Double) async {
-        await weatherService.fetchWeather(latitude: latitude, longitude: longitude)
-    }
-
-    func summary(for date: Date) -> DayWeatherSummary? {
-        weatherService.summary(for: date)
     }
 
     private func setupObservers() {
