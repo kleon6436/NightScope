@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import Combine
 
 enum LocationInputMode: String, CaseIterable, Identifiable {
     case map
@@ -17,10 +18,25 @@ final class SidebarViewModel: ObservableObject {
 
     let locationController: any LocationProviding
     let lightPollutionService: any LightPollutionProviding
+    private var cancellables = Set<AnyCancellable>()
 
     init(locationController: some LocationProviding, lightPollutionService: some LightPollutionProviding) {
         self.locationController = locationController
         self.lightPollutionService = lightPollutionService
+
+        // locationController の変化を SidebarViewModel に伝播（View 更新サイクル外で実行）
+        locationController.anyChangePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        // locationUpdateID の変化を Combine で検知し、検索状態をクリア
+        // View の onChange で処理するとビュー更新コミットフェーズ中に @Published を変更してしまうため
+        locationController.locationUpdateIDPublisher
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.handleLocationUpdateIDChanged() }
+            .store(in: &cancellables)
     }
 
     func handleLocationSectionAppear(selectedCoordinate: CLLocationCoordinate2D) {
@@ -54,12 +70,23 @@ final class SidebarViewModel: ObservableObject {
     }
 
     func handleDownArrow() -> KeyPress.Result {
-        searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(current: searchState.highlightedIndex, totalResults: locationController.searchResults.count)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(
+                current: searchState.highlightedIndex,
+                totalResults: locationController.searchResults.count
+            )
+        }
         return .handled
     }
 
     func handleUpArrow() -> KeyPress.Result {
-        searchState.highlightedIndex = SidebarSearchInteraction.previousHighlightedIndex(current: searchState.highlightedIndex)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            searchState.highlightedIndex = SidebarSearchInteraction.previousHighlightedIndex(
+                current: searchState.highlightedIndex
+            )
+        }
         return .handled
     }
 

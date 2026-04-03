@@ -1,4 +1,5 @@
 import XCTest
+import Combine
 import CoreLocation
 import MapKit
 @testable import NightScope
@@ -65,9 +66,13 @@ final class ViewModelTests: XCTestCase {
 
     final class MockLocationController: LocationProviding {
         var selectedLocation = CLLocationCoordinate2D(latitude: 0, longitude: 0)
-        var locationName = ""
+        @Published var locationName = ""
         @Published var locationUpdateID = UUID()
         var locationUpdateIDPublisher: Published<UUID>.Publisher { $locationUpdateID }
+        var locationNamePublisher: Published<String>.Publisher { $locationName }
+        var anyChangePublisher: AnyPublisher<Void, Never> {
+            objectWillChange.map { _ in () }.eraseToAnyPublisher()
+        }
         var searchResults: [MKMapItem] = []
         var isSearching = false
         var isLocating = false

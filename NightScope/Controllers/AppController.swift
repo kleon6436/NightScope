@@ -9,6 +9,8 @@ protocol LocationProviding: AnyObject, ObservableObject {
     var locationName: String { get set }
     var locationUpdateID: UUID { get }
     var locationUpdateIDPublisher: Published<UUID>.Publisher { get }
+    var locationNamePublisher: Published<String>.Publisher { get }
+    var anyChangePublisher: AnyPublisher<Void, Never> { get }
     var searchResults: [MKMapItem] { get set }
     var isSearching: Bool { get set }
     var isLocating: Bool { get set }
@@ -181,6 +183,8 @@ final class AppController: ObservableObject, LocationProviding, WeatherProviding
 
     var locationUpdateID: UUID { locationController.locationUpdateID }
     var locationUpdateIDPublisher: Published<UUID>.Publisher { locationController.locationUpdateIDPublisher }
+    var locationNamePublisher: Published<String>.Publisher { locationController.locationNamePublisher }
+    var anyChangePublisher: AnyPublisher<Void, Never> { locationController.anyChangePublisher }
 
     var searchResults: [MKMapItem] {
         get { locationController.searchResults }

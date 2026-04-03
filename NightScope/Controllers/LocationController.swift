@@ -1,3 +1,4 @@
+import Combine
 import CoreLocation
 import MapKit
 
@@ -71,6 +72,10 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     /// 場所が変わるたびに更新される ID（View 側での onChange 検知用）
     @Published private(set) var locationUpdateID: UUID = UUID()
     var locationUpdateIDPublisher: Published<UUID>.Publisher { $locationUpdateID }
+    var locationNamePublisher: Published<String>.Publisher { $locationName }
+    var anyChangePublisher: AnyPublisher<Void, Never> {
+        objectWillChange.map { _ in () }.eraseToAnyPublisher()
+    }
 
     @Published var locationName: String = "東京" {
         didSet { storage.name = locationName }

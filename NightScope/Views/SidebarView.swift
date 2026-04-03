@@ -25,11 +25,8 @@ struct SidebarView: View {
             .onAppear {
                 viewModel.handleLocationSectionAppear(selectedCoordinate: viewModel.selectedCoordinate)
             }
-            .onChange(of: viewModel.locationController.locationUpdateID) {
-                viewModel.handleLocationUpdateIDChanged()
-            }
             .onChange(of: viewModel.locationInputMode) {
-                viewModel.handleLocationInputModeChanged()
+                Task { @MainActor in viewModel.handleLocationInputModeChanged() }
             }
             .alert(
                 "位置情報エラー",
@@ -86,7 +83,10 @@ struct SidebarView: View {
 
     private var mapModePickerRow: some View {
         SidebarLocationModePicker(
-            locationInputMode: $viewModel.locationInputMode,
+            locationInputMode: Binding(
+                get: { viewModel.locationInputMode },
+                set: { mode in Task { @MainActor in viewModel.locationInputMode = mode } }
+            ),
             isLoadingLightPollution: viewModel.lightPollutionService.isLoading,
             bortleClass: viewModel.lightPollutionService.bortleClass
         )
@@ -103,11 +103,9 @@ struct SidebarView: View {
             onUpArrow: viewModel.handleUpArrow,
             onEscape: viewModel.handleEscape
         )
-        .onChange(of: viewModel.searchFocusTrigger) { handleSearchFocusTriggerChanged() }
-    }
-
-    private func handleSearchFocusTriggerChanged() {
-        isSearchFocused = true
+        .onChange(of: viewModel.searchFocusTrigger) {
+            Task { @MainActor in isSearchFocused = true }
+        }
     }
 
     private var searchResults: [MKMapItem] {
@@ -236,33 +234,6 @@ struct SidebarView: View {
         resetSearchSelectionAndFocus()
     }
 
-    private func handleDownArrow() -> KeyPress.Result {
-        viewModel.searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(
-            current: viewModel.searchState.highlightedIndex,
-            totalResults: searchResults.count
-        )
-        return .handled
-    }
-
-    private func handleUpArrow() -> KeyPress.Result {
-        viewModel.searchState.highlightedIndex = SidebarSearchInteraction.previousHighlightedIndex(current: viewModel.searchState.highlightedIndex)
-        return .handled
-    }
-
-    private func handleEscape() -> KeyPress.Result {
-        setSearchTextProgrammatically("")
-        resetSearchSelectionAndFocus()
-        return .handled
-    }
-
-    private func handleSearchTextChanged() {
-        viewModel.searchState.clearHighlight()
-        if viewModel.searchState.consumeSearchSuppression() {
-            return
-        }
-        viewModel.locationController.search(query: viewModel.searchState.text)
-    }
-
     // MARK: - Date Section
 
     private var dateSection: some View {
@@ -293,7 +264,9 @@ private struct SidebarSearchField: View {
                 }
             }
             .onSubmit(onSubmit)
-            .onChange(of: searchText, onSearchTextChanged)
+            .onChange(of: searchText) {
+                Task { @MainActor in onSearchTextChanged() }
+            }
             .onKeyPress(.downArrow, action: onDownArrow)
             .onKeyPress(.upArrow, action: onUpArrow)
             .onKeyPress(.escape, action: onEscape)
@@ -416,11 +389,30 @@ private struct SidebarSearchResultsList: View {
     let highlightedIndex: Int
     let onSelect: (MKMapItem) -> Void
 
+    private static let rowHeight: CGFloat = 52
+    private static let maxVisibleRows: CGFloat = 2.5
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(searchResults.prefix(SidebarSearchInteraction.maxVisibleResults).enumerated()), id: \.offset) { index, item in
-                searchResultRow(item: item, index: index)
-                Divider()
+        let items = Array(searchResults.prefix(SidebarSearchInteraction.maxVisibleResults).enumerated())
+        let needsScroll = searchResults.count >= 2
+
+        Group {
+            if needsScroll {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(items, id: \.offset) { index, item in
+                            searchResultRow(item: item, index: index)
+                            if index < items.count - 1 { Divider() }
+                        }
+                    }
+                }
+                .frame(maxHeight: Self.rowHeight * Self.maxVisibleRows)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(items, id: \.offset) { index, item in
+                        searchResultRow(item: item, index: index)
+                    }
+                }
             }
         }
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))

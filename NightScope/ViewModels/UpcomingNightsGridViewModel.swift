@@ -18,6 +18,18 @@ final class UpcomingNightsGridViewModel: ObservableObject {
             .map { nights in nights.filter { !$0.viewingWindows.isEmpty } }
             .sink { [weak self] nights in self?.displayNights = nights }
             .store(in: &cancellables)
+
+        detailViewModel.$selectedDate
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        detailViewModel.$upcomingIndexes
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        detailViewModel.weatherService.$weatherByDate
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
     }
 
     // MARK: - Public Properties
@@ -29,8 +41,9 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     // MARK: - Public Methods
 
     func setSelectedDate(_ date: Date) {
+        // DetailViewModel.$selectedDate の sink が appController.selectedDate の更新と
+        // recalculate/recalculateUpcoming の呼び出しまで担うため、ここでは 1 行のみ
         detailViewModel.selectedDate = date
-        detailViewModel.appControllerRef.selectedDate = date
     }
 
     func weatherSummary(for date: Date) -> DayWeatherSummary? {

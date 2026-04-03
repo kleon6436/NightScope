@@ -9,6 +9,10 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var upcomingNights: [NightSummary] = []
     @Published private(set) var upcomingIndexes: [Date: StarGazingIndex] = [:]
     @Published var selectedDate: Date
+    @Published private(set) var locationName: String = ""
+    @Published private(set) var hasWeatherError: Bool = false
+    @Published private(set) var weatherErrorMessage: String? = nil
+    @Published private(set) var hasLightPollutionError: Bool = false
 
     private let appController: AppController
     var appControllerRef: AppController { appController }
@@ -56,10 +60,19 @@ final class DetailViewModel: ObservableObject {
 
         appController.$isCalculating
             .assign(to: &$isCalculating)
-    }
 
-    var locationName: String {
-        appController.locationController.locationName
+        appController.locationController.$locationName
+            .assign(to: &$locationName)
+
+        appController.weatherService.$errorMessage
+            .map { $0 != nil }
+            .assign(to: &$hasWeatherError)
+
+        appController.weatherService.$errorMessage
+            .assign(to: &$weatherErrorMessage)
+
+        appController.lightPollutionService.$fetchFailed
+            .assign(to: &$hasLightPollutionError)
     }
 
     var weatherService: WeatherService {
@@ -79,16 +92,4 @@ final class DetailViewModel: ObservableObject {
     }
 
     // MARK: - Error Handling
-
-    var hasWeatherError: Bool {
-        weatherService.errorMessage != nil
-    }
-
-    var hasLightPollutionError: Bool {
-        lightPollutionService.fetchFailed
-    }
-
-    var weatherErrorMessage: String? {
-        weatherService.errorMessage
-    }
 }

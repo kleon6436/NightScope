@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var appController = AppController()
+    @StateObject private var appController: AppController
     @StateObject private var sidebarViewModel: SidebarViewModel
     @StateObject private var detailViewModel: DetailViewModel
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -49,10 +49,10 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            appController.onStart()
+            Task { @MainActor in appController.onStart() }
         }
         .onChange(of: appController.selectedDate) {
-            appController.recalculate()
+            Task { @MainActor in appController.recalculate() }
         }
         .focusedValue(\.selectedDate, $appController.selectedDate)
         .focusedValue(\.refreshAction, {

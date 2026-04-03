@@ -1,8 +1,17 @@
 import SwiftUI
+import Combine
 
 @MainActor
 final class NightWeatherCardViewModel: ObservableObject {
     @AppStorage("windSpeedUnit") private var windSpeedUnitRaw: String = WindSpeedUnit.kmh.rawValue
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+    }
 
     private var windSpeedUnit: WindSpeedUnit {
         WindSpeedUnit(rawValue: windSpeedUnitRaw) ?? .kmh
