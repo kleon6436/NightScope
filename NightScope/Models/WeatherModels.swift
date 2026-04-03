@@ -1,5 +1,15 @@
 import Foundation
 
+private enum CloudCoverWeight {
+    static let low = 1.0
+    static let mid = 0.7
+    static let high = 0.3
+
+    static func effective(low: Double, mid: Double, high: Double) -> Double {
+        low * Self.low + mid * Self.mid + high * Self.high
+    }
+}
+
 // MARK: - Models
 
 struct HourlyWeather {
@@ -23,6 +33,17 @@ struct HourlyWeather {
     let cloudCoverHighPercent: Double?
     /// 500hPa 高度（≈ 5.5km）の風速（km/h）。シーイング評価に使用。nil = データなし
     let windSpeedKmh500hpa: Double?
+
+    /// 層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3
+    /// 3層データが揃わない場合は総合雲量にフォールバック
+    var effectiveCloudCover: Double {
+        guard let low = cloudCoverLowPercent,
+              let mid = cloudCoverMidPercent,
+              let high = cloudCoverHighPercent else {
+            return cloudCoverPercent
+        }
+        return CloudCoverWeight.effective(low: low, mid: mid, high: high)
+    }
 }
 
 struct DayWeatherSummary {
@@ -196,7 +217,7 @@ struct DayWeatherSummary {
         guard let low = avgCloudCoverLow,
               let mid = avgCloudCoverMid,
               let high = avgCloudCoverHigh else { return nil }
-        return low * 1.0 + mid * 0.7 + high * 0.3
+        return CloudCoverWeight.effective(low: low, mid: mid, high: high)
     }
 
     /// 視程の夜間平均（メートル）。データなし時は nil

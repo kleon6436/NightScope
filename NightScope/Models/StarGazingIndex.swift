@@ -10,6 +10,14 @@ struct StarGazingIndex {
         static let bortleWorstClass: Double = 9.0
         /// このクラス以下は満点（日本の最暗空相当）
         static let bortleBestClass: Double = 3.0
+
+        /// 暗時間帯の観測不可割合しきい値
+        static let blockedFractionForBadCap = 1.0
+        static let blockedFractionForPoorCap = 0.75
+
+        /// 天候キャップ後の上限スコア
+        static let badCapScore = 34
+        static let poorCapScore = 49
     }
 
     // MARK: - 各スコアの最大値（UI表示用）
@@ -75,9 +83,20 @@ struct StarGazingIndex {
         if let weather = weather {
             let weatherPts = computeWeatherScore(weather: weather)
             // 合計: 星座(0-30) + 気象(0-40) + 光害(0-30) = 0-100
-            let total = min(100, constellation + weatherPts + lightPollution)
-            return StarGazingIndex(
-                score: total,
+            let rawTotal = min(100, constellation + weatherPts + lightPollution)
+            // 天文薄明（isDark）の時間帯のみを対象に観測不可割合を計算してキャップを設定
+            // 根拠: weatherAwareRangeText は isDark なイベントのみを評価する。
+            //       全13時間（18:00-06:59）を使うと夕方や明け方の悪天候が
+            //       暗い時間帯の評価を歪め「観測可能時間あり＆観測困難」の矛盾が生じる。
+            //       isDark な時間帯に対応する天候のみを評価することで整合性を保つ。
+            let cappedTotal = applyBadWeatherCap(
+                to: rawTotal,
+                nightSummary: nightSummary,
+                weather: weather
+            )
+
+            return makeIndex(
+                score: cappedTotal,
                 milkyWayScore: mw,
                 constellationScore: constellation,
                 weatherScore: weatherPts,
@@ -90,7 +109,7 @@ struct StarGazingIndex {
             let maxBase = hasLP ? 60 : 30
             let base = constellation + lightPollution
             let scaled = min(100, Int(Double(base) / Double(maxBase) * 100.0))
-            return StarGazingIndex(
+            return makeIndex(
                 score: scaled,
                 milkyWayScore: mw,
                 constellationScore: constellation,
@@ -100,6 +119,26 @@ struct StarGazingIndex {
                 hasLightPollutionData: hasLP
             )
         }
+    }
+
+    private static func makeIndex(
+        score: Int,
+        milkyWayScore: Int,
+        constellationScore: Int,
+        weatherScore: Int,
+        lightPollutionScore: Int,
+        hasWeatherData: Bool,
+        hasLightPollutionData: Bool
+    ) -> StarGazingIndex {
+        StarGazingIndex(
+            score: score,
+            milkyWayScore: milkyWayScore,
+            constellationScore: constellationScore,
+            weatherScore: weatherScore,
+            lightPollutionScore: lightPollutionScore,
+            hasWeatherData: hasWeatherData,
+            hasLightPollutionData: hasLightPollutionData
+        )
     }
 
     // MARK: - Milky Way Score (0–25) — 表示専用
@@ -337,6 +376,54 @@ struct StarGazingIndex {
             return 1
         }
         return 0
+    }
+
+    // MARK: - Cap helpers
+
+    private static func applyBadWeatherCap(
+        to score: Int,
+        nightSummary: NightSummary,
+        weather: DayWeatherSummary
+    ) -> Int {
+        let darkWeatherHours = weatherHoursDuringDarkTime(nightSummary: nightSummary, weather: weather)
+        guard !darkWeatherHours.isEmpty else { return score }
+
+        let blockedCount = darkWeatherHours.filter { isObservationBlocked($0) }.count
+        let blockedFraction = Double(blockedCount) / Double(darkWeatherHours.count)
+
+        if blockedFraction >= Constants.blockedFractionForBadCap {
+            // 全暗時間帯が観測不可 = weatherAwareRangeText も "" を返す状態
+            return min(score, Constants.badCapScore)  // 観測困難
+        }
+        if blockedFraction >= Constants.blockedFractionForPoorCap {
+            // 暗時間帯の75%以上が観測不可（小さな観測窓のみ）
+            return min(score, Constants.poorCapScore)  // 不向き
+        }
+        return score
+    }
+
+    private static func weatherHoursDuringDarkTime(
+        nightSummary: NightSummary,
+        weather: DayWeatherSummary
+    ) -> [HourlyWeather] {
+        let calendar = Calendar.current
+        let darkHourSet = Set(nightSummary.events
+            .filter { $0.isDark }
+            .map { calendar.component(.hour, from: $0.date) })
+
+        return weather.nighttimeHours.filter { hour in
+            darkHourSet.contains(calendar.component(.hour, from: hour.date))
+        }
+    }
+
+    /// 1時間分の実効雲量（AstroModels.effectiveCloudCover と同一ロジック）
+    /// 観測不可時間かどうかを判定（passesWeatherFilter の条件と同一）
+    /// 根拠: 観測可能時間帯表示と同じ判定基準を用いることで、
+    ///       「時間帯表示あり」と「星空指数のキャップ」の整合性を保つ。
+    private static func isObservationBlocked(_ hour: HourlyWeather) -> Bool {
+        return hour.effectiveCloudCover >= 75
+            || hour.precipitationMM >= 0.1
+            || hour.weatherCode >= 45
     }
 
     // MARK: - Light Pollution Score (0–30)

@@ -62,9 +62,12 @@ final class StarGazingIndexTests: XCTestCase {
         weatherCode: Int = 0,
         windSpeed500hpa: Double? = nil
     ) -> DayWeatherSummary {
+        // makeNightSummary の events は Date(timeIntervalSince1970: 0) を基準にするため
+        // HourlyWeather の日付も同じ基準にして時刻（hour-of-day）が一致するようにする
+        let base = Date(timeIntervalSince1970: 0)
         let temp = 20.0
         let hour = HourlyWeather(
-            date: Date(),
+            date: base,
             temperatureCelsius: temp,
             cloudCoverPercent: cloud,
             precipitationMM: precip,
@@ -79,7 +82,35 @@ final class StarGazingIndexTests: XCTestCase {
             cloudCoverHighPercent: cloudHigh,
             windSpeedKmh500hpa: windSpeed500hpa
         )
-        return DayWeatherSummary(date: Date(), nighttimeHours: [hour])
+        return DayWeatherSummary(date: base, nighttimeHours: [hour])
+    }
+
+    private func makeHourlyWeather(
+        base: Date,
+        hourOffset: Int,
+        cloud: Double,
+        precip: Double,
+        wind: Double,
+        humidity: Double,
+        dewpoint: Double,
+        weatherCode: Int
+    ) -> HourlyWeather {
+        HourlyWeather(
+            date: base.addingTimeInterval(Double(hourOffset) * 3600),
+            temperatureCelsius: 15,
+            cloudCoverPercent: cloud,
+            precipitationMM: precip,
+            windSpeedKmh: wind,
+            humidityPercent: humidity,
+            dewpointCelsius: dewpoint,
+            weatherCode: weatherCode,
+            visibilityMeters: nil,
+            windGustsKmh: nil,
+            cloudCoverLowPercent: nil,
+            cloudCoverMidPercent: nil,
+            cloudCoverHighPercent: nil,
+            windSpeedKmh500hpa: nil
+        )
     }
 
     // MARK: - Tier
@@ -126,7 +157,7 @@ final class StarGazingIndexTests: XCTestCase {
         XCTAssertEqual(idx.tier, .fair)
     }
 
-    func test_tier_poor_at54() {
+    func test_tier_fair_at54() {
         let idx = StarGazingIndex(score: 54, milkyWayScore: 0, constellationScore: 0,
                                   weatherScore: 0, lightPollutionScore: 0,
                                   hasWeatherData: true, hasLightPollutionData: true)
@@ -183,7 +214,7 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_lightPollutionScore_bortle9_isZero() {
-        // bortle=9: 10*(9-9)/6 = 0
+        // bortle=9: 30*(9-9)/6 = 0
         let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: 9.0)
         XCTAssertEqual(idx.lightPollutionScore, 0)
@@ -208,7 +239,7 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_constellationScore_noDarkHours_fullMoon() {
         // darkEvents=0 → 0h → +0pts
-        // phase=0.5 (満月) → illumination=1.0 ≥ 0.7 → +0pts
+        // phase=0.5 (満月) → illumination=1.0 ≥ 0.30 → +0pts
         let summary = makeNightSummary(darkEventCount: 0, moonPhase: 0.5)
         let idx = StarGazingIndex.compute(nightSummary: summary, weather: nil, bortleClass: nil)
         XCTAssertEqual(idx.constellationScore, 0)
@@ -398,6 +429,110 @@ final class StarGazingIndexTests: XCTestCase {
         XCTAssertEqual(idx.score, 100)
         XCTAssertFalse(idx.hasWeatherData)
         XCTAssertFalse(idx.hasLightPollutionData)
+    }
+
+    func test_compute_overcast_isBad() {
+        // 星座・光害が高くても雲量80%→cap34→観測困難
+        let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
+        let weather = makeWeather(cloud: 80, precip: 0, wind: 5, humidity: 60, dewpointSpread: 10)
+        let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertLessThanOrEqual(idx.score, 34)
+        XCTAssertEqual(idx.tier, .bad)
+    }
+
+    func test_compute_heavyRain_isBad() {
+        // 降水1.0mm→cap34→観測困難
+        let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
+        let weather = makeWeather(cloud: 90, precip: 1.0, wind: 10, humidity: 80, dewpointSpread: 5)
+        let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertLessThanOrEqual(idx.score, 34)
+        XCTAssertEqual(idx.tier, .bad)
+    }
+
+    func test_compute_fog_isBad() {
+        // 霧(WMO 45)→cap34→観測困難（雲量が少なくても霧は視程をほぼゼロにする）
+        let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
+        let weather = makeWeather(cloud: 20, precip: 0, wind: 3, humidity: 95, dewpointSpread: 1,
+                                  weatherCode: 45)
+        let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertLessThanOrEqual(idx.score, 34)
+        XCTAssertEqual(idx.tier, .bad)
+    }
+
+    func test_compute_eveningRainThenClear_isNotBad() {
+        // 夜間13時間のうち4時間が雨(31%)、残り9時間が快晴
+        // → 暗時間帯(hour 0-6)のうち4時間(hour 0-3)が雨、3時間(hour 4-6)が晴れ
+        // → ブロック率 4/7 = 57% < 75% → 「観測困難」にはならない
+        let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
+        // makeNightSummary と同じ epoch 0 を基準にして hour-of-day を一致させる
+        let base = Date(timeIntervalSince1970: 0)
+        var hours: [HourlyWeather] = []
+        for i in 0..<4 {
+            hours.append(makeHourlyWeather(
+                base: base,
+                hourOffset: i,
+                cloud: 95,
+                precip: 2.0,
+                wind: 10,
+                humidity: 90,
+                dewpoint: 14,
+                weatherCode: 63
+            ))
+        }
+        for i in 4..<13 {
+            hours.append(makeHourlyWeather(
+                base: base,
+                hourOffset: i,
+                cloud: 10,
+                precip: 0,
+                wind: 5,
+                humidity: 40,
+                dewpoint: 5,
+                weatherCode: 0
+            ))
+        }
+        let weather = DayWeatherSummary(date: base, nighttimeHours: hours)
+        let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertGreaterThan(idx.score, 34, "夕方の雨が止んで晴れる夜(31%ブロック)は「観測困難」にならないべき")
+        XCTAssertNotEqual(idx.tier, .bad)
+    }
+
+    func test_compute_mostlyOvercast_isBad() {
+        // 夜間13時間のうち9時間が完全曇り
+        // → 暗時間帯(hour 0-6)の全7時間が曇り(hour 0-6 が完全ブロック)
+        // → ブロック率 100% → cap34 → 「観測困難」になる
+        let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
+        let base = Date(timeIntervalSince1970: 0)
+        var hours: [HourlyWeather] = []
+        for i in 0..<9 {
+            hours.append(makeHourlyWeather(
+                base: base,
+                hourOffset: i,
+                cloud: 90,
+                precip: 0,
+                wind: 5,
+                humidity: 60,
+                dewpoint: 10,
+                weatherCode: 3
+            ))
+        }
+        for i in 9..<13 {
+            hours.append(makeHourlyWeather(
+                base: base,
+                hourOffset: i,
+                cloud: 10,
+                precip: 0,
+                wind: 5,
+                humidity: 40,
+                dewpoint: 5,
+                weatherCode: 0
+            ))
+        }
+        let weather = DayWeatherSummary(date: base, nighttimeHours: hours)
+        let idx = StarGazingIndex.compute(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        // 暗時間帯(hour 0-6)の全7時間が曇り → ブロック率100% → cap34
+        XCTAssertLessThanOrEqual(idx.score, 34, "暗時間帯の全時間が曇りなら「観測困難」になるべき")
+        XCTAssertEqual(idx.tier, .bad)
     }
 
     func test_compute_noWeather_partialScore_scalesCorrectly() {

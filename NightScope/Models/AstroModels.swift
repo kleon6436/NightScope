@@ -204,18 +204,9 @@ struct NightSummary {
         // 根拠: 75% 未満が星空指数の雲量スコアで 0点 超（≥75% = 完全不可）の境界
         //       星空指数は夜間全体の平均を使うが、ここは1時間ごとのチェックのため
         //       より緩い 75% を適用して一貫性を保つ
-        return effectiveCloudCover(weather) < 75
+        return weather.effectiveCloudCover < 75
         && weather.precipitationMM < 0.1
         && weather.weatherCode < 45
-    }
-
-    private func effectiveCloudCover(_ weather: HourlyWeather) -> Double {
-        if let low = weather.cloudCoverLowPercent,
-           let mid = weather.cloudCoverMidPercent,
-           let high = weather.cloudCoverHighPercent {
-            return low * 1.0 + mid * 0.7 + high * 0.3
-        }
-        return weather.cloudCoverPercent
     }
 
     private func passesMoonFilter(event: AstroEvent) -> Bool {
