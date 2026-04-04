@@ -462,7 +462,7 @@ final class StarGazingIndexTests: XCTestCase {
     func test_compute_eveningRainThenClear_isNotBad() {
         // 夜間13時間のうち4時間が雨(31%)、残り9時間が快晴
         // → 暗時間帯(hour 0-6)のうち4時間(hour 0-3)が雨、3時間(hour 4-6)が晴れ
-        // → ブロック率 4/7 = 57% < 75% → 「観測困難」にはならない
+        // → ブロック率 4/7 = 57% ≥ 50% → poorCap 発動（cap49）→「観測困難」にはならない
         let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.0)
         // makeNightSummary と同じ epoch 0 を基準にして hour-of-day を一致させる
         let base = Date(timeIntervalSince1970: 0)
