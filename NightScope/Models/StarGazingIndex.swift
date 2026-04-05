@@ -18,6 +18,157 @@ struct StarGazingIndex {
         /// 天候キャップ後の上限スコア
         static let badCapScore = 34
         static let poorCapScore = 49
+
+        /// 観測可能時間スコア閾値（条件: `hours > threshold`）
+        /// - 根拠: 観測時間が長いほど対象天体の追尾・再構図・雲待ちが可能になる。
+        /// - しきい値ごとの意図:
+        ///   - `>4h`: 主要対象を十分に追跡できる実用上の満点帯（15点）
+        ///   - `>2h`: 複数対象を狙える実用帯（10点）
+        ///   - `>1h`: 1対象中心の短時間観測（6点）
+        ///   - `>0h`: 最低限の観測機会がある（2点）
+        static let viewingHoursThresholds: [(Double, Int)] = [
+            // >4h: 長時間追尾が可能で機材セットアップの元が取れる
+            (4, 15),
+            // >2h: 観測計画として成立しやすい時間幅
+            (2, 10),
+            // >1h: 限定的だが観測は可能
+            (1, 6),
+            // >0h: わずかな観測窓を最低点として評価
+            (0, 2)
+        ]
+
+        /// 銀河中心高度スコア閾値（条件: `altitude > threshold`）
+        /// - 根拠: 高度が高いほど大気減光・地物遮蔽の影響が減り、像質が改善する。
+        /// - しきい値ごとの意図:
+        ///   - `>45°`: 大気路程が短く最良帯（10点）
+        ///   - `>30°`: 実用的に高品質（7点）
+        ///   - `>15°`: 観測は可能だが減光影響が増える（4点）
+        ///   - `>5°`: 地平線近傍の最低限帯（1点）
+        static let altitudeThresholds: [(Double, Int)] = [
+            // >45°: 大気影響が比較的小さく見通しが良い
+            (45, 10),
+            // >30°: 実用観測として安定
+            (30, 7),
+            // >15°: 観測可能下限に近い
+            (15, 4),
+            // >5°: 低空で条件は厳しいが機会はある
+            (5, 1)
+        ]
+
+        /// 暗時間スコア閾値（条件: `darkHours > threshold`）
+        /// - 根拠: 天文薄明中の暗時間は観測可能性そのものを規定する。
+        /// - しきい値ごとの意図:
+        ///   - `>6h`: 冬季等の長い暗夜（20点）
+        ///   - `>4h`: 十分な暗時間（15点）
+        ///   - `>2h`: 限定的だが有効な暗時間（9点）
+        ///   - `<=2h`: 実用性が低いため既定1点（呼び出し側で指定）
+        static let darkHoursThresholds: [(Double, Int)] = [
+            // >6h: ほぼフルセッション可能
+            (6, 20),
+            // >4h: 観測計画を立てやすい
+            (4, 15),
+            // >2h: 短時間計画向け
+            (2, 9)
+        ]
+
+        /// 月照度スコア閾値（条件: `illumination < threshold`）
+        /// - 根拠: Krisciunas & Schaefer (1991) に基づき、照度増加で空輝度が非線形に悪化。
+        /// - しきい値ごとの意図:
+        ///   - `<0.05`: 新月近傍で空輝度影響が最小（10点）
+        ///   - `<0.15`: 繊月で影響は増えるが観測余地あり（6点）
+        ///   - `<0.30`: 影響大で限定的（2点）
+        ///   - `>=0.30`: 上弦以降は観測困難（既定0点）
+        static let moonIlluminationThresholds: [(Double, Int)] = [
+            // 新月近傍
+            (0.05, 10),
+            // 繊月帯
+            (0.15, 6),
+            // 半月手前まで
+            (0.30, 2)
+        ]
+
+        /// 雲量スコア閾値（条件: `effectiveCloud < threshold`）
+        /// - 根拠: 有効雲量が増えるほど星像の遮断率が急激に増加する。
+        /// - しきい値ごとの意図:
+        ///   - `<15%`: ほぼ快晴（18点）
+        ///   - `<35%`: 晴れ優勢（13点）
+        ///   - `<55%`: 薄雲混在（7点）
+        ///   - `<75%`: 曇り優勢だが断続的観測余地あり（2点）
+        ///   - `>=75%`: 実質観測不可（既定0点）
+        static let cloudThresholds: [(Double, Int)] = [
+            // 快晴〜ほぼ快晴
+            (15, 18),
+            // 晴れ優勢
+            (35, 13),
+            // 薄雲帯
+            (55, 7),
+            // 曇り優勢
+            (75, 2)
+        ]
+
+        /// 視程スコア閾値（条件: `visibilityKm >= threshold`）
+        /// - 根拠: 視程はエアロゾル・水蒸気量を反映し、限界等級に直結する。
+        /// - しきい値ごとの意図:
+        ///   - `>=20km`: NOAA「非常に良好」相当（8点）
+        ///   - `>=10km`: 良好（5点）
+        ///   - `>=5km`: 可視だが透明度不足（2点）
+        static let visibilityThresholds: [(Double, Int)] = [
+            // 非常に良好
+            (20, 8),
+            // 良好
+            (10, 5),
+            // 最低限
+            (5, 2)
+        ]
+
+        /// 露点差ボーナス閾値（条件: `spread > threshold`）
+        /// - 根拠: 露点差が大きいほど大気が乾燥し、透明度が向上しやすい。
+        /// - しきい値ごとの意図:
+        ///   - `>15°C`: 非常に乾燥（+2点）
+        ///   - `>10°C`: 乾燥傾向（+1点）
+        static let dewpointDrynessBonusThresholds: [(Double, Int)] = [
+            // 非常に乾燥
+            (15, 2),
+            // 乾燥傾向
+            (10, 1)
+        ]
+
+        /// 視程データ欠損時の透明度フォールバック閾値（条件: `spread > threshold`）
+        /// - 根拠: 露点差のみ評価のため過大評価を避け、上限を7点に制限。
+        /// - しきい値ごとの意図:
+        ///   - `>15°C`: 欠損時の最大評価（7点）
+        ///   - `>10°C`: 中程度（5点）
+        ///   - `>5°C`: 最低限の透明度余地（2点）
+        static let spreadOnlyTransparencyThresholds: [(Double, Int)] = [
+            // 欠損時の最大評価
+            (15, 7),
+            // 中程度
+            (10, 5),
+            // 最低限
+            (5, 2)
+        ]
+
+        /// 地表シーイング（上空風あり時）
+        /// 条件: `gusts < maxGust && averageWind < maxWind`
+        /// - 根拠: 上空風を別評価するため、地表側は0–2点の補助評価に限定。
+        static let surfaceSeeingUpperWindRules: [(maxGust: Double, maxWind: Double, score: Int)] = [
+            // 穏やかな風況
+            (20, 10, 2),
+            // やや不安定
+            (35, 20, 1)
+        ]
+
+        /// 地表シーイング（上空風なし時のフォールバック）
+        /// 条件: `gusts < maxGust && averageWind < maxWind`
+        /// - 根拠: 上空情報欠損時は地表風のみで 0–4点を段階評価。
+        static let surfaceSeeingFallbackRules: [(maxGust: Double, maxWind: Double, score: Int)] = [
+            // 良好
+            (20, 10, 4),
+            // 中程度
+            (35, 20, 2),
+            // 観測は可能だが像質は不安定
+            (50, 35, 1)
+        ]
     }
 
     // MARK: - 各スコアの最大値（UI表示用）
@@ -145,33 +296,15 @@ struct StarGazingIndex {
     // MARK: - Milky Way Score (0–25) — 表示専用
 
     private static func computeMilkyWayScore(nightSummary: NightSummary) -> Int {
-        var score = 0
-
         // 観測可能時間 (0–15 pts)
         let hours = nightSummary.totalViewingHours
-        if hours > 4 {
-            score += 15
-        } else if hours > 2 {
-            score += 10
-        } else if hours > 1 {
-            score += 6
-        } else if hours > 0 {
-            score += 2
-        }
+        let viewingScore = scoreByGreaterThan(hours, thresholds: Constants.viewingHoursThresholds)
 
         // 銀河系中心の最大高度 (0–10 pts)
         let alt = nightSummary.maxAltitude ?? 0
-        if alt > 45 {
-            score += 10
-        } else if alt > 30 {
-            score += 7
-        } else if alt > 15 {
-            score += 4
-        } else if alt > 5 {
-            score += 1
-        }
+        let altitudeScore = scoreByGreaterThan(alt, thresholds: Constants.altitudeThresholds)
 
-        return min(score, 25)
+        return min(viewingScore + altitudeScore, 25)
     }
 
     // MARK: - Sky Score (0–30)
@@ -185,15 +318,11 @@ struct StarGazingIndex {
         let darkHours = nightSummary.totalDarkHours
         guard darkHours > 0 else { return 0 }
 
-        if darkHours > 6 {
-            score += 20
-        } else if darkHours > 4 {
-            score += 15
-        } else if darkHours > 2 {
-            score += 9
-        } else {
-            score += 1  // 0–2時間: 観測時間が極端に短く実用性が低い
-        }
+        score += scoreByGreaterThan(
+            darkHours,
+            thresholds: Constants.darkHoursThresholds,
+            defaultScore: 1 // 0–2時間: 観測時間が極端に短く実用性が低い
+        )
 
         // 月の照明度 (0–10 pts) × 月が地平線上にある割合
         // illumination = (1 - cos(phase × 2π)) / 2
@@ -208,16 +337,11 @@ struct StarGazingIndex {
         let illumination = (1.0 - cos(phase * 2.0 * .pi)) / 2.0
         let moonFraction = nightSummary.moonAboveHorizonFractionDuringDark
 
-        let moonScoreWhenVisible: Int
-        if illumination < 0.05 {
-            moonScoreWhenVisible = 10  // 新月付近: 最良条件
-        } else if illumination < 0.15 {
-            moonScoreWhenVisible = 6   // 繊月: 空輝度が数倍に増加
-        } else if illumination < 0.30 {
-            moonScoreWhenVisible = 2   // 三日月以降: 空輝度が10倍超、天の川はほぼ消失
-        } else {
-            moonScoreWhenVisible = 0   // 上弦〜満月: 観測困難
-        }
+        let moonScoreWhenVisible = scoreByLessThan(
+            illumination,
+            thresholds: Constants.moonIlluminationThresholds,
+            defaultScore: 0
+        )
         // 月が地平線以下の時間帯は理想条件(10点)として扱い加重平均
         let weightedMoonScore = Int(round(Double(moonScoreWhenVisible) * moonFraction
                                           + 10.0 * (1.0 - moonFraction)))
@@ -243,19 +367,7 @@ struct StarGazingIndex {
     //       層別データなし時は総合雲量にフォールバック。
     private static func computeCloudScore(weather: DayWeatherSummary) -> Int {
         let effectiveCloud = weather.effectiveCloudCover ?? weather.avgCloudCover
-        if effectiveCloud < 15 {
-            return 18
-        }
-        if effectiveCloud < 35 {
-            return 13
-        }
-        if effectiveCloud < 55 {
-            return 7
-        }
-        if effectiveCloud < 75 {
-            return 2
-        }
-        return 0
+        return scoreByLessThan(effectiveCloud, thresholds: Constants.cloudThresholds, defaultScore: 0)
     }
 
     // b. 大気透明度 (0–10 pts)
@@ -266,35 +378,13 @@ struct StarGazingIndex {
         let spread = weather.avgDewpointSpread
 
         if let vis = weather.avgVisibilityMeters {
-            var score = 0
             let visibilityKm = vis / 1000.0
-            if visibilityKm >= 20 {
-                score += 8
-            } else if visibilityKm >= 10 {
-                score += 5
-            } else if visibilityKm >= 5 {
-                score += 2
-            }
-            // 露点差による補正 (0–2 pts): 乾燥した大気ほど透明度が高い
-            if spread > 15 {
-                score += 2
-            } else if spread > 10 {
-                score += 1
-            }
-            return score
+            return visibilityBaseTransparencyScore(visibilityKm: visibilityKm)
+            + dewpointDrynessBonusScore(spread: spread)
         }
 
         // フォールバック: 視程データなし時は露点差のみで 0–7 pts
-        if spread > 15 {
-            return 7
-        }
-        if spread > 10 {
-            return 5
-        }
-        if spread > 5 {
-            return 2
-        }
-        return 0
+        return transparencyScoreFromSpreadOnly(spread: spread)
     }
 
     // c. 降水 (0–6 pts)
@@ -331,14 +421,7 @@ struct StarGazingIndex {
 
         if let upperWind = weather.avgWindSpeed500hpa {
             // 地表 (0–2pts) + 上空 (0–2pts) の複合シーイング評価
-            let surfaceScore: Int
-            if gusts < 20 && averageWind < 10 {
-                surfaceScore = 2
-            } else if gusts < 35 && averageWind < 20 {
-                surfaceScore = 1
-            } else {
-                surfaceScore = 0
-            }
+            let surfaceScore = surfaceSeeingScoreForUpperWind(averageWind: averageWind, gusts: gusts)
 
             // 500hPa ≈ 5.5km。30km/h未満は良好、60km/h以上は乱流強く観測困難
             let upperScore: Int
@@ -353,16 +436,7 @@ struct StarGazingIndex {
         }
 
         // フォールバック: 地表突風データのみで評価（最大4点）
-        if gusts < 20 && averageWind < 10 {
-            return 4
-        }
-        if gusts < 35 && averageWind < 20 {
-            return 2
-        }
-        if gusts < 50 && averageWind < 35 {
-            return 1
-        }
-        return 0
+        return surfaceSeeingScoreFallback(averageWind: averageWind, gusts: gusts)
     }
 
     // e. 露リスク (0–2 pts)
@@ -377,6 +451,82 @@ struct StarGazingIndex {
             return 1
         }
         return 0
+    }
+
+    private static func visibilityBaseTransparencyScore(visibilityKm: Double) -> Int {
+        scoreByGreaterOrEqual(visibilityKm, thresholds: Constants.visibilityThresholds, defaultScore: 0)
+    }
+
+    /// 露点差による補正 (0–2 pts): 乾燥した大気ほど透明度が高い
+    private static func dewpointDrynessBonusScore(spread: Double) -> Int {
+        scoreByGreaterThan(spread, thresholds: Constants.dewpointDrynessBonusThresholds, defaultScore: 0)
+    }
+
+    private static func transparencyScoreFromSpreadOnly(spread: Double) -> Int {
+        scoreByGreaterThan(spread, thresholds: Constants.spreadOnlyTransparencyThresholds, defaultScore: 0)
+    }
+
+    private static func scoreByGreaterThan(
+        _ value: Double,
+        thresholds: [(threshold: Double, score: Int)],
+        defaultScore: Int = 0
+    ) -> Int {
+        for item in thresholds where value > item.threshold {
+            return item.score
+        }
+        return defaultScore
+    }
+
+    private static func scoreByLessThan(
+        _ value: Double,
+        thresholds: [(threshold: Double, score: Int)],
+        defaultScore: Int = 0
+    ) -> Int {
+        for item in thresholds where value < item.threshold {
+            return item.score
+        }
+        return defaultScore
+    }
+
+    private static func scoreByGreaterOrEqual(
+        _ value: Double,
+        thresholds: [(threshold: Double, score: Int)],
+        defaultScore: Int = 0
+    ) -> Int {
+        for item in thresholds where value >= item.threshold {
+            return item.score
+        }
+        return defaultScore
+    }
+
+    private static func surfaceSeeingScoreForUpperWind(averageWind: Double, gusts: Double) -> Int {
+        scoreByDualUpperBounds(
+            gusts: gusts,
+            averageWind: averageWind,
+            rules: Constants.surfaceSeeingUpperWindRules,
+            defaultScore: 0
+        )
+    }
+
+    private static func surfaceSeeingScoreFallback(averageWind: Double, gusts: Double) -> Int {
+        scoreByDualUpperBounds(
+            gusts: gusts,
+            averageWind: averageWind,
+            rules: Constants.surfaceSeeingFallbackRules,
+            defaultScore: 0
+        )
+    }
+
+    private static func scoreByDualUpperBounds(
+        gusts: Double,
+        averageWind: Double,
+        rules: [(maxGust: Double, maxWind: Double, score: Int)],
+        defaultScore: Int = 0
+    ) -> Int {
+        for rule in rules where gusts < rule.maxGust && averageWind < rule.maxWind {
+            return rule.score
+        }
+        return defaultScore
     }
 
     // MARK: - Cap helpers
@@ -422,7 +572,6 @@ struct StarGazingIndex {
         }
     }
 
-    /// 1時間分の実効雲量（AstroModels.effectiveCloudCover と同一ロジック）
     /// 観測不可時間かどうかを判定（passesWeatherFilter の条件と同一）
     /// 根拠: 観測可能時間帯表示と同じ判定基準を用いることで、
     ///       「時間帯表示あり」と「星空指数のキャップ」の整合性を保つ。
