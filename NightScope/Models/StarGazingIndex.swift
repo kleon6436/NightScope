@@ -13,7 +13,7 @@ struct StarGazingIndex {
 
         /// 暗時間帯の観測不可割合しきい値
         static let blockedFractionForBadCap = 1.0
-        static let blockedFractionForPoorCap = 0.75
+        static let blockedFractionForPoorCap = 0.5
 
         /// 天候キャップ後の上限スコア
         static let badCapScore = 34
@@ -91,6 +91,7 @@ struct StarGazingIndex {
             //       isDark な時間帯に対応する天候のみを評価することで整合性を保つ。
             let cappedTotal = applyBadWeatherCap(
                 to: rawTotal,
+                nonWeatherBase: constellation + lightPollution,
                 nightSummary: nightSummary,
                 weather: weather
             )
@@ -382,6 +383,7 @@ struct StarGazingIndex {
 
     private static func applyBadWeatherCap(
         to score: Int,
+        nonWeatherBase: Int,
         nightSummary: NightSummary,
         weather: DayWeatherSummary
     ) -> Int {
@@ -393,10 +395,14 @@ struct StarGazingIndex {
 
         if blockedFraction >= Constants.blockedFractionForBadCap {
             // 全暗時間帯が観測不可 = weatherAwareRangeText も "" を返す状態
-            return min(score, Constants.badCapScore)  // 観測困難
+            // 気象に依存しない要素（星座+光害）を 0-badCapScore にスケールして
+            // 場所・季節ごとの「本来の潜在力」を反映した値にする
+            let maxNonWeather = maxConstellationScore + maxLightPollutionScore  // 60
+            let scaled = Int(Double(nonWeatherBase) / Double(maxNonWeather) * Double(Constants.badCapScore))
+            return min(score, scaled)
         }
         if blockedFraction >= Constants.blockedFractionForPoorCap {
-            // 暗時間帯の75%以上が観測不可（小さな観測窓のみ）
+            // 暗時間帯の50%以上が観測不可（小さな観測窓のみ）
             return min(score, Constants.poorCapScore)  // 不向き
         }
         return score
