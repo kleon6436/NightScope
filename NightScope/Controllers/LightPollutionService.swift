@@ -1,5 +1,9 @@
 import Foundation
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import MapKit
 
 enum LightPollutionServiceError: Error, LocalizedError {
@@ -63,11 +67,18 @@ final class CGImageBox {
     init(_ image: CGImage) { self.image = image }
 }
 
+/// URLSession の completion handler（非 Sendable な関数型）を @unchecked Sendable でラップする。
+final class ResultBox: @unchecked Sendable {
+    private let handler: (Data?, Error?) -> Void
+    init(_ handler: @escaping (Data?, Error?) -> Void) { self.handler = handler }
+    func call(_ data: Data?, _ error: Error?) { handler(data, error) }
+}
+
 // MARK: - Tile Service
 
 /// 光害タイルの取得・キャッシュ・デコードを担うサービス層。
 /// View / Renderer からネットワーク・ディスクI/Oを分離する。
-final class LightPollutionTileService {
+final class LightPollutionTileService: @unchecked Sendable {
     private enum TileConfig {
         static let cacheDirectoryName = "LightPollutionTiles"
         static let requestTimeout: TimeInterval = 15
@@ -146,8 +157,7 @@ final class LightPollutionTileService {
             return image
         }
         guard let data = memoryCache.object(forKey: key) as Data?,
-              let nsImage = NSImage(data: data),
-              let image = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+              let image = Self.cgImage(from: data)
         else {
             return nil
         }
@@ -181,9 +191,10 @@ final class LightPollutionTileService {
 
         if cgImageCache.object(forKey: cacheKey) == nil {
             let data = cached as Data
+            let key = cacheKey as String
             Task.detached(priority: .utility) { [weak self] in
                 guard let self else { return }
-                if let image = self.decodeAndCache(data: data, forKey: cacheKey) {
+                if let image = self.decodeAndCache(data: data, forKey: key as NSString) {
                     self.scheduleDescendantPreCrop(from: image, path: path)
                 }
             }
@@ -222,17 +233,21 @@ final class LightPollutionTileService {
         result: @escaping (Data?, Error?) -> Void
     ) {
         let request = URLRequest(url: url, timeoutInterval: TileConfig.requestTimeout)
+        let key = cacheKey as String
+        // result と key を @Sendable クロージャに渡すため nonisolated な型に変換
+        let resultBox = ResultBox(result)
         session.dataTask(with: request) { [weak self] data, response, error in
             guard let self else { return }
+            let nsKey = key as NSString
             guard let data, let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                result(data, error)
+                resultBox.call(data, error)
                 return
             }
 
-            self.memoryCache.setObject(data as NSData, forKey: cacheKey, cost: data.count)
-            let image = self.decodeAndCache(data: data, forKey: cacheKey)
+            self.memoryCache.setObject(data as NSData, forKey: nsKey, cost: data.count)
+            let image = self.decodeAndCache(data: data, forKey: nsKey)
             try? data.write(to: diskURL, options: .atomic)
-            result(data, nil)
+            resultBox.call(data, nil)
 
             if let image {
                 self.scheduleDescendantPreCrop(from: image, path: path)
@@ -241,11 +256,18 @@ final class LightPollutionTileService {
     }
 
     private func decodeAndCache(data: Data, forKey key: NSString) -> CGImage? {
-        guard let nsImage = NSImage(data: data),
-              let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        else { return nil }
+        guard let cgImage = Self.cgImage(from: data) else { return nil }
         cgImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: Self.cgImageCost(cgImage))
         return cgImage
+    }
+
+    private static func cgImage(from data: Data) -> CGImage? {
+        #if os(macOS)
+        guard let nsImage = NSImage(data: data) else { return nil }
+        return nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        #else
+        return UIImage(data: data)?.cgImage
+        #endif
     }
 
     private func preCropDescendants(from cgImage: CGImage, path: MKTileOverlayPath) {

@@ -39,13 +39,14 @@ struct UpcomingNightsGrid: View {
 
     private func upcomingNightCard(night: NightSummary) -> some View {
         let weather = viewModel.weatherSummary(for: night.date)
+        let presentation = ForecastCardPresentation(night: night, weather: weather)
         let isSelected = Calendar.current.isDate(night.date, inSameDayAs: viewModel.selectedDate)
         let index = viewModel.starGazingIndex(for: night.date)
 
         return VStack(alignment: .leading, spacing: Spacing.xs) {
-            cardHeader(night: night, weather: weather)
+            cardHeader(night: night, presentation: presentation)
             if let weather {
-                weatherDetailRow(weather: weather)
+                weatherDetailRow(weather: weather, presentation: presentation)
             }
             moonPhaseRow(night: night)
 
@@ -71,7 +72,7 @@ struct UpcomingNightsGrid: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private func cardHeader(night: NightSummary, weather: DayWeatherSummary?) -> some View {
+    private func cardHeader(night: NightSummary, presentation: ForecastCardPresentation) -> some View {
         HStack {
             Text(night.date, style: .date)
                 .font(.headline)
@@ -80,22 +81,20 @@ struct UpcomingNightsGrid: View {
                 Image(systemName: AppIcons.Weather.cloudFill)
                     .font(.body)
                     .accessibilityHidden(true)
-                Text(weather.map { String(format: "%.0f%%", $0.avgCloudCover) } ?? "—")
+                Text(presentation.cloudCoverText)
                     .font(.body)
             }
             .foregroundStyle(Color.cyan.opacity(0.9))
         }
     }
 
-    private func weatherDetailRow(weather: DayWeatherSummary) -> some View {
+    private func weatherDetailRow(weather: DayWeatherSummary, presentation: ForecastCardPresentation) -> some View {
         HStack(spacing: Spacing.xs / 2) {
             Image(systemName: weather.weatherIconName)
                 .foregroundStyle(viewModel.weatherIconColor(code: weather.representativeWeatherCode))
                 .font(.body)
                 .accessibilityHidden(true)
-            Text(weather.weatherLabel == weather.cloudLabel
-                 ? weather.weatherLabel
-                 : "\(weather.weatherLabel)（\(weather.cloudLabel)）")
+            Text(presentation.weatherDetailText ?? weather.weatherLabel)
                 .font(.body)
                 .foregroundStyle(.secondary)
         }

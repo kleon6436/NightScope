@@ -86,5 +86,24 @@ final class DetailViewModel: ObservableObject {
         await appController.refreshLightPollution()
     }
 
+    func refreshAllInBackground() {
+        Task {
+            await refreshWeather()
+            await refreshLightPollution()
+        }
+    }
+
+    func retryWeatherInBackground() {
+        Task {
+            await refreshWeather()
+        }
+    }
+
+    func retryLightPollutionInBackground() {
+        Task {
+            await refreshLightPollution()
+        }
+    }
+
     // MARK: - Error Handling
 }

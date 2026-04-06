@@ -2,7 +2,7 @@ import Combine
 import CoreLocation
 import MapKit
 
-protocol LocationSearchServicing {
+protocol LocationSearchServicing: Sendable {
     func search(query: String) async throws -> [MKMapItem]
 }
 
@@ -15,7 +15,7 @@ struct MKLocationSearchService: LocationSearchServicing {
     }
 }
 
-protocol LocationNameResolving {
+protocol LocationNameResolving: Sendable {
     func resolveName(for coordinate: CLLocationCoordinate2D) async -> String
 }
 
@@ -154,6 +154,8 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private let locationManager = CLLocationManager()
     private var locationTimeoutTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
+    private var locationNameTask: Task<Void, Never>?
+    private var latestSearchQuery = ""
 
     // MARK: - Init
 
@@ -190,33 +192,58 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
         isLocating = true
         locationError = nil
+        #if os(iOS)
         locationManager.requestWhenInUseAuthorization()
+        #else
+        locationManager.requestAlwaysAuthorization()
+        #endif
         // 既に許可済みなら即開始、未決定なら locationManagerDidChangeAuthorization で開始する
-        if status == .authorized || status == .authorizedAlways {
+        let alreadyAuthorized: Bool
+        #if os(iOS)
+        alreadyAuthorized = status == .authorizedWhenInUse || status == .authorizedAlways
+        #else
+        alreadyAuthorized = status == .authorized || status == .authorizedAlways
+        #endif
+        if alreadyAuthorized {
             startLocationUpdatesWithTimeout()
         }
     }
 
     func search(query: String) {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedQuery.isEmpty else {
             clearSearch()
             return
         }
+
+        let isSameAsLatestQuery = normalizedQuery == latestSearchQuery
+        if isSameAsLatestQuery && (isSearching || !searchResults.isEmpty) {
+            return
+        }
+
+        latestSearchQuery = normalizedQuery
         searchTask?.cancel()
         isSearching = true
-        searchTask = Task {
+
+        searchTask = Task { [normalizedQuery] in
             // キャンセルされた場合は isSearching をリセットしない（次の検索が既に true にセット済み）
-            defer { if !Task.isCancelled { isSearching = false } }
+            defer {
+                if !Task.isCancelled, latestSearchQuery == normalizedQuery {
+                    isSearching = false
+                }
+            }
             // デバウンス: 150ms 以内に次の入力があればキャンセルされる
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
 
             do {
-                let mapItems = try await searchService.search(query: query)
+                let mapItems = try await searchService.search(query: normalizedQuery)
                 guard !Task.isCancelled else { return }
+                guard latestSearchQuery == normalizedQuery else { return }
                 searchResults = mapItems
             } catch {
                 guard !Task.isCancelled else { return }
+                guard latestSearchQuery == normalizedQuery else { return }
                 searchResults = []
             }
         }
@@ -227,7 +254,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         clearSearch()
         selectedLocation = mapItem.location.coordinate
         currentLocationCenterTrigger += 1
-        Task { locationName = await locationNameResolver.resolveName(for: mapItem.location.coordinate) }
+        resolveLocationName(for: mapItem.location.coordinate)
     }
 
     /// マップタップなど座標から場所を選択する（センタリングしない）
@@ -235,13 +262,14 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         if isLocating { stopLocating() }
         clearSearch()
         selectedLocation = coordinate
-        Task { locationName = await locationNameResolver.resolveName(for: coordinate) }
+        resolveLocationName(for: coordinate)
     }
 
     // MARK: - Private Helpers
 
     private func clearSearch() {
         searchTask?.cancel()
+        latestSearchQuery = ""
         searchResults = []
         isSearching = false
     }
@@ -268,6 +296,18 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private func cancelLocationTimeout() {
         locationTimeoutTask?.cancel()
         locationTimeoutTask = nil
+    }
+
+    private func resolveLocationName(for coordinate: CLLocationCoordinate2D) {
+        locationNameTask?.cancel()
+        locationNameTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let resolvedName = await self.locationNameResolver.resolveName(for: coordinate)
+            guard !Task.isCancelled else { return }
+            guard self.selectedLocation.latitude == coordinate.latitude,
+                  self.selectedLocation.longitude == coordinate.longitude else { return }
+            self.locationName = resolvedName
+        }
     }
 
 }
@@ -298,17 +338,21 @@ extension LocationController: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            switch manager.authorizationStatus {
-            case .authorized, .authorizedAlways:
+            let isAuthorized: Bool
+            #if os(iOS)
+            isAuthorized = status == .authorizedWhenInUse || status == .authorizedAlways
+            #else
+            isAuthorized = status == .authorized || status == .authorizedAlways
+            #endif
+            if isAuthorized {
                 if self.isLocating { self.startLocationUpdatesWithTimeout() }
-            case .denied, .restricted:
+            } else if status == .denied || status == .restricted {
                 if self.isLocating {
                     self.stopLocating()
                     self.locationError = .denied
                 }
-            default:
-                break
             }
         }
     }

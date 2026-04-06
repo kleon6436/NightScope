@@ -26,16 +26,6 @@ enum Layout {
     static let sidebarHorizontalPadding: CGFloat = 16
     /// サイドバー垂直パディング
     static let sidebarVerticalPadding: CGFloat = 16
-    /// ウィンドウ最小幅
-    static let windowMinWidth: CGFloat = 820
-    /// ウィンドウ最小高
-    static let windowMinHeight: CGFloat = 750
-    /// サイドバー最小幅
-    static let sidebarMinWidth: CGFloat = 260
-    /// サイドバー理想幅
-    static let sidebarIdealWidth: CGFloat = 280
-    /// サイドバー最大幅
-    static let sidebarMaxWidth: CGFloat = 300
     /// 地図コンテナの角丸半径
     static let mapCornerRadius: CGFloat = 8
     /// 地図上ボタン（現在地）の角丸半径
@@ -51,6 +41,21 @@ enum Layout {
     /// グリッドのアイコン列幅
     static let gridIconWidth: CGFloat = 14
 }
+
+#if os(macOS)
+enum LayoutMacOS {
+    /// ウィンドウ最小幅
+    static let windowMinWidth: CGFloat = 820
+    /// ウィンドウ最小高
+    static let windowMinHeight: CGFloat = 750
+    /// サイドバー最小幅
+    static let sidebarMinWidth: CGFloat = 260
+    /// サイドバー理想幅
+    static let sidebarIdealWidth: CGFloat = 280
+    /// サイドバー最大幅
+    static let sidebarMaxWidth: CGFloat = 300
+}
+#endif
 
 // MARK: - GlassCard ViewModifier
 
@@ -105,6 +110,10 @@ enum DateFormatters {
     }()
 }
 
+extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
 extension Date {
     /// HH:mm 形式の時刻文字列を返す
     func nightTimeString() -> String {
@@ -147,6 +156,39 @@ enum WeatherPresentation {
         case 95...99:    return .orange
         default:         return .secondary
         }
+    }
+}
+
+// MARK: - Forecast Card Presentation
+
+struct ForecastCardPresentation {
+    let night: NightSummary
+    let weather: DayWeatherSummary?
+
+    private static let shortDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "M/d(E)"
+        return formatter
+    }()
+
+    var shortDateLabel: String {
+        Self.shortDateFormatter.string(from: night.date)
+    }
+
+    var relativeNightLabel: String? {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(night.date) { return "今夜" }
+        if calendar.isDateInTomorrow(night.date) { return "明夜" }
+        return nil
+    }
+
+    var cloudCoverText: String {
+        weather.map { String(format: "%.0f%%", $0.avgCloudCover) } ?? "—"
+    }
+
+    var weatherDetailText: String? {
+        weather.map { WeatherPresentation.combinedLabel(for: $0) }
     }
 }
 

@@ -29,7 +29,9 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        #if os(macOS)
         .frame(width: 360, alignment: .top)
+        #endif
         .padding(.vertical, Spacing.sm)
         .navigationTitle("設定")
     }

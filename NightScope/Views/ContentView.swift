@@ -25,9 +25,9 @@ struct ContentView: View {
                 selectedDate: $appController.selectedDate
             )
             .navigationSplitViewColumnWidth(
-                min: Layout.sidebarMinWidth,
-                ideal: Layout.sidebarIdealWidth,
-                max: Layout.sidebarMaxWidth
+                min: LayoutMacOS.sidebarMinWidth,
+                ideal: LayoutMacOS.sidebarIdealWidth,
+                max: LayoutMacOS.sidebarMaxWidth
             )
             .navigationTitle("NightScope")
             .toolbar(removing: .sidebarToggle)
@@ -39,27 +39,22 @@ struct ContentView: View {
         } detail: {
             DetailView(viewModel: detailViewModel)
         }
-        .frame(minWidth: Layout.windowMinWidth, minHeight: Layout.windowMinHeight)
+        .frame(minWidth: LayoutMacOS.windowMinWidth, minHeight: LayoutMacOS.windowMinHeight)
         .toolbar(removing: .sidebarToggle)
         .onChange(of: columnVisibility) {
             if columnVisibility != .all {
-                Task { @MainActor in
-                    columnVisibility = .all
-                }
+                columnVisibility = .all
             }
         }
         .onAppear {
-            Task { @MainActor in appController.onStart() }
+            appController.onStart()
         }
         .onChange(of: appController.selectedDate) {
-            Task { @MainActor in appController.recalculate() }
+            appController.recalculate()
         }
         .focusedValue(\.selectedDate, $appController.selectedDate)
         .focusedValue(\.refreshAction, {
-            Task {
-                await appController.refreshWeather()
-                await appController.refreshLightPollution()
-            }
+            appController.refreshExternalDataInBackground()
         })
         .focusedValue(\.focusSearchAction, {
             appController.locationController.searchFocusTrigger += 1

@@ -72,13 +72,13 @@ struct DetailView: View {
             if viewModel.hasLightPollutionError {
                 errorBanner(
                     message: "光害データの取得に失敗しました",
-                    retryAction: { Task { await viewModel.refreshLightPollution() } }
+                    retryAction: viewModel.retryLightPollutionInBackground
                 )
             }
             if let error = viewModel.weatherErrorMessage {
                 errorBanner(
                     message: error,
-                    retryAction: { Task { await viewModel.refreshWeather() } }
+                    retryAction: viewModel.retryWeatherInBackground
                 )
             }
         }

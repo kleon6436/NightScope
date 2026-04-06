@@ -75,9 +75,7 @@ final class AppController: ObservableObject {
     func onStart() {
         recalculate()
         recalculateUpcoming()
-        Task {
-            await refreshExternalData()
-        }
+        refreshExternalDataInBackground()
     }
 
     func refreshWeather() async {
@@ -94,6 +92,12 @@ final class AppController: ObservableObject {
             latitude: coordinate.latitude,
             longitude: coordinate.longitude
         )
+    }
+
+    func refreshExternalDataInBackground() {
+        Task {
+            await refreshExternalData()
+        }
     }
 
     // MARK: - Calculation
