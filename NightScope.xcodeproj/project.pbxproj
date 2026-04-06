@@ -591,6 +591,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "星空観測の計画に現在地を使用します。";
+				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -627,6 +628,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "星空観測の計画に現在地を使用します。";
+				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;

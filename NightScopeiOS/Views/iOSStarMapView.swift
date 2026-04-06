@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreMotion
+import CoreLocation
 
 // MARK: - iOSStarMapView
 
@@ -7,6 +8,7 @@ struct iOSStarMapView: View {
     @ObservedObject var viewModel: StarMapViewModel
 
     @State private var motionManager = CMMotionManager()
+    @State private var headingController = StarMapHeadingController()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -114,9 +116,7 @@ struct iOSStarMapView: View {
                 viewModel.isGyroMode.toggle()
             }
         } label: {
-            Image(systemName: viewModel.isGyroMode
-                  ? "gyroscope"
-                  : "map")
+            Image(systemName: viewModel.isGyroMode ? "gyroscope" : "map")
                 .symbolEffect(.bounce, value: viewModel.isGyroMode)
         }
         .help(viewModel.isGyroMode ? "全天マップに切替" : "ジャイロモードに切替")
@@ -138,57 +138,61 @@ struct iOSStarMapView: View {
             viewModel.isGyroMode = false
             return
         }
+
+        // xArbitraryZVertical: Z 軸 = 鉛直上方 (重力方向)
+        // pitch のみで仰角を取得。方位角は CLHeading から取得する。
         motionManager.deviceMotionUpdateInterval = 1.0 / 30
-        // xMagneticNorthZVertical: x軸=磁北, z軸=鉛直上方
-        // → 磁北を基準にした絶対方位が得られる
         motionManager.startDeviceMotionUpdates(
-            using: .xMagneticNorthZVertical,
+            using: .xArbitraryZVertical,
             to: .main
-        ) { [self] motion, _ in
+        ) { motion, _ in
             guard let motion else { return }
-            updateViewDirection(from: motion)
+            // pitch: 0 = フラット (天頂向き), π/2 = 垂直 (地平線向き)
+            let pitchDeg = motion.attitude.pitch * 180 / .pi
+            viewModel.viewAltitude = max(0, min(90, 90 - pitchDeg))
+        }
+
+        // 方位角は CLLocationManager の heading から取得
+        headingController.start { heading in
+            viewModel.viewAzimuth = heading
         }
     }
 
     private func stopMotion() {
         motionManager.stopDeviceMotionUpdates()
+        headingController.stop()
+    }
+}
+
+// MARK: - StarMapHeadingController
+
+/// CLLocationManager のラッパー。StarMapViewModel に NSObject 継承を持ち込まないための分離クラス。
+@Observable
+final class StarMapHeadingController: NSObject, CLLocationManagerDelegate {
+    private let locationManager = CLLocationManager()
+    private var onHeading: ((Double) -> Void)?
+
+    override init() {
+        super.init()
+        locationManager.delegate = self
     }
 
-    /// デバイスの姿勢 → 画面中心が向く仰角・方位角に変換
-    ///
-    /// xMagneticNorthZVertical フレームでの attitude.rotationMatrix:
-    ///   - デバイスをフラットに置いた状態 (画面上向き): z軸が上を指す
-    ///   - デバイスを傾けて空に向ける場合:
-    ///     - ポートレートで垂直に立てると画面が自分を向く (仰角 0°)
-    ///     - ポートレートで傾けて上を向くと画面が空を向く (仰角増加)
-    ///
-    /// 画面の "奥" 方向 (-Z screen) がどこを向いているかを計算する。
-    private func updateViewDirection(from motion: CMDeviceMotion) {
-        let r = motion.attitude.rotationMatrix
+    func start(onHeading: @escaping (Double) -> Void) {
+        self.onHeading = onHeading
+        locationManager.startUpdatingHeading()
+    }
 
-        // デバイス座標系での画面奥方向 = (0, 0, -1)
-        // ワールド座標系 (xMagneticNorthZVertical) での方向:
-        // xWorld = r.m31 * 0 + r.m32 * 0 + r.m33 * (-1) = -r.m33
-        // yWorld = r.m21 * 0 + r.m22 * 0 + r.m23 * (-1) = -r.m23  (実際は行列の転置)
-        // zWorld = r.m31*0 + ...
-        //
-        // CMRotationMatrix は行優先: m{行}{列}
-        // ワールド → デバイス なので、デバイス→ワールドは転置
-        // デバイスZ軸(-1)のワールド表現:
-        let wx = -r.m13   // x_world = 北方向
-        let wy = -r.m23   // y_world = 東方向 ... 実際は xMagNorthZVert での軸定義による
-        let wz = -r.m33   // z_world = 鉛直上方
+    func stop() {
+        locationManager.stopUpdatingHeading()
+        onHeading = nil
+    }
 
-        // 仰角 = arcsin(wz)
-        let altitude = asin(max(-1, min(1, wz))) * 180 / .pi
-
-        // 方位角: atan2(wx_east, wx_north) → ただし xMagNorthZVert の x=北, y=東 (右手系)
-        // NightScope の方位角: 0=北, 90=東
-        var azimuth = atan2(wy, wx) * 180 / .pi
-        if azimuth < 0 { azimuth += 360 }
-
-        viewModel.viewAltitude = altitude
-        viewModel.viewAzimuth  = azimuth
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        // trueHeading が有効なら使用 (GPSなし環境では -1 になる場合あり)
+        let heading = newHeading.trueHeading >= 0
+            ? newHeading.trueHeading
+            : newHeading.magneticHeading
+        onHeading?(heading)
     }
 }
 
