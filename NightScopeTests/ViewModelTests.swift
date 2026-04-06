@@ -61,6 +61,13 @@ final class ViewModelTests: XCTestCase {
             moonPhaseAtMidnight: moonPhase
         )
     }
+    
+    private func makeMapItem(coordinate: CLLocationCoordinate2D, name: String? = nil) -> MKMapItem {
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let item = MKMapItem(location: location, address: nil)
+        item.name = name
+        return item
+    }
 
     private func waitUntil(
         timeout: TimeInterval = 1.0,
@@ -207,8 +214,7 @@ final class ViewModelTests: XCTestCase {
 
     func test_LocationController_search_success_updatesResults() async {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        item.name = "東京駅"
+        let item = makeMapItem(coordinate: coordinate, name: "東京駅")
 
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([item]))
@@ -230,7 +236,7 @@ final class ViewModelTests: XCTestCase {
         let searchService = MockLocationSearchService(result: .failure(MockLocationSearchError.failed))
         let resolver = MockLocationNameResolver(resolvedName: "東京")
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-        sut.searchResults = [MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0)))]
+        sut.searchResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))]
 
         sut.search(query: "invalid")
 
@@ -249,8 +255,7 @@ final class ViewModelTests: XCTestCase {
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
 
         let coordinate = CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034)
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        item.name = "新宿"
+        let item = makeMapItem(coordinate: coordinate, name: "新宿駅")
         let baseTrigger = sut.currentLocationCenterTrigger
 
         sut.searchResults = [item]
