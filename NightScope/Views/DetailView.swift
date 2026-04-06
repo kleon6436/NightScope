@@ -7,12 +7,16 @@ struct DetailView: View {
     @StateObject private var starGazingIndexCardViewModel: StarGazingIndexCardViewModel
     @StateObject private var nightWeatherCardViewModel: NightWeatherCardViewModel
     @StateObject private var upcomingGridViewModel: UpcomingNightsGridViewModel
+    @StateObject private var starMapViewModel: StarMapViewModel
+
+    @State private var showStarMap = false
 
     init(viewModel: DetailViewModel) {
         self.viewModel = viewModel
         _starGazingIndexCardViewModel = StateObject(wrappedValue: StarGazingIndexCardViewModel(lightPollutionService: viewModel.lightPollutionService))
         _nightWeatherCardViewModel = StateObject(wrappedValue: NightWeatherCardViewModel())
         _upcomingGridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: viewModel))
+        _starMapViewModel = StateObject(wrappedValue: StarMapViewModel(appController: viewModel.appControllerRef))
     }
 
     var body: some View {
@@ -29,9 +33,77 @@ struct DetailView: View {
         // NightScope は没入型体験を重視するため、HIG 例外として
         // ウィンドウツールバー背景を一時的に非表示にしている。
         .toolbarBackground(.hidden, for: .windowToolbar)
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    showStarMap = true
+                } label: {
+                    Label("星空マップ", systemImage: "sparkles")
+                }
+                .help("星空マップを表示")
+            }
+        }
+        .sheet(isPresented: $showStarMap) {
+            macStarMapSheet
+        }
         .overlay(alignment: .bottom, content: errorOverlay)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasWeatherError)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasLightPollutionError)
+    }
+
+    // MARK: - macOS Star Map Sheet
+
+    private var macStarMapSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("星空マップ")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showStarMap = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(Spacing.sm)
+
+            StarMapCanvasView(viewModel: starMapViewModel)
+                .frame(minWidth: 460, minHeight: 460)
+
+            Divider()
+
+            HStack(spacing: Spacing.sm) {
+                Label("観測日時", systemImage: "clock")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+
+                DatePicker(
+                    "",
+                    selection: $starMapViewModel.displayDate,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .labelsHidden()
+                .datePickerStyle(.compact)
+
+                Button("現在") {
+                    starMapViewModel.resetToNow()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Spacer()
+
+                if !starMapViewModel.isNight {
+                    Label("昼間", systemImage: "sun.max")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                }
+            }
+            .padding(Spacing.sm)
+        }
+        .frame(minWidth: 500, minHeight: 560)
     }
 
     private func detailContent(summary: NightSummary) -> some View {

@@ -264,6 +264,7 @@ struct iOSRootDependencies {
     let appController: AppController
     let sidebarViewModel: SidebarViewModel
     let detailViewModel: DetailViewModel
+    let starMapViewModel: StarMapViewModel
 
     static func makeDefault() -> iOSRootDependencies {
         let controller = AppController()
@@ -272,10 +273,12 @@ struct iOSRootDependencies {
             lightPollutionService: controller.lightPollutionService
         )
         let detailViewModel = DetailViewModel(appController: controller)
+        let starMapViewModel = StarMapViewModel(appController: controller)
         return iOSRootDependencies(
             appController: controller,
             sidebarViewModel: sidebarViewModel,
-            detailViewModel: detailViewModel
+            detailViewModel: detailViewModel,
+            starMapViewModel: starMapViewModel
         )
     }
 }
@@ -284,12 +287,14 @@ struct iOSRootView: View {
     @StateObject private var appController: AppController
     @StateObject private var sidebarViewModel: SidebarViewModel
     @StateObject private var detailViewModel: DetailViewModel
+    @StateObject private var starMapViewModel: StarMapViewModel
     @State private var selectedTab = 0
 
     init(dependencies: iOSRootDependencies = .makeDefault()) {
         _appController = StateObject(wrappedValue: dependencies.appController)
         _sidebarViewModel = StateObject(wrappedValue: dependencies.sidebarViewModel)
         _detailViewModel = StateObject(wrappedValue: dependencies.detailViewModel)
+        _starMapViewModel = StateObject(wrappedValue: dependencies.starMapViewModel)
     }
 
     var body: some View {
@@ -312,13 +317,19 @@ struct iOSRootView: View {
                 }
                 .tag(2)
 
+            iOSStarMapView(viewModel: starMapViewModel)
+                .tabItem {
+                    Label("星空", systemImage: "sparkles")
+                }
+                .tag(3)
+
             NavigationStack {
                 SettingsView()
             }
             .tabItem {
                 Label("設定", systemImage: "gearshape")
             }
-            .tag(3)
+            .tag(4)
         }
         .onAppear {
             appController.onStart()
