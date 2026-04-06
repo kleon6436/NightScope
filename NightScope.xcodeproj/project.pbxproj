@@ -23,14 +23,6 @@
 		AA0000000000000000002B09 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F09 /* DetailView.swift */; };
 		AA0000000000000000002B10 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
 		AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F11 /* MapLocationPicker.swift */; };
-		AA0000000000000000003B01 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
-		AA0000000000000000003B02 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F02 /* SidebarViewModel.swift */; };
-		AA0000000000000000003B03 /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
-		AA0000000000000000003B04 /* StarGazingIndexCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */; };
-		AA0000000000000000003B05 /* NightWeatherCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */; };
-		AA0000000000000000003B06 /* DarkTimeCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */; };
-		AA0000000000000000003B07 /* ViewingWindowsSectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */; };
-		AA000000000000000000TB06 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF06 /* ViewModelTests.swift */; };
 		AA0000000000000000002B12 /* LightPollutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F12 /* LightPollutionService.swift */; };
 		AA0000000000000000002B13 /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
 		AA0000000000000000002B14 /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
@@ -40,11 +32,30 @@
 		AA0000000000000000002B18 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
 		AA0000000000000000002B19 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F19 /* UIConstants.swift */; };
 		AA0000000000000000002B20 /* DarkTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F20 /* DarkTimeCard.swift */; };
+		AA0000000000000000002B51 /* AppTerminationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F51 /* AppTerminationCoordinator.swift */; };
+		AA0000000000000000003B01 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
+		AA0000000000000000003B02 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F02 /* SidebarViewModel.swift */; };
+		AA0000000000000000003B03 /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
+		AA0000000000000000003B04 /* StarGazingIndexCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */; };
+		AA0000000000000000003B05 /* NightWeatherCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */; };
+		AA0000000000000000003B06 /* DarkTimeCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */; };
+		AA0000000000000000003B07 /* ViewingWindowsSectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */; };
+		AA0000000000000000004B02 /* LLMBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F02 /* LLMBackend.swift */; };
+		AA0000000000000000004B03 /* FoundationModelsBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F03 /* FoundationModelsBackend.swift */; };
+		AA0000000000000000004B04 /* AssistantContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F04 /* AssistantContextBuilder.swift */; };
+		AA0000000000000000004B05 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F05 /* LLMService.swift */; };
+		AA0000000000000000004B06 /* AssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F06 /* AssistantViewModel.swift */; };
+		AA0000000000000000004B12 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = AA000000000000000000PKD01 /* MLXLMCommon */; };
+		AA0000000000000000004B13 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = AA000000000000000000PKD02 /* MLXLLM */; };
+		AA0000000000000000004B14 /* MLXModelDownloadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F14 /* MLXModelDownloadView.swift */; };
+		AA0000000000000000004B15 /* MLXBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F15 /* MLXBackend.swift */; };
+		AA0000000000000000004B16 /* AssistantCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F16 /* AssistantCard.swift */; };
 		AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */; };
 		AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF02 /* StarGazingIndexTests.swift */; };
 		AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF03 /* WeatherServiceTests.swift */; };
 		AA000000000000000000TB04 /* AppControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF04 /* AppControllerTests.swift */; };
 		AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF05 /* AstroModelsTests.swift */; };
+		AA000000000000000000TB06 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF06 /* ViewModelTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -85,12 +96,7 @@
 		AA0000000000000000002F18 /* NightCalculationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightCalculationService.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F19 /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIConstants.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F20 /* DarkTimeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTimeCard.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF04 /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF05 /* AstroModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModelsTests.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF06 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F51 /* AppTerminationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTerminationCoordinator.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F01 /* DetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F02 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModel.swift; sourceTree = "<group>"; };
@@ -98,6 +104,20 @@
 		AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightWeatherCardViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTimeCardViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingWindowsSectionViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F02 /* LLMBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMBackend.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F03 /* FoundationModelsBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelsBackend.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F04 /* AssistantContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantContextBuilder.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F05 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F06 /* AssistantViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F14 /* MLXModelDownloadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLXModelDownloadView.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F15 /* MLXBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MLXBackend.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F16 /* AssistantCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantCard.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF04 /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF05 /* AstroModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModelsTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF06 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -106,6 +126,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA0000000000000000004B12 /* MLXLMCommon in Frameworks */,
+				AA0000000000000000004B13 /* MLXLLM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -143,20 +165,6 @@
 			path = NightScope;
 			sourceTree = "<group>";
 		};
-		AA000000000000000000GR08 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				AA0000000000000000003F01 /* DetailViewModel.swift */,
-				AA0000000000000000003F02 /* SidebarViewModel.swift */,
-				AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */,
-				AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */,
-				AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */,
-				AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */,
-				AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
 		AA000000000000000000GR03 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -181,10 +189,12 @@
 			children = (
 				AA0000000000000000001F03 /* MilkyWayCalculator.swift */,
 				AA0000000000000000002F04 /* AppController.swift */,
+				AA0000000000000000002F51 /* AppTerminationCoordinator.swift */,
 				AA0000000000000000002F18 /* NightCalculationService.swift */,
 				AA0000000000000000002F05 /* LocationController.swift */,
 				AA0000000000000000002F06 /* WeatherService.swift */,
 				AA0000000000000000002F12 /* LightPollutionService.swift */,
+				AA000000000000000000GR09 /* Assistant */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -205,6 +215,7 @@
 				AA0000000000000000002F19 /* UIConstants.swift */,
 				AA0000000000000000002F10 /* CalendarView.swift */,
 				AA0000000000000000002F11 /* MapLocationPicker.swift */,
+				AA000000000000000000GR10 /* Assistant */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -220,6 +231,42 @@
 				AA000000000000000000TF06 /* ViewModelTests.swift */,
 			);
 			path = NightScopeTests;
+			sourceTree = "<group>";
+		};
+		AA000000000000000000GR08 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000003F01 /* DetailViewModel.swift */,
+				AA0000000000000000003F02 /* SidebarViewModel.swift */,
+				AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */,
+				AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */,
+				AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */,
+				AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */,
+				AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */,
+				AA0000000000000000004F06 /* AssistantViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		AA000000000000000000GR09 /* Assistant */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000004F02 /* LLMBackend.swift */,
+				AA0000000000000000004F03 /* FoundationModelsBackend.swift */,
+				AA0000000000000000004F04 /* AssistantContextBuilder.swift */,
+				AA0000000000000000004F05 /* LLMService.swift */,
+				AA0000000000000000004F15 /* MLXBackend.swift */,
+			);
+			path = Assistant;
+			sourceTree = "<group>";
+		};
+		AA000000000000000000GR10 /* Assistant */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000004F16 /* AssistantCard.swift */,
+				AA0000000000000000004F14 /* MLXModelDownloadView.swift */,
+			);
+			path = Assistant;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -238,6 +285,10 @@
 			dependencies = (
 			);
 			name = NightScope;
+			packageProductDependencies = (
+				AA000000000000000000PKD01 /* MLXLMCommon */,
+				AA000000000000000000PKD02 /* MLXLLM */,
+			);
 			productName = NightScope;
 			productReference = AA0000000000000000001F08 /* NightScope.app */;
 			productType = "com.apple.product-type.application";
@@ -267,7 +318,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 2630;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					AA000000000000000000TG01 = {
 						CreatedOnToolsVersion = 15.0;
@@ -288,6 +339,9 @@
 				Base,
 			);
 			mainGroup = AA000000000000000000GR01;
+			packageReferences = (
+				AA000000000000000000PKR01 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */,
+			);
 			productRefGroup = AA000000000000000000GR03 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -322,6 +376,7 @@
 				AA0000000000000000002B02 /* WeatherModels.swift in Sources */,
 				AA0000000000000000002B03 /* StarGazingIndex.swift in Sources */,
 				AA0000000000000000002B04 /* AppController.swift in Sources */,
+				AA0000000000000000002B51 /* AppTerminationCoordinator.swift in Sources */,
 				AA0000000000000000002B05 /* LocationController.swift in Sources */,
 				AA0000000000000000002B06 /* WeatherService.swift in Sources */,
 				AA0000000000000000002B18 /* NightCalculationService.swift in Sources */,
@@ -345,6 +400,14 @@
 				AA0000000000000000003B05 /* NightWeatherCardViewModel.swift in Sources */,
 				AA0000000000000000003B06 /* DarkTimeCardViewModel.swift in Sources */,
 				AA0000000000000000003B07 /* ViewingWindowsSectionViewModel.swift in Sources */,
+				AA0000000000000000004B02 /* LLMBackend.swift in Sources */,
+				AA0000000000000000004B03 /* FoundationModelsBackend.swift in Sources */,
+				AA0000000000000000004B04 /* AssistantContextBuilder.swift in Sources */,
+				AA0000000000000000004B05 /* LLMService.swift in Sources */,
+				AA0000000000000000004B06 /* AssistantViewModel.swift in Sources */,
+				AA0000000000000000004B16 /* AssistantCard.swift in Sources */,
+				AA0000000000000000004B14 /* MLXModelDownloadView.swift in Sources */,
+				AA0000000000000000004B15 /* MLXBackend.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -504,12 +567,16 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = NightScope/NightScope.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 235777R328;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_LOCATION = YES;
@@ -526,6 +593,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kleon.NightScope;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -538,12 +606,16 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = NightScope/NightScope.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 235777R328;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_LOCATION = YES;
@@ -560,6 +632,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kleon.NightScope;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -571,6 +644,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 235777R328;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -589,6 +663,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 235777R328;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
@@ -632,6 +707,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AA000000000000000000PKR01 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-examples";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA000000000000000000PKD01 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000000000000000000PKR01 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLMCommon;
+		};
+		AA000000000000000000PKD02 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000000000000000000PKR01 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLLM;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AA000000000000000000PJ01 /* Project object */;
 }

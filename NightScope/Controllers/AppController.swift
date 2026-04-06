@@ -30,6 +30,7 @@ final class AppController: ObservableObject {
     let locationController: LocationController
     let weatherService: WeatherService
     let lightPollutionService: LightPollutionService
+    let llmService: LLMService
 
     // MARK: - Published State
     @Published var selectedDate: Date = {
@@ -57,15 +58,20 @@ final class AppController: ObservableObject {
     init(locationController: LocationController? = nil,
          weatherService: WeatherService? = nil,
          lightPollutionService: LightPollutionService? = nil,
-         calculationService: NightCalculating? = nil) {
+         calculationService: NightCalculating? = nil,
+         llmService: LLMService? = nil) {
         self.locationController = locationController ?? LocationController()
         self.weatherService = weatherService ?? WeatherService()
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
         self.calculationService = calculationService ?? NightCalculationService()
+        self.llmService = llmService ?? LLMService()
         setupObservers()
     }
 
     deinit {
+        // LLM の終了シーケンスは `AssistantViewModel` と
+        // `AppTerminationCoordinator` が一元管理するため、
+        // ここでは AppController 自身が所有する計算タスクのみを停止する。
         calculationTask?.cancel()
         upcomingTask?.cancel()
         locationTask?.cancel()

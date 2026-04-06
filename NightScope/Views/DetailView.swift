@@ -2,14 +2,16 @@ import SwiftUI
 
 struct DetailView: View {
     @ObservedObject var viewModel: DetailViewModel
+    @ObservedObject var assistantViewModel: AssistantViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @StateObject private var starGazingIndexCardViewModel: StarGazingIndexCardViewModel
     @StateObject private var nightWeatherCardViewModel: NightWeatherCardViewModel
     @StateObject private var upcomingGridViewModel: UpcomingNightsGridViewModel
 
-    init(viewModel: DetailViewModel) {
+    init(viewModel: DetailViewModel, assistantViewModel: AssistantViewModel) {
         self.viewModel = viewModel
+        self.assistantViewModel = assistantViewModel
         _starGazingIndexCardViewModel = StateObject(wrappedValue: StarGazingIndexCardViewModel(lightPollutionService: viewModel.lightPollutionService))
         _nightWeatherCardViewModel = StateObject(wrappedValue: NightWeatherCardViewModel())
         _upcomingGridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: viewModel))
@@ -26,8 +28,6 @@ struct DetailView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // NightScope は没入型体験を重視するため、HIG 例外として
-        // ウィンドウツールバー背景を一時的に非表示にしている。
         .toolbarBackground(.hidden, for: .windowToolbar)
         .overlay(alignment: .bottom, content: errorOverlay)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasWeatherError)
@@ -39,6 +39,7 @@ struct DetailView: View {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 headerSection(summary: summary)
                 ViewingWindowsSection(summary: summary)
+                AssistantCard(viewModel: assistantViewModel)
                 UpcomingNightsGrid(viewModel: upcomingGridViewModel)
             }
             .padding(Spacing.md)

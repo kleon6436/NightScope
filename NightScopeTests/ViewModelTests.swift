@@ -7,6 +7,14 @@ import MapKit
 @MainActor
 final class ViewModelTests: XCTestCase {
 
+    actor AsyncCounter {
+        private(set) var value = 0
+
+        func increment() {
+            value += 1
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeHourlyWeather(cloudCover: Double = 10, weatherCode: Int = 0, windSpeed: Double = 5) -> HourlyWeather {
@@ -60,6 +68,13 @@ final class ViewModelTests: XCTestCase {
             viewingWindows: windows,
             moonPhaseAtMidnight: moonPhase
         )
+    }
+
+    private func makeMapItem(coordinate: CLLocationCoordinate2D, name: String? = nil) -> MKMapItem {
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let item = MKMapItem(location: location, address: nil)
+        item.name = name
+        return item
     }
 
     private func waitUntil(
@@ -207,8 +222,7 @@ final class ViewModelTests: XCTestCase {
 
     func test_LocationController_search_success_updatesResults() async {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        item.name = "東京駅"
+        let item = makeMapItem(coordinate: coordinate, name: "東京駅")
 
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([item]))
@@ -230,7 +244,7 @@ final class ViewModelTests: XCTestCase {
         let searchService = MockLocationSearchService(result: .failure(MockLocationSearchError.failed))
         let resolver = MockLocationNameResolver(resolvedName: "東京")
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-        sut.searchResults = [MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0)))]
+        sut.searchResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))]
 
         sut.search(query: "invalid")
 
@@ -249,8 +263,7 @@ final class ViewModelTests: XCTestCase {
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
 
         let coordinate = CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034)
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        item.name = "新宿"
+        let item = makeMapItem(coordinate: coordinate, name: "新宿")
         let baseTrigger = sut.currentLocationCenterTrigger
 
         sut.searchResults = [item]
@@ -611,5 +624,120 @@ final class ViewModelTests: XCTestCase {
         let label = vm.cardAccessibilityLabel(night: night, weather: weather, index: index)
         XCTAssertTrue(label.contains("星空指数"))
         XCTAssertTrue(label.contains("天気"))
+    }
+
+    // MARK: - AppTerminationCoordinator
+
+    func test_AppTerminationCoordinator_registerAndConsumeHandlers_executesEachHandlerOnce() async {
+        let coordinator = AppTerminationCoordinator.shared
+        _ = coordinator.consumeHandlers()
+
+        let counter = AsyncCounter()
+        _ = coordinator.registerHandler {
+            await counter.increment()
+        }
+        _ = coordinator.registerHandler {
+            await counter.increment()
+        }
+
+        let handlers = coordinator.consumeHandlers()
+        XCTAssertEqual(handlers.count, 2)
+
+        for handler in handlers {
+            await handler()
+        }
+
+        let executedCount = await counter.value
+        XCTAssertEqual(executedCount, 2)
+        XCTAssertTrue(coordinator.consumeHandlers().isEmpty)
+    }
+
+    func test_AppTerminationCoordinator_unregisterHandler_removesRegisteredHandler() async {
+        let coordinator = AppTerminationCoordinator.shared
+        _ = coordinator.consumeHandlers()
+
+        let counter = AsyncCounter()
+        let handlerID = coordinator.registerHandler {
+            await counter.increment()
+        }
+        coordinator.unregisterHandler(id: handlerID)
+
+        let handlers = coordinator.consumeHandlers()
+        XCTAssertTrue(handlers.isEmpty)
+
+        let executedCount = await counter.value
+        XCTAssertEqual(executedCount, 0)
+    }
+
+    func test_AppTerminationCoordinator_consumeHandlers_isOneShot() async {
+        let coordinator = AppTerminationCoordinator.shared
+        _ = coordinator.consumeHandlers()
+
+        let counter = AsyncCounter()
+        _ = coordinator.registerHandler {
+            await counter.increment()
+        }
+
+        let firstBatch = coordinator.consumeHandlers()
+        let secondBatch = coordinator.consumeHandlers()
+
+        XCTAssertEqual(firstBatch.count, 1)
+        XCTAssertTrue(secondBatch.isEmpty)
+
+        for handler in firstBatch {
+            await handler()
+        }
+
+        let executedCount = await counter.value
+        XCTAssertEqual(executedCount, 1)
+    }
+
+    // MARK: - LLMService termination flow
+
+    func test_LLMService_switchBackend_updatesActiveKind() {
+        let service = LLMService()
+
+        service.switchBackend(to: .mlx)
+        XCTAssertEqual(service.activeKind, .mlx)
+
+        service.switchBackend(to: .appleIntelligence)
+        XCTAssertEqual(service.activeKind, .appleIntelligence)
+    }
+
+    func test_LLMService_cancelInference_isIdempotent() async {
+        let service = LLMService()
+
+        await service.cancelInference()
+        await service.cancelInference()
+
+        XCTAssertTrue(true)
+    }
+
+    func test_LLMService_prepareForTermination_afterBackendSwitches_doesNotThrow() async {
+        let service = LLMService()
+
+        service.switchBackend(to: .mlx)
+        await service.prepareForTermination()
+
+        service.switchBackend(to: .appleIntelligence)
+        await service.prepareForTermination()
+
+        XCTAssertTrue(true)
+    }
+
+    func test_LLMService_send_afterPrepareForTermination_returnsCancellationError() async {
+        let service = LLMService()
+        await service.prepareForTermination()
+
+        let stream = service.send(userMessage: "test")
+
+        do {
+            for try await _ in stream {}
+            XCTFail("終了処理中は send が CancellationError を返すべき")
+        } catch is CancellationError {
+            XCTAssertTrue(true)
+        } catch {
+            XCTFail("予期しないエラー: \(error)")
+        }
     }
 }

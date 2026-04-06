@@ -1,14 +1,15 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var appController: AppController
+    @ObservedObject private var appController: AppController
+    @StateObject private var terminationCoordinator = AppTerminationCoordinator.shared
     @StateObject private var sidebarViewModel: SidebarViewModel
     @StateObject private var detailViewModel: DetailViewModel
+    @StateObject private var assistantViewModel: AssistantViewModel
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
-    init() {
-        let appController = AppController()
-        _appController = StateObject(wrappedValue: appController)
+    init(appController: AppController) {
+        self.appController = appController
         _sidebarViewModel = StateObject(
             wrappedValue: SidebarViewModel(
                 locationController: appController.locationController,
@@ -16,6 +17,12 @@ struct ContentView: View {
             )
         )
         _detailViewModel = StateObject(wrappedValue: DetailViewModel(appController: appController))
+        _assistantViewModel = StateObject(
+            wrappedValue: AssistantViewModel(
+                llmService: appController.llmService,
+                appController: appController
+            )
+        )
     }
 
     var body: some View {
@@ -37,7 +44,7 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            DetailView(viewModel: detailViewModel)
+            DetailView(viewModel: detailViewModel, assistantViewModel: assistantViewModel)
         }
         .frame(minWidth: Layout.windowMinWidth, minHeight: Layout.windowMinHeight)
         .toolbar(removing: .sidebarToggle)
@@ -67,10 +74,40 @@ struct ContentView: View {
         .focusedValue(\.currentLocationAction, {
             appController.locationController.requestCurrentLocation()
         })
+        .overlay {
+            if terminationCoordinator.isPreparingForTermination {
+                terminationOverlay
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: terminationCoordinator.isPreparingForTermination)
+    }
+
+    private var terminationOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.18)
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.large)
+                    .progressViewStyle(.circular)
+
+                Text("推論を安全に停止しています…")
+                    .font(.headline)
+
+                Text("完了後にアプリを終了します")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(24)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .shadow(radius: 10)
+        }
+        .transition(.opacity)
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(appController: AppController())
         .frame(width: 900, height: 700)
 }

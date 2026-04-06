@@ -15,7 +15,6 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var hasLightPollutionError: Bool = false
 
     private let appController: AppController
-    var appControllerRef: AppController { appController }
     private var cancellables = Set<AnyCancellable>()
 
     init(appController: AppController) {
