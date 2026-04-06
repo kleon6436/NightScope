@@ -8,7 +8,6 @@ struct NightScopeCommands: Commands {
     @FocusedValue(\.refreshAction) private var refreshAction: (() -> Void)?
     @FocusedValue(\.focusSearchAction) private var focusSearchAction: (() -> Void)?
     @FocusedValue(\.currentLocationAction) private var currentLocationAction: (() -> Void)?
-
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
             Button("NightScope について") {

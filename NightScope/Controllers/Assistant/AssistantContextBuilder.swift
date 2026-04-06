@@ -1,5 +1,15 @@
 import Foundation
 
+/// LLM バックエンドごとのプロンプトスタイル
+enum PromptStyle {
+    /// Apple Intelligence（短く構造化・コンテキスト節約優先）
+    case appleIntelligence
+    /// MLX 大規模モデル（4B+ / 詳細な構造化指示・データ引用明示）
+    case mlxLarge
+    /// MLX 小規模モデル（〜2GB / Gemma 3 1B 等・最短の指示）
+    case mlxSmall
+}
+
 /// NightScope のデータを LLM 用システムプロンプトに変換する純粋関数コレクション
 enum AssistantContextBuilder {
 
@@ -12,16 +22,38 @@ enum AssistantContextBuilder {
         weather: DayWeatherSummary?,
         bortleClass: Double?,
         locationName: String,
-        date: Date
+        date: Date,
+        promptStyle: PromptStyle = .appleIntelligence
     ) -> String {
-        let role = """
-        あなたは NightScope に組み込まれた星空アシスタントです。
-        天文観測、星空撮影、観測計画に関する質問に実用的かつ簡潔に答えてください。
-        ユーザーの言語（日本語または英語）に合わせて回答してください。
-        NightScope のデータに存在しない天体データや気象情報を創作してはいけません。
-        回答には必ず以下のコンテキストブロックの具体的な数値を根拠として使用してください。
-        天文・観測計画以外の話題はていねいにお断りしてください。
-        """
+        let role: String
+        switch promptStyle {
+        case .appleIntelligence:
+            role = """
+            あなたは NightScope に組み込まれた星空観測アシスタントです。
+            【必須制約】
+            - 回答は日本語のです・ます調で統一すること
+            - 天文観測・星空撮影・観測計画の質問にのみ答えること
+            - 下記コンテキストの数値のみを根拠とし、存在しない情報を創作しないこと
+            """
+        case .mlxLarge:
+            role = """
+            あなたは NightScope に組み込まれた星空観測アシスタントです。
+            以下の制約を厳守してください。
+
+            【制約】
+            1. 回答は日本語のです・ます調で統一すること
+            2. 天文観測・星空撮影・観測計画に関する質問にのみ回答すること
+            3. 下記コンテキストブロックに記載された数値・時刻・方角・気象値のみを根拠として使用すること
+            4. コンテキストに存在しない天体データや気象情報を創作・推測しないこと
+            """
+        case .mlxSmall:
+            role = """
+            あなたは星空観測アシスタントです。
+            - 日本語のです・ます調で答えてください
+            - 天文観測と星空撮影の質問だけに答えてください
+            - コンテキストの数値だけを使い、存在しない情報を作らないでください
+            """
+        }
 
         let context = buildContextBlock(
             nightSummary: nightSummary,
@@ -35,73 +67,122 @@ enum AssistantContextBuilder {
         return [role, context].joined(separator: "\n\n")
     }
 
-    /// 日付カード選択時の自動要約メッセージを生成する（モデルへの送信文）
-    static func buildProactiveMessage(
-        nightSummary: NightSummary?,
-        starGazingIndex: StarGazingIndex?,
-        weather: DayWeatherSummary?,
-        date: Date
-    ) -> String {
-        let dateStr = DateFormatters.fullDate.string(from: date)
-
+    /// LLM 非利用時のフォールバック要約テキストを生成する
+    static func buildProactiveMessage(starGazingIndex: StarGazingIndex?) -> String {
         guard let index = starGazingIndex else {
-            return "\(dateStr) の星空予報が選択されました。データを取得中です。少しお待ちください。"
+            return "データを取得中です。しばらくお待ちください。"
         }
 
-        var parts: [String] = ["\(dateStr) の星空予報を確認しました。"]
-        parts.append("星空指数は **\(index.score)点（\(index.label)）** です。")
-
-        if let summary = nightSummary {
-            if !summary.darkRangeText.isEmpty {
-                parts.append("暗い時間帯: \(summary.darkRangeText)。")
-            }
-            if let w = weather,
-               let rangeText = summary.weatherAwareRangeText(nighttimeHours: w.nighttimeHours),
-               !rangeText.isEmpty, rangeText != "月明かり" {
-                parts.append("天気を考慮した観測推奨時間: \(rangeText)。")
-            }
-            if let alt = summary.maxAltitude, let dir = summary.bestDirection {
-                parts.append(String(format: "天の川: 最高高度 %.0f°（%@方向）。", alt, dir))
-            }
+        let evaluation: String
+        switch index.tier {
+        case .excellent: evaluation = "絶好の観測日和です。"
+        case .good:      evaluation = "観測に適した夜です。"
+        case .fair:      evaluation = "まずまずの観測条件です。"
+        case .poor:      evaluation = "観測条件はやや厳しい夜です。"
+        case .bad:       evaluation = "観測が難しい夜です。"
         }
 
-        parts.append("何かご質問があればどうぞ！")
-        return parts.joined(separator: "\n")
+        return "\(index.score)点（\(index.label)）— \(evaluation)"
     }
 
     // MARK: - Card Mode
 
-    /// カード表示用 LLM プロンプト（天気に応じてアドバイス指示を切り替える）
-    static func buildCardPrompt(weather: DayWeatherSummary?) -> String {
+    /// カード表示用 LLM プロンプト（天気・バックエンドに応じてアドバイス指示を切り替える）
+    static func buildCardPrompt(weather: DayWeatherSummary?, promptStyle: PromptStyle = .appleIntelligence) -> String {
         let isBad = isBadWeather(weather)
 
-        if isBad {
-            return """
-            今夜の観測条件について、以下の形式で回答してください。各セクションは1〜2文以内に収めてください。
+        switch promptStyle {
+        case .appleIntelligence:
+            if isBad {
+                return """
+                今夜の観測条件を以下の形式で回答してください。
+                各セクションは100字以内・です・ます調で記述してください。
 
-            ## 要約
-            （星空指数・雲量・降水状況など悪天候の根拠となる数値を引用し、今夜の観測が困難な理由を端的に）
+                ## 要約
+                （星空指数・雲量・降水量の数値を引用し、観測が困難な理由を1文で）
 
-            ## アドバイス1
-            （悪天候の具体的な原因（雲量・降水・視程など）に触れ、天気回復後の観測に備える心構えを一言で）
+                ## アドバイス1
+                （悪天候の原因となる気象値に触れ、天気回復後に備える心構えを1文で）
 
-            ## アドバイス2
-            （今夜できる実践的な準備：機材メンテナンス・充電・星図学習・観測計画立案など具体的な行動を1つ）
-            """
-        } else {
-            return """
-            今夜の観測条件について、以下の形式で回答してください。各セクションは1〜2文以内に収めてください。
-            コンテキストに記載された数値（スコア・時刻・高度・方角・気象値）を積極的に引用してください。
+                ## アドバイス2
+                （今夜できる実践的な準備を1つ具体的に）
+                """
+            } else {
+                return """
+                今夜の観測条件を以下の形式で回答してください。
+                各セクションは100字以内・です・ます調で記述してください。
+                コンテキストのスコア・時刻・高度・方角・気象値を必ず数字で引用してください。
 
-            ## 要約
-            （星空指数の合計点と主要なサブスコア、天気概況を引用し今夜の観測適性を一文で結論づける）
+                ## 要約
+                （星空指数の合計点と主要サブスコア・天気概況を引用し、観測適性を1文で結論づけてください）
 
-            ## アドバイス1
-            （観測推奨時間帯と天の川ウィンドウのピーク時刻・高度・方角を引用して、最適な観測プランを具体的に）
+                ## アドバイス1
+                （観測推奨時間帯と天の川ウィンドウのピーク時刻・高度・方角を引用し、最適な観測プランを具体的に）
 
-            ## アドバイス2
-            （シーイング・結露リスク・光害レベルを踏まえた機材設定や撮影準備のポイントを具体的に）
-            """
+                ## アドバイス2
+                （シーイング・結露リスク・ボートル等級を踏まえた機材設定や撮影準備のポイントを具体的に）
+                """
+            }
+
+        case .mlxLarge:
+            if isBad {
+                return """
+                あなたは星空観測アシスタントです。今夜の観測条件について、以下の形式で日本語のです・ます調で回答してください。
+                各セクションは100字以内とします。コンテキストに記載の数値を必ず引用してください。
+
+                ## 要約
+                （星空指数・雲量・降水量の数値を引用し、今夜の観測が困難な理由を1文で説明してください）
+
+                ## アドバイス1
+                （悪天候の主な原因となる気象値（雲量・降水量・視程など）を具体的に示し、天気回復後の観測に備える心構えを1文で）
+
+                ## アドバイス2
+                （今夜できる実践的な準備を1つ、機材メンテナンス・充電・星図学習・観測計画立案などから具体的に提案してください）
+                """
+            } else {
+                return """
+                あなたは星空観測アシスタントです。今夜の観測条件について、以下の形式で日本語のです・ます調で回答してください。
+                各セクションは100字以内とします。コンテキストに記載のスコア・時刻・高度・方角・気象値を必ず数字で引用してください。
+
+                ## 要約
+                （星空指数の合計点・主要サブスコア・天気概況を引用し、今夜の観測適性を1文で結論づけてください）
+
+                ## アドバイス1
+                （観測推奨時間帯と天の川ウィンドウのピーク時刻・高度・方角を引用し、最適な観測プランを具体的に提案してください）
+
+                ## アドバイス2
+                （シーイング・結露リスク・ボートル等級を踏まえた具体的な機材設定と撮影準備のポイントを提案してください）
+                """
+            }
+
+        case .mlxSmall:
+            if isBad {
+                return """
+                星空観測アシスタントとして、今夜の観測条件を3つのセクションで日本語のです・ます調で50字以内で答えてください。
+
+                ## 要約
+                （雲量または降水量を引用し、今夜の観測が難しい理由を1文で）
+
+                ## アドバイス1
+                （天気回復後のための心構えを1文で）
+
+                ## アドバイス2
+                （今夜できる準備を1つ）
+                """
+            } else {
+                return """
+                星空観測アシスタントとして、今夜の観測条件を3つのセクションで日本語のです・ます調で50字以内で答えてください。
+
+                ## 要約
+                （星空指数の点数を引用し、今夜の観測適性を1文で）
+
+                ## アドバイス1
+                （最適な観測時間帯を1文で）
+
+                ## アドバイス2
+                （撮影設定のポイントを1文で）
+                """
+            }
         }
     }
 
@@ -145,8 +226,8 @@ enum AssistantContextBuilder {
         if isBadWeather(weather) {
             let weatherLabel = weather?.weatherLabel ?? "天候不良"
             return [
-                "今夜は\(weatherLabel)のため星空観測は困難です。天気が回復する日を待ちましょう。",
-                "悪天候の日は機材のメンテナンスや充電、星図アプリで次回の観測計画を立てるのに最適です。"
+                "今夜は\(weatherLabel)のため星空観測は難しい状況です。天気が回復する日を待ちましょう。",
+                "悪天候の日は機材のメンテナンスや充電、星図アプリで次回の観測計画を立てるのに最適な時間です。"
             ]
         }
 
@@ -155,13 +236,13 @@ enum AssistantContextBuilder {
             if let time = summary.bestViewingTime, let dir = summary.bestDirection,
                let alt = summary.maxAltitude {
                 advice1 = String(
-                    format: "%@頃、%@方向（高度 %.0f°）が天の川の見頃です。月明かりの影響が少ない時間帯を優先してください。",
+                    format: "%@頃に%@方向（高度 %.0f°）が天の川の見頃です。月明かりの影響が少ない時間帯を優先するのがおすすめです。",
                     time.nightTimeString(), dir, alt
                 )
             } else if !summary.darkRangeText.isEmpty {
-                advice1 = "暗い時間帯（\(summary.darkRangeText)）に観測してください。地平線付近の光害が少ない方向を選ぶとより良い結果が得られます。"
+                advice1 = "暗い時間帯（\(summary.darkRangeText)）での観測がおすすめです。地平線付近の光害が少ない方向を選ぶとより良い結果が得られます。"
             } else {
-                advice1 = "薄明・月明かりの影響を受けにくい時間帯を選んで観測してください。"
+                advice1 = "薄明・月明かりの影響を受けにくい時間帯を選んで観測するのがおすすめです。"
             }
         } else {
             advice1 = "観測データを取得中です。しばらくお待ちください。"
@@ -172,11 +253,11 @@ enum AssistantContextBuilder {
         case .excellent:
             advice2 = "絶好の条件です。ISO 3200〜6400・F1.4〜F2.8・20〜25秒露出で天の川をダイナミックに撮影できます。"
         case .good:
-            advice2 = "良好なコンディションです。ISO 3200・F2.8・20秒露出を基本に調整してください。"
+            advice2 = "良好なコンディションです。ISO 3200・F2.8・20秒露出を基本に調整してみましょう。"
         case .fair:
-            advice2 = "まずまずの条件です。ISO 1600〜3200・F2.8・15〜20秒露出で試してみてください。雲の切れ目を狙いましょう。"
+            advice2 = "まずまずの条件です。ISO 1600〜3200・F2.8・15〜20秒露出で試してみましょう。雲の切れ目を狙うのがポイントです。"
         case .poor, .bad:
-            advice2 = "観測条件が厳しい夜です。次の好条件日に備えて機材の確認と充電をしておきましょう。"
+            advice2 = "観測条件が厳しい夜です。次の好条件日に備えて機材の確認と充電をしておくのがおすすめです。"
         case nil:
             advice2 = "明るいレンズ（F1.4〜F2.8）と三脚は必須です。観測前に星図アプリで天体の位置を確認しておくとスムーズです。"
         }

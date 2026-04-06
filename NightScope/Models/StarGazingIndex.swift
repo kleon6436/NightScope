@@ -12,12 +12,26 @@ struct StarGazingIndex {
         static let bortleBestClass: Double = 3.0
 
         /// 暗時間帯の観測不可割合しきい値
+        /// - badCap: 全暗時間が観測不可（雨・高雲量等）→ 「観測困難」キャップ
+        /// - poorCap: 以下いずれかで「不向き」キャップを発動
+        ///   (a) 暗時間の1/4以上が観測不可（時間帯集中の悪天候）
+        ///   (b) 気象スコアが閾値未満（平均的に観測条件が悪い）
+        ///   (a)(b) の OR 条件にすることで、どちらか一方の評価軸だけで
+        ///   キャップが発動しない抜け穴を防ぎつつ、両評価軸が整合している場合は
+        ///   正しいスコアを保持する（スコア逆転現象の防止）。
         static let blockedFractionForBadCap = 1.0
-        static let blockedFractionForPoorCap = 0.5
+        static let blockedFractionForPoorCap = 0.25
 
         /// 天候キャップ後の上限スコア
         static let badCapScore = 34
         static let poorCapScore = 49
+
+        /// poorCap 発動の気象スコア閾値（0–40）
+        /// - 根拠: 40点満点の50%未満は「平均的な観測条件を下回る」とみなす。
+        ///   気象スコア20以上 かつ 暗時間帯のブロック率25%未満なら、キャップを掛けず
+        ///   スコアをそのまま反映する。逆にスコアが低い場合は時間帯分布に関わらず
+        ///   「不向き」と判断することで、高スコアが不当に低評価になる逆転を防ぐ。
+        static let weatherScoreForPoorCap = 20
 
         /// 観測可能時間スコア閾値（条件: `hours > threshold`）
         /// - 根拠: 観測時間が長いほど対象天体の追尾・再構図・雲待ちが可能になる。
@@ -243,6 +257,7 @@ struct StarGazingIndex {
             let cappedTotal = applyBadWeatherCap(
                 to: rawTotal,
                 nonWeatherBase: constellation + lightPollution,
+                weatherScore: weatherPts,
                 nightSummary: nightSummary,
                 weather: weather
             )
@@ -390,6 +405,7 @@ struct StarGazingIndex {
     // c. 降水 (0–6 pts)
     // 根拠: 霧(WMO コード 45, 48)は降水量ゼロでも視程をほぼゼロにし観測不可となる。
     //       51以上（霧雨・雨・雪）は即時観測中止に相当。
+    //       isObservationBlocked と一貫して weatherCode >= 45 を観測不可として扱う。
     private static func computePrecipitationScore(weather: DayWeatherSummary) -> Int {
         let precipitation = weather.maxPrecipitation
         let weatherCode = weather.representativeWeatherCode
@@ -400,6 +416,11 @@ struct StarGazingIndex {
         if precipitation == 0 && weatherCode <= 48 {
             // 霧のみ: 視程がほぼゼロのため最低点
             return 1
+        }
+        // weatherCode >= 45（霧・霧雨・雨・雪・雷雨）は降水量に関わらず観測不可
+        // isObservationBlocked と同じ基準で一貫して 0 点
+        if weatherCode >= 45 {
+            return 0
         }
         if precipitation < 0.1 {
             return 4
@@ -534,6 +555,7 @@ struct StarGazingIndex {
     private static func applyBadWeatherCap(
         to score: Int,
         nonWeatherBase: Int,
+        weatherScore: Int,
         nightSummary: NightSummary,
         weather: DayWeatherSummary
     ) -> Int {
@@ -551,8 +573,10 @@ struct StarGazingIndex {
             let scaled = Int(Double(nonWeatherBase) / Double(maxNonWeather) * Double(Constants.badCapScore))
             return min(score, scaled)
         }
-        if blockedFraction >= Constants.blockedFractionForPoorCap {
-            // 暗時間帯の50%以上が観測不可（小さな観測窓のみ）
+        // poorCap: 暗時間帯の1/4以上がブロック OR 気象スコアが閾値未満
+        // → どちらか一方でも「観測に向かない条件」とみなす
+        if blockedFraction >= Constants.blockedFractionForPoorCap
+            || weatherScore < Constants.weatherScoreForPoorCap {
             return min(score, Constants.poorCapScore)  // 不向き
         }
         return score

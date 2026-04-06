@@ -30,8 +30,6 @@ struct AssistantCard: View {
 
     private var sectionTitle: some View {
         HStack(spacing: Spacing.xs) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(Color.accentColor)
             Text("AI星空アシスタント")
                 .font(.title3.bold())
             Spacer()

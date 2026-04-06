@@ -51,6 +51,7 @@ final class MLXBackend: ObservableObject, LLMBackend {
     @Published private(set) var modelState: ModelState = .idle
     @Published private(set) var selectedModel: MLXModelSpec?
     @Published var downloadProgress: Double = 0
+    @Published private(set) var deletingModelIDs: Set<String> = []
 
     // MARK: - Private
 
@@ -288,6 +289,16 @@ final class MLXBackend: ObservableObject, LLMBackend {
 
     /// モデルを選択してダウンロード・ロードを開始する
     func selectAndLoad(model spec: MLXModelSpec) async {
+        // 既にロード済みなら何もしない
+        if selectedModel?.id == spec.id, modelState == .loaded { return }
+
+        // 別モデルへの切り替え時はメモリリソースを解放する（ディスクキャッシュは維持）
+        if selectedModel?.id != spec.id {
+            container = nil
+            chatSession = nil
+            modelState = .idle
+        }
+
         selectedModel = spec
         UserDefaults.standard.set(spec.id, forKey: Self.selectedModelKey)
 
@@ -295,6 +306,7 @@ final class MLXBackend: ObservableObject, LLMBackend {
         let physicalMemoryGB = Int(ProcessInfo.processInfo.physicalMemory / (1024 * 1024 * 1024))
         if physicalMemoryGB < spec.minRAMGB {
             modelState = .error("このモデルには \(spec.minRAMGB)GB 以上の RAM が推奨されます（現在 \(physicalMemoryGB)GB）")
+            return
         }
 
         await loadModel(spec: spec)
@@ -305,6 +317,50 @@ final class MLXBackend: ObservableObject, LLMBackend {
         guard !isTerminationModeEnabled else { return }
         guard let spec = selectedModel, modelState == .idle else { return }
         await loadModel(spec: spec)
+    }
+
+    /// モデルのキャッシュがディスクに存在するか確認する
+    func isDownloaded(spec: MLXModelSpec) -> Bool {
+        guard let dir = Self.cacheDirectory(for: spec.id) else { return false }
+        return FileManager.default.fileExists(atPath: dir.path)
+    }
+
+    /// モデルのディスクキャッシュを削除する
+    func deleteModel(spec: MLXModelSpec) async {
+        deletingModelIDs.insert(spec.id)
+        defer { deletingModelIDs.remove(spec.id) }
+
+        // アクティブモデルが削除対象の場合はメモリリソースも解放する
+        if selectedModel?.id == spec.id {
+            container = nil
+            chatSession = nil
+            selectedModel = nil
+            modelState = .idle
+            UserDefaults.standard.removeObject(forKey: Self.selectedModelKey)
+        }
+
+        guard let dir = Self.cacheDirectory(for: spec.id) else { return }
+        guard FileManager.default.fileExists(atPath: dir.path) else { return }
+
+        do {
+            let dirCopy = dir
+            try await Task.detached(priority: .userInitiated) {
+                try FileManager.default.removeItem(at: dirCopy)
+            }.value
+            logger.notice("Deleted model cache: \(spec.id)")
+        } catch {
+            logger.error("Failed to delete model cache: \(error.localizedDescription)")
+        }
+    }
+
+    /// MLXLMCommon (swift-transformers HubApi) のキャッシュディレクトリ
+    /// downloadBase = cachesDirectory, localRepoLocation = downloadBase/models/{repo.id}
+    private static func cacheDirectory(for modelId: String) -> URL? {
+        guard let cachesDir = FileManager.default.urls(
+            for: .cachesDirectory, in: .userDomainMask
+        ).first else { return nil }
+
+        return cachesDir.appending(path: "models/\(modelId)", directoryHint: .isDirectory)
     }
 
     // MARK: - Private

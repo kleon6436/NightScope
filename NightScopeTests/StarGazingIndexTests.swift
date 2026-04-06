@@ -367,6 +367,42 @@ final class StarGazingIndexTests: XCTestCase {
             "霧コード(45)で降水スコアが6点から1点に減るため差は5点")
     }
 
+    func test_weatherScore_drizzleCode_zerosPrecipScore() {
+        // 霧雨(code 51-55) は降水量が微量（0.05mm）でも isObservationBlocked と同様に 0 点
+        let summary = makeNightSummary()
+        let drizzle = makeWeather(
+            cloud: 80, precip: 0.05, wind: 5, humidity: 90, dewpointSpread: 2,
+            weatherCode: 51
+        )
+        let lightClearRain = makeWeather(
+            cloud: 80, precip: 0.05, wind: 5, humidity: 90, dewpointSpread: 2,
+            weatherCode: 2  // 晴れ時々曇り（code < 45）で同じ降水量
+        )
+        let idxDrizzle = computeIndex(nightSummary: summary, weather: drizzle)
+        let idxClearRain = computeIndex(nightSummary: summary, weather: lightClearRain)
+        // 霧雨コード(51)は降水スコア 0 点。code < 45 かつ precip 0.05mm は 4 点
+        XCTAssertEqual(idxClearRain.weatherScore - idxDrizzle.weatherScore, 4,
+            "霧雨コード(51)で降水スコアが0点になり、code<45同条件との差は4点")
+    }
+
+    func test_weatherScore_drizzleCode_zeroPrecip_zerosPrecipScore() {
+        // 霧雨コード(53) + 降水量ゼロでも観測不可と判断して 0 点
+        let summary = makeNightSummary()
+        let drizzleNoPrecip = makeWeather(
+            cloud: 90, precip: 0, wind: 3, humidity: 95, dewpointSpread: 1,
+            weatherCode: 53
+        )
+        let clearNoPrecip = makeWeather(
+            cloud: 90, precip: 0, wind: 3, humidity: 95, dewpointSpread: 1,
+            weatherCode: 0
+        )
+        let idxDrizzle = computeIndex(nightSummary: summary, weather: drizzleNoPrecip)
+        let idxClear = computeIndex(nightSummary: summary, weather: clearNoPrecip)
+        // code 53 は precipitation=0 でも code >= 51 のため precipitation==0 && code<45 の6点分岐に入らず 0 点
+        XCTAssertEqual(idxClear.weatherScore - idxDrizzle.weatherScore, 6,
+            "霧雨コード(53)で降水量ゼロでも降水スコアが0点になり、快晴との差は6点")
+    }
+
     func test_weatherScore_highWindGusts_reducesSeeingScore() {
         // avgWind=5(良好) でも windGusts=45(< 50 && avgWind < 35) → シーイング1点のみ
         let summary = makeNightSummary()
@@ -468,7 +504,7 @@ final class StarGazingIndexTests: XCTestCase {
     func test_compute_eveningRainThenClear_isNotBad() {
         // 夜間13時間のうち4時間が雨(31%)、残り9時間が快晴
         // → 暗時間帯(hour 0-6)のうち4時間(hour 0-3)が雨、3時間(hour 4-6)が晴れ
-        // → ブロック率 4/7 = 57% ≥ 50% → poorCap 発動（cap49）→「観測困難」にはならない
+        // → ブロック率 4/7 = 57% ≥ 25% → poorCap 発動（cap49）→「観測困難」にはならない
         let summary = makeIdealDarkSummary()
         // makeNightSummary と同じ epoch 0 を基準にして hour-of-day を一致させる
         let base = Date(timeIntervalSince1970: 0)
@@ -539,6 +575,76 @@ final class StarGazingIndexTests: XCTestCase {
         // 暗時間帯(hour 0-6)の全7時間が曇り → ブロック率100% → cap34
         XCTAssertLessThanOrEqual(idx.score, 34, "暗時間帯の全時間が曇りなら「観測困難」になるべき")
         XCTAssertEqual(idx.tier, .bad)
+    }
+
+    func test_compute_partialDrizzle_isPoor() {
+        // 暗時間帯(hour 0-6)の7時間のうち4時間が霧雨(code51) → ブロック率 4/7 ≈ 57% ≥ 25%
+        // → poorCap(49) 発動（blockedFraction条件） → 「不向き」になるべき
+        let summary = makeIdealDarkSummary()
+        let base = Date(timeIntervalSince1970: 0)
+        var hours: [HourlyWeather] = []
+        // 暗時間帯 hour 0-3: 霧雨（4時間）
+        for i in 0..<4 {
+            hours.append(makeHourlyWeather(
+                base: base, hourOffset: i,
+                cloud: 90, precip: 0.05, wind: 5, humidity: 90, dewpoint: 13,
+                weatherCode: 51
+            ))
+        }
+        // 暗時間帯 hour 4-6: 晴れ（3時間）
+        for i in 4..<7 {
+            hours.append(makeHourlyWeather(
+                base: base, hourOffset: i,
+                cloud: 10, precip: 0, wind: 5, humidity: 40, dewpoint: 5,
+                weatherCode: 0
+            ))
+        }
+        // 日中 hour 7-12: 晴れ
+        for i in 7..<13 {
+            hours.append(makeHourlyWeather(
+                base: base, hourOffset: i,
+                cloud: 10, precip: 0, wind: 5, humidity: 40, dewpoint: 5,
+                weatherCode: 0
+            ))
+        }
+        let weather = DayWeatherSummary(date: base, nighttimeHours: hours)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertLessThanOrEqual(idx.score, 49, "暗時間の57%が霧雨なら poorCap(49)が掛かり不向き以下になるべき")
+        XCTAssertTrue(idx.tier == .poor || idx.tier == .bad, "霧雨57%ブロックは不向きまたは観測困難になるべき")
+    }
+
+    func test_compute_lowWeatherScore_clearDarkHours_isPoor() {
+        // 暗時間帯はすべて晴れ（blockedFraction=0）だが、気象スコアが低い（薄曇り平均）
+        // → weatherScore < 20 の条件で poorCap 発動 → 「不向き」になるべき
+        // cloud=65%: isObservationBlocked の閾値(75%)未満なのでブロックされない
+        // weatherScore: cloudScore=2 + transparency=2 + precip=6 + seeing=4 + dew=2 = 16 < 20
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(
+            cloud: 65, precip: 0, wind: 5, humidity: 70, dewpointSpread: 6,
+            windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertLessThanOrEqual(idx.score, 49,
+            "気象スコアが20未満(薄曇り)の場合、ブロック率0%でも poorCap が掛かるべき")
+        XCTAssertTrue(idx.tier == .poor || idx.tier == .bad,
+            "平均的に薄曇りな夜（weatherScore<20）は不向き以下になるべき")
+    }
+
+    func test_compute_goodWeather_noBlockedHours_isNotPoor() {
+        // 暗時間帯はすべて晴れ（blockedFraction=0）かつ気象スコアが良好（≥20）
+        // → どちらの poorCap 条件も満たさない → 「普通」以上になるべき
+        // 回帰テスト: 全サブスコアが高いのに低評価になるスコア逆転現象の防止
+        // weatherScore: cloudScore=13 + transparency=5 + precip=6 + seeing=4 + dew=2 = 30 ≥ 20
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(
+            cloud: 25, precip: 0, wind: 5, humidity: 60, dewpointSpread: 10,
+            windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertGreaterThan(idx.score, 49,
+            "気象スコア≥20かつブロック率0%の場合は poorCap が掛からず普通以上になるべき")
+        XCTAssertTrue(idx.tier == .fair || idx.tier == .good || idx.tier == .excellent,
+            "良好な気象（weatherScore≥20）かつ晴天の暗時間帯は普通以上になるべき")
     }
 
     func test_compute_noWeather_partialScore_scalesCorrectly() {

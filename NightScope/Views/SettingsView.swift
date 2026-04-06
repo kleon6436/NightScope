@@ -1,13 +1,9 @@
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
     @EnvironmentObject private var appController: AppController
     @AppStorage("windSpeedUnit") private var windSpeedUnit: String = WindSpeedUnit.kmh.rawValue
-    @AppStorage("llm_backend") private var llmBackendRaw: String = LLMBackendKind.appleIntelligence.rawValue
-
-    private var selectedBackend: LLMBackendKind {
-        LLMBackendKind(rawValue: llmBackendRaw) ?? .appleIntelligence
-    }
 
     var body: some View {
         Form {
@@ -20,23 +16,18 @@ struct SettingsView: View {
             }
 
             Section("星空アシスタント") {
-                Picker("AI バックエンド", selection: $llmBackendRaw) {
-                    ForEach(LLMBackendKind.allCases) { kind in
-                        Text(kind.displayName).tag(kind.rawValue)
-                    }
-                }
-
-                if selectedBackend == .mlx {
-                    MLXModelDownloadView(
-                        mlxBackend: appController.llmService.mlxBackend,
-                        onModelSelected: { spec in
-                            Task { @MainActor in
-                                await appController.llmService.mlxBackend.selectAndLoad(model: spec)
-                            }
+                MLXModelDownloadView(
+                    mlxBackend: appController.llmService.mlxBackend,
+                    onModelSelected: { spec in
+                        Task { @MainActor in
+                            await appController.llmService.mlxBackend.selectAndLoad(model: spec)
                         }
-                    )
-                    .padding(.top, Spacing.xs)
-                }
+                    },
+                    onModelDeleted: { spec in
+                        await appController.llmService.mlxBackend.deleteModel(spec: spec)
+                    }
+                )
+                .padding(.top, Spacing.xs)
             }
 
             Section("アプリ情報") {
@@ -54,6 +45,18 @@ struct SettingsView: View {
         .frame(width: 360, alignment: .top)
         .padding(.vertical, Spacing.sm)
         .navigationTitle("設定")
+        .onAppear {
+            DispatchQueue.main.async {
+                guard let settingsWindow = NSApp.keyWindow,
+                      let mainWindow = NSApp.windows.first(where: { $0.isVisible && $0 != settingsWindow }) else { return }
+                let mainFrame = mainWindow.frame
+                let size = settingsWindow.frame.size
+                settingsWindow.setFrameOrigin(NSPoint(
+                    x: mainFrame.midX - size.width / 2,
+                    y: mainFrame.midY - size.height / 2
+                ))
+            }
+        }
     }
 }
 

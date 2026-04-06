@@ -40,6 +40,16 @@ final class AssistantViewModel: ObservableObject {
     var isLLMAvailable: Bool { llmService.isAvailable }
     var unavailableDescription: String { llmService.unavailableDescription }
 
+    /// アクティブなバックエンドとモデルサイズから最適なプロンプトスタイルを返す
+    private var currentPromptStyle: PromptStyle {
+        switch llmService.activeKind {
+        case .appleIntelligence:
+            return .appleIntelligence
+        case .mlx:
+            let ramGB = llmService.mlxBackend.selectedModel?.minRAMGB ?? 4
+            return ramGB <= 2 ? .mlxSmall : .mlxLarge
+        }
+    }
     /// 現在選択中の日付に対してサマリー＋アドバイス 2 件を生成する
     /// - Parameter targetDate: 生成対象の日付。nil の場合は `appController.selectedDate` を使用する。
     ///   `@Published` の willSet タイミング問題を回避するため、Combine sink からは
@@ -62,7 +72,8 @@ final class AssistantViewModel: ObservableObject {
             weather: weather,
             bortleClass: appController.lightPollutionService.bortleClass,
             locationName: appController.locationController.locationName,
-            date: date
+            date: date,
+            promptStyle: currentPromptStyle
         )
         llmService.configure(systemPrompt: systemPrompt)
 
@@ -72,7 +83,7 @@ final class AssistantViewModel: ObservableObject {
             return
         }
 
-        let prompt = AssistantContextBuilder.buildCardPrompt(weather: weather)
+        let prompt = AssistantContextBuilder.buildCardPrompt(weather: weather, promptStyle: currentPromptStyle)
 
         // ここは MainActor 上。send() を Task 外で同期的に呼び
         // ストリームを確保してから Task へ渡す。
@@ -128,10 +139,7 @@ final class AssistantViewModel: ObservableObject {
         date: Date
     ) {
         summary = AssistantContextBuilder.buildProactiveMessage(
-            nightSummary: nightSummary,
-            starGazingIndex: starGazingIndex,
-            weather: weather,
-            date: date
+            starGazingIndex: starGazingIndex
         )
         advices = AssistantContextBuilder.buildTemplateAdvices(
             nightSummary: nightSummary,
@@ -160,18 +168,54 @@ final class AssistantViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // バックエンド切替時にモデルラベルを更新
+        // バックエンド切替時にモデルラベルを更新し、即時再生成する
+        // @Published は willSet タイミングで通知するため、sink 内で llmService.activeKind を読むと
+        // まだ旧値になる。受け取った newKind を直接使ってラベルを設定する。
         llmService.$activeKind
-            .sink { [weak self] _ in self?.updateModelLabel() }
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] newKind in
+                guard let self else { return }
+                self.modelLabel = self.resolveModelLabel(for: newKind)
+                self.generateContent()
+            }
             .store(in: &cancellables)
 
+        // MLX モデル変更時にモデルラベルを更新し、即時再生成する
+        // 同様に willSet タイミング問題を避けるため、受け取った newModel を直接使う。
         llmService.mlxBackend.$selectedModel
-            .sink { [weak self] _ in self?.updateModelLabel() }
+            .dropFirst()
+            .sink { [weak self] newModel in
+                guard let self else { return }
+                if self.llmService.activeKind == .mlx {
+                    self.modelLabel = newModel?.displayName ?? "ローカル LLM"
+                }
+                guard newModel != nil else { return }
+                self.generateContent()
+            }
+            .store(in: &cancellables)
+
+        // MLX モデルのロード完了時に再生成する（ダウンロード・ロード完了後に反映）
+        llmService.mlxBackend.$modelState
+            .dropFirst()
+            .filter { $0 == .loaded }
+            .sink { [weak self] _ in
+                guard let self, self.llmService.activeKind == .mlx else { return }
+                self.generateContent()
+            }
             .store(in: &cancellables)
     }
 
     private func updateModelLabel() {
-        modelLabel = llmService.activeModelLabel
+        modelLabel = resolveModelLabel(for: llmService.activeKind)
+    }
+
+    /// `@Published` の willSet 問題を回避するため、activeKind の確定前でも正しいラベルを返す
+    private func resolveModelLabel(for kind: LLMBackendKind) -> String {
+        switch kind {
+        case .appleIntelligence: return "Apple Intelligence"
+        case .mlx: return llmService.mlxBackend.selectedModel?.displayName ?? "ローカル LLM"
+        }
     }
 
     private func collectResponseWithTimeout(
