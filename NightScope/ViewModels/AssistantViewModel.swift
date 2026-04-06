@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import OSLog
 
 @MainActor
 final class AssistantViewModel: ObservableObject {
@@ -16,6 +17,7 @@ final class AssistantViewModel: ObservableObject {
 
     private let llmService: LLMService
     private let appController: AppController
+    private let logger = Logger(subsystem: "com.kleon.NightScope", category: "AssistantViewModel")
     private var cancellables = Set<AnyCancellable>()
     private var generationTask: Task<Void, Never>?
     private var generationID = 0
@@ -100,9 +102,29 @@ final class AssistantViewModel: ObservableObject {
             guard !Task.isCancelled, generationID == currentID else { return }
 
             let parsed = AssistantContextBuilder.parseCardResponse(fullResponse)
-            if !parsed.summary.isEmpty && !parsed.advices.isEmpty {
-                summary = parsed.summary
-                advices = parsed.advices
+            let rawText = fullResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+            debugLogModelOutput(rawText: rawText, parsedSummary: parsed.summary, parsedAdvices: parsed.advices)
+            let hasModelOutput = !rawText.isEmpty || !parsed.summary.isEmpty || !parsed.advices.isEmpty
+            if hasModelOutput {
+                summary = parsed.summary.isEmpty
+                    ? (rawText.isEmpty
+                        ? AssistantContextBuilder.buildProactiveMessage(starGazingIndex: starGazingIndex)
+                        : rawText)
+                    : parsed.summary
+
+                let templateAdvices = AssistantContextBuilder.buildTemplateAdvices(
+                    nightSummary: nightSummary,
+                    tier: starGazingIndex?.tier,
+                    weather: weather
+                )
+                var mergedAdvices = parsed.advices
+                if mergedAdvices.count < 2 {
+                    for advice in templateAdvices where mergedAdvices.count < 2 {
+                        guard !mergedAdvices.contains(advice) else { continue }
+                        mergedAdvices.append(advice)
+                    }
+                }
+                advices = Array(mergedAdvices.prefix(2))
             } else {
                 applyFallback(nightSummary: nightSummary, starGazingIndex: starGazingIndex, weather: weather, date: date)
             }
@@ -185,12 +207,13 @@ final class AssistantViewModel: ObservableObject {
         // 同様に willSet タイミング問題を避けるため、受け取った newModel を直接使う。
         llmService.mlxBackend.$selectedModel
             .dropFirst()
-            .sink { [weak self] newModel in
+            .map { ($0?.displayName, $0 != nil) }
+            .sink { [weak self] displayName, hasSelectedModel in
                 guard let self else { return }
                 if self.llmService.activeKind == .mlx {
-                    self.modelLabel = newModel?.displayName ?? "ローカル LLM"
+                    self.modelLabel = displayName ?? "ローカル LLM"
                 }
-                guard newModel != nil else { return }
+                guard hasSelectedModel else { return }
                 self.generateContent()
             }
             .store(in: &cancellables)
@@ -198,8 +221,8 @@ final class AssistantViewModel: ObservableObject {
         // MLX モデルのロード完了時に再生成する（ダウンロード・ロード完了後に反映）
         llmService.mlxBackend.$modelState
             .dropFirst()
-            .filter { $0 == .loaded }
-            .sink { [weak self] _ in
+            .sink { [weak self] state in
+                guard case .loaded = state else { return }
                 guard let self, self.llmService.activeKind == .mlx else { return }
                 self.generateContent()
             }
@@ -222,34 +245,73 @@ final class AssistantViewModel: ObservableObject {
         stream: AsyncThrowingStream<String, Error>,
         timeout: Duration
     ) async -> String {
-        do {
-            return try await withThrowingTaskGroup(of: String?.self, returning: String.self) { group in
-                group.addTask {
-                    var result = ""
+        let logger = self.logger
+
+        enum CollectionResult {
+            case stream(String)
+            case timeout
+        }
+
+        return await withTaskGroup(of: CollectionResult.self, returning: String.self) { group in
+            group.addTask {
+                var result = ""
+                do {
                     for try await token in stream {
                         try Task.checkCancellation()
                         result += token
                     }
-                    return result
+                } catch {
+#if DEBUG
+                    logger.debug("LLM stream finished with error after \(result.count, privacy: .public) chars: \(error.localizedDescription, privacy: .public)")
+#endif
                 }
-                group.addTask {
-                    try await Task.sleep(for: timeout)
-                    return nil
-                }
-
-                let first = try await group.next() ?? nil
-                group.cancelAll()
-                while let _ = try await group.next() {}
-
-                return first ?? ""
+                return .stream(result)
             }
-        } catch {
-            return ""
+
+            group.addTask {
+                do {
+                    try await Task.sleep(for: timeout)
+                    return .timeout
+                } catch {
+                    return .timeout
+                }
+            }
+
+            guard let first = await group.next() else { return "" }
+
+            switch first {
+            case .stream(let text):
+                group.cancelAll()
+                while await group.next() != nil {}
+                return text
+            case .timeout:
+#if DEBUG
+                logger.debug("LLM stream timed out after \(String(describing: timeout), privacy: .public)")
+#endif
+                group.cancelAll()
+                var partial = ""
+                while let next = await group.next() {
+                    if case .stream(let text) = next, text.count > partial.count {
+                        partial = text
+                    }
+                }
+                return partial
+            }
         }
     }
 
     private func cancelCurrentGenerationTask() {
         generationTask?.cancel()
         generationTask = nil
+    }
+
+    private func debugLogModelOutput(rawText: String, parsedSummary: String, parsedAdvices: [String]) {
+#if DEBUG
+        logger.debug("LLM raw output (\(rawText.count, privacy: .public) chars): \(rawText, privacy: .public)")
+        logger.debug("LLM parsed summary (\(parsedSummary.count, privacy: .public) chars): \(parsedSummary, privacy: .public)")
+        for (index, advice) in parsedAdvices.enumerated() {
+            logger.debug("LLM parsed advice\(index + 1, privacy: .public) (\(advice.count, privacy: .public) chars): \(advice, privacy: .public)")
+        }
+#endif
     }
 }
