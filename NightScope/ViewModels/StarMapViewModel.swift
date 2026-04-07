@@ -10,6 +10,21 @@ struct StarPosition {
     let azimuth: Double    // 度 (0=北, 90=東, 180=南, 270=西)
 }
 
+// MARK: - Constellation overlay types
+
+struct ConstellationLineAltAz {
+    let startAlt: Double
+    let startAz: Double
+    let endAlt: Double
+    let endAz: Double
+}
+
+struct ConstellationLabelAltAz {
+    let alt: Double
+    let az: Double
+    let name: String
+}
+
 // MARK: - ViewModel
 
 @MainActor
@@ -25,6 +40,8 @@ final class StarMapViewModel: ObservableObject {
     @Published private(set) var moonPhase: Double = 0      // 0=新月, 0.5=満月, 1=新月
     @Published private(set) var galacticCenterAltitude: Double = 0
     @Published private(set) var galacticCenterAzimuth: Double = 0
+    @Published private(set) var constellationLines: [ConstellationLineAltAz] = []
+    @Published private(set) var constellationLabels: [ConstellationLabelAltAz] = []
 
     // MARK: - Observation datetime (independent of AppController.selectedDate)
 
@@ -92,6 +109,26 @@ final class StarMapViewModel: ObservableObject {
             ra: MilkyWayCalculator.gcRA, dec: MilkyWayCalculator.gcDec, latitude: lat, lst: lst)
         galacticCenterAzimuth  = MilkyWayCalculator.azimuth(
             ra: MilkyWayCalculator.gcRA, dec: MilkyWayCalculator.gcDec, latitude: lat, lst: lst)
+
+        // 星座線
+        constellationLines = ConstellationData.constellations.flatMap { entry in
+            entry.segments.compactMap { seg in
+                let a1 = MilkyWayCalculator.altitude(ra: seg.ra1, dec: seg.dec1, latitude: lat, lst: lst)
+                let a2 = MilkyWayCalculator.altitude(ra: seg.ra2, dec: seg.dec2, latitude: lat, lst: lst)
+                guard a1 > -15 || a2 > -15 else { return nil }
+                let z1 = MilkyWayCalculator.azimuth(ra: seg.ra1, dec: seg.dec1, latitude: lat, lst: lst)
+                let z2 = MilkyWayCalculator.azimuth(ra: seg.ra2, dec: seg.dec2, latitude: lat, lst: lst)
+                return ConstellationLineAltAz(startAlt: a1, startAz: z1, endAlt: a2, endAz: z2)
+            }
+        }
+
+        // 星座名ラベル
+        constellationLabels = ConstellationData.constellations.compactMap { entry in
+            let alt = MilkyWayCalculator.altitude(ra: entry.centerRA, dec: entry.centerDec, latitude: lat, lst: lst)
+            guard alt > -5 else { return nil }
+            let az  = MilkyWayCalculator.azimuth(ra: entry.centerRA, dec: entry.centerDec, latitude: lat, lst: lst)
+            return ConstellationLabelAltAz(alt: alt, az: az, name: entry.japaneseName)
+        }
     }
 
     // MARK: - Helpers

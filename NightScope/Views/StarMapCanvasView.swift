@@ -47,6 +47,10 @@ struct StarMapCanvasView: View {
                 // 地平線円
                 drawHorizonCircle(ctx: ctx, cx: cx, cy: cy, maxR: maxR)
 
+                // 星座線
+                drawConstellationLines(ctx: ctx, cx: cx, cy: cy, maxR: maxR,
+                                       rotationOffset: rotationOffset)
+
                 // 恒星
                 for pos in viewModel.starPositions {
                     guard pos.altitude > -1 else { continue }
@@ -56,7 +60,14 @@ struct StarMapCanvasView: View {
                         rotationOffset: rotationOffset)
                     drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                              isDark: viewModel.isNight)
+                    if pos.star.magnitude < 1.5 {
+                        drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
+                    }
                 }
+
+                // 星座名ラベル
+                drawConstellationLabels(ctx: ctx, cx: cx, cy: cy, maxR: maxR,
+                                        rotationOffset: rotationOffset)
 
                 // 太陽
                 drawSun(ctx: ctx, altitude: viewModel.sunAltitude,
@@ -98,6 +109,50 @@ struct StarMapCanvasView: View {
         let x = cx + r * sin(azRad)
         let y = cy - r * cos(azRad)
         return CGPoint(x: x, y: y)
+    }
+
+    // MARK: - Constellation line & label drawing (全天モード)
+
+    private func drawConstellationLines(ctx: GraphicsContext,
+                                        cx: Double, cy: Double, maxR: Double,
+                                        rotationOffset: Double) {
+        var path = Path()
+        for line in viewModel.constellationLines {
+            guard line.startAlt > -5 || line.endAlt > -5 else { continue }
+            let p1 = altAzToPoint(alt: max(line.startAlt, -5), az: line.startAz,
+                                   cx: cx, cy: cy, maxR: maxR, rotationOffset: rotationOffset)
+            let p2 = altAzToPoint(alt: max(line.endAlt,   -5), az: line.endAz,
+                                   cx: cx, cy: cy, maxR: maxR, rotationOffset: rotationOffset)
+            path.move(to: p1)
+            path.addLine(to: p2)
+        }
+        ctx.stroke(path,
+                   with: .color(Color(red: 0.4, green: 0.6, blue: 0.9).opacity(0.35)),
+                   lineWidth: 1)
+    }
+
+    private func drawConstellationLabels(ctx: GraphicsContext,
+                                         cx: Double, cy: Double, maxR: Double,
+                                         rotationOffset: Double) {
+        for label in viewModel.constellationLabels {
+            guard label.alt > -3 else { continue }
+            let pt = altAzToPoint(alt: label.alt, az: label.az,
+                                   cx: cx, cy: cy, maxR: maxR,
+                                   rotationOffset: rotationOffset)
+            ctx.draw(
+                Text(label.name)
+                    .font(.system(size: 9))
+                    .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
+                at: pt)
+        }
+    }
+
+    private func drawStarLabel(ctx: GraphicsContext, at point: CGPoint, name: String) {
+        ctx.draw(
+            Text(name)
+                .font(.system(size: 8))
+                .foregroundColor(.white.opacity(0.65)),
+            at: CGPoint(x: point.x + 7, y: point.y + 5))
     }
 
     private func drawHorizonCircle(ctx: GraphicsContext, cx: Double, cy: Double, maxR: Double) {
@@ -147,6 +202,21 @@ struct StarMapCanvasView: View {
             return CGPoint(x: cx + projX, y: cy - projY)
         }
 
+        // 星座線 (ジャイロモード)
+        var constPath = Path()
+        for line in viewModel.constellationLines {
+            let a1 = max(line.startAlt, -5) * .pi / 180
+            let a2 = max(line.endAlt,   -5) * .pi / 180
+            if let p1 = project(alt: a1, az: line.startAz * .pi / 180),
+               let p2 = project(alt: a2, az: line.endAz   * .pi / 180) {
+                constPath.move(to: p1)
+                constPath.addLine(to: p2)
+            }
+        }
+        ctx.stroke(constPath,
+                   with: .color(Color(red: 0.4, green: 0.6, blue: 0.9).opacity(0.35)),
+                   lineWidth: 1)
+
         // 恒星
         for pos in viewModel.starPositions {
             guard pos.altitude > -1 else { continue }
@@ -155,6 +225,22 @@ struct StarMapCanvasView: View {
             if let pt = project(alt: alt, az: az) {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight)
+                if pos.star.magnitude < 1.5 {
+                    drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
+                }
+            }
+        }
+
+        // 星座名ラベル (ジャイロモード)
+        for label in viewModel.constellationLabels {
+            let alt = label.alt * .pi / 180
+            let az  = label.az  * .pi / 180
+            if let pt = project(alt: alt, az: az) {
+                ctx.draw(
+                    Text(label.name)
+                        .font(.system(size: 9))
+                        .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
+                    at: pt)
             }
         }
 
