@@ -3,14 +3,15 @@ import SwiftUI
 // MARK: - StarMapCanvasView
 
 /// 星空マップを描画する共有ビュー (iPhone / Mac 共通)
-/// - 全天モード: 正距方位図法 (天頂中心, 地平線が外縁)
-/// - ジャイロモード: 心射図法 (viewAltitude/viewAzimuth が画面中心)
+/// - パノラマモード: 円筒等距離図法 (地平線が水平, ドラッグで方位を切り替え)
+/// - ジャイロモード: 心射図法 (viewAltitude/viewAzimuth が画面中心, iPhone 専用)
 struct StarMapCanvasView: View {
     @ObservedObject var viewModel: StarMapViewModel
 
-    // 全天モードでのドラッグ回転 (北が上からのオフセット)
-    @State private var dragOffset: Double = 0
-    @GestureState private var gestureOffset: Double = 0
+    // ドラッグ中の一時オフセット (ピクセル単位)
+    @GestureState private var gesturePixelOffset: Double = 0
+    // 累積ドラッグ量 (onEnded で viewAzimuth に反映済み)
+    @State private var dragPixelOffset: Double = 0
 
     // MARK: Body
 
@@ -19,7 +20,7 @@ struct StarMapCanvasView: View {
             ZStack {
                 canvas(size: geo.size)
                     .gesture(
-                        viewModel.isGyroMode ? nil : rotationDragGesture
+                        viewModel.isGyroMode ? nil : panoramaDragGesture(width: geo.size.width)
                     )
 
                 if viewModel.isGyroMode {
@@ -27,7 +28,7 @@ struct StarMapCanvasView: View {
                 }
             }
         }
-        .background(Color.black)
+        .background(Color(red: 0.02, green: 0.04, blue: 0.12))
     }
 
     // MARK: Canvas
@@ -36,93 +37,139 @@ struct StarMapCanvasView: View {
         Canvas { ctx, sz in
             let cx = sz.width / 2
             let cy = sz.height / 2
-            let maxR = min(sz.width, sz.height) / 2 * 0.88
 
             if viewModel.isGyroMode {
                 drawGnomonicProjection(ctx: ctx, cx: cx, cy: cy, size: sz)
             } else {
-                // ---- 全天モード ----
-                let rotationOffset = dragOffset + gestureOffset
-
-                // 地平線円
-                drawHorizonCircle(ctx: ctx, cx: cx, cy: cy, maxR: maxR)
-
-                // 星座線
-                drawConstellationLines(ctx: ctx, cx: cx, cy: cy, maxR: maxR,
-                                       rotationOffset: rotationOffset)
-
-                // 恒星
-                for pos in viewModel.starPositions {
-                    guard pos.altitude > -1 else { continue }
-                    let pt = altAzToPoint(
-                        alt: pos.altitude, az: pos.azimuth,
-                        cx: cx, cy: cy, maxR: maxR,
-                        rotationOffset: rotationOffset)
-                    drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
-                             isDark: viewModel.isNight)
-                    if pos.star.magnitude < 1.5 {
-                        drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
-                    }
-                }
-
-                // 星座名ラベル
-                drawConstellationLabels(ctx: ctx, cx: cx, cy: cy, maxR: maxR,
-                                        rotationOffset: rotationOffset)
-
-                // 太陽
-                drawSun(ctx: ctx, altitude: viewModel.sunAltitude,
-                        azimuth: viewModel.sunAzimuth,
-                        cx: cx, cy: cy, maxR: maxR, rotationOffset: rotationOffset)
-
-                // 月
-                if viewModel.moonAltitude > -1 {
-                    let moonPt = altAzToPoint(
-                        alt: viewModel.moonAltitude, az: viewModel.moonAzimuth,
-                        cx: cx, cy: cy, maxR: maxR, rotationOffset: rotationOffset)
-                    drawMoon(ctx: ctx, at: moonPt, phase: viewModel.moonPhase)
-                }
-
-                // 銀河系中心
-                if viewModel.galacticCenterAltitude > -1 {
-                    let gcPt = altAzToPoint(
-                        alt: viewModel.galacticCenterAltitude,
-                        az: viewModel.galacticCenterAzimuth,
-                        cx: cx, cy: cy, maxR: maxR, rotationOffset: rotationOffset)
-                    drawGalacticCenter(ctx: ctx, at: gcPt)
-                }
-
-                // 方位ラベル
-                drawCardinalLabels(ctx: ctx, cx: cx, cy: cy, maxR: maxR,
-                                   rotationOffset: rotationOffset)
+                drawPanoramicProjection(ctx: ctx, cx: cx, cy: cy, size: sz)
             }
         }
     }
 
-    // MARK: - Full-Sky Projection (正距方位図法)
+    // MARK: - Panoramic Projection (水平パノラマ, 円筒等距離図法)
 
-    /// 高度・方位角 → スクリーン座標 (全天モード)
-    private func altAzToPoint(alt: Double, az: Double,
-                               cx: Double, cy: Double, maxR: Double,
-                               rotationOffset: Double) -> CGPoint {
-        let r = (90 - alt) / 90 * maxR
-        let azRad = (az + rotationOffset) * .pi / 180
-        let x = cx + r * sin(azRad)
-        let y = cy - r * cos(azRad)
+    /// ピクセルオフセットからリアルタイムの表示方位を計算
+    private func effectiveAzimuth(hScale: Double) -> Double {
+        let totalPixelOffset = dragPixelOffset + gesturePixelOffset
+        // 右ドラッグ → 東方向へ = viewAzimuth を増やす
+        var az = viewModel.viewAzimuth - totalPixelOffset / hScale
+        az = az.truncatingRemainder(dividingBy: 360)
+        if az < 0 { az += 360 }
+        return az
+    }
+
+    private func drawPanoramicProjection(ctx: GraphicsContext,
+                                         cx: Double, cy: Double, size: CGSize) {
+        // 水平視野 120°
+        let hFOV: Double = 120
+        let hScale = size.width / hFOV           // pt/degree
+        let horizonY = size.height * 0.65        // 地平線のY座標
+        let az0 = effectiveAzimuth(hScale: hScale)
+
+        // ---- 地面の塗りつぶし ----
+        let groundPath = Path(CGRect(x: 0, y: horizonY, width: size.width,
+                                     height: size.height - horizonY))
+        ctx.fill(groundPath, with: .color(Color(red: 0.06, green: 0.04, blue: 0.02)))
+
+        // ---- 地平線ライン ----
+        var horizPath = Path()
+        horizPath.move(to: CGPoint(x: 0, y: horizonY))
+        horizPath.addLine(to: CGPoint(x: size.width, y: horizonY))
+        ctx.stroke(horizPath, with: .color(.white.opacity(0.3)), lineWidth: 1)
+
+        // ---- 星座線 ----
+        drawPanoramicConstellationLines(ctx: ctx, cx: cx, horizonY: horizonY,
+                                        hScale: hScale, az0: az0)
+
+        // ---- 恒星 ----
+        for pos in viewModel.starPositions {
+            guard pos.altitude > -3 else { continue }
+            let pt = panoramicPoint(alt: pos.altitude, az: pos.azimuth,
+                                     cx: cx, horizonY: horizonY,
+                                     hScale: hScale, az0: az0)
+            guard isVisible(x: pt.x, width: size.width) else { continue }
+            drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
+                     isDark: viewModel.isNight)
+            if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
+                drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
+            }
+        }
+
+        // ---- 星座名ラベル ----
+        drawPanoramicConstellationLabels(ctx: ctx, cx: cx, horizonY: horizonY,
+                                         hScale: hScale, az0: az0)
+
+        // ---- 太陽 ----
+        if viewModel.sunAltitude > -10 {
+            let pt = panoramicPoint(alt: viewModel.sunAltitude, az: viewModel.sunAzimuth,
+                                     cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
+            if isVisible(x: pt.x, width: size.width) {
+                let opacity = viewModel.sunAltitude > 0 ? 0.9
+                              : max(0, 0.3 + viewModel.sunAltitude / 18)
+                drawSunSymbol(ctx: ctx, at: pt, radius: 12, opacity: opacity)
+            }
+        }
+
+        // ---- 月 ----
+        if viewModel.moonAltitude > -3 {
+            let pt = panoramicPoint(alt: viewModel.moonAltitude, az: viewModel.moonAzimuth,
+                                     cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
+            if isVisible(x: pt.x, width: size.width) {
+                drawMoon(ctx: ctx, at: pt, phase: viewModel.moonPhase)
+            }
+        }
+
+        // ---- 銀河系中心 ----
+        if viewModel.galacticCenterAltitude > -3 {
+            let pt = panoramicPoint(alt: viewModel.galacticCenterAltitude,
+                                     az: viewModel.galacticCenterAzimuth,
+                                     cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
+            if isVisible(x: pt.x, width: size.width) {
+                drawGalacticCenter(ctx: ctx, at: pt)
+            }
+        }
+
+        // ---- 方位ラベル ----
+        drawPanoramicCardinalLabels(ctx: ctx, cx: cx, horizonY: horizonY,
+                                     hScale: hScale, az0: az0, width: size.width)
+    }
+
+    /// 高度・方位角 → パノラマ画面座標
+    private func panoramicPoint(alt: Double, az: Double,
+                                  cx: Double, horizonY: Double,
+                                  hScale: Double, az0: Double) -> CGPoint {
+        let dAz = angularDiff(az, az0)
+        let x = cx + dAz * hScale
+        let y = horizonY - alt * hScale
         return CGPoint(x: x, y: y)
     }
 
-    // MARK: - Constellation line & label drawing (全天モード)
+    /// 方位角の差 (-180〜+180, 折り返し考慮)
+    private func angularDiff(_ az: Double, _ center: Double) -> Double {
+        atan2(
+            sin((az - center) * .pi / 180),
+            cos((az - center) * .pi / 180)
+        ) * 180 / .pi
+    }
 
-    private func drawConstellationLines(ctx: GraphicsContext,
-                                        cx: Double, cy: Double, maxR: Double,
-                                        rotationOffset: Double) {
+    /// 画面内に表示されるか (横方向クリッピング)
+    private func isVisible(x: Double, width: Double) -> Bool {
+        x > -40 && x < width + 40
+    }
+
+    private func drawPanoramicConstellationLines(ctx: GraphicsContext,
+                                                  cx: Double, horizonY: Double,
+                                                  hScale: Double, az0: Double) {
         var path = Path()
         for line in viewModel.constellationLines {
-            guard line.startAlt > -5 || line.endAlt > -5 else { continue }
-            let p1 = altAzToPoint(alt: max(line.startAlt, -5), az: line.startAz,
-                                   cx: cx, cy: cy, maxR: maxR, rotationOffset: rotationOffset)
-            let p2 = altAzToPoint(alt: max(line.endAlt,   -5), az: line.endAz,
-                                   cx: cx, cy: cy, maxR: maxR, rotationOffset: rotationOffset)
+            let dAz1 = angularDiff(line.startAz, az0)
+            let dAz2 = angularDiff(line.endAz, az0)
+            // 両端とも視野外 (±80°以上) ならスキップ
+            guard abs(dAz1) < 80 || abs(dAz2) < 80 else { continue }
+            let p1 = CGPoint(x: cx + dAz1 * hScale,
+                             y: horizonY - max(line.startAlt, -5) * hScale)
+            let p2 = CGPoint(x: cx + dAz2 * hScale,
+                             y: horizonY - max(line.endAlt, -5) * hScale)
             path.move(to: p1)
             path.addLine(to: p2)
         }
@@ -131,14 +178,15 @@ struct StarMapCanvasView: View {
                    lineWidth: 1)
     }
 
-    private func drawConstellationLabels(ctx: GraphicsContext,
-                                         cx: Double, cy: Double, maxR: Double,
-                                         rotationOffset: Double) {
+    private func drawPanoramicConstellationLabels(ctx: GraphicsContext,
+                                                   cx: Double, horizonY: Double,
+                                                   hScale: Double, az0: Double) {
         for label in viewModel.constellationLabels {
-            guard label.alt > -3 else { continue }
-            let pt = altAzToPoint(alt: label.alt, az: label.az,
-                                   cx: cx, cy: cy, maxR: maxR,
-                                   rotationOffset: rotationOffset)
+            guard label.alt > -2 else { continue }
+            let dAz = angularDiff(label.az, az0)
+            guard abs(dAz) < 70 else { continue }
+            let pt = CGPoint(x: cx + dAz * hScale,
+                             y: horizonY - label.alt * hScale)
             ctx.draw(
                 Text(label.name)
                     .font(.system(size: 9))
@@ -147,22 +195,25 @@ struct StarMapCanvasView: View {
         }
     }
 
-    private func drawStarLabel(ctx: GraphicsContext, at point: CGPoint, name: String) {
-        ctx.draw(
-            Text(name)
-                .font(.system(size: 8))
-                .foregroundColor(.white.opacity(0.65)),
-            at: CGPoint(x: point.x + 7, y: point.y + 5))
-    }
-
-    private func drawHorizonCircle(ctx: GraphicsContext, cx: Double, cy: Double, maxR: Double) {
-        let horizonPath = Circle().path(in: CGRect(
-            x: cx - maxR, y: cy - maxR, width: maxR * 2, height: maxR * 2))
-        ctx.stroke(horizonPath, with: .color(.white.opacity(0.25)), lineWidth: 1)
-        // 中心点 (天頂)
-        ctx.fill(
-            Circle().path(in: CGRect(x: cx - 2, y: cy - 2, width: 4, height: 4)),
-            with: .color(.white.opacity(0.3)))
+    private func drawPanoramicCardinalLabels(ctx: GraphicsContext,
+                                              cx: Double, horizonY: Double,
+                                              hScale: Double, az0: Double,
+                                              width: Double) {
+        let cardinals: [(String, Double)] = [
+            ("北", 0), ("北東", 45), ("東", 90), ("南東", 135),
+            ("南", 180), ("南西", 225), ("西", 270), ("北西", 315)
+        ]
+        let labelY = horizonY + 14
+        for (text, az) in cardinals {
+            let dAz = angularDiff(az, az0)
+            guard abs(dAz) < 70 else { continue }
+            let x = cx + dAz * hScale
+            ctx.draw(
+                Text(text)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6)),
+                at: CGPoint(x: x, y: labelY))
+        }
     }
 
     // MARK: - Gnomonic Projection (心射図法, ジャイロモード)
@@ -171,20 +222,15 @@ struct StarMapCanvasView: View {
                                         cx: Double, cy: Double, size: CGSize) {
         let scale = min(size.width, size.height) / (2 * tan(45 * .pi / 180))
 
-        // 中心方向のデカルト座標
         let cAlt = viewModel.viewAltitude * .pi / 180
         let cAz  = viewModel.viewAzimuth  * .pi / 180
         let (cx3, cy3, cz3) = altAzToCartesian(alt: cAlt, az: cAz)
 
-        // 投影用の基底ベクトル (中心方向に垂直な 2 軸)
-        // e_east: 東方向 (方位角 +90°)
-        // e_north: 仰角増加方向
         let eAzE = (cAz + .pi / 2)
         let eEastX = cos(eAzE)
         let eEastY = sin(eAzE)
         let eEastZ = 0.0
 
-        // e_up: (c × eEast) を正規化
         let eUpX = cy3 * eEastZ - cz3 * eEastY
         let eUpY = cz3 * eEastX - cx3 * eEastZ
         let eUpZ = cx3 * eEastY - cy3 * eEastX
@@ -202,7 +248,7 @@ struct StarMapCanvasView: View {
             return CGPoint(x: cx + projX, y: cy - projY)
         }
 
-        // 星座線 (ジャイロモード)
+        // 星座線
         var constPath = Path()
         for line in viewModel.constellationLines {
             let a1 = max(line.startAlt, -5) * .pi / 180
@@ -225,13 +271,13 @@ struct StarMapCanvasView: View {
             if let pt = project(alt: alt, az: az) {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight)
-                if pos.star.magnitude < 1.5 {
+                if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                     drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
                 }
             }
         }
 
-        // 星座名ラベル (ジャイロモード)
+        // 星座名ラベル
         for label in viewModel.constellationLabels {
             let alt = label.alt * .pi / 180
             let az  = label.az  * .pi / 180
@@ -247,8 +293,7 @@ struct StarMapCanvasView: View {
         // 太陽
         if viewModel.sunAltitude > -1 {
             let alt = viewModel.sunAltitude * .pi / 180
-            let az  = viewModel.sunAzimuth  * .pi / 180
-            if let pt = project(alt: alt, az: az) {
+            if let pt = project(alt: alt, az: viewModel.sunAzimuth * .pi / 180) {
                 drawSunSymbol(ctx: ctx, at: pt, radius: 14)
             }
         }
@@ -256,8 +301,7 @@ struct StarMapCanvasView: View {
         // 月
         if viewModel.moonAltitude > -1 {
             let alt = viewModel.moonAltitude * .pi / 180
-            let az  = viewModel.moonAzimuth  * .pi / 180
-            if let pt = project(alt: alt, az: az) {
+            if let pt = project(alt: alt, az: viewModel.moonAzimuth * .pi / 180) {
                 drawMoon(ctx: ctx, at: pt, phase: viewModel.moonPhase)
             }
         }
@@ -265,18 +309,14 @@ struct StarMapCanvasView: View {
         // 銀河系中心
         if viewModel.galacticCenterAltitude > -1 {
             let alt = viewModel.galacticCenterAltitude * .pi / 180
-            let az  = viewModel.galacticCenterAzimuth  * .pi / 180
-            if let pt = project(alt: alt, az: az) {
+            if let pt = project(alt: alt, az: viewModel.galacticCenterAzimuth * .pi / 180) {
                 drawGalacticCenter(ctx: ctx, at: pt)
             }
         }
 
-        // ジャイロモード: 中心クロスヘア
         drawCrosshair(ctx: ctx, cx: cx, cy: cy)
     }
 
-    /// 仰角・方位角 (ラジアン) → 単位球面デカルト座標
-    /// x = 東, y = 北, z = 上
     private func altAzToCartesian(alt: Double, az: Double) -> (Double, Double, Double) {
         let x = cos(alt) * sin(az)
         let y = cos(alt) * cos(az)
@@ -286,11 +326,8 @@ struct StarMapCanvasView: View {
 
     // MARK: - Drawing primitives
 
-    /// 恒星の描画 (等級に応じたサイズ)
     private func drawStar(ctx: GraphicsContext, at point: CGPoint,
                           magnitude: Double, isDark: Bool) {
-        // 等級が小さい (明るい) ほど大きく描画
-        // magnitude -1.5 → radius 5, magnitude 3 → radius 1
         let radius = max(0.8, 5 - (magnitude + 1.5) * (4 / 4.5))
         let opacity = isDark ? 1.0 : max(0.1, 0.3 - magnitude * 0.05)
         let brightness = magnitude < 0 ? 1.0 : max(0.6, 1.0 - magnitude * 0.12)
@@ -300,7 +337,6 @@ struct StarMapCanvasView: View {
         ctx.fill(Circle().path(in: rect),
                  with: .color(Color.white.opacity(opacity * brightness)))
 
-        // 1等星以上は薄いグロー
         if magnitude < 1.5 {
             let glowR = radius * 2.5
             let glowRect = CGRect(x: point.x - glowR, y: point.y - glowR,
@@ -310,17 +346,12 @@ struct StarMapCanvasView: View {
         }
     }
 
-    /// 太陽の描画 (全天モード)
-    private func drawSun(ctx: GraphicsContext,
-                         altitude: Double, azimuth: Double,
-                         cx: Double, cy: Double, maxR: Double,
-                         rotationOffset: Double) {
-        let opacity = altitude > 0 ? 0.9 : max(0, 0.3 + altitude / 18)
-        guard opacity > 0 else { return }
-        let pt = altAzToPoint(alt: max(altitude, -5), az: azimuth,
-                               cx: cx, cy: cy, maxR: maxR,
-                               rotationOffset: rotationOffset)
-        drawSunSymbol(ctx: ctx, at: pt, radius: 12, opacity: opacity)
+    private func drawStarLabel(ctx: GraphicsContext, at point: CGPoint, name: String) {
+        ctx.draw(
+            Text(name)
+                .font(.system(size: 8))
+                .foregroundColor(.white.opacity(0.65)),
+            at: CGPoint(x: point.x + 7, y: point.y + 5))
     }
 
     private func drawSunSymbol(ctx: GraphicsContext, at point: CGPoint,
@@ -329,7 +360,6 @@ struct StarMapCanvasView: View {
                           width: radius * 2, height: radius * 2)
         ctx.fill(Circle().path(in: rect),
                  with: .color(Color.yellow.opacity(opacity)))
-        // 光芒
         let glowR = radius * 2.2
         let glowRect = CGRect(x: point.x - glowR, y: point.y - glowR,
                               width: glowR * 2, height: glowR * 2)
@@ -337,20 +367,14 @@ struct StarMapCanvasView: View {
                  with: .color(Color.yellow.opacity(0.08 * opacity)))
     }
 
-    /// 月の描画 (位相に応じたクレセント)
     private func drawMoon(ctx: GraphicsContext, at point: CGPoint, phase: Double) {
         let radius: Double = 10
         let rect = CGRect(x: point.x - radius, y: point.y - radius,
                           width: radius * 2, height: radius * 2)
-
-        // ベース円 (白)
         ctx.fill(Circle().path(in: rect), with: .color(.white.opacity(0.9)))
 
-        // 影で三日月を表現: phase に応じて暗い楕円を重ねる
-        // phase 0 = 新月 (全体が影), 0.5 = 満月 (影なし), 1 = 新月
-        let illumination = 1 - abs(phase * 2 - 1)  // 0=新月, 1=満月
+        let illumination = 1 - abs(phase * 2 - 1)
         if illumination < 0.98 {
-            // 影楕円の横幅: -1(完全な円)〜+1(完全な円) で変化
             let shadowXScale = 1 - illumination * 2
             let shadowW = abs(shadowXScale) * radius * 2
             let shadowX = shadowXScale >= 0
@@ -358,57 +382,27 @@ struct StarMapCanvasView: View {
                 : point.x - radius + (radius * 2 - shadowW)
             let shadowRect = CGRect(x: shadowX, y: point.y - radius,
                                     width: shadowW, height: radius * 2)
-            let alpha = max(0.0, 1.0 - illumination)
             ctx.fill(Ellipse().path(in: shadowRect),
-                     with: .color(Color.black.opacity(alpha)))
+                     with: .color(Color.black.opacity(max(0, 1 - illumination))))
         }
 
-        // 月の光輪
         let glowR = radius * 1.8
-        let glowRect = CGRect(x: point.x - glowR, y: point.y - glowR,
-                              width: glowR * 2, height: glowR * 2)
-        ctx.fill(Circle().path(in: glowRect),
+        ctx.fill(Circle().path(in: CGRect(x: point.x - glowR, y: point.y - glowR,
+                                           width: glowR * 2, height: glowR * 2)),
                  with: .color(.white.opacity(0.06)))
     }
 
-    /// 銀河系中心のマーカー
     private func drawGalacticCenter(ctx: GraphicsContext, at point: CGPoint) {
         let r: Double = 8
-        // 外周の楕円 (銀河をイメージした薄い楕円)
-        let outerRect = CGRect(x: point.x - r * 2, y: point.y - r,
-                               width: r * 4, height: r * 2)
-        ctx.fill(Ellipse().path(in: outerRect),
-                 with: .color(Color(red: 0.6, green: 0.4, blue: 1.0).opacity(0.25)))
-        // 中心点
-        let innerR: Double = 3
-        let innerRect = CGRect(x: point.x - innerR, y: point.y - innerR,
-                               width: innerR * 2, height: innerR * 2)
-        ctx.fill(Circle().path(in: innerRect),
-                 with: .color(Color(red: 0.8, green: 0.6, blue: 1.0).opacity(0.85)))
+        ctx.fill(
+            Ellipse().path(in: CGRect(x: point.x - r*2, y: point.y - r,
+                                       width: r*4, height: r*2)),
+            with: .color(Color(red: 0.6, green: 0.4, blue: 1.0).opacity(0.25)))
+        ctx.fill(
+            Circle().path(in: CGRect(x: point.x - 3, y: point.y - 3, width: 6, height: 6)),
+            with: .color(Color(red: 0.8, green: 0.6, blue: 1.0).opacity(0.85)))
     }
 
-    /// 方位ラベル (北/東/南/西)
-    private func drawCardinalLabels(ctx: GraphicsContext,
-                                    cx: Double, cy: Double, maxR: Double,
-                                    rotationOffset: Double) {
-        let labels: [(text: String, az: Double)] = [
-            ("北", 0), ("東", 90), ("南", 180), ("西", 270)
-        ]
-        let labelR = maxR + 16
-        for label in labels {
-            let az = label.az + rotationOffset
-            let azRad = az * .pi / 180
-            let x = cx + labelR * sin(azRad)
-            let y = cy - labelR * cos(azRad)
-            ctx.draw(
-                Text(label.text)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.6)),
-                at: CGPoint(x: x, y: y))
-        }
-    }
-
-    /// ジャイロモードのクロスヘア (照準)
     private func drawCrosshair(ctx: GraphicsContext, cx: Double, cy: Double) {
         let r: Double = 12
         var path = Path()
@@ -417,7 +411,6 @@ struct StarMapCanvasView: View {
         path.move(to: CGPoint(x: cx, y: cy - r))
         path.addLine(to: CGPoint(x: cx, y: cy + r))
         ctx.stroke(path, with: .color(.white.opacity(0.5)), lineWidth: 1)
-
         let circleR: Double = 5
         ctx.stroke(
             Circle().path(in: CGRect(x: cx - circleR, y: cy - circleR,
@@ -425,17 +418,22 @@ struct StarMapCanvasView: View {
             with: .color(.white.opacity(0.5)), lineWidth: 1)
     }
 
-    // MARK: - Drag Gesture (全天モード回転)
+    // MARK: - Drag Gesture (パノラマ水平スクロール)
 
-    private var rotationDragGesture: some Gesture {
-        DragGesture()
-            .updating($gestureOffset) { value, state, _ in
-                // 右ドラッグ → 時計回り回転 (方位角増加), 左ドラッグ → 反時計回り
-                state = value.translation.width / 2
+    private func panoramaDragGesture(width: Double) -> some Gesture {
+        let hScale = width / 120.0
+        return DragGesture()
+            .updating($gesturePixelOffset) { value, state, _ in
+                state = value.translation.width
             }
-            .onEnded { value in
-                dragOffset += value.translation.width / 2
-                dragOffset = dragOffset.truncatingRemainder(dividingBy: 360)
+            .onEnded { [self] value in
+                let delta = value.translation.width / hScale
+                var newAz = viewModel.viewAzimuth - delta
+                newAz = newAz.truncatingRemainder(dividingBy: 360)
+                if newAz < 0 { newAz += 360 }
+                viewModel.viewAzimuth = newAz
+                // gestureOffset がリセットされる前に dragPixelOffset をクリア
+                dragPixelOffset = 0
             }
     }
 
@@ -468,6 +466,5 @@ struct StarMapCanvasView: View {
     let appController = AppController()
     let vm = StarMapViewModel(appController: appController)
     return StarMapCanvasView(viewModel: vm)
-        .frame(width: 400, height: 400)
-        .background(Color.black)
+        .frame(width: 400, height: 500)
 }

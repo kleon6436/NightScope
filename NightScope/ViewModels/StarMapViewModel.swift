@@ -51,8 +51,8 @@ final class StarMapViewModel: ObservableObject {
 
     // MARK: - View direction (full-sky planisphere rotation or gyro center)
 
-    /// 画面中心が向く方位角 (度, 0=北, 時計回り)。全天モードでは北=上からのオフセット
-    @Published var viewAzimuth: Double = 0
+    /// 画面中心が向く方位角 (度, 0=北, 時計回り)。パノラマモードでは中央の方位
+    @Published var viewAzimuth: Double = 0   // 初期値=北向き
 
     /// 画面中心の仰角 (度, 0=地平線, 90=天頂)。ジャイロモードで使用
     @Published var viewAltitude: Double = 90
