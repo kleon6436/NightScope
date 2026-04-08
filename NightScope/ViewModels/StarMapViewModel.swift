@@ -55,7 +55,7 @@ final class StarMapViewModel: ObservableObject {
     @Published var viewAzimuth: Double = 0   // 初期値=北向き
 
     /// 画面中心の仰角 (度, 0=地平線, 90=天頂)。ジャイロモードで使用
-    @Published var viewAltitude: Double = 90
+    @Published var viewAltitude: Double = 45
 
     /// ジャイロモードの有効/無効 (iPhone のみ true にする)
     @Published var isGyroMode: Bool = false

@@ -8,10 +8,11 @@ import SwiftUI
 struct StarMapCanvasView: View {
     @ObservedObject var viewModel: StarMapViewModel
 
-    // ドラッグ中の一時オフセット (ピクセル単位)
-    @GestureState private var gesturePixelOffset: Double = 0
-    // 累積ドラッグ量 (onEnded で viewAzimuth に反映済み)
+    // ドラッグ中の一時オフセット (ピクセル単位, 横・縦)
+    @GestureState private var gestureDragOffset: CGSize = .zero
+    // 累積ドラッグ量 (onEnded で viewAzimuth/viewAltitude に反映済み, 常に 0)
     @State private var dragPixelOffset: Double = 0
+    @State private var dragPixelOffsetY: Double = 0
 
     // MARK: Body
 
@@ -48,14 +49,24 @@ struct StarMapCanvasView: View {
 
     // MARK: - Panoramic Projection (水平パノラマ, 円筒等距離図法)
 
-    /// ピクセルオフセットからリアルタイムの表示方位を計算
-    private func effectiveAzimuth(hScale: Double) -> Double {
-        let totalPixelOffset = dragPixelOffset + gesturePixelOffset
-        // 右ドラッグ → 東方向へ = viewAzimuth を増やす
-        var az = viewModel.viewAzimuth - totalPixelOffset / hScale
+    /// リアルタイムのドラッグオフセットを考慮した表示方向 (alt, az) を返す。
+    /// 天頂 (alt > 90°) を越えたときは方位を反転し折り返す。
+    private func effectiveViewDirection(hScale: Double) -> (alt: Double, az: Double) {
+        let rawAlt = viewModel.viewAltitude
+            - (dragPixelOffsetY + gestureDragOffset.height) / hScale
+        let azDelta = (dragPixelOffset + gestureDragOffset.width) / hScale
+        var az = viewModel.viewAzimuth - azDelta
+        var alt = rawAlt
+        if alt > 90 {
+            // 天頂折り返し: 頭を後ろに倒すと反対方位の空が見える
+            alt = 180 - alt
+            az += 180
+        }
+        // 地面方向は -90° でクランプ
+        alt = max(-90, min(90, alt))
         az = az.truncatingRemainder(dividingBy: 360)
         if az < 0 { az += 360 }
-        return az
+        return (alt: alt, az: az)
     }
 
     private func drawPanoramicProjection(ctx: GraphicsContext,
@@ -63,19 +74,24 @@ struct StarMapCanvasView: View {
         // 水平視野 120°
         let hFOV: Double = 120
         let hScale = size.width / hFOV           // pt/degree
-        let horizonY = size.height * 0.65        // 地平線のY座標
-        let az0 = effectiveAzimuth(hScale: hScale)
+        let (alt0, az0) = effectiveViewDirection(hScale: hScale)
+        let horizonY = cy + alt0 * hScale        // 動的地平線Y座標（画面中心 = 視点高度）
 
         // ---- 地面の塗りつぶし ----
-        let groundPath = Path(CGRect(x: 0, y: horizonY, width: size.width,
-                                     height: size.height - horizonY))
-        ctx.fill(groundPath, with: .color(Color(red: 0.06, green: 0.04, blue: 0.02)))
+        if horizonY < size.height {
+            let groundY = max(0.0, horizonY)
+            let groundPath = Path(CGRect(x: 0, y: groundY,
+                                          width: size.width, height: size.height - groundY))
+            ctx.fill(groundPath, with: .color(Color(red: 0.06, green: 0.04, blue: 0.02)))
+        }
 
         // ---- 地平線ライン ----
-        var horizPath = Path()
-        horizPath.move(to: CGPoint(x: 0, y: horizonY))
-        horizPath.addLine(to: CGPoint(x: size.width, y: horizonY))
-        ctx.stroke(horizPath, with: .color(.white.opacity(0.3)), lineWidth: 1)
+        if horizonY >= 0 && horizonY <= size.height {
+            var horizPath = Path()
+            horizPath.move(to: CGPoint(x: 0, y: horizonY))
+            horizPath.addLine(to: CGPoint(x: size.width, y: horizonY))
+            ctx.stroke(horizPath, with: .color(.white.opacity(0.3)), lineWidth: 1)
+        }
 
         // ---- 星座線 ----
         drawPanoramicConstellationLines(ctx: ctx, cx: cx, horizonY: horizonY,
@@ -418,22 +434,35 @@ struct StarMapCanvasView: View {
             with: .color(.white.opacity(0.5)), lineWidth: 1)
     }
 
-    // MARK: - Drag Gesture (パノラマ水平スクロール)
+    // MARK: - Drag Gesture (パノラマ 上下左右スクロール)
 
     private func panoramaDragGesture(width: Double) -> some Gesture {
         let hScale = width / 120.0
         return DragGesture()
-            .updating($gesturePixelOffset) { value, state, _ in
-                state = value.translation.width
+            .updating($gestureDragOffset) { value, state, _ in
+                state = value.translation      // CGSize (width, height) をそのまま保持
             }
             .onEnded { [self] value in
-                let delta = value.translation.width / hScale
-                var newAz = viewModel.viewAzimuth - delta
+                // --- 仰角計算（天頂折り返しを考慮）---
+                let rawAlt = viewModel.viewAltitude - value.translation.height / hScale
+                var commitAlt = rawAlt
+                var azFlip: Double = 0
+                if commitAlt > 90 {
+                    commitAlt = 180 - commitAlt
+                    azFlip = 180
+                }
+                commitAlt = max(-90, min(90, commitAlt))
+
+                // --- 方位計算 ---
+                let deltaAz = value.translation.width / hScale
+                var newAz = viewModel.viewAzimuth - deltaAz + azFlip
                 newAz = newAz.truncatingRemainder(dividingBy: 360)
                 if newAz < 0 { newAz += 360 }
-                viewModel.viewAzimuth = newAz
-                // gestureOffset がリセットされる前に dragPixelOffset をクリア
-                dragPixelOffset = 0
+
+                viewModel.viewAltitude = commitAlt
+                viewModel.viewAzimuth  = newAz
+                dragPixelOffset  = 0
+                dragPixelOffsetY = 0
             }
     }
 
