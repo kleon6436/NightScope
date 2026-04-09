@@ -1043,5 +1043,106 @@ enum StarCatalog {
         ( 344.52, -32.35, 4.29),  // PsA: β PsA
         ( 338.22, -36.10, 4.34),  // PsA: ι PsA
         ( 343.00, -35.78, 4.94),  // PsA: τ PsA
+        // --- Cet additional ---
+        (  19.87,   -8.18, 4.84),  // Cet: σ Cet
+        (  28.66,   -3.22, 4.90),  // Cet: χ Cet
+        (  33.04,   -5.93, 4.89),  // Cet: 55 Cet
+        (  30.97,  -17.35, 4.74),  // Cet: τ Cet
+        // --- Eri additional ---
+        (  32.87,  -21.00, 4.75),  // Eri: τ2 Eri
+        (  48.73,  -23.62, 4.97),  // Eri: τ6 Eri
+        (  53.83,  -21.00, 4.67),  // Eri: τ9 Eri
+        (  65.17,   -7.65, 4.43),  // Eri: o1 Eri
+        (  68.12,  -11.87, 4.29),  // Eri: f Eri
+        // --- Ori additional ---
+        (  86.94,  -14.82, 4.50),  // Ori: 41 Ori
+        // --- Tau additional ---
+        (  57.74,   14.69, 4.99),  // Tau: θ2 Tau
+        (  59.50,   17.93, 4.29),  // Tau: 27 Tau (Pleione)
+        // --- And additional ---
+        (   0.14,   38.50, 4.52),  // And: θ And
+        ( 353.42,   46.46, 4.25),  // And: ξ And
+        ( 358.56,   30.86, 4.34),  // And: 51 And
+        // --- Tri additional ---
+        (  27.90,   33.85, 4.95),  // Tri: δ Tri
+        // --- Per additional ---
+        (  66.71,   47.89, 4.57),  // Per: σ Per
+        // --- Aur additional ---
+        (  79.52,   33.17, 4.99),  // Aur: ω Aur
+        // --- Mon additional ---
+        (  92.73,    8.93, 4.50),  // Mon: δ Mon
+        (  96.40,    2.40, 4.68),  // Mon: 13 Mon
+        // --- Leo additional ---
+        ( 166.19,   23.42, 4.08),  // Leo: χ Leo
+        ( 172.41,   25.68, 4.69),  // Leo: 60 Leo
+        ( 175.32,   23.42, 4.75),  // Leo: 63 Leo
+        // --- Vir additional ---
+        ( 202.00,   -5.66, 4.91),  // Vir: 109 Vir
+        ( 216.65,   -2.40, 4.64),  // Vir: π Vir
+        ( 204.64,   -2.40, 4.97),  // Vir: ρ Vir
+        // --- Sgr additional ---
+        ( 296.86,  -18.95, 4.98),  // Sgr: 63 Sgr
+        // --- Cap additional ---
+        ( 306.68,  -26.92, 4.72),  // Cap: ρ Cap
+        ( 300.18,  -12.54, 4.51),  // Cap: η Cap
+        ( 299.37,   -8.50, 4.69),  // Cap: ν Cap
+        // --- Aqr additional ---
+        ( 320.74,  -11.22, 4.59),  // Aqr: π Aqr
+        ( 331.45,  -14.57, 4.78),  // Aqr: b2 Aqr
+        // --- Peg additional ---
+        ( 324.48,   27.95, 4.76),  // Peg: 9 Peg
+        ( 332.53,   29.30, 4.29),  // Peg: ψ Peg
+        ( 340.69,   23.39, 4.62),  // Peg: ο Peg
+        ( 342.96,   19.79, 4.64),  // Peg: σ Peg
+        // --- Psc additional ---
+        (  18.44,   20.00, 4.87),  // Psc: ο Psc
+        (  20.13,   22.52, 4.28),  // Psc: π Psc
+        (  15.43,   15.34, 4.62),  // Psc: φ Psc
+        // --- Ari additional ---
+        (  40.93,   27.26, 4.97),  // Ari: π Ari
+        (  28.66,   20.81, 4.78),  // Ari: σ Ari
+        // --- Gem additional ---
+        ( 113.18,   21.98, 4.90),  // Gem: μ Gem
+        // --- Cnc additional ---
+        ( 134.62,   28.76, 5.00),  // Cnc: τ Cnc
+        // --- UMa additional ---
+        ( 178.46,   47.79, 4.66),  // UMa: ψ UMa
+        // --- CVn additional ---
+        ( 187.29,   36.40, 4.99),  // CVn: 2 CVn
+        // --- Com additional ---
+        ( 183.95,   28.27, 4.99),  // Com: 14 Com
+        // --- Boo additional ---
+        ( 213.71,   13.73, 4.86),  // Boo: φ Boo
+        ( 217.00,   25.35, 4.81),  // Boo: 38 Boo
+        // --- Her additional ---
+        ( 243.59,   32.69, 4.83),  // Her: ρ Her
+        ( 268.93,   30.93, 5.00),  // Her: χ Her
+        // --- Oph additional ---
+        ( 260.50,   13.73, 4.45),  // Oph: υ Oph
+        ( 252.97,    5.57, 4.63),  // Oph: 45 Oph
+        // --- Aql additional ---
+        ( 286.35,   13.87, 4.02),  // Aql: ζ Aql
+        ( 300.94,    2.93, 4.71),  // Aql: 65 Aql
+        // --- Cyg additional ---
+        ( 316.00,   53.37, 4.73),  // Cyg: σ Cyg
+        // --- Vul additional ---
+        ( 304.71,   24.67, 4.77),  // Vul: 15 Vul
+        // --- Sge additional ---
+        ( 297.07,   16.84, 5.00),  // Sge: ε Sge
+        // --- Equ additional ---
+        ( 316.57,    6.81, 4.49),  // Equ: β Equ
+        // --- Dra additional ---
+        ( 172.85,   69.33, 3.84),  // Dra: λ Dra
+        ( 228.29,   69.79, 4.23),  // Dra: 57 Dra
+        // --- Cep additional ---
+        ( 329.40,   68.68, 4.32),  // Cep: κ Cep
+        ( 350.89,   64.63, 4.35),  // Cep: π Cep
+        // --- Cas additional ---
+        (  28.60,   60.72, 4.72),  // Cas: λ Cas
+        // --- Sct additional ---
+        ( 281.26,   -4.74, 4.22),  // Sct: γ Sct
+        // --- For additional ---
+        (  45.90,  -24.02, 4.69),  // For: η For
+        (  50.22,  -34.10, 4.74),  // For: λ For
     ]
 }
