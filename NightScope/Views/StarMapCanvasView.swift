@@ -14,6 +14,10 @@ struct StarMapCanvasView: View {
     @State private var dragPixelOffset: Double = 0
     @State private var dragPixelOffsetY: Double = 0
 
+    // 水平視野角 (度): 30°〜150°, デフォルト 90° (人間の自然な視野に近い)
+    @State private var fov: Double = 90
+    @GestureState private var gestureScale: Double = 1.0
+
     // MARK: Body
 
     var body: some View {
@@ -23,9 +27,26 @@ struct StarMapCanvasView: View {
                     .gesture(
                         viewModel.isGyroMode ? nil : panoramaDragGesture(width: geo.size.width)
                     )
+                    .gesture(pinchGesture)
 
                 if viewModel.isGyroMode {
                     gyroModeIndicator
+                }
+
+                // ピンチ中のみ視野角を表示
+                if gestureScale != 1.0 {
+                    let displayFov = max(30.0, min(150.0, fov / max(0.1, gestureScale)))
+                    VStack {
+                        Spacer()
+                        Text(String(format: "視野 %.0f°", displayFov))
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(.black.opacity(0.4))
+                            .clipShape(Capsule())
+                            .padding(.bottom, 24)
+                    }
                 }
             }
         }
@@ -71,8 +92,8 @@ struct StarMapCanvasView: View {
 
     private func drawPanoramicProjection(ctx: GraphicsContext,
                                          cx: Double, cy: Double, size: CGSize) {
-        // 水平視野 120°
-        let hFOV: Double = 120
+        // 水平視野: ピンチで調整可能 (30°〜150°), デフォルト 90°
+        let hFOV = max(30.0, min(150.0, fov / max(0.1, gestureScale)))
         let hScale = size.width / hFOV           // pt/degree
         let (alt0, az0) = effectiveViewDirection(hScale: hScale)
         let horizonY = cy + alt0 * hScale        // 動的地平線Y座標（画面中心 = 視点高度）
@@ -437,7 +458,7 @@ struct StarMapCanvasView: View {
     // MARK: - Drag Gesture (パノラマ 上下左右スクロール)
 
     private func panoramaDragGesture(width: Double) -> some Gesture {
-        let hScale = width / 120.0
+        let hScale = width / fov
         return DragGesture()
             .updating($gestureDragOffset) { value, state, _ in
                 state = value.translation      // CGSize (width, height) をそのまま保持
@@ -463,6 +484,19 @@ struct StarMapCanvasView: View {
                 viewModel.viewAzimuth  = newAz
                 dragPixelOffset  = 0
                 dragPixelOffsetY = 0
+            }
+    }
+
+    // MARK: - Pinch Gesture (視野角ズーム)
+
+    /// ピンチで水平視野角を調整する。広げると狭くなる (望遠鏡的ズームイン)。
+    private var pinchGesture: some Gesture {
+        MagnificationGesture()
+            .updating($gestureScale) { value, state, _ in
+                state = value
+            }
+            .onEnded { [self] value in
+                fov = max(30, min(150, fov / value))
             }
     }
 
