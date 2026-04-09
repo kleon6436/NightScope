@@ -33,16 +33,6 @@ struct DetailView: View {
         // NightScope は没入型体験を重視するため、HIG 例外として
         // ウィンドウツールバー背景を一時的に非表示にしている。
         .toolbarBackground(.hidden, for: .windowToolbar)
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    showStarMap = true
-                } label: {
-                    Label("星空マップ", systemImage: "sparkles")
-                }
-                .help("星空マップを表示")
-            }
-        }
         .sheet(isPresented: $showStarMap) {
             macStarMapSheet
         }
@@ -194,8 +184,17 @@ struct DetailView: View {
 
             if let index = viewModel.starGazingIndex {
                 Divider()
-                Text("星空観測情報")
-                    .font(.title3.bold())
+                HStack(alignment: .center, spacing: Spacing.sm) {
+                    Text("星空観測情報")
+                        .font(.title3.bold())
+                    Spacer()
+                    Button {
+                        showStarMap = true
+                    } label: {
+                        Label("星空マップ", systemImage: "sparkles")
+                    }
+                    .help("星空マップを表示")
+                }
                 StarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
             }
 
