@@ -93,6 +93,8 @@
 		F6CD4B6B293C9471C424C02A /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
 		FC01B28AAAA3D24EA5E24686 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
 		FCBBDF3EB1CA5D5B3BE17896 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
+		BB0000000000000000003B01 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
+		BB0000000000000000003B02 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -165,6 +167,7 @@
 		BB0000000000000000003F08 /* StarMapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapViewModel.swift; sourceTree = "<group>"; };
 		BB0000000000000000002F22 /* StarMapCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasView.swift; sourceTree = "<group>"; };
 		BB0000000000000000004F01 /* iOSStarMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSStarMapView.swift; sourceTree = "<group>"; };
+		BB0000000000000000003F01 /* stars_fill.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stars_fill.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -267,6 +270,7 @@
 				AA0000000000000000002F01 /* AstroModels.swift */,
 				AA0000000000000000002F02 /* WeatherModels.swift */,
 				AA0000000000000000002F03 /* StarGazingIndex.swift */,
+				BB0000000000000000003F01 /* stars_fill.json */,
 				BB0000000000000000002F21 /* StarCatalog.swift */,
 				BB0000000000000000002F23 /* ConstellationData.swift */,
 			);
@@ -453,6 +457,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB0000000000000000003B02 /* stars_fill.json in Resources */,
 				7E100000000000000000IC01 /* NightScope.icon in Resources */,
 				824FD5CAFE4F9BD597800662 /* Assets.xcassets in Resources */,
 			);
@@ -462,6 +467,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB0000000000000000003B01 /* stars_fill.json in Resources */,
 				6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */,
 				AA0000000000000000001B05 /* Assets.xcassets in Resources */,
 			);
