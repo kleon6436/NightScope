@@ -146,17 +146,35 @@ final class StarMapViewModel: ObservableObject {
 
     /// 進行中の計算タスク (新しい update() 呼び出しでキャンセルする)
     private var _updateTask: Task<Void, Never>?
-    /// タイムラプス中の位置計算フレームレート制限用タイムスタンプ
+    /// trailing-edge debounce 用タスク
+    private var _trailingTask: Task<Void, Never>?
+    /// 前回の計算開始タイムスタンプ (全 update() 呼び出しで共通スロットルに使用)
     private var _lastPositionUpdateTime: TimeInterval = 0
-    private static let minTimelapseUpdateInterval: TimeInterval = 1.0 / 15  // 15fps
+    /// 計算更新インターバル: 30fps (手動操作・タイムラプス共通)
+    private static let minUpdateInterval: TimeInterval = 1.0 / 30
 
     func update() {
-        // タイムラプス中は位置計算を 15fps に間引く (displayDate は 30fps で更新)
-        if isTimelapsePlaying {
-            let now = Date.timeIntervalSinceReferenceDate
-            guard now - _lastPositionUpdateTime >= Self.minTimelapseUpdateInterval else { return }
-            _lastPositionUpdateTime = now
+        let now = Date.timeIntervalSinceReferenceDate
+        let elapsed = now - _lastPositionUpdateTime
+
+        if elapsed < Self.minUpdateInterval {
+            // 前回から時間が短い → trailing-edge debounce でインターバル後に最終値を計算
+            _trailingTask?.cancel()
+            let remaining = Self.minUpdateInterval - elapsed
+            _trailingTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                await MainActor.run { self?._executeUpdate() }
+            }
+            return
         }
+        _executeUpdate()
+    }
+
+    private func _executeUpdate() {
+        _lastPositionUpdateTime = Date.timeIntervalSinceReferenceDate
+        _trailingTask?.cancel()
+        _trailingTask = nil
 
         // MainActor 上でパラメータを読み取り、バックグラウンドへ渡す
         let location = appController.locationController.selectedLocation
@@ -209,41 +227,64 @@ final class StarMapViewModel: ObservableObject {
 
     // MARK: - Background Computation
 
+    /// B-V 色指数テーブルをキャッシュ。`StarCatalog.stars` と同じ順序・サイズで、
+    /// 初回アクセス時に 1 度だけ計算される (Swift static property は thread-safe)。
+    private nonisolated static let _cachedStarColors: [Color] = {
+        StarCatalog.stars.map { _starColorForBV($0.colorIndex) }
+    }()
+
     /// バックグラウンドスレッドで安全に実行できる純粋計算。
     /// MainActor の状態を一切参照しない nonisolated な static メソッド。
     private nonisolated static func _compute(lat: Double, lon: Double, jd: Double, lst: Double,
                                   date: Date,
                                   activeMeteorShowers: [MeteorShower]) -> _Snapshot {
-        // 恒星 (altAz 統合関数で三角関数の重複計算を排除、色を事前計算)
-        let stars = StarCatalog.stars.map { star -> StarPosition in
-            let (alt, az) = MilkyWayCalculator.altAz(ra: star.ra, dec: star.dec,
-                                                      latitude: lat, lst: lst)
-            return StarPosition(star: star, altitude: alt, azimuth: az,
-                                precomputedColor: _starColorForBV(star.colorIndex))
+        // lat の sin/cos を 1 度だけ計算して全天体で共有 (Fix 3)
+        let latRad = lat * .pi / 180.0
+        let cosLat = cos(latRad)
+        let sinLat = sin(latRad)
+
+        // 恒星: altAzFast で lat sin/cos を共有、色キャッシュを参照、地平線下をフィルタ (Fix 1, 3, 5)
+        let cachedColors = _cachedStarColors
+        let catalog = StarCatalog.stars
+        var stars = [StarPosition]()
+        stars.reserveCapacity(catalog.count / 2)
+        for i in catalog.indices {
+            let star = catalog[i]
+            let (alt, az) = MilkyWayCalculator.altAzFast(ra: star.ra, dec: star.dec,
+                                                          cosLat: cosLat, sinLat: sinLat,
+                                                          lst: lst)
+            guard alt > -3 else { continue }  // 地平線以下はスキップ
+            stars.append(StarPosition(star: star, altitude: alt, azimuth: az,
+                                      precomputedColor: cachedColors[i]))
         }
 
         // 太陽
         let sun = MilkyWayCalculator.sunRaDec(jd: jd)
-        let (sunAlt, sunAz) = MilkyWayCalculator.altAz(ra: sun.ra, dec: sun.dec,
-                                                        latitude: lat, lst: lst)
+        let (sunAlt, sunAz) = MilkyWayCalculator.altAzFast(ra: sun.ra, dec: sun.dec,
+                                                            cosLat: cosLat, sinLat: sinLat,
+                                                            lst: lst)
 
         // 月
         let moon = MilkyWayCalculator.moonRaDec(jd: jd)
-        let (moonAlt, moonAz) = MilkyWayCalculator.altAz(ra: moon.ra, dec: moon.dec,
-                                                          latitude: lat, lst: lst)
+        let (moonAlt, moonAz) = MilkyWayCalculator.altAzFast(ra: moon.ra, dec: moon.dec,
+                                                              cosLat: cosLat, sinLat: sinLat,
+                                                              lst: lst)
 
         // 銀河系中心
-        let (gcAlt, gcAz) = MilkyWayCalculator.altAz(ra: MilkyWayCalculator.gcRA,
-                                                      dec: MilkyWayCalculator.gcDec,
-                                                      latitude: lat, lst: lst)
+        let (gcAlt, gcAz) = MilkyWayCalculator.altAzFast(ra: MilkyWayCalculator.gcRA,
+                                                          dec: MilkyWayCalculator.gcDec,
+                                                          cosLat: cosLat, sinLat: sinLat,
+                                                          lst: lst)
 
-        // 星座線 (altAz 統合関数で各端点の計算を半減)
+        // 星座線 (altAzFast で lat sin/cos を共有)
         let constLines: [ConstellationLineAltAz] = ConstellationData.constellations.flatMap { entry in
             entry.segments.compactMap { seg -> ConstellationLineAltAz? in
-                let (a1, z1) = MilkyWayCalculator.altAz(ra: seg.ra1, dec: seg.dec1,
-                                                         latitude: lat, lst: lst)
-                let (a2, z2) = MilkyWayCalculator.altAz(ra: seg.ra2, dec: seg.dec2,
-                                                         latitude: lat, lst: lst)
+                let (a1, z1) = MilkyWayCalculator.altAzFast(ra: seg.ra1, dec: seg.dec1,
+                                                             cosLat: cosLat, sinLat: sinLat,
+                                                             lst: lst)
+                let (a2, z2) = MilkyWayCalculator.altAzFast(ra: seg.ra2, dec: seg.dec2,
+                                                             cosLat: cosLat, sinLat: sinLat,
+                                                             lst: lst)
                 guard a1 > -15 || a2 > -15 else { return nil }
                 return ConstellationLineAltAz(startAlt: a1, startAz: z1, endAlt: a2, endAz: z2)
             }
@@ -251,8 +292,9 @@ final class StarMapViewModel: ObservableObject {
 
         // 星座名ラベル
         let constLabels: [ConstellationLabelAltAz] = ConstellationData.constellations.compactMap { entry in
-            let (alt, az) = MilkyWayCalculator.altAz(ra: entry.centerRA, dec: entry.centerDec,
-                                                      latitude: lat, lst: lst)
+            let (alt, az) = MilkyWayCalculator.altAzFast(ra: entry.centerRA, dec: entry.centerDec,
+                                                          cosLat: cosLat, sinLat: sinLat,
+                                                          lst: lst)
             guard alt > -5 else { return nil }
             return ConstellationLabelAltAz(alt: alt, az: az, name: entry.japaneseName)
         }
@@ -262,13 +304,14 @@ final class StarMapViewModel: ObservableObject {
 
         // 流星群放射点
         let meteorRadiants = activeMeteorShowers.map { shower -> (shower: MeteorShower, altitude: Double, azimuth: Double) in
-            let (alt, az) = MilkyWayCalculator.altAz(ra: shower.radiantRA, dec: shower.radiantDec,
-                                                      latitude: lat, lst: lst)
+            let (alt, az) = MilkyWayCalculator.altAzFast(ra: shower.radiantRA, dec: shower.radiantDec,
+                                                          cosLat: cosLat, sinLat: sinLat,
+                                                          lst: lst)
             return (shower: shower, altitude: alt, azimuth: az)
         }
 
         // 天の川バンド (事前計算してキャッシュ)
-        let bandPoints = _computeMilkyWayBandPoints(lat: lat, lst: lst)
+        let bandPoints = _computeMilkyWayBandPoints(cosLat: cosLat, sinLat: sinLat, lat: lat, lst: lst)
 
         return _Snapshot(lat: lat, lst: lst,
                          starPositions: stars,
@@ -281,23 +324,27 @@ final class StarMapViewModel: ObservableObject {
     }
 
     /// 天の川バンドの alt/az/halfH を計算して返す (描画には含まない純データ)。
-    private nonisolated static func _computeMilkyWayBandPoints(lat: Double, lst: Double) -> [MilkyWayBandPoint] {
+    private nonisolated static func _computeMilkyWayBandPoints(cosLat: Double, sinLat: Double,
+                                                               lat: Double, lst: Double) -> [MilkyWayBandPoint] {
         var result = [MilkyWayBandPoint]()
         let step: Double = 5
         for li in stride(from: 0.0, through: 360.0, by: step) {
             let eq0 = MilkyWayCalculator.galacticToEquatorial(l: li, b: 0)
-            let (alt0, az0) = MilkyWayCalculator.altAz(ra: eq0.ra, dec: eq0.dec,
-                                                        latitude: lat, lst: lst)
+            let (alt0, az0) = MilkyWayCalculator.altAzFast(ra: eq0.ra, dec: eq0.dec,
+                                                            cosLat: cosLat, sinLat: sinLat,
+                                                            lst: lst)
             guard alt0 > -5 else { continue }
 
             let bWidth: Double = li > 270 || li < 90 ? 12 : 8
             let eq1 = MilkyWayCalculator.galacticToEquatorial(l: li, b:  bWidth)
             let eq2 = MilkyWayCalculator.galacticToEquatorial(l: li, b: -bWidth)
-            let (alt1, _) = MilkyWayCalculator.altAz(ra: eq1.ra, dec: eq1.dec,
-                                                      latitude: lat, lst: lst)
-            let (alt2, _) = MilkyWayCalculator.altAz(ra: eq2.ra, dec: eq2.dec,
-                                                      latitude: lat, lst: lst)
-            let halfHDeg = max(3.0 / 1, abs(alt1 - alt2) / 2)  // 度単位; Canvas が hScale を掛ける
+            let (alt1, _) = MilkyWayCalculator.altAzFast(ra: eq1.ra, dec: eq1.dec,
+                                                          cosLat: cosLat, sinLat: sinLat,
+                                                          lst: lst)
+            let (alt2, _) = MilkyWayCalculator.altAzFast(ra: eq2.ra, dec: eq2.dec,
+                                                          cosLat: cosLat, sinLat: sinLat,
+                                                          lst: lst)
+            let halfHDeg = max(3.0 / 1, abs(alt1 - alt2) / 2)
             result.append(MilkyWayBandPoint(az: az0, alt: alt0, halfH: halfHDeg, li: li))
         }
         return result

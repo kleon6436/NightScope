@@ -202,7 +202,6 @@ struct StarMapCanvasView: View {
 
         // ---- 恒星 ----
         for pos in viewModel.starPositions {
-            guard pos.altitude > -3 else { continue }
             // 広視野では暗い星をスキップして描画負荷を軽減
             if hFOV > 100 && pos.star.magnitude > 6.5 { continue }
             // 地平線近くの暗い星をスキップ
@@ -413,7 +412,6 @@ struct StarMapCanvasView: View {
 
         // 恒星
         for pos in viewModel.starPositions {
-            guard pos.altitude > -1 else { continue }
             // 地平線近くの暗い星をスキップ
             if pos.altitude < 5 && pos.star.magnitude > 6.0 { continue }
             let alt = pos.altitude * .pi / 180

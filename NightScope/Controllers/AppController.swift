@@ -63,6 +63,11 @@ final class AppController: ObservableObject {
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
         self.calculationService = calculationService ?? NightCalculationService()
         setupObservers()
+        // 星カタログ（JSON 693KB）と色テーブルをバックグラウンドでプリウォーム。
+        // StarMapViewModel が初回 _compute を実行する前に準備を完了させる。
+        Task.detached(priority: .background) {
+            _ = StarCatalog.stars.count
+        }
     }
 
     deinit {

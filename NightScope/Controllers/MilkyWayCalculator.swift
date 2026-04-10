@@ -45,15 +45,21 @@ enum MilkyWayCalculator {
     // altitude() / azimuth() を個別に呼ぶと中間値を2回計算してしまうため、
     // 1回の呼び出しで両方を返す統合関数。ホットループ (星9,000+ 件) で使用する。
     static func altAz(ra: Double, dec: Double, latitude: Double, lst: Double) -> (alt: Double, az: Double) {
+        let latRad = latitude * .pi / 180.0
+        return altAzFast(ra: ra, dec: dec, cosLat: cos(latRad), sinLat: sin(latRad), lst: lst)
+    }
+
+    /// lat の sin/cos を呼び出し元で事前計算してから渡すバッチ高速版。
+    /// 多数の天体を同一緯度で一括変換するホットループ（星 25,000+ 件）で使用する。
+    static func altAzFast(ra: Double, dec: Double,
+                          cosLat: Double, sinLat: Double,
+                          lst: Double) -> (alt: Double, az: Double) {
         var ha = lst - ra
         ha = ha.truncatingRemainder(dividingBy: 360.0)
 
         let haRad  = ha  * .pi / 180.0
         let decRad = dec * .pi / 180.0
-        let latRad = latitude * .pi / 180.0
 
-        let cosLat = cos(latRad)
-        let sinLat = sin(latRad)
         let cosDec = cos(decRad)
         let sinDec = sin(decRad)
         let cosHa  = cos(haRad)
