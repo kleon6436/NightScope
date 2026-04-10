@@ -60,6 +60,9 @@ final class StarMapViewModel: ObservableObject {
     /// ジャイロモードの有効/無効 (iPhone のみ true にする)
     @Published var isGyroMode: Bool = false
 
+    /// 水平視野角 (度): 30°〜150°, デフォルト 90°
+    @Published var fov: Double = 90
+
     // MARK: - Dependencies
 
     private let appController: AppController
@@ -143,4 +146,17 @@ final class StarMapViewModel: ObservableObject {
     func resetToNow() {
         displayDate = Date()
     }
+
+    /// 北向き (方位0°, 仰角30°) にリセット
+    func resetToNorth() {
+        viewAzimuth = 0
+        viewAltitude = 30
+    }
+}
+
+// MARK: - StarPosition + Identifiable
+
+extension StarPosition: Identifiable {
+    /// 赤経・赤緯の組み合わせで一意に識別する
+    public var id: String { "\(star.ra)-\(star.dec)" }
 }

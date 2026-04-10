@@ -10,6 +10,7 @@ struct DetailView: View {
     @StateObject private var starMapViewModel: StarMapViewModel
 
     @State private var showStarMap = false
+    @State private var selectedStar: StarPosition? = nil
 
     init(viewModel: DetailViewModel) {
         self.viewModel = viewModel
@@ -45,10 +46,20 @@ struct DetailView: View {
 
     private var macStarMapSheet: some View {
         VStack(spacing: 0) {
+            // ---- ヘッダー ----
             HStack {
                 Text("星空マップ")
                     .font(.headline)
                 Spacer()
+                Button {
+                    starMapViewModel.resetToNorth()
+                } label: {
+                    Label("北を向く", systemImage: "arrow.up.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("北 (方位0°, 仰角30°) にリセット  [N]")
+
                 Button {
                     showStarMap = false
                 } label: {
@@ -56,14 +67,71 @@ struct DetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .padding(.leading, Spacing.xs)
             }
             .padding(Spacing.sm)
 
-            StarMapCanvasView(viewModel: starMapViewModel)
-                .frame(minWidth: 460, minHeight: 460)
+            // ---- キャンバス ----
+            StarMapCanvasView(viewModel: starMapViewModel, onStarSelected: { star in
+                selectedStar = star
+            })
+            .frame(minWidth: 560, minHeight: 480)
+            .popover(item: $selectedStar) { star in
+                StarInfoMacView(starPosition: star)
+            }
 
             Divider()
 
+            // ---- ステータス HUD ----
+            HStack(spacing: Spacing.md) {
+                Label(
+                    String(format: "%@ %.0f°",
+                           azimuthName(starMapViewModel.viewAzimuth),
+                           starMapViewModel.viewAzimuth),
+                    systemImage: "location.north.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Label(
+                    String(format: "仰角 %.0f°", starMapViewModel.viewAltitude),
+                    systemImage: "arrow.up.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Label(
+                    String(format: "視野 %.0f°", starMapViewModel.fov),
+                    systemImage: "viewfinder"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if starMapViewModel.sunAltitude > 0 {
+                    Label(
+                        String(format: "太陽 %.0f°", starMapViewModel.sunAltitude),
+                        systemImage: "sun.max.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                }
+                if starMapViewModel.moonAltitude > 0 {
+                    Label(
+                        String(format: "月 %.0f°", starMapViewModel.moonAltitude),
+                        systemImage: "moon.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.8))
+                }
+            }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
+
+            Divider()
+
+            // ---- コントロール ----
             HStack(spacing: Spacing.sm) {
                 Label("観測日時", systemImage: "clock")
                     .foregroundStyle(.secondary)
@@ -93,7 +161,16 @@ struct DetailView: View {
             }
             .padding(Spacing.sm)
         }
-        .frame(minWidth: 500, minHeight: 560)
+        .frame(minWidth: 600, minHeight: 640)
+    }
+
+    /// 方位角 (度) を 8 方位の日本語テキストに変換する
+    private func azimuthName(_ degrees: Double) -> String {
+        let normalized = (degrees.truncatingRemainder(dividingBy: 360) + 360)
+            .truncatingRemainder(dividingBy: 360)
+        let index = Int((normalized + 22.5) / 45) % 8
+        let names = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"]
+        return names[index]
     }
 
     private func detailContent(summary: NightSummary) -> some View {

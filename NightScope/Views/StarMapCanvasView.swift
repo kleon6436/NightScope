@@ -8,15 +8,22 @@ import SwiftUI
 struct StarMapCanvasView: View {
     @ObservedObject var viewModel: StarMapViewModel
 
+    /// クリック/タップで天体を選択したときに呼ばれるコールバック (macOS で使用)
+    var onStarSelected: ((StarPosition) -> Void)? = nil
+
     // ドラッグ中の一時オフセット (ピクセル単位, 横・縦)
     @GestureState private var gestureDragOffset: CGSize = .zero
     // 累積ドラッグ量 (onEnded で viewAzimuth/viewAltitude に反映済み, 常に 0)
     @State private var dragPixelOffset: Double = 0
     @State private var dragPixelOffsetY: Double = 0
 
-    // 水平視野角 (度): 30°〜150°, デフォルト 90° (人間の自然な視野に近い)
-    @State private var fov: Double = 90
     @GestureState private var gestureScale: Double = 1.0
+
+    // キーボードフォーカス
+    @FocusState private var isFocused: Bool
+#if os(macOS)
+    @State private var scrollEventMonitor: Any?
+#endif
 
     // MARK: Body
 
@@ -28,6 +35,12 @@ struct StarMapCanvasView: View {
                         viewModel.isGyroMode ? nil : panoramaDragGesture(width: geo.size.width)
                     )
                     .gesture(pinchGesture)
+                    .onTapGesture(coordinateSpace: .local) { location in
+                        isFocused = true
+                        if let star = nearestStar(at: location, size: geo.size) {
+                            onStarSelected?(star)
+                        }
+                    }
 
                 if viewModel.isGyroMode {
                     gyroModeIndicator
@@ -35,7 +48,7 @@ struct StarMapCanvasView: View {
 
                 // ピンチ中のみ視野角を表示
                 if gestureScale != 1.0 {
-                    let displayFov = max(30.0, min(150.0, fov / max(0.1, gestureScale)))
+                    let displayFov = max(30.0, min(150.0, viewModel.fov / max(0.1, gestureScale)))
                     VStack {
                         Spacer()
                         Text(String(format: "視野 %.0f°", displayFov))
@@ -43,14 +56,69 @@ struct StarMapCanvasView: View {
                             .foregroundStyle(.white.opacity(0.7))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(.black.opacity(0.4))
+                            .background(.ultraThinMaterial)
                             .clipShape(Capsule())
                             .padding(.bottom, 24)
                     }
                 }
             }
+            .focusable()
+            .focused($isFocused)
+            // MARK: Keyboard Navigation (デフォルト phases = [.down, .repeat])
+            .onKeyPress(.leftArrow) {
+                var az = viewModel.viewAzimuth - 5
+                if az < 0 { az += 360 }
+                viewModel.viewAzimuth = az
+                return .handled
+            }
+            .onKeyPress(.rightArrow) {
+                var az = viewModel.viewAzimuth + 5
+                az = az.truncatingRemainder(dividingBy: 360)
+                viewModel.viewAzimuth = az
+                return .handled
+            }
+            .onKeyPress(.upArrow) {
+                viewModel.viewAltitude = min(90, viewModel.viewAltitude + 5)
+                return .handled
+            }
+            .onKeyPress(.downArrow) {
+                viewModel.viewAltitude = max(-45, viewModel.viewAltitude - 5)
+                return .handled
+            }
+            .onKeyPress(KeyEquivalent("=")) {
+                // ズームイン (視野を狭める)
+                viewModel.fov = max(30, viewModel.fov - 10)
+                return .handled
+            }
+            .onKeyPress(KeyEquivalent("-")) {
+                // ズームアウト (視野を広げる)
+                viewModel.fov = min(150, viewModel.fov + 10)
+                return .handled
+            }
+            .onKeyPress(KeyEquivalent("n")) {
+                viewModel.resetToNorth()
+                return .handled
+            }
         }
         .background(Color(red: 0.02, green: 0.04, blue: 0.12))
+#if os(macOS)
+        .onAppear {
+            scrollEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                let delta = event.scrollingDeltaY
+                guard delta != 0 else { return event }
+                Task { @MainActor in
+                    viewModel.fov = max(30, min(150, viewModel.fov - delta))
+                }
+                return event
+            }
+        }
+        .onDisappear {
+            if let monitor = scrollEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                scrollEventMonitor = nil
+            }
+        }
+#endif
     }
 
     // MARK: Canvas
@@ -93,7 +161,7 @@ struct StarMapCanvasView: View {
     private func drawPanoramicProjection(ctx: GraphicsContext,
                                          cx: Double, cy: Double, size: CGSize) {
         // 水平視野: ピンチで調整可能 (30°〜150°), デフォルト 90°
-        let hFOV = max(30.0, min(150.0, fov / max(0.1, gestureScale)))
+        let hFOV = max(30.0, min(150.0, viewModel.fov / max(0.1, gestureScale)))
         let hScale = size.width / hFOV           // pt/degree
         let (alt0, az0) = effectiveViewDirection(hScale: hScale)
         let horizonY = cy + alt0 * hScale        // 動的地平線Y座標（画面中心 = 視点高度）
@@ -455,10 +523,49 @@ struct StarMapCanvasView: View {
             with: .color(.white.opacity(0.5)), lineWidth: 1)
     }
 
+    // MARK: - Nearest Star (クリック判定用)
+
+    /// タップ/クリック座標に最も近い明るい星 (等級 ≤ 2.5) を返す。
+    /// パノラマモード専用。閾値 (pt) 以内に星がなければ nil。
+    private func nearestStar(at tapPoint: CGPoint, size: CGSize,
+                              threshold: CGFloat = 25) -> StarPosition? {
+        guard !viewModel.isGyroMode else { return nil }
+
+        let hFOV = max(30.0, min(150.0, viewModel.fov))
+        let hScale = size.width / hFOV
+        let cx = size.width / 2
+        let cy = size.height / 2
+
+        // gestureDragOffset は tap 時点では .zero
+        var az0 = viewModel.viewAzimuth
+        az0 = az0.truncatingRemainder(dividingBy: 360)
+        if az0 < 0 { az0 += 360 }
+        let alt0 = viewModel.viewAltitude
+        let horizonY = cy + alt0 * hScale
+
+        var nearest: StarPosition? = nil
+        var nearestDist: CGFloat = threshold
+
+        for pos in viewModel.starPositions where pos.star.magnitude <= 2.5 && pos.altitude > -3 {
+            let pt = panoramicPoint(alt: pos.altitude, az: pos.azimuth,
+                                    cx: cx, horizonY: horizonY,
+                                    hScale: hScale, az0: az0)
+            guard isVisible(x: pt.x, width: size.width) else { continue }
+            let dx = CGFloat(pt.x) - tapPoint.x
+            let dy = CGFloat(pt.y) - tapPoint.y
+            let dist = sqrt(dx*dx + dy*dy)
+            if dist < nearestDist {
+                nearestDist = dist
+                nearest = pos
+            }
+        }
+        return nearest
+    }
+
     // MARK: - Drag Gesture (パノラマ 上下左右スクロール)
 
     private func panoramaDragGesture(width: Double) -> some Gesture {
-        let hScale = width / fov
+        let hScale = width / viewModel.fov
         return DragGesture()
             .updating($gestureDragOffset) { value, state, _ in
                 state = value.translation      // CGSize (width, height) をそのまま保持
@@ -496,7 +603,7 @@ struct StarMapCanvasView: View {
                 state = value
             }
             .onEnded { [self] value in
-                fov = max(30, min(150, fov / value))
+                viewModel.fov = max(30, min(150, viewModel.fov / value))
             }
     }
 
@@ -513,7 +620,7 @@ struct StarMapCanvasView: View {
                     .foregroundStyle(.white.opacity(0.6))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(.black.opacity(0.4))
+                    .background(.ultraThinMaterial)
                     .clipShape(Capsule())
                     .padding(.trailing, Spacing.sm)
                     .padding(.top, Spacing.sm)
