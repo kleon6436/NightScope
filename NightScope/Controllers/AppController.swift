@@ -4,6 +4,28 @@ import CoreLocation
 import MapKit
 
 @MainActor
+struct AppRootDependencies {
+    let appController: AppController
+    let sidebarViewModel: SidebarViewModel
+    let detailViewModel: DetailViewModel
+    let starMapViewModel: StarMapViewModel
+
+    init(appController: AppController) {
+        self.appController = appController
+        self.sidebarViewModel = SidebarViewModel(
+            locationController: appController.locationController,
+            lightPollutionService: appController.lightPollutionService
+        )
+        self.detailViewModel = DetailViewModel(appController: appController)
+        self.starMapViewModel = StarMapViewModel(appController: appController)
+    }
+
+    static func makeDefault() -> AppRootDependencies {
+        AppRootDependencies(appController: AppController())
+    }
+}
+
+@MainActor
 protocol LocationProviding: AnyObject, ObservableObject {
     var selectedLocation: CLLocationCoordinate2D { get set }
     var locationName: String { get set }

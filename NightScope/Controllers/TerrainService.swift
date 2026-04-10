@@ -4,9 +4,20 @@ import Foundation
 /// Open-Elevation API (POST /api/v1/lookup) から各方位 10km 先の標高を取得し、
 /// 地平仰角プロファイルを構築する。API が利用不可の場合は nil を返す（平坦地扱い）。
 actor TerrainService {
+    private enum Constants {
+        static let requestTimeout: TimeInterval = 5
+        static let sampleDistanceMeters = 10_000.0
+        static let sampleCount = 72
+    }
+
     static let shared = TerrainService()
 
     private let cache = NSCache<NSString, NSArray>()
+    private let session: URLSession
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
 
     /// 観測地座標に対するプロファイルを返す。キャッシュがあればそれを使う。
     /// API 失敗時は nil を返す（呼び出し元は平坦地として扱う）。
@@ -36,37 +47,56 @@ actor TerrainService {
         var locations: [[String: Double]] = [
             ["latitude": latitude, "longitude": longitude]
         ]
-        for i in 0..<72 {
+        for i in 0..<Constants.sampleCount {
             let (lat2, lon2) = destinationPoint(
                 lat: latitude, lon: longitude,
-                bearing: Double(i) * 5.0, distanceM: 10_000)
+                bearing: Double(i) * 5.0, distanceM: Constants.sampleDistanceMeters)
             locations.append(["latitude": lat2, "longitude": lon2])
         }
-        guard let url = URL(string: "https://api.open-elevation.com/api/v1/lookup"),
-              let body = try? JSONSerialization.data(withJSONObject: ["locations": locations])
-        else { return nil }
+        guard let url = URL(string: "https://api.open-elevation.com/api/v1/lookup") else {
+            return nil
+        }
 
-        var request = URLRequest(url: url, timeoutInterval: 5)
+        let body: Data
+        do {
+            body = try JSONSerialization.data(withJSONObject: ["locations": locations])
+        } catch {
+            return nil
+        }
+
+        var request = URLRequest(url: url, timeoutInterval: Constants.requestTimeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-            guard let json    = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let results = json["results"] as? [[String: Any]],
-                  results.count == 73
-            else { return nil }
-
-            let obsElev = (results[0]["elevation"] as? Double) ?? 0
-            let angles: [Double] = (0..<72).map { i in
-                let elev = (results[i + 1]["elevation"] as? Double) ?? 0
-                return atan2(elev - obsElev, 10_000.0) * 180.0 / .pi
-            }
-            return angles
+            return parseAngles(from: data)
         } catch {
             return nil
+        }
+    }
+
+    func parseAngles(from data: Data) -> [Double]? {
+        let json: Any
+        do {
+            json = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            return nil
+        }
+
+        guard let payload = json as? [String: Any],
+              let results = payload["results"] as? [[String: Any]],
+              results.count == Constants.sampleCount + 1
+        else {
+            return nil
+        }
+
+        let obsElev = (results[0]["elevation"] as? Double) ?? 0
+        return (0..<Constants.sampleCount).map { index in
+            let elev = (results[index + 1]["elevation"] as? Double) ?? 0
+            return atan2(elev - obsElev, Constants.sampleDistanceMeters) * 180.0 / .pi
         }
     }
 

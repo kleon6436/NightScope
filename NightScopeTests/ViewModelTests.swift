@@ -179,6 +179,17 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.timeSliderMinutes, 367)
     }
 
+    func test_StarMapViewModel_terrainCacheKey_roundsCoordinatesConsistently() {
+        XCTAssertEqual(
+            StarMapViewModel.terrainCacheKey(latitude: 35.1234, longitude: 139.5678),
+            "35.12,139.57"
+        )
+        XCTAssertEqual(
+            StarMapViewModel.terrainCacheKey(latitude: -35.1251, longitude: -139.5651),
+            "-35.13,-139.57"
+        )
+    }
+
     // MARK: - Mock Types
 
     final class MockLocationController: LocationProviding {
@@ -393,7 +404,31 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(locationController.currentLocationCenterTrigger, 1)
     }
 
+    func test_AppRootDependencies_makeDefault_sharesControllerDependencies() {
+        let dependencies = AppRootDependencies.makeDefault()
+
+        XCTAssertTrue((dependencies.sidebarViewModel.locationController as AnyObject) === dependencies.appController.locationController)
+        XCTAssertTrue(dependencies.detailViewModel.appControllerRef === dependencies.appController)
+    }
+
     // MARK: - LocationController
+
+    func test_UserDefaultsLocationStorage_zeroCoordinatesRoundTrip() {
+        let suiteName = "ViewModelTests.\(UUID().uuidString)"
+        guard let userDefaults = UserDefaults(suiteName: suiteName) else {
+            return XCTFail("テスト用 UserDefaults を生成できませんでした")
+        }
+        defer {
+            userDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let storage = UserDefaultsLocationStorage(userDefaults: userDefaults)
+        storage.latitude = 0
+        storage.longitude = 0
+
+        XCTAssertEqual(storage.latitude, 0)
+        XCTAssertEqual(storage.longitude, 0)
+    }
 
     func test_LocationController_search_success_updatesResults() async {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)

@@ -198,7 +198,7 @@ final class StarMapViewModel: ObservableObject {
         let activeMeteorShowerList = MeteorShowerCatalog.active(on: date)
 
         // 地形プロファイル（座標変化時のみ再取得）
-        let newKey = "\(Int(lat * 100)),\(Int(lon * 100))"
+        let newKey = Self.terrainCacheKey(latitude: lat, longitude: lon)
         if newKey != lastTerrainKey {
             lastTerrainKey = newKey
             fetchTerrain(latitude: lat, longitude: lon)
@@ -475,6 +475,12 @@ final class StarMapViewModel: ObservableObject {
             second: 0,
             of: date
         )
+    }
+
+    static func terrainCacheKey(latitude: Double, longitude: Double) -> String {
+        let roundedLatitude = (latitude * 100).rounded() / 100
+        let roundedLongitude = (longitude * 100).rounded() / 100
+        return "\(roundedLatitude),\(roundedLongitude)"
     }
 }
 

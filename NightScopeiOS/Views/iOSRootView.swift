@@ -259,30 +259,6 @@ enum IOSPreviewFactory {
     }
 }
 
-@MainActor
-struct iOSRootDependencies {
-    let appController: AppController
-    let sidebarViewModel: SidebarViewModel
-    let detailViewModel: DetailViewModel
-    let starMapViewModel: StarMapViewModel
-
-    static func makeDefault() -> iOSRootDependencies {
-        let controller = AppController()
-        let sidebarViewModel = SidebarViewModel(
-            locationController: controller.locationController,
-            lightPollutionService: controller.lightPollutionService
-        )
-        let detailViewModel = DetailViewModel(appController: controller)
-        let starMapViewModel = StarMapViewModel(appController: controller)
-        return iOSRootDependencies(
-            appController: controller,
-            sidebarViewModel: sidebarViewModel,
-            detailViewModel: detailViewModel,
-            starMapViewModel: starMapViewModel
-        )
-    }
-}
-
 struct iOSRootView: View {
     @StateObject private var appController: AppController
     @StateObject private var sidebarViewModel: SidebarViewModel
@@ -290,7 +266,9 @@ struct iOSRootView: View {
     @StateObject private var starMapViewModel: StarMapViewModel
     @State private var selectedTab = 0
 
-    init(dependencies: iOSRootDependencies = .makeDefault()) {
+    @MainActor
+    init(dependencies: AppRootDependencies? = nil) {
+        let dependencies = dependencies ?? .makeDefault()
         _appController = StateObject(wrappedValue: dependencies.appController)
         _sidebarViewModel = StateObject(wrappedValue: dependencies.sidebarViewModel)
         _detailViewModel = StateObject(wrappedValue: dependencies.detailViewModel)
