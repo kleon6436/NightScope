@@ -82,7 +82,7 @@ struct StarMapCanvasView: View {
                 return .handled
             }
             .onKeyPress(.downArrow) {
-                viewModel.viewAltitude = max(-45, viewModel.viewAltitude - 5)
+                viewModel.viewAltitude = max(0, viewModel.viewAltitude - 5)
                 return .handled
             }
             .onKeyPress(KeyEquivalent("=")) {
@@ -151,8 +151,8 @@ struct StarMapCanvasView: View {
             alt = 180 - alt
             az += 180
         }
-        // 地面方向は -90° でクランプ
-        alt = max(-90, min(90, alt))
+        // 地面方向は 0° でクランプ（地平線以下にスクロールしない）
+        alt = max(0, min(90, alt))
         az = az.truncatingRemainder(dividingBy: 360)
         if az < 0 { az += 360 }
         return (alt: alt, az: az)
@@ -203,12 +203,16 @@ struct StarMapCanvasView: View {
         // ---- 恒星 ----
         for pos in viewModel.starPositions {
             guard pos.altitude > -3 else { continue }
+            // 広視野では暗い星をスキップして描画負荷を軽減
+            if hFOV > 100 && pos.star.magnitude > 6.5 { continue }
+            // 地平線近くの暗い星をスキップ
+            if pos.altitude < 5 && pos.star.magnitude > 6.0 { continue }
             let pt = panoramicPoint(alt: pos.altitude, az: pos.azimuth,
                                      cx: cx, horizonY: horizonY,
                                      hScale: hScale, az0: az0)
             guard isVisible(x: pt.x, width: size.width) else { continue }
             drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
-                     isDark: viewModel.isNight, colorIndex: pos.star.colorIndex,
+                     isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                      altitude: pos.altitude)
             if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                 drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
@@ -255,6 +259,15 @@ struct StarMapCanvasView: View {
                                      cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
             if isVisible(x: pt.x, width: size.width) {
                 drawPlanet(ctx: ctx, at: pt, planet: planet)
+            }
+        }
+
+        // ---- 流星群放射点（活動中のみ）----
+        for radiant in viewModel.meteorShowerRadiants where radiant.altitude > -5 {
+            let pt = panoramicPoint(alt: radiant.altitude, az: radiant.azimuth,
+                                     cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
+            if isVisible(x: pt.x, width: size.width) {
+                drawMeteorShowerRadiant(ctx: ctx, at: pt, shower: radiant.shower)
             }
         }
 
@@ -324,7 +337,7 @@ struct StarMapCanvasView: View {
                              y: horizonY - label.alt * hScale)
             ctx.draw(
                 Text(label.name)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
                 at: pt)
         }
@@ -345,7 +358,7 @@ struct StarMapCanvasView: View {
             let x = cx + dAz * hScale
             ctx.draw(
                 Text(text)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.white.opacity(0.6)),
                 at: CGPoint(x: x, y: labelY))
         }
@@ -401,11 +414,13 @@ struct StarMapCanvasView: View {
         // 恒星
         for pos in viewModel.starPositions {
             guard pos.altitude > -1 else { continue }
+            // 地平線近くの暗い星をスキップ
+            if pos.altitude < 5 && pos.star.magnitude > 6.0 { continue }
             let alt = pos.altitude * .pi / 180
             let az  = pos.azimuth  * .pi / 180
             if let pt = project(alt: alt, az: az) {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
-                         isDark: viewModel.isNight, colorIndex: pos.star.colorIndex,
+                         isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                          altitude: pos.altitude)
                 if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                     drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
@@ -420,7 +435,7 @@ struct StarMapCanvasView: View {
             if let pt = project(alt: alt, az: az) {
                 ctx.draw(
                     Text(label.name)
-                        .font(.system(size: 9))
+                        .font(.system(size: 11))
                         .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
                     at: pt)
             }
@@ -458,6 +473,14 @@ struct StarMapCanvasView: View {
             }
         }
 
+        // 流星群放射点
+        for radiant in viewModel.meteorShowerRadiants where radiant.altitude > -1 {
+            let alt = radiant.altitude * .pi / 180
+            if let pt = project(alt: alt, az: radiant.azimuth * .pi / 180) {
+                drawMeteorShowerRadiant(ctx: ctx, at: pt, shower: radiant.shower)
+            }
+        }
+
         drawCrosshair(ctx: ctx, cx: cx, cy: cy)
     }
 
@@ -470,41 +493,10 @@ struct StarMapCanvasView: View {
 
     // MARK: - Drawing primitives
 
-    /// B-V色指数をスペクトル色にマッピング (線形補間)
-    private func starColor(bvIndex: Double?) -> Color {
-        guard let bv = bvIndex else { return .white }
-        let table: [(bv: Double, r: Double, g: Double, b: Double)] = [
-            (-0.40, 0.55, 0.65, 1.00),
-            (-0.20, 0.70, 0.80, 1.00),
-            ( 0.00, 0.90, 0.92, 1.00),
-            ( 0.15, 1.00, 1.00, 1.00),
-            ( 0.40, 1.00, 0.96, 0.85),
-            ( 0.65, 1.00, 0.88, 0.65),
-            ( 1.00, 1.00, 0.75, 0.45),
-            ( 1.40, 1.00, 0.58, 0.30),
-            ( 2.00, 1.00, 0.40, 0.20),
-        ]
-        if bv <= table.first!.bv { return Color(red: table.first!.r, green: table.first!.g, blue: table.first!.b) }
-        if bv >= table.last!.bv  { return Color(red: table.last!.r,  green: table.last!.g,  blue: table.last!.b) }
-        for i in 1..<table.count {
-            let prev = table[i - 1]
-            let next = table[i]
-            if bv <= next.bv {
-                let t = (bv - prev.bv) / (next.bv - prev.bv)
-                return Color(
-                    red:   prev.r + t * (next.r - prev.r),
-                    green: prev.g + t * (next.g - prev.g),
-                    blue:  prev.b + t * (next.b - prev.b)
-                )
-            }
-        }
-        return .white
-    }
-
     private func drawStar(ctx: GraphicsContext, at point: CGPoint,
-                          magnitude: Double, isDark: Bool, colorIndex: Double? = nil,
+                          magnitude: Double, isDark: Bool, precomputedColor: Color,
                           altitude: Double = 90) {
-        let color = starColor(bvIndex: colorIndex)
+        let color = precomputedColor
         let radius = max(0.8, 5 - (magnitude + 1.5) * (4 / 4.5))
         let opacity = isDark ? 1.0 : max(0.1, 0.3 - magnitude * 0.05)
         let brightness = magnitude < 0 ? 1.0 : max(0.6, 1.0 - magnitude * 0.12)
@@ -536,7 +528,7 @@ struct StarMapCanvasView: View {
     private func drawStarLabel(ctx: GraphicsContext, at point: CGPoint, name: String) {
         ctx.draw(
             Text(name)
-                .font(.system(size: 8))
+                .font(.system(size: 10))
                 .foregroundColor(.white.opacity(0.65)),
             at: CGPoint(x: point.x + 7, y: point.y + 5))
     }
@@ -596,7 +588,7 @@ struct StarMapCanvasView: View {
             path.addLine(to: CGPoint(x: size.width, y: y))
             ctx.stroke(path, with: .color(gridColor), style: style)
             ctx.draw(
-                Text("\(Int(alt))°").font(.system(size: 7)).foregroundColor(.white.opacity(0.15)),
+                Text("\(Int(alt))°").font(.system(size: 9)).foregroundColor(.white.opacity(0.15)),
                 at: CGPoint(x: 18, y: y - 6))
         }
 
@@ -667,57 +659,38 @@ struct StarMapCanvasView: View {
     // MARK: - Milky Way Band (Phase 5)
 
     /// 天の川バンドをパノラマプロジェクションに描画する。
-    /// 銀河座標の等間隔サンプル点を赤道座標→水平座標に変換し、
-    /// バンド幅をもったポリゴンスラブとして塗り重ねる。
+    /// ViewModel でバックグラウンド計算済みの milkyWayBandPoints を使用するため、
+    /// 描画フレームごとの天文座標変換コストがゼロ。
     private func drawMilkyWayBand(ctx: GraphicsContext, cx: Double, horizonY: Double,
                                    hScale: Double, az0: Double, size: CGSize) {
-        let lat  = viewModel.latitude
-        let lst  = viewModel.currentLST
+        let cachedPoints = viewModel.milkyWayBandPoints
+        guard cachedPoints.count > 2 else { return }
 
-        // 銀経を 5° 刻みでサンプリング
-        let step: Double = 5
-        struct BandPoint { var x, y, halfH: Double }
-        var points = [BandPoint]()
+        struct ScreenPoint { var x, y, halfH: Double }
+        var screenPoints = [ScreenPoint]()
+        screenPoints.reserveCapacity(cachedPoints.count)
 
-        for li in stride(from: 0.0, through: 360.0, by: step) {
-            // バンドの中心線 (b=0)
-            let eq0 = MilkyWayCalculator.galacticToEquatorial(l: li, b: 0)
-            let alt0 = MilkyWayCalculator.altitude(ra: eq0.ra, dec: eq0.dec, latitude: lat, lst: lst)
-            guard alt0 > -5 else { continue }
-            let az  = MilkyWayCalculator.azimuth(ra: eq0.ra, dec: eq0.dec, latitude: lat, lst: lst)
-            let px = cx + angularDiff(az, az0) * hScale
+        for bp in cachedPoints {
+            let px = cx + angularDiff(bp.az, az0) * hScale
             guard px > -100 && px < size.width + 100 else { continue }
-            let py = horizonY - alt0 * hScale
-
-            // バンド幅は銀経依存 (中心部ほど厚い)
-            let bWidth: Double = li > 270 || li < 90 ? 12 : 8
-            let eq1 = MilkyWayCalculator.galacticToEquatorial(l: li, b:  bWidth)
-            let eq2 = MilkyWayCalculator.galacticToEquatorial(l: li, b: -bWidth)
-            let alt1 = MilkyWayCalculator.altitude(ra: eq1.ra, dec: eq1.dec, latitude: lat, lst: lst)
-            let alt2 = MilkyWayCalculator.altitude(ra: eq2.ra, dec: eq2.dec, latitude: lat, lst: lst)
-            let halfH = abs(alt1 - alt2) / 2 * hScale
-            points.append(BandPoint(x: px, y: py, halfH: max(3, halfH)))
+            let py = horizonY - bp.alt * hScale
+            screenPoints.append(ScreenPoint(x: px, y: py, halfH: bp.halfH * hScale))
         }
 
-        guard points.count > 2 else { return }
+        guard screenPoints.count > 2 else { return }
 
         // 各スラブを個別に塗る（銀経依存の色変化）
-        for i in 0..<points.count - 1 {
-            let p0 = points[i], p1 = points[i + 1]
+        for i in 0..<screenPoints.count - 1 {
+            let p0 = screenPoints[i], p1 = screenPoints[i + 1]
             var slab = Path()
             slab.move(to:    CGPoint(x: p0.x, y: p0.y - p0.halfH))
             slab.addLine(to: CGPoint(x: p1.x, y: p1.y - p1.halfH))
             slab.addLine(to: CGPoint(x: p1.x, y: p1.y + p1.halfH))
             slab.addLine(to: CGPoint(x: p0.x, y: p0.y + p0.halfH))
             slab.closeSubpath()
-            // 銀経を 0-180° に折りたたみ、銀河中心方向ほど温色寄りにする
-            let li0 = Double(Int(i) * Int(step))
-            let lDeg = li0 <= 180 ? li0 : 360 - li0
-            let tCenter = 1.0 - lDeg / 180.0  // 1 at center, 0 at anti-center
-            let bandR = 0.50 + 0.20 * tCenter
-            let bandG = 0.55
-            let bandB = 0.85 - 0.25 * tCenter
-            let slabColor = Color(red: bandR, green: bandG, blue: bandB)
+            let lDeg = cachedPoints[i].li <= 180 ? cachedPoints[i].li : 360 - cachedPoints[i].li
+            let tCenter = 1.0 - lDeg / 180.0
+            let slabColor = Color(red: 0.50 + 0.20 * tCenter, green: 0.55, blue: 0.85 - 0.25 * tCenter)
             ctx.fill(slab, with: .color(slabColor.opacity(0.10)))
         }
     }
@@ -793,7 +766,7 @@ struct StarMapCanvasView: View {
                     commitAlt = 180 - commitAlt
                     azFlip = 180
                 }
-                commitAlt = max(-90, min(90, commitAlt))
+                commitAlt = max(0, min(90, commitAlt))
 
                 // --- 方位計算 ---
                 let deltaAz = value.translation.width / hScale
@@ -904,9 +877,41 @@ private extension StarMapCanvasView {
         // Label
         ctx.draw(
             Text(planet.name)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundColor(color.opacity(0.75)),
             at: CGPoint(x: point.x + radius + 5, y: point.y + 4))
+    }
+
+    // MARK: Meteor Shower Radiant
+
+    func drawMeteorShowerRadiant(ctx: GraphicsContext, at point: CGPoint, shower: MeteorShower) {
+        let color = Color(red: 0.4, green: 1.0, blue: 0.7)
+        let radius: CGFloat = 10
+        // 放射アイコン（円 + 矢印風の短線）
+        let circleRect = CGRect(x: point.x - radius, y: point.y - radius,
+                                width: radius * 2, height: radius * 2)
+        ctx.stroke(Circle().path(in: circleRect),
+                   with: .color(color.opacity(0.7)), lineWidth: 1.2)
+        // 中心点
+        ctx.fill(Circle().path(in: CGRect(x: point.x - 2, y: point.y - 2,
+                                          width: 4, height: 4)),
+                 with: .color(color.opacity(0.9)))
+        // 放射線（4方向）
+        let rays: [(CGFloat, CGFloat)] = [(0,-1),(0,1),(-1,0),(1,0)]
+        for (dx, dy) in rays {
+            var ray = Path()
+            ray.move(to: CGPoint(x: point.x + dx * (radius + 2),
+                                  y: point.y + dy * (radius + 2)))
+            ray.addLine(to: CGPoint(x: point.x + dx * (radius + 7),
+                                     y: point.y + dy * (radius + 7)))
+            ctx.stroke(ray, with: .color(color.opacity(0.6)), lineWidth: 1)
+        }
+        // ラベル
+        ctx.draw(
+            Text(shower.name)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(color.opacity(0.85)),
+            at: CGPoint(x: point.x + radius + 4, y: point.y + 4))
     }
 
     // MARK: Terrain Silhouette

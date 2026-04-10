@@ -156,15 +156,18 @@ enum StarCatalog {
         Star(name: "ファイ・スゲータリ",  ra: 277.893, dec: -26.987, magnitude:  3.17, colorIndex: -0.17),
     ]
 
-    // MARK: - Fill Stars (名前なし、BSC5 全星)
-    // stars_fill.json から読み込み: [[ra°, dec°, 等級], ...]
-    // namedStars と重複しない全 BSC5 星 (~8,971 個)
+    // MARK: - Fill Stars (名前なし、HYG v41 全星 mag ≤ 7.5)
+    // stars_fill.json から読み込み: [[ra°, dec°, 等級, ci?], ...]
+    // namedStars と重複しない約 25,650 星
     private static let fillStars: [Star] = {
         guard let url = Bundle.main.url(forResource: "stars_fill", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let entries = try? JSONDecoder().decode([[Double]].self, from: data)
         else { return [] }
-        return entries.map { Star(name: "", ra: $0[0], dec: $0[1], magnitude: $0[2], colorIndex: nil) }
+        return entries.map {
+            Star(name: "", ra: $0[0], dec: $0[1], magnitude: $0[2],
+                 colorIndex: $0.count > 3 ? $0[3] : nil)
+        }
     }()
 
 }

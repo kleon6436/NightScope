@@ -41,39 +41,46 @@ enum MilkyWayCalculator {
         return lst < 0 ? lst + 360.0 : lst
     }
 
-    // 赤経・赤緯から高度を計算 (度)
-    static func altitude(ra: Double, dec: Double, latitude: Double, lst: Double) -> Double {
+    // 赤経・赤緯から高度と方位角をまとめて計算 (度)
+    // altitude() / azimuth() を個別に呼ぶと中間値を2回計算してしまうため、
+    // 1回の呼び出しで両方を返す統合関数。ホットループ (星9,000+ 件) で使用する。
+    static func altAz(ra: Double, dec: Double, latitude: Double, lst: Double) -> (alt: Double, az: Double) {
         var ha = lst - ra
         ha = ha.truncatingRemainder(dividingBy: 360.0)
 
-        let haRad = ha * .pi / 180.0
+        let haRad  = ha  * .pi / 180.0
         let decRad = dec * .pi / 180.0
         let latRad = latitude * .pi / 180.0
 
-        let sinAlt = sin(latRad) * sin(decRad) + cos(latRad) * cos(decRad) * cos(haRad)
-        return asin(max(-1, min(1, sinAlt))) * 180.0 / .pi
+        let cosLat = cos(latRad)
+        let sinLat = sin(latRad)
+        let cosDec = cos(decRad)
+        let sinDec = sin(decRad)
+        let cosHa  = cos(haRad)
+        let sinHa  = sin(haRad)
+
+        let sinAlt = sinLat * sinDec + cosLat * cosDec * cosHa
+        let altRad = asin(max(-1, min(1, sinAlt)))
+        let alt    = altRad * 180.0 / .pi
+
+        let cosAlt = cos(altRad)
+        guard cosAlt > 1e-10 else { return (alt, 0.0) }
+
+        let sinA = -sinHa * cosDec / cosAlt
+        let cosA = (sinDec - sinLat * sinAlt) / (cosLat * cosAlt)
+        var az = atan2(sinA, cosA) * 180.0 / .pi
+        if az < 0 { az += 360.0 }
+        return (alt, az)
+    }
+
+    // 赤経・赤緯から高度を計算 (度)
+    static func altitude(ra: Double, dec: Double, latitude: Double, lst: Double) -> Double {
+        altAz(ra: ra, dec: dec, latitude: latitude, lst: lst).alt
     }
 
     // 赤経・赤緯から方位角を計算 (北=0°, 時計回り)
     static func azimuth(ra: Double, dec: Double, latitude: Double, lst: Double) -> Double {
-        var ha = lst - ra
-        ha = ha.truncatingRemainder(dividingBy: 360.0)
-
-        let haRad = ha * .pi / 180.0
-        let decRad = dec * .pi / 180.0
-        let latRad = latitude * .pi / 180.0
-
-        let sinAlt = sin(latRad) * sin(decRad) + cos(latRad) * cos(decRad) * cos(haRad)
-        let altRad = asin(max(-1, min(1, sinAlt)))
-
-        let cosAlt = cos(altRad)
-        guard cosAlt > 1e-10 else { return 0.0 }
-
-        let sinA = -sin(haRad) * cos(decRad) / cosAlt
-        let cosA = (sin(decRad) - sin(latRad) * sin(altRad)) / (cos(latRad) * cosAlt)
-        var az = atan2(sinA, cosA) * 180.0 / .pi
-        if az < 0 { az += 360.0 }
-        return az
+        altAz(ra: ra, dec: dec, latitude: latitude, lst: lst).az
     }
 
     // 太陽の赤経・赤緯 (簡易計算)
