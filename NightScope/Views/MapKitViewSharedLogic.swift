@@ -151,7 +151,8 @@ enum MapKitViewSharedLogic {
             let angle = (azimuth - fov / 2) + Double(i) * fov / Double(steps)
             let angleRad = angle * .pi / 180
             let latOffset  = radius * cos(angleRad) / 111_000
-            let lonOffset  = radius * sin(angleRad) / (111_000 * cos(lat * .pi / 180))
+            let cosLat = max(abs(cos(lat * .pi / 180)), 1e-6)
+            let lonOffset  = radius * sin(angleRad) / (111_000 * cosLat)
             coords.append(CLLocationCoordinate2D(
                 latitude:  lat + latOffset,
                 longitude: center.longitude + lonOffset

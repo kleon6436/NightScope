@@ -222,12 +222,31 @@ final class StarMapHeadingController: NSObject, CLLocationManagerDelegate {
 
     func start(onHeading: @escaping (Double) -> Void) {
         self.onHeading = onHeading
-        locationManager.startUpdatingHeading()
+        let status = locationManager.authorizationStatus
+        switch status {
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            locationManager.startUpdatingHeading()
+        default:
+            break
+        }
     }
 
     func stop() {
         locationManager.stopUpdatingHeading()
         onHeading = nil
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            if onHeading != nil {
+                manager.startUpdatingHeading()
+            }
+        default:
+            manager.stopUpdatingHeading()
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
