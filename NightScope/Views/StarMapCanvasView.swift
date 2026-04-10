@@ -166,6 +166,9 @@ struct StarMapCanvasView: View {
         let (alt0, az0) = effectiveViewDirection(hScale: hScale)
         let horizonY = cy + alt0 * hScale        // 動的地平線Y座標（画面中心 = 視点高度）
 
+        // ---- 空の背景グラデーション ----
+        drawSkyBackground(ctx: ctx, horizonY: horizonY, size: size)
+
         // ---- 地面の塗りつぶし ----
         if horizonY < size.height {
             let groundY = max(0.0, horizonY)
@@ -173,6 +176,9 @@ struct StarMapCanvasView: View {
                                           width: size.width, height: size.height - groundY))
             ctx.fill(groundPath, with: .color(Color(red: 0.06, green: 0.04, blue: 0.02)))
         }
+
+        // ---- 地平線グラデーション ----
+        drawHorizonGradient(ctx: ctx, horizonY: horizonY, size: size, sunAlt: viewModel.sunAltitude)
 
         // ---- 地平線ライン ----
         if horizonY >= 0 && horizonY <= size.height {
@@ -182,9 +188,17 @@ struct StarMapCanvasView: View {
             ctx.stroke(horizPath, with: .color(.white.opacity(0.3)), lineWidth: 1)
         }
 
+        // ---- 高度/方位グリッド ----
+        drawAltAzGrid(ctx: ctx, cx: cx, horizonY: horizonY, hScale: hScale, az0: az0, size: size)
+
         // ---- 星座線 ----
         drawPanoramicConstellationLines(ctx: ctx, cx: cx, horizonY: horizonY,
                                         hScale: hScale, az0: az0)
+
+        // ---- 天の川バンド ----
+        if viewModel.isNight {
+            drawMilkyWayBand(ctx: ctx, cx: cx, horizonY: horizonY, hScale: hScale, az0: az0, size: size)
+        }
 
         // ---- 恒星 ----
         for pos in viewModel.starPositions {
@@ -194,7 +208,8 @@ struct StarMapCanvasView: View {
                                      hScale: hScale, az0: az0)
             guard isVisible(x: pt.x, width: size.width) else { continue }
             drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
-                     isDark: viewModel.isNight)
+                     isDark: viewModel.isNight, colorIndex: pos.star.colorIndex,
+                     altitude: pos.altitude)
             if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                 drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
             }
@@ -234,7 +249,22 @@ struct StarMapCanvasView: View {
             }
         }
 
-        // ---- 方位ラベル ----
+        // ---- 惑星 ----
+        for planet in viewModel.planetPositions where planet.altitude > -3 {
+            let pt = panoramicPoint(alt: planet.altitude, az: planet.azimuth,
+                                     cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
+            if isVisible(x: pt.x, width: size.width) {
+                drawPlanet(ctx: ctx, at: pt, planet: planet)
+            }
+        }
+
+        // ---- 地形シルエット（最前面: 天体を自然に隠す）----
+        if let terrain = viewModel.terrainProfile {
+            drawTerrainSilhouette(ctx: ctx, cx: cx, horizonY: horizonY,
+                                  hScale: hScale, az0: az0, size: size, terrain: terrain)
+        }
+
+        // ---- 方位ラベル（地形より前面に）----
         drawPanoramicCardinalLabels(ctx: ctx, cx: cx, horizonY: horizonY,
                                      hScale: hScale, az0: az0, width: size.width)
     }
@@ -375,7 +405,8 @@ struct StarMapCanvasView: View {
             let az  = pos.azimuth  * .pi / 180
             if let pt = project(alt: alt, az: az) {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
-                         isDark: viewModel.isNight)
+                         isDark: viewModel.isNight, colorIndex: pos.star.colorIndex,
+                         altitude: pos.altitude)
                 if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                     drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
                 }
@@ -419,6 +450,14 @@ struct StarMapCanvasView: View {
             }
         }
 
+        // 惑星
+        for planet in viewModel.planetPositions where planet.altitude > -1 {
+            let alt = planet.altitude * .pi / 180
+            if let pt = project(alt: alt, az: planet.azimuth * .pi / 180) {
+                drawPlanet(ctx: ctx, at: pt, planet: planet)
+            }
+        }
+
         drawCrosshair(ctx: ctx, cx: cx, cy: cy)
     }
 
@@ -431,23 +470,66 @@ struct StarMapCanvasView: View {
 
     // MARK: - Drawing primitives
 
+    /// B-V色指数をスペクトル色にマッピング (線形補間)
+    private func starColor(bvIndex: Double?) -> Color {
+        guard let bv = bvIndex else { return .white }
+        let table: [(bv: Double, r: Double, g: Double, b: Double)] = [
+            (-0.40, 0.55, 0.65, 1.00),
+            (-0.20, 0.70, 0.80, 1.00),
+            ( 0.00, 0.90, 0.92, 1.00),
+            ( 0.15, 1.00, 1.00, 1.00),
+            ( 0.40, 1.00, 0.96, 0.85),
+            ( 0.65, 1.00, 0.88, 0.65),
+            ( 1.00, 1.00, 0.75, 0.45),
+            ( 1.40, 1.00, 0.58, 0.30),
+            ( 2.00, 1.00, 0.40, 0.20),
+        ]
+        if bv <= table.first!.bv { return Color(red: table.first!.r, green: table.first!.g, blue: table.first!.b) }
+        if bv >= table.last!.bv  { return Color(red: table.last!.r,  green: table.last!.g,  blue: table.last!.b) }
+        for i in 1..<table.count {
+            let prev = table[i - 1]
+            let next = table[i]
+            if bv <= next.bv {
+                let t = (bv - prev.bv) / (next.bv - prev.bv)
+                return Color(
+                    red:   prev.r + t * (next.r - prev.r),
+                    green: prev.g + t * (next.g - prev.g),
+                    blue:  prev.b + t * (next.b - prev.b)
+                )
+            }
+        }
+        return .white
+    }
+
     private func drawStar(ctx: GraphicsContext, at point: CGPoint,
-                          magnitude: Double, isDark: Bool) {
+                          magnitude: Double, isDark: Bool, colorIndex: Double? = nil,
+                          altitude: Double = 90) {
+        let color = starColor(bvIndex: colorIndex)
         let radius = max(0.8, 5 - (magnitude + 1.5) * (4 / 4.5))
         let opacity = isDark ? 1.0 : max(0.1, 0.3 - magnitude * 0.05)
         let brightness = magnitude < 0 ? 1.0 : max(0.6, 1.0 - magnitude * 0.12)
+        // 大気消光: 仰角 15° 以下で徐々に減光
+        let extinction = altitude < 15 ? max(0, altitude / 15.0) : 1.0
 
         let rect = CGRect(x: point.x - radius, y: point.y - radius,
                           width: radius * 2, height: radius * 2)
         ctx.fill(Circle().path(in: rect),
-                 with: .color(Color.white.opacity(opacity * brightness)))
+                 with: .color(color.opacity(opacity * brightness * extinction)))
 
-        if magnitude < 1.5 {
-            let glowR = radius * 2.5
+        if magnitude < 2.0 {
+            let glowR = radius * 3.0
             let glowRect = CGRect(x: point.x - glowR, y: point.y - glowR,
                                   width: glowR * 2, height: glowR * 2)
             ctx.fill(Circle().path(in: glowRect),
-                     with: .color(Color.white.opacity(0.06 * (isDark ? 1 : 0.3))))
+                     with: .color(color.opacity(0.12 * (isDark ? 1 : 0.3))))
+        }
+
+        if magnitude < 0.5 {
+            let outerGlowR = radius * 5.0
+            let outerRect = CGRect(x: point.x - outerGlowR, y: point.y - outerGlowR,
+                                   width: outerGlowR * 2, height: outerGlowR * 2)
+            ctx.fill(Circle().path(in: outerRect),
+                     with: .color(color.opacity(0.04 * (isDark ? 1 : 0.2))))
         }
     }
 
@@ -457,6 +539,80 @@ struct StarMapCanvasView: View {
                 .font(.system(size: 8))
                 .foregroundColor(.white.opacity(0.65)),
             at: CGPoint(x: point.x + 7, y: point.y + 5))
+    }
+
+    // MARK: - Horizon Gradient (Phase 2-1)
+
+    private func drawHorizonGradient(ctx: GraphicsContext, horizonY: Double,
+                                     size: CGSize, sunAlt: Double) {
+        let gradientHeight: Double = 40
+        let topY = horizonY - gradientHeight
+        guard topY < size.height && horizonY > 0 else { return }
+
+        let (topColor, bottomColor) = horizonGradientColors(sunAltitude: sunAlt)
+        let clampedTopY = max(0.0, topY)
+        let rect = CGRect(x: 0, y: clampedTopY,
+                          width: size.width, height: horizonY - clampedTopY)
+        ctx.fill(
+            Path(rect),
+            with: .linearGradient(
+                Gradient(colors: [topColor, bottomColor]),
+                startPoint: CGPoint(x: 0, y: clampedTopY),
+                endPoint:   CGPoint(x: 0, y: horizonY)
+            )
+        )
+    }
+
+    private func horizonGradientColors(sunAltitude: Double) -> (top: Color, bottom: Color) {
+        if sunAltitude < -18 {
+            return (Color(red: 0.05, green: 0.05, blue: 0.25).opacity(0.0),
+                    Color(red: 0.05, green: 0.05, blue: 0.25).opacity(0.35))
+        } else if sunAltitude < -6 {
+            let t = (sunAltitude + 18) / 12
+            return (Color(red: 0.1, green: 0.1, blue: 0.4).opacity(0.0),
+                    Color(red: 0.15 + 0.25 * t, green: 0.1 + 0.2 * t, blue: 0.4 - 0.15 * t).opacity(0.5))
+        } else if sunAltitude < 0 {
+            let t = (sunAltitude + 6) / 6
+            return (Color(red: 0.5, green: 0.3, blue: 0.1).opacity(0.0),
+                    Color(red: 0.9, green: 0.5 + 0.2 * t, blue: 0.1).opacity(0.6))
+        } else {
+            return (Color(red: 0.3, green: 0.5, blue: 0.9).opacity(0.0),
+                    Color(red: 0.4, green: 0.6, blue: 1.0).opacity(0.7))
+        }
+    }
+
+    // MARK: - Alt/Az Grid (Phase 2-2)
+
+    private func drawAltAzGrid(ctx: GraphicsContext, cx: Double, horizonY: Double,
+                                hScale: Double, az0: Double, size: CGSize) {
+        let gridColor = Color.white.opacity(0.08)
+        let style = StrokeStyle(lineWidth: 0.5, dash: [4, 8])
+
+        for alt in stride(from: 15.0, through: 75.0, by: 15.0) {
+            let y = horizonY - alt * hScale
+            guard y > 0 && y < size.height else { continue }
+            var path = Path()
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: size.width, y: y))
+            ctx.stroke(path, with: .color(gridColor), style: style)
+            ctx.draw(
+                Text("\(Int(alt))°").font(.system(size: 7)).foregroundColor(.white.opacity(0.15)),
+                at: CGPoint(x: 18, y: y - 6))
+        }
+
+        for azOffset in stride(from: -180.0, through: 180.0, by: 30.0) {
+            let az = (az0 + azOffset).truncatingRemainder(dividingBy: 360)
+            let dAz = angularDiff(az, az0)
+            let x = cx + dAz * hScale
+            guard x > 0 && x < size.width else { continue }
+            let topY = max(0, horizonY - 90 * hScale)
+            let bottomY = min(size.height, horizonY)
+            guard topY < bottomY else { continue }
+            var path = Path()
+            path.move(to: CGPoint(x: x, y: topY))
+            path.addLine(to: CGPoint(x: x, y: bottomY))
+            ctx.stroke(path, with: .color(gridColor), style: style)
+        }
     }
 
     private func drawSunSymbol(ctx: GraphicsContext, at point: CGPoint,
@@ -506,6 +662,64 @@ struct StarMapCanvasView: View {
         ctx.fill(
             Circle().path(in: CGRect(x: point.x - 3, y: point.y - 3, width: 6, height: 6)),
             with: .color(Color(red: 0.8, green: 0.6, blue: 1.0).opacity(0.85)))
+    }
+
+    // MARK: - Milky Way Band (Phase 5)
+
+    /// 天の川バンドをパノラマプロジェクションに描画する。
+    /// 銀河座標の等間隔サンプル点を赤道座標→水平座標に変換し、
+    /// バンド幅をもったポリゴンスラブとして塗り重ねる。
+    private func drawMilkyWayBand(ctx: GraphicsContext, cx: Double, horizonY: Double,
+                                   hScale: Double, az0: Double, size: CGSize) {
+        let lat  = viewModel.latitude
+        let lst  = viewModel.currentLST
+
+        // 銀経を 5° 刻みでサンプリング
+        let step: Double = 5
+        struct BandPoint { var x, y, halfH: Double }
+        var points = [BandPoint]()
+
+        for li in stride(from: 0.0, through: 360.0, by: step) {
+            // バンドの中心線 (b=0)
+            let eq0 = MilkyWayCalculator.galacticToEquatorial(l: li, b: 0)
+            let alt0 = MilkyWayCalculator.altitude(ra: eq0.ra, dec: eq0.dec, latitude: lat, lst: lst)
+            guard alt0 > -5 else { continue }
+            let az  = MilkyWayCalculator.azimuth(ra: eq0.ra, dec: eq0.dec, latitude: lat, lst: lst)
+            let px = cx + angularDiff(az, az0) * hScale
+            guard px > -100 && px < size.width + 100 else { continue }
+            let py = horizonY - alt0 * hScale
+
+            // バンド幅は銀経依存 (中心部ほど厚い)
+            let bWidth: Double = li > 270 || li < 90 ? 12 : 8
+            let eq1 = MilkyWayCalculator.galacticToEquatorial(l: li, b:  bWidth)
+            let eq2 = MilkyWayCalculator.galacticToEquatorial(l: li, b: -bWidth)
+            let alt1 = MilkyWayCalculator.altitude(ra: eq1.ra, dec: eq1.dec, latitude: lat, lst: lst)
+            let alt2 = MilkyWayCalculator.altitude(ra: eq2.ra, dec: eq2.dec, latitude: lat, lst: lst)
+            let halfH = abs(alt1 - alt2) / 2 * hScale
+            points.append(BandPoint(x: px, y: py, halfH: max(3, halfH)))
+        }
+
+        guard points.count > 2 else { return }
+
+        // 各スラブを個別に塗る（銀経依存の色変化）
+        for i in 0..<points.count - 1 {
+            let p0 = points[i], p1 = points[i + 1]
+            var slab = Path()
+            slab.move(to:    CGPoint(x: p0.x, y: p0.y - p0.halfH))
+            slab.addLine(to: CGPoint(x: p1.x, y: p1.y - p1.halfH))
+            slab.addLine(to: CGPoint(x: p1.x, y: p1.y + p1.halfH))
+            slab.addLine(to: CGPoint(x: p0.x, y: p0.y + p0.halfH))
+            slab.closeSubpath()
+            // 銀経を 0-180° に折りたたみ、銀河中心方向ほど温色寄りにする
+            let li0 = Double(Int(i) * Int(step))
+            let lDeg = li0 <= 180 ? li0 : 360 - li0
+            let tCenter = 1.0 - lDeg / 180.0  // 1 at center, 0 at anti-center
+            let bandR = 0.50 + 0.20 * tCenter
+            let bandG = 0.55
+            let bandB = 0.85 - 0.25 * tCenter
+            let slabColor = Color(red: bandR, green: bandG, blue: bandB)
+            ctx.fill(slab, with: .color(slabColor.opacity(0.10)))
+        }
     }
 
     private func drawCrosshair(ctx: GraphicsContext, cx: Double, cy: Double) {
@@ -627,6 +841,125 @@ struct StarMapCanvasView: View {
             }
             Spacer()
         }
+    }
+}
+
+// MARK: - New Drawing Primitives
+
+private extension StarMapCanvasView {
+
+    // MARK: Sky Background
+
+    func drawSkyBackground(ctx: GraphicsContext, horizonY: Double, size: CGSize) {
+        let topY = 0.0
+        let bottom = min(horizonY, size.height)
+        guard bottom > topY else { return }
+        let rect = CGRect(x: 0, y: topY, width: size.width, height: bottom - topY)
+        ctx.fill(
+            Path(rect),
+            with: .linearGradient(
+                Gradient(stops: [
+                    .init(color: Color(red: 0.01, green: 0.02, blue: 0.08), location: 0),
+                    .init(color: Color(red: 0.03, green: 0.06, blue: 0.18), location: 1),
+                ]),
+                startPoint: CGPoint(x: 0, y: topY),
+                endPoint:   CGPoint(x: 0, y: bottom)
+            )
+        )
+    }
+
+    // MARK: Planet
+
+    func planetColor(name: String) -> Color {
+        switch name {
+        case "水星": return Color(red: 0.75, green: 0.72, blue: 0.68)
+        case "金星": return Color(red: 1.00, green: 0.95, blue: 0.80)
+        case "火星": return Color(red: 1.00, green: 0.45, blue: 0.25)
+        case "木星": return Color(red: 1.00, green: 0.90, blue: 0.70)
+        case "土星": return Color(red: 0.95, green: 0.85, blue: 0.60)
+        default:     return .white
+        }
+    }
+
+    func drawPlanet(ctx: GraphicsContext, at point: CGPoint, planet: PlanetPosition) {
+        let color = planetColor(name: planet.name)
+        // magnitude → radius (bigger = brighter)
+        let mag    = max(-5.5, min(3.0, planet.magnitude))
+        let radius = max(2.0, 8.0 - (mag + 2.0) * (5.0 / 5.0))
+
+        // Core disk
+        let rect = CGRect(x: point.x - radius, y: point.y - radius,
+                          width: radius * 2, height: radius * 2)
+        ctx.fill(Circle().path(in: rect), with: .color(color.opacity(0.95)))
+
+        // Glow for bright planets
+        if mag < 0 {
+            let gr = radius * 3.5
+            ctx.fill(
+                Circle().path(in: CGRect(x: point.x - gr, y: point.y - gr,
+                                          width: gr * 2, height: gr * 2)),
+                with: .color(color.opacity(0.15)))
+        }
+
+        // Label
+        ctx.draw(
+            Text(planet.name)
+                .font(.system(size: 9))
+                .foregroundColor(color.opacity(0.75)),
+            at: CGPoint(x: point.x + radius + 5, y: point.y + 4))
+    }
+
+    // MARK: Terrain Silhouette
+
+    func drawTerrainSilhouette(ctx: GraphicsContext, cx: Double, horizonY: Double,
+                                hScale: Double, az0: Double, size: CGSize,
+                                terrain: TerrainProfile) {
+        let fillColor = Color(red: 0.06, green: 0.04, blue: 0.02)
+        var path = Path()
+        let steps = 180  // 2° resolution for smooth silhouette
+        var started = false
+
+        for i in 0...steps {
+            let fraction = Double(i) / Double(steps)
+            // Sweep ±90° from az0 (full visible panoramic range)
+            let az  = (az0 + (fraction - 0.5) * 180.0)
+                .truncatingRemainder(dividingBy: 360)
+            let hAngle  = terrain.horizonAngle(forAzimuth: az)
+            let terrainY = horizonY - hAngle * hScale
+            let x = cx + (fraction - 0.5) * 180.0 * hScale
+
+            if !started {
+                path.move(to: CGPoint(x: x, y: terrainY))
+                started = true
+            } else {
+                path.addLine(to: CGPoint(x: x, y: terrainY))
+            }
+        }
+        // Close path downward
+        let endX = cx + 0.5 * 180.0 * hScale
+        let startX = cx - 0.5 * 180.0 * hScale
+        path.addLine(to: CGPoint(x: endX,   y: size.height))
+        path.addLine(to: CGPoint(x: startX, y: size.height))
+        path.closeSubpath()
+
+        ctx.fill(path, with: .color(fillColor))
+
+        // Subtle airglow along ridge
+        var ridgePath = Path()
+        started = false
+        for i in 0...steps {
+            let fraction = Double(i) / Double(steps)
+            let az  = (az0 + (fraction - 0.5) * 180.0)
+                .truncatingRemainder(dividingBy: 360)
+            let hAngle  = terrain.horizonAngle(forAzimuth: az)
+            let terrainY = horizonY - hAngle * hScale
+            let x = cx + (fraction - 0.5) * 180.0 * hScale
+            if !started { ridgePath.move(to: CGPoint(x: x, y: terrainY)); started = true }
+            else         { ridgePath.addLine(to: CGPoint(x: x, y: terrainY)) }
+        }
+        ctx.stroke(ridgePath,
+                   with: .color(Color(red: 0.2, green: 0.35, blue: 0.15).opacity(0.4)),
+                   lineWidth: 1.5)
     }
 }
 

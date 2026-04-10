@@ -42,6 +42,8 @@ final class StarMapViewModel: ObservableObject {
     @Published private(set) var galacticCenterAzimuth: Double = 0
     @Published private(set) var constellationLines: [ConstellationLineAltAz] = []
     @Published private(set) var constellationLabels: [ConstellationLabelAltAz] = []
+    @Published private(set) var planetPositions: [PlanetPosition] = []
+    @Published private(set) var terrainProfile: TerrainProfile? = nil
 
     // MARK: - Observation datetime (independent of AppController.selectedDate)
 
@@ -63,6 +65,14 @@ final class StarMapViewModel: ObservableObject {
     /// 水平視野角 (度): 30°〜150°, デフォルト 90°
     @Published var fov: Double = 90
 
+    /// 星空マップシートが表示中か（サイドバーの視野オーバーレイ連動用）
+    @Published var isStarMapOpen: Bool = false
+
+    /// 現在の視野方向（サイドバーマップオーバーレイ用）
+    var viewingDirection: ViewingDirection {
+        ViewingDirection(azimuth: viewAzimuth, fov: fov, isActive: isStarMapOpen)
+    }
+
     // MARK: - Dependencies
 
     private let appController: AppController
@@ -82,12 +92,20 @@ final class StarMapViewModel: ObservableObject {
 
     // MARK: - Calculation
 
+    /// 現在の観測地緯度 (度)
+    private(set) var latitude: Double = 35.0
+    /// 現在の地方恒星時 (度)
+    private(set) var currentLST: Double = 0.0
+
     func update() {
         let location = appController.locationController.selectedLocation
         let lat = location.latitude
         let lon = location.longitude
         let jd = MilkyWayCalculator.julianDate(from: displayDate)
         let lst = MilkyWayCalculator.localSiderealTime(jd: jd, longitude: lon)
+
+        latitude   = lat
+        currentLST = lst
 
         // 恒星の位置
         starPositions = StarCatalog.stars.map { star in
@@ -131,6 +149,29 @@ final class StarMapViewModel: ObservableObject {
             guard alt > -5 else { return nil }
             let az  = MilkyWayCalculator.azimuth(ra: entry.centerRA, dec: entry.centerDec, latitude: lat, lst: lst)
             return ConstellationLabelAltAz(alt: alt, az: az, name: entry.japaneseName)
+        }
+
+        // 惑星
+        planetPositions = MilkyWayCalculator.planetPositions(jd: jd, latitude: lat, lst: lst)
+
+        // 地形プロファイル（座標変化時のみ再取得）
+        let newKey = "\(Int(lat * 100)),\(Int(lon * 100))"
+        if newKey != lastTerrainKey {
+            lastTerrainKey = newKey
+            fetchTerrain(latitude: lat, longitude: lon)
+        }
+    }
+
+    private var lastTerrainKey: String = ""
+    private var terrainFetchTask: Task<Void, Never>? = nil
+
+    private func fetchTerrain(latitude: Double, longitude: Double) {
+        terrainFetchTask?.cancel()
+        terrainFetchTask = Task { [weak self] in
+            let profile = await TerrainService.shared.fetchProfile(
+                latitude: latitude, longitude: longitude)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { self?.terrainProfile = profile }
         }
     }
 

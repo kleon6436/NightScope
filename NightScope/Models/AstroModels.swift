@@ -22,6 +22,16 @@ struct AstroEvent: Identifiable {
     }
 }
 
+/// 星空マップの視野方向（サイドバーマップのオーバーレイに使用）
+struct ViewingDirection: Equatable {
+    /// 画面中心が向く方位角 (度, 0=北, 90=東)
+    let azimuth: Double
+    /// 水平視野角 (度)
+    let fov: Double
+    /// 星空マップが表示中か
+    let isActive: Bool
+}
+
 struct ViewingWindow {
     let start: Date
     let end: Date
@@ -291,4 +301,15 @@ struct NightSummary {
             moonPhaseAtMidnight: 0.0
         )
     }
+}
+
+// MARK: - Planet Position
+
+struct PlanetPosition: Identifiable {
+    let name: String
+    let altitude: Double          // degrees (-90〜90)
+    let azimuth: Double           // degrees (0=北, 90=東)
+    let magnitude: Double         // apparent magnitude
+    let geocentricDistAU: Double  // geocentric distance in AU
+    var id: String { name }
 }

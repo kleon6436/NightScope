@@ -7,17 +7,16 @@ struct DetailView: View {
     @StateObject private var starGazingIndexCardViewModel: StarGazingIndexCardViewModel
     @StateObject private var nightWeatherCardViewModel: NightWeatherCardViewModel
     @StateObject private var upcomingGridViewModel: UpcomingNightsGridViewModel
-    @StateObject private var starMapViewModel: StarMapViewModel
+    @ObservedObject var starMapViewModel: StarMapViewModel
 
-    @State private var showStarMap = false
     @State private var selectedStar: StarPosition? = nil
 
-    init(viewModel: DetailViewModel) {
+    init(viewModel: DetailViewModel, starMapViewModel: StarMapViewModel) {
         self.viewModel = viewModel
+        self.starMapViewModel = starMapViewModel
         _starGazingIndexCardViewModel = StateObject(wrappedValue: StarGazingIndexCardViewModel(lightPollutionService: viewModel.lightPollutionService))
         _nightWeatherCardViewModel = StateObject(wrappedValue: NightWeatherCardViewModel())
         _upcomingGridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: viewModel))
-        _starMapViewModel = StateObject(wrappedValue: StarMapViewModel(appController: viewModel.appControllerRef))
     }
 
     var body: some View {
@@ -34,7 +33,7 @@ struct DetailView: View {
         // NightScope は没入型体験を重視するため、HIG 例外として
         // ウィンドウツールバー背景を一時的に非表示にしている。
         .toolbarBackground(.hidden, for: .windowToolbar)
-        .sheet(isPresented: $showStarMap) {
+        .sheet(isPresented: $starMapViewModel.isStarMapOpen) {
             macStarMapSheet
         }
         .overlay(alignment: .bottom, content: errorOverlay)
@@ -61,7 +60,7 @@ struct DetailView: View {
                 .help("北 (方位0°, 仰角30°) にリセット  [N]")
 
                 Button {
-                    showStarMap = false
+                    starMapViewModel.isStarMapOpen = false
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
@@ -266,7 +265,7 @@ struct DetailView: View {
                         .font(.title3.bold())
                     Spacer()
                     Button {
-                        showStarMap = true
+                        starMapViewModel.isStarMapOpen = true
                     } label: {
                         Label("星空マップ", systemImage: "sparkles")
                     }

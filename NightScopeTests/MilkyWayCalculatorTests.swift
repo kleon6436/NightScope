@@ -193,4 +193,32 @@ final class MilkyWayCalculatorTests: XCTestCase {
         let windows = MilkyWayCalculator.findViewingWindows(events: events)
         XCTAssertTrue(windows.isEmpty)
     }
+
+    // MARK: - galacticToEquatorial
+
+    /// 銀河中心 (l=0, b=0) → RA≈266.4°, Dec≈-29.0° に近似一致する
+    func test_galacticToEquatorial_galacticCenter() {
+        let result = MilkyWayCalculator.galacticToEquatorial(l: 0, b: 0)
+        XCTAssertEqual(result.ra,  266.4, accuracy: 3.0, "銀河中心 RA")
+        XCTAssertEqual(result.dec, -29.0, accuracy: 3.0, "銀河中心 Dec")
+    }
+
+    /// 北銀極 (l=任意, b=90) → Dec ≈ 27.1° (銀河北極の赤緯)
+    func test_galacticToEquatorial_northGalacticPole() {
+        let result = MilkyWayCalculator.galacticToEquatorial(l: 0, b: 90)
+        XCTAssertEqual(result.dec, 27.1, accuracy: 3.0, "北銀極 Dec")
+    }
+
+    /// 出力 RA が常に [0, 360) 範囲に収まる
+    func test_galacticToEquatorial_raInRange() {
+        for l in stride(from: 0.0, through: 360.0, by: 30.0) {
+            for b in [-30.0, 0.0, 30.0] {
+                let result = MilkyWayCalculator.galacticToEquatorial(l: l, b: b)
+                XCTAssertGreaterThanOrEqual(result.ra, 0.0,   "l=\(l) b=\(b): RA < 0")
+                XCTAssertLessThan(          result.ra, 360.0, "l=\(l) b=\(b): RA >= 360")
+                XCTAssertGreaterThanOrEqual(result.dec, -90.0, "l=\(l) b=\(b): Dec < -90")
+                XCTAssertLessThanOrEqual(   result.dec,  90.0, "l=\(l) b=\(b): Dec > 90")
+            }
+        }
+    }
 }

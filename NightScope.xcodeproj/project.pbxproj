@@ -55,6 +55,10 @@
 		AA0000000000000000002B18 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
 		AA0000000000000000002B19 /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F19 /* UIConstants.swift */; };
 		AA0000000000000000002B20 /* DarkTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F20 /* DarkTimeCard.swift */; };
+		AA0000000000000000002B21 /* TerrainProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F21 /* TerrainProfile.swift */; };
+		AA0000000000000000002B22 /* TerrainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F22 /* TerrainService.swift */; };
+		CC0000000000000000B12101 /* TerrainProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F21 /* TerrainProfile.swift */; };
+		CC0000000000000000B12102 /* TerrainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F22 /* TerrainService.swift */; };
 		AA0000000000000000003B01 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
 		AA0000000000000000003B02 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F02 /* SidebarViewModel.swift */; };
 		AA0000000000000000003B03 /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
@@ -146,6 +150,8 @@
 		AA0000000000000000002F18 /* NightCalculationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightCalculationService.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F19 /* UIConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIConstants.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F20 /* DarkTimeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTimeCard.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F21 /* TerrainProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerrainProfile.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F22 /* TerrainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerrainService.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F01 /* DetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F02 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModel.swift; sourceTree = "<group>"; };
@@ -272,6 +278,7 @@
 				AA0000000000000000002F01 /* AstroModels.swift */,
 				AA0000000000000000002F02 /* WeatherModels.swift */,
 				AA0000000000000000002F03 /* StarGazingIndex.swift */,
+				AA0000000000000000002F21 /* TerrainProfile.swift */,
 				BB0000000000000000003F01 /* stars_fill.json */,
 				BB0000000000000000002F21 /* StarCatalog.swift */,
 				BB0000000000000000002F23 /* ConstellationData.swift */,
@@ -288,6 +295,7 @@
 				AA0000000000000000002F05 /* LocationController.swift */,
 				AA0000000000000000002F06 /* WeatherService.swift */,
 				AA0000000000000000002F12 /* LightPollutionService.swift */,
+				AA0000000000000000002F22 /* TerrainService.swift */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -522,6 +530,8 @@
 				BB0000000000000000005B03 /* StarMapCanvasView.swift in Sources */,
 				BB0000000000000000005B04 /* iOSStarMapView.swift in Sources */,
 				BB0000000000000000005B05 /* ConstellationData.swift in Sources */,
+				CC0000000000000000B12101 /* TerrainProfile.swift in Sources */,
+				CC0000000000000000B12102 /* TerrainService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -566,6 +576,8 @@
 				BB0000000000000000002B22 /* StarMapCanvasView.swift in Sources */,
 				BB0000000000000000002B23 /* ConstellationData.swift in Sources */,
 				BB0000000000000000002B24 /* StarInfoMacView.swift in Sources */,
+				AA0000000000000000002B21 /* TerrainProfile.swift in Sources */,
+				AA0000000000000000002B22 /* TerrainService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

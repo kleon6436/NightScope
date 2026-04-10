@@ -5,6 +5,7 @@ struct SidebarView: View {
 
     @StateObject var viewModel: SidebarViewModel
     @Binding var selectedDate: Date
+    var viewingDirection: ViewingDirection? = nil
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
@@ -167,7 +168,8 @@ struct SidebarView: View {
             showLightPollution: shouldShowLightPollutionOverlay,
             onCurrentLocation: handleCurrentLocationRequest,
             isLocating: isLocating,
-            centerTrigger: currentLocationCenterTrigger
+            centerTrigger: currentLocationCenterTrigger,
+            viewingDirection: viewingDirection
         )
         .equatable()
     }

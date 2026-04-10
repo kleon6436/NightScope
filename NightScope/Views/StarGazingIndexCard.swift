@@ -19,16 +19,21 @@ struct StarGazingIndexCard: View {
                     Text("星空指数")
                         .font(.body)
                         .foregroundStyle(.secondary)
-                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xs / 2) {
-                        Text("\(index.score)")
-                            .font(.system(.largeTitle, design: .rounded))
-                            .fontWeight(.bold)
-                            .foregroundStyle(color)
-                            .accessibilityLabel("星空指数 \(index.score)点")
-                        Text("/ 100")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
+                    HStack(alignment: .center, spacing: Spacing.xs) {
+                        ScoreArc(score: index.score, color: color)
+                            .frame(width: 52, height: 28)
                             .accessibilityHidden(true)
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.xs / 2) {
+                            Text("\(index.score)")
+                                .font(.system(.title2, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundStyle(color)
+                                .accessibilityLabel("星空指数 \(index.score)点")
+                            Text("/ 100")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+                        }
                     }
                 }
 
@@ -140,6 +145,40 @@ struct StarGazingIndexCard: View {
                 .font(.body.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
+        }
+    }
+}
+
+// MARK: - Score Arc Canvas
+
+private struct ScoreArc: View {
+    let score: Int
+    let color: Color
+
+    var body: some View {
+        Canvas { ctx, size in
+            let cx = size.width / 2, cy = size.height
+            let r = min(size.width, size.height * 2) * 0.44
+            let lineW: Double = 5
+
+            // Track
+            var track = Path()
+            track.addArc(center: CGPoint(x: cx, y: cy),
+                         radius: r, startAngle: .degrees(180), endAngle: .degrees(0),
+                         clockwise: false)
+            ctx.stroke(track,
+                       with: .color(Color.white.opacity(0.12)),
+                       style: StrokeStyle(lineWidth: lineW, lineCap: .round))
+
+            // Progress
+            let deg = 180.0 * Double(min(max(score, 0), 100)) / 100.0
+            var prog = Path()
+            prog.addArc(center: CGPoint(x: cx, y: cy),
+                        radius: r, startAngle: .degrees(180),
+                        endAngle: .degrees(180 + deg), clockwise: false)
+            ctx.stroke(prog,
+                       with: .color(color.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: lineW, lineCap: .round))
         }
     }
 }

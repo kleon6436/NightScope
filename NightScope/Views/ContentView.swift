@@ -4,6 +4,7 @@ struct ContentView: View {
     @StateObject private var appController: AppController
     @StateObject private var sidebarViewModel: SidebarViewModel
     @StateObject private var detailViewModel: DetailViewModel
+    @StateObject private var starMapViewModel: StarMapViewModel
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     init() {
@@ -16,13 +17,15 @@ struct ContentView: View {
             )
         )
         _detailViewModel = StateObject(wrappedValue: DetailViewModel(appController: appController))
+        _starMapViewModel = StateObject(wrappedValue: StarMapViewModel(appController: appController))
     }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(
                 viewModel: sidebarViewModel,
-                selectedDate: $appController.selectedDate
+                selectedDate: $appController.selectedDate,
+                viewingDirection: starMapViewModel.viewingDirection
             )
             .navigationSplitViewColumnWidth(
                 min: LayoutMacOS.sidebarMinWidth,
@@ -37,7 +40,7 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            DetailView(viewModel: detailViewModel)
+            DetailView(viewModel: detailViewModel, starMapViewModel: starMapViewModel)
         }
         .frame(minWidth: LayoutMacOS.windowMinWidth, minHeight: LayoutMacOS.windowMinHeight)
         .toolbar(removing: .sidebarToggle)

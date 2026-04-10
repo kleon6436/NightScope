@@ -116,4 +116,53 @@ enum MapKitViewSharedLogic {
     private static func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
         lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
     }
+
+    // MARK: - Viewing Direction Overlay
+
+    /// サイドバーマップ上に視野方向を示す扇形オーバーレイを更新する。
+    static func updateViewingDirectionOverlay(
+        on mapView: MKMapView,
+        pinCoordinate: CLLocationCoordinate2D?,
+        viewingDirection: ViewingDirection?
+    ) {
+        mapView.overlays
+            .compactMap { $0 as? ViewingDirectionOverlay }
+            .forEach { mapView.removeOverlay($0) }
+
+        guard let dir = viewingDirection, dir.isActive,
+              let center = pinCoordinate else { return }
+
+        var coords = sectorCoordinates(center: center, azimuth: dir.azimuth, fov: dir.fov)
+        let overlay = ViewingDirectionOverlay(coordinates: &coords, count: coords.count)
+        mapView.addOverlay(overlay, level: .aboveRoads)
+    }
+
+    private static func sectorCoordinates(
+        center: CLLocationCoordinate2D,
+        azimuth: Double,
+        fov: Double,
+        radius: Double = 2000
+    ) -> [CLLocationCoordinate2D] {
+        let lat = center.latitude
+        let steps = 20
+        var coords = [CLLocationCoordinate2D]()
+        coords.append(center)
+        for i in 0...steps {
+            let angle = (azimuth - fov / 2) + Double(i) * fov / Double(steps)
+            let angleRad = angle * .pi / 180
+            let latOffset  = radius * cos(angleRad) / 111_000
+            let lonOffset  = radius * sin(angleRad) / (111_000 * cos(lat * .pi / 180))
+            coords.append(CLLocationCoordinate2D(
+                latitude:  lat + latOffset,
+                longitude: center.longitude + lonOffset
+            ))
+        }
+        return coords
+    }
 }
+
+
+// MARK: - ViewingDirectionOverlay
+
+/// サイドバーマップで視野方向を示す扇形ポリゴンオーバーレイ。
+final class ViewingDirectionOverlay: MKPolygon {}
