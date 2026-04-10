@@ -7,13 +7,10 @@ import MapKit
 private struct MapContainerView<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
-    private var verticalSpacing: CGFloat { 4 }
-    private var minMapHeight: CGFloat { 160 }
-    private var maxMapHeight: CGFloat { 280 }
     private var instructionText: String { "地図をクリックして場所を選択" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: verticalSpacing) {
+        VStack(alignment: .leading, spacing: Layout.mapInstructionSpacing) {
             mapSurface
             instructionLabel
         }
@@ -21,7 +18,7 @@ private struct MapContainerView<Content: View>: View {
 
     private var mapSurface: some View {
         content()
-            .frame(minHeight: minMapHeight, maxHeight: maxMapHeight)
+            .frame(minHeight: Layout.mapMinHeight, maxHeight: Layout.mapMaxHeight)
             .frame(maxHeight: .infinity)
             .clipShape(RoundedRectangle(cornerRadius: Layout.mapCornerRadius))
             .overlay(
@@ -194,10 +191,11 @@ struct MapLocationPicker: View, Equatable {
             Button(action: onCurrentLocation) {
                 currentLocationButtonLabel
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .padding(Spacing.xs)
             .disabled(isLocating)
             .accessibilityLabel("現在地を取得")
+            .accessibilityHint("地図を現在地へ移動します")
         }
     }
 
@@ -207,11 +205,10 @@ struct MapLocationPicker: View, Equatable {
             if isLocating {
                 ProgressView().controlSize(.small)
             } else {
-                Image(systemName: "location.fill")
+                Image(systemName: AppIcons.Navigation.currentLocation)
                     .font(.system(size: Layout.mapIconSize))
             }
         }
         .frame(width: Layout.mapButtonSize, height: Layout.mapButtonSize)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Layout.mapButtonCornerRadius))
     }
 }

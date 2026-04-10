@@ -95,8 +95,13 @@ final class StarMapViewModel: ObservableObject {
     // MARK: - Observation datetime (independent of AppController.selectedDate)
 
     @Published var displayDate: Date = Date() {
-        didSet { update() }
+        didSet {
+            syncTimeSliderWithDisplayDate()
+            update()
+        }
     }
+
+    @Published private(set) var timeSliderMinutes: Double = 0
 
     // MARK: - View direction (full-sky planisphere rotation or gyro center)
 
@@ -110,7 +115,7 @@ final class StarMapViewModel: ObservableObject {
     @Published var isGyroMode: Bool = false
 
     /// 水平視野角 (度): 30°〜150°, デフォルト 90°
-    @Published var fov: Double = 90
+    @Published var fov: Double = StarMapLayout.defaultFOV
 
     /// 星空マップシートが表示中か（サイドバーの視野オーバーレイ連動用）
     @Published var isStarMapOpen: Bool = false
@@ -134,7 +139,14 @@ final class StarMapViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] in self?.update() }
             .store(in: &cancellables)
+        syncTimeSliderWithDisplayDate()
         update()
+    }
+
+    deinit {
+        updateTask?.cancel()
+        trailingTask?.cancel()
+        terrainFetchTask?.cancel()
     }
 
     // MARK: - Calculation
@@ -145,23 +157,23 @@ final class StarMapViewModel: ObservableObject {
     private(set) var currentLST: Double = 0.0
 
     /// 進行中の計算タスク (新しい update() 呼び出しでキャンセルする)
-    private var _updateTask: Task<Void, Never>?
+    private var updateTask: Task<Void, Never>?
     /// trailing-edge debounce 用タスク
-    private var _trailingTask: Task<Void, Never>?
+    private var trailingTask: Task<Void, Never>?
     /// 前回の計算開始タイムスタンプ (全 update() 呼び出しで共通スロットルに使用)
-    private var _lastPositionUpdateTime: TimeInterval = 0
-    /// 計算更新インターバル: 30fps (手動操作・タイムラプス共通)
+    private var lastPositionUpdateTime: TimeInterval = 0
+    /// 計算更新インターバル: 30fps
     private static let minUpdateInterval: TimeInterval = 1.0 / 30
 
     func update() {
         let now = Date.timeIntervalSinceReferenceDate
-        let elapsed = now - _lastPositionUpdateTime
+        let elapsed = now - lastPositionUpdateTime
 
         if elapsed < Self.minUpdateInterval {
             // 前回から時間が短い → trailing-edge debounce でインターバル後に最終値を計算
-            _trailingTask?.cancel()
+            trailingTask?.cancel()
             let remaining = Self.minUpdateInterval - elapsed
-            _trailingTask = Task { [weak self] in
+            trailingTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
                 guard !Task.isCancelled else { return }
                 await MainActor.run { self?._executeUpdate() }
@@ -172,9 +184,9 @@ final class StarMapViewModel: ObservableObject {
     }
 
     private func _executeUpdate() {
-        _lastPositionUpdateTime = Date.timeIntervalSinceReferenceDate
-        _trailingTask?.cancel()
-        _trailingTask = nil
+        lastPositionUpdateTime = Date.timeIntervalSinceReferenceDate
+        trailingTask?.cancel()
+        trailingTask = nil
 
         // MainActor 上でパラメータを読み取り、バックグラウンドへ渡す
         let location = appController.locationController.selectedLocation
@@ -193,8 +205,8 @@ final class StarMapViewModel: ObservableObject {
         }
 
         // 前の計算タスクをキャンセルして新しいタスクを開始
-        _updateTask?.cancel()
-        _updateTask = Task { [weak self] in
+        updateTask?.cancel()
+        updateTask = Task { [weak self] in
             guard let self else { return }
 
             // 重い計算をバックグラウンドスレッドで実行
@@ -344,7 +356,7 @@ final class StarMapViewModel: ObservableObject {
             let (alt2, _) = MilkyWayCalculator.altAzFast(ra: eq2.ra, dec: eq2.dec,
                                                           cosLat: cosLat, sinLat: sinLat,
                                                           lst: lst)
-            let halfHDeg = max(3.0 / 1, abs(alt1 - alt2) / 2)
+            let halfHDeg = max(3.0, abs(alt1 - alt2) / 2)
             result.append(MilkyWayBandPoint(az: az0, alt: alt0, halfH: halfHDeg, li: li))
         }
         return result
@@ -383,40 +395,6 @@ final class StarMapViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Timelapse Animation
-
-    /// タイムラプス再生中か
-    @Published var isTimelapsePlaying: Bool = false
-
-    /// タイムラプス速度倍率 (10=10倍速, 60=1分=1秒, 600=10分=1秒)
-    @Published var timelapseSpeed: Double = 60
-
-    private var timelapseTimer: Timer?
-    private static let timerInterval: TimeInterval = 1.0 / 30  // 30 fps
-
-    func startTimelapse() {
-        isTimelapsePlaying = true
-        _lastPositionUpdateTime = 0  // タイムラプス開始直後は即座に計算する
-        timelapseTimer = Timer.scheduledTimer(withTimeInterval: Self.timerInterval,
-                                              repeats: true) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
-                self.displayDate = self.displayDate.addingTimeInterval(
-                    self.timelapseSpeed * Self.timerInterval)
-            }
-        }
-    }
-
-    func stopTimelapse() {
-        isTimelapsePlaying = false
-        timelapseTimer?.invalidate()
-        timelapseTimer = nil
-    }
-
-    func toggleTimelapse() {
-        if isTimelapsePlaying { stopTimelapse() } else { startTimelapse() }
-    }
-
     // MARK: - Meteor Showers
 
     /// 現在の表示日時でアクティブな流星群
@@ -436,23 +414,67 @@ final class StarMapViewModel: ObservableObject {
     var isAstronomicalDark: Bool { sunAltitude < -18 }
 
     /// 現在時刻にリセット
-    func resetToNow() {
-        displayDate = Date()
+    func resetToNow(referenceDate: Date = Date()) {
+        displayDate = referenceDate
     }
 
-    /// 予報日付に合わせて観測時刻を設定（選択日の 21:00 ローカル時刻）
-    func syncWithSelectedDate() {
+    /// 選択日付に現在の時刻を合成して、星空マップの表示日時へ反映する。
+    func syncWithSelectedDate(referenceDate: Date = Date()) {
         let selected = appController.selectedDate
-        let cal = Calendar.current
-        if let date = cal.date(bySettingHour: 21, minute: 0, second: 0, of: selected) {
+        if let date = Self.date(byApplyingTimeOf: referenceDate, to: selected) {
             displayDate = date
         }
+    }
+
+    func setTimeSliderMinutes(_ minutes: Double) {
+        let clampedMinutes = max(0, min(StarMapLayout.minutesInDay, minutes.rounded()))
+        guard abs(timeSliderMinutes - clampedMinutes) > 0.5 else { return }
+        timeSliderMinutes = clampedMinutes
+
+        let hour = Int(clampedMinutes) / 60
+        let minute = Int(clampedMinutes) % 60
+        let calendar = Calendar.current
+        if let updatedDate = calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: displayDate
+        ) {
+            displayDate = updatedDate
+        }
+    }
+
+    var displayTimeString: String {
+        StarMapPresentation.timeString(from: timeSliderMinutes)
     }
 
     /// 北向き (方位0°, 仰角30°) にリセット
     func resetToNorth() {
         viewAzimuth = 0
-        viewAltitude = 30
+        viewAltitude = StarMapLayout.resetAltitude
+    }
+
+    private func syncTimeSliderWithDisplayDate() {
+        let minutes = Self.sliderMinutes(for: displayDate)
+        guard abs(timeSliderMinutes - minutes) > 0.5 else { return }
+        timeSliderMinutes = minutes
+    }
+
+    private static func sliderMinutes(for date: Date) -> Double {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        return Double((components.hour ?? 0) * 60 + (components.minute ?? 0))
+    }
+
+    private static func date(byApplyingTimeOf referenceDate: Date, to date: Date) -> Date? {
+        let calendar = Calendar.current
+        let time = calendar.dateComponents([.hour, .minute], from: referenceDate)
+        return calendar.date(
+            bySettingHour: time.hour ?? 0,
+            minute: time.minute ?? 0,
+            second: 0,
+            of: date
+        )
     }
 }
 

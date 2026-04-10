@@ -85,6 +85,100 @@ final class ViewModelTests: XCTestCase {
         XCTFail("条件を満たすまでにタイムアウトしました", file: file, line: line)
     }
 
+    // MARK: - Presentation Helpers
+
+    func test_StarMapPresentation_azimuthName_normalizesDegrees() {
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: -1), "北")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 44), "北東")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), "南西")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 359), "北")
+    }
+
+    func test_StarMapPresentation_timeString_formatsMinutes() {
+        XCTAssertEqual(StarMapPresentation.timeString(from: 0), "00:00")
+        XCTAssertEqual(StarMapPresentation.timeString(from: 61), "01:01")
+        XCTAssertEqual(StarMapPresentation.timeString(from: 1_439), "23:59")
+    }
+
+    func test_StarMapLayout_clampedFOV_limitsRange() {
+        XCTAssertEqual(StarMapLayout.clampedFOV(20), StarMapLayout.minFOV)
+        XCTAssertEqual(StarMapLayout.clampedFOV(90), 90)
+        XCTAssertEqual(StarMapLayout.clampedFOV(160), StarMapLayout.maxFOV)
+    }
+
+    func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let targetDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 22,
+            minute: 45
+        ))!
+
+        viewModel.displayDate = targetDate
+
+        XCTAssertEqual(viewModel.timeSliderMinutes, 1_365)
+        XCTAssertEqual(viewModel.displayTimeString, "22:45")
+    }
+
+    func test_StarMapViewModel_setTimeSliderMinutes_updatesDisplayDateKeepingDate() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let baseDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 21,
+            minute: 15
+        ))!
+        viewModel.displayDate = baseDate
+
+        viewModel.setTimeSliderMinutes(330)
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 4)
+        XCTAssertEqual(components.day, 10)
+        XCTAssertEqual(components.hour, 5)
+        XCTAssertEqual(components.minute, 30)
+        XCTAssertEqual(viewModel.timeSliderMinutes, 330)
+    }
+
+    func test_StarMapViewModel_syncWithSelectedDate_usesCurrentTimeOnSelectedDate() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 6,
+            minute: 7
+        ))!
+
+        appController.selectedDate = selectedDate
+        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 12)
+        XCTAssertEqual(components.hour, 6)
+        XCTAssertEqual(components.minute, 7)
+        XCTAssertEqual(viewModel.timeSliderMinutes, 367)
+    }
+
     // MARK: - Mock Types
 
     final class MockLocationController: LocationProviding {

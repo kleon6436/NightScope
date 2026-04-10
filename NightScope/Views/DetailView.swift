@@ -9,10 +9,6 @@ struct DetailView: View {
     @StateObject private var upcomingGridViewModel: UpcomingNightsGridViewModel
     @ObservedObject var starMapViewModel: StarMapViewModel
 
-    @State private var selectedStar: StarPosition? = nil
-    /// 時刻スライダー用: 0=00:00, 1439=23:59（分単位）
-    @State private var timeSliderMinutes: Double = 0
-
     init(viewModel: DetailViewModel, starMapViewModel: StarMapViewModel) {
         self.viewModel = viewModel
         self.starMapViewModel = starMapViewModel
@@ -36,7 +32,7 @@ struct DetailView: View {
         // ウィンドウツールバー背景を一時的に非表示にしている。
         .toolbarBackground(.hidden, for: .windowToolbar)
         .sheet(isPresented: $starMapViewModel.isStarMapOpen) {
-            macStarMapSheet
+            MacStarMapSheet(viewModel: starMapViewModel)
         }
         .onChange(of: starMapViewModel.isStarMapOpen) { _, isOpen in
             if isOpen { starMapViewModel.syncWithSelectedDate() }
@@ -44,237 +40,6 @@ struct DetailView: View {
         .overlay(alignment: .bottom, content: errorOverlay)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasWeatherError)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasLightPollutionError)
-    }
-
-    // MARK: - macOS Star Map Sheet
-
-    private var macStarMapSheet: some View {
-        VStack(spacing: 0) {
-            // ---- ヘッダー ----
-            HStack {
-                Text("星空マップ")
-                    .font(.headline)
-                Spacer()
-
-                // タイムラプス速度選択
-                Picker("速度", selection: $starMapViewModel.timelapseSpeed) {
-                    Text("×10").tag(10.0)
-                    Text("×60").tag(60.0)
-                    Text("×600").tag(600.0)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 140)
-                .controlSize(.small)
-                .help("タイムラプス速度 (×10=10倍速 / ×60=1分/秒 / ×600=10分/秒)")
-
-                // 再生/停止ボタン
-                Button {
-                    starMapViewModel.toggleTimelapse()
-                } label: {
-                    Image(systemName: starMapViewModel.isTimelapsePlaying
-                          ? "pause.circle.fill" : "play.circle.fill")
-                        .symbolEffect(.bounce, value: starMapViewModel.isTimelapsePlaying)
-                        .font(.title3)
-                        .foregroundStyle(starMapViewModel.isTimelapsePlaying ? .yellow : .accentColor)
-                }
-                .buttonStyle(.plain)
-                .help(starMapViewModel.isTimelapsePlaying ? "タイムラプスを停止" : "タイムラプスを再生")
-
-                Button {
-                    starMapViewModel.resetToNorth()
-                } label: {
-                    Label("北を向く", systemImage: "arrow.up.circle")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("北 (方位0°, 仰角30°) にリセット  [N]")
-
-                Button {
-                    starMapViewModel.stopTimelapse()
-                    starMapViewModel.isStarMapOpen = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, Spacing.xs)
-            }
-            .padding(Spacing.sm)
-
-            // ---- キャンバス ----
-            StarMapCanvasView(viewModel: starMapViewModel, onStarSelected: { star in
-                selectedStar = star
-            })
-            .frame(minWidth: 720, minHeight: 560)
-            .popover(item: $selectedStar) { star in
-                StarInfoMacView(starPosition: star)
-            }
-
-            Divider()
-
-            // ---- ステータス HUD ----
-            HStack(spacing: Spacing.md) {
-                Label(
-                    String(format: "%@ %.0f°",
-                           azimuthName(starMapViewModel.viewAzimuth),
-                           starMapViewModel.viewAzimuth),
-                    systemImage: "location.north.circle"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                Label(
-                    String(format: "仰角 %.0f°", starMapViewModel.viewAltitude),
-                    systemImage: "arrow.up.circle"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                Label(
-                    String(format: "視野 %.0f°", starMapViewModel.fov),
-                    systemImage: "viewfinder"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-                Spacer()
-
-                if starMapViewModel.sunAltitude > 0 {
-                    Label(
-                        String(format: "太陽 %.0f°", starMapViewModel.sunAltitude),
-                        systemImage: "sun.max.fill"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.yellow)
-                }
-                if starMapViewModel.moonAltitude > 0 {
-                    Label(
-                        String(format: "月 %.0f°", starMapViewModel.moonAltitude),
-                        systemImage: "moon.fill"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.8))
-                }
-
-                // 流星群情報
-                if !starMapViewModel.meteorShowerRadiants.isEmpty {
-                    let shower = starMapViewModel.meteorShowerRadiants[0].shower
-                    Label("\(shower.name) 活動中", systemImage: "sparkles")
-                        .font(.caption)
-                        .foregroundStyle(Color(red: 0.4, green: 1.0, blue: 0.7).opacity(0.9))
-                } else if let next = starMapViewModel.nextMeteorShower {
-                    Label("次: \(next.shower.name) (\(next.daysUntilPeak)日後)", systemImage: "sparkles")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.xs)
-
-            Divider()
-
-            // ---- コントロール ----
-            VStack(spacing: 4) {
-                HStack(spacing: Spacing.sm) {
-                    Label("観測日", systemImage: "calendar")
-                        .foregroundStyle(.secondary)
-                        .font(.subheadline)
-
-                    DatePicker(
-                        "",
-                        selection: $starMapViewModel.displayDate,
-                        displayedComponents: [.date]
-                    )
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .onChange(of: starMapViewModel.displayDate) { _, newDate in
-                        let cal = Calendar.current
-                        let comps = cal.dateComponents([.hour, .minute], from: newDate)
-                        let mins = Double((comps.hour ?? 0) * 60 + (comps.minute ?? 0))
-                        if abs(timeSliderMinutes - mins) > 0.5 {
-                            timeSliderMinutes = mins
-                        }
-                    }
-
-                    Spacer()
-
-                    if !starMapViewModel.isNight {
-                        Label("昼間", systemImage: "sun.max")
-                            .font(.caption)
-                            .foregroundStyle(.yellow)
-                    }
-
-                    Button("現在") {
-                        starMapViewModel.resetToNow()
-                        syncSliderToDisplayDate()
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-
-                HStack(spacing: Spacing.xs) {
-                    Image(systemName: "moon.stars")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 16)
-
-                    Slider(value: $timeSliderMinutes, in: 0...1439, step: 1) {
-                        Text("時刻")
-                    }
-                    .onChange(of: timeSliderMinutes) { _, mins in
-                        applySliderToDisplayDate(minutes: mins)
-                    }
-
-                    Text(timeString(from: timeSliderMinutes))
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.primary)
-                        .frame(width: 44, alignment: .trailing)
-                }
-            }
-            .padding(Spacing.sm)
-            .onAppear { syncSliderToDisplayDate() }
-            .onChange(of: starMapViewModel.displayDate) { _, _ in
-                // タイムラプス再生中はスライダーを追従させる
-                if starMapViewModel.isTimelapsePlaying {
-                    syncSliderToDisplayDate()
-                }
-            }
-        }
-        .frame(minWidth: 760, minHeight: 720)
-    }
-
-    /// 方位角 (度) を 8 方位の日本語テキストに変換する
-    private func azimuthName(_ degrees: Double) -> String {
-        let normalized = (degrees.truncatingRemainder(dividingBy: 360) + 360)
-            .truncatingRemainder(dividingBy: 360)
-        let index = Int((normalized + 22.5) / 45) % 8
-        let names = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"]
-        return names[index]
-    }
-
-    /// スライダー値 (分) を "HH:mm" 文字列に変換
-    private func timeString(from minutes: Double) -> String {
-        let h = Int(minutes) / 60
-        let m = Int(minutes) % 60
-        return String(format: "%02d:%02d", h, m)
-    }
-
-    /// displayDate の時分をスライダーに反映
-    private func syncSliderToDisplayDate() {
-        let cal = Calendar.current
-        let comps = cal.dateComponents([.hour, .minute], from: starMapViewModel.displayDate)
-        timeSliderMinutes = Double((comps.hour ?? 0) * 60 + (comps.minute ?? 0))
-    }
-
-    /// スライダー値 (分) を displayDate に反映
-    private func applySliderToDisplayDate(minutes: Double) {
-        let cal = Calendar.current
-        let h = Int(minutes) / 60
-        let m = Int(minutes) % 60
-        if let updated = cal.date(bySettingHour: h, minute: m, second: 0,
-                                   of: starMapViewModel.displayDate) {
-            starMapViewModel.displayDate = updated
-        }
     }
 
     private func detailContent(summary: NightSummary) -> some View {
@@ -372,9 +137,11 @@ struct DetailView: View {
                     Button {
                         starMapViewModel.isStarMapOpen = true
                     } label: {
-                        Label("星空マップ", systemImage: "sparkles")
+                        Label("星空マップ", systemImage: AppIcons.Astronomy.sparkles)
                     }
+                    .buttonStyle(.glass)
                     .help("星空マップを表示")
+                    .accessibilityHint("選択した日付の星空マップを開きます")
                 }
                 StarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
             }
@@ -393,5 +160,172 @@ struct DetailView: View {
                 }
             }
         }
+    }
+}
+
+private struct MacStarMapSheet: View {
+    @ObservedObject var viewModel: StarMapViewModel
+
+    @State private var selectedStar: StarPosition?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            headerSection
+
+            StarMapCanvasView(viewModel: viewModel) { star in
+                selectedStar = star
+            }
+            .frame(minWidth: StarMapLayout.canvasMinWidth, minHeight: StarMapLayout.canvasMinHeight)
+            .popover(item: $selectedStar) { star in
+                StarInfoMacView(starPosition: star)
+            }
+
+            Divider()
+            statusSection
+            Divider()
+            controlsSection
+        }
+        .frame(minWidth: StarMapLayout.sheetMinWidth, minHeight: StarMapLayout.sheetMinHeight)
+        .onDisappear {
+            selectedStar = nil
+        }
+    }
+
+    private var headerSection: some View {
+        HStack {
+            Text("星空マップ")
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            Spacer()
+
+            Button(action: viewModel.resetToNorth) {
+                Label("北を向く", systemImage: "arrow.up.circle")
+            }
+            .buttonStyle(.bordered)
+            .help("北 (方位0°, 仰角30°) にリセット  [N]")
+
+            Button(action: closeSheet) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("星空マップを閉じる")
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, Spacing.sm)
+    }
+
+    private var statusSection: some View {
+        HStack(spacing: Spacing.md) {
+            Label(
+                String(format: "%@ %.0f°", StarMapPresentation.azimuthName(for: viewModel.viewAzimuth), viewModel.viewAzimuth),
+                systemImage: "location.north.circle"
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+            Label(
+                String(format: "仰角 %.0f°", viewModel.viewAltitude),
+                systemImage: "arrow.up.circle"
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+            Label(
+                String(format: "視野 %.0f°", viewModel.fov),
+                systemImage: "viewfinder"
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+            Spacer()
+
+            if viewModel.sunAltitude > 0 {
+                Label(
+                    String(format: "太陽 %.0f°", viewModel.sunAltitude),
+                    systemImage: "sun.max.fill"
+                )
+                .font(.footnote)
+                .foregroundStyle(.yellow)
+            }
+
+            if viewModel.moonAltitude > 0 {
+                Label(
+                    String(format: "月 %.0f°", viewModel.moonAltitude),
+                    systemImage: "moon.fill"
+                )
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.8))
+            }
+
+            if !viewModel.meteorShowerRadiants.isEmpty {
+                let shower = viewModel.meteorShowerRadiants[0].shower
+                Label("\(shower.name) 活動中", systemImage: AppIcons.Astronomy.sparkles)
+                    .font(.footnote)
+                    .foregroundStyle(StarMapPalette.meteorAccent.opacity(0.9))
+            } else if let next = viewModel.nextMeteorShower {
+                Label("\(next.shower.name) まで\(next.daysUntilPeak)日", systemImage: AppIcons.Astronomy.sparkles)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+    }
+
+    private var controlsSection: some View {
+        VStack(spacing: Spacing.xs) {
+            HStack(spacing: Spacing.sm) {
+                Label("観測日", systemImage: AppIcons.Navigation.calendar)
+                    .foregroundStyle(.secondary)
+                    .font(.body)
+
+                DatePicker("", selection: $viewModel.displayDate, displayedComponents: [.date])
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+
+                Spacer()
+
+                if !viewModel.isNight {
+                    Label("昼間", systemImage: "sun.max")
+                        .font(.footnote)
+                        .foregroundStyle(.yellow)
+                }
+
+                Button("現在") {
+                    viewModel.resetToNow()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            HStack(spacing: Spacing.sm) {
+                Label("時刻", systemImage: AppIcons.Astronomy.moonStars)
+                    .foregroundStyle(.secondary)
+                    .font(.body)
+
+                Slider(value: timeSliderBinding, in: 0...StarMapLayout.minutesInDay, step: 1)
+                    .labelsHidden()
+
+                Text(viewModel.displayTimeString)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
+            }
+        }
+        .padding(Spacing.sm)
+    }
+
+    private func closeSheet() {
+        viewModel.isStarMapOpen = false
+    }
+
+    private var timeSliderBinding: Binding<Double> {
+        Binding(
+            get: { viewModel.timeSliderMinutes },
+            set: { viewModel.setTimeSliderMinutes($0) }
+        )
     }
 }

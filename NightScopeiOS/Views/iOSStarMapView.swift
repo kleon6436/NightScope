@@ -11,9 +11,6 @@ struct iOSStarMapView: View {
     @State private var headingController = StarMapHeadingController()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// 時刻スライダー用: 0=00:00, 1439=23:59（分単位）
-    @State private var timeSliderMinutes: Double = 0
-
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
@@ -28,9 +25,6 @@ struct iOSStarMapView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    timelapseControls
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     gyroToggleButton
                 }
@@ -38,11 +32,9 @@ struct iOSStarMapView: View {
         }
         .onAppear {
             viewModel.syncWithSelectedDate()
-            syncSliderToDisplayDate()
             handleGyroChange()
         }
         .onDisappear {
-            viewModel.stopTimelapse()
             stopMotion()
         }
         .onChange(of: viewModel.isGyroMode) { handleGyroChange() }
@@ -80,18 +72,9 @@ struct iOSStarMapView: View {
             .labelsHidden()
             .datePickerStyle(.compact)
             .colorScheme(.dark)
-            .onChange(of: viewModel.displayDate) { _, newDate in
-                let cal = Calendar.current
-                let comps = cal.dateComponents([.hour, .minute], from: newDate)
-                let mins = Double((comps.hour ?? 0) * 60 + (comps.minute ?? 0))
-                if abs(timeSliderMinutes - mins) > 0.5 {
-                    timeSliderMinutes = mins
-                }
-            }
 
             Button("現在") {
                 viewModel.resetToNow()
-                syncSliderToDisplayDate()
             }
             .font(.caption)
             .buttonStyle(.bordered)
@@ -106,18 +89,15 @@ struct iOSStarMapView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Slider(value: $timeSliderMinutes, in: 0...1439, step: 1) {
+            Slider(value: timeSliderBinding, in: 0...StarMapLayout.minutesInDay, step: 1) {
                 Text("時刻")
             }
             .tint(.accentColor)
-            .onChange(of: timeSliderMinutes) { _, mins in
-                applySliderToDisplayDate(minutes: mins)
-            }
 
-            Text(timeString(from: timeSliderMinutes))
+            Text(viewModel.displayTimeString)
                 .font(.system(size: 12, design: .monospaced))
                 .foregroundStyle(.white)
-                .frame(width: 44, alignment: .trailing)
+                .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
         }
         .padding(.vertical, 2)
     }
@@ -160,29 +140,6 @@ struct iOSStarMapView: View {
                       systemImage: "sparkles")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    // MARK: - Timelapse Controls
-
-    private var timelapseControls: some View {
-        HStack(spacing: Spacing.xs) {
-            Picker("速度", selection: $viewModel.timelapseSpeed) {
-                Text("×10").tag(10.0)
-                Text("×60").tag(60.0)
-                Text("×600").tag(600.0)
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 120)
-
-            Button {
-                viewModel.toggleTimelapse()
-            } label: {
-                Image(systemName: viewModel.isTimelapsePlaying
-                      ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(viewModel.isTimelapsePlaying ? .yellow : .accentColor)
             }
         }
     }
@@ -242,28 +199,11 @@ struct iOSStarMapView: View {
         headingController.stop()
     }
 
-    // MARK: - Time Slider Helpers
-
-    private func timeString(from minutes: Double) -> String {
-        let h = Int(minutes) / 60
-        let m = Int(minutes) % 60
-        return String(format: "%02d:%02d", h, m)
-    }
-
-    private func syncSliderToDisplayDate() {
-        let cal = Calendar.current
-        let comps = cal.dateComponents([.hour, .minute], from: viewModel.displayDate)
-        timeSliderMinutes = Double((comps.hour ?? 0) * 60 + (comps.minute ?? 0))
-    }
-
-    private func applySliderToDisplayDate(minutes: Double) {
-        let cal = Calendar.current
-        let h = Int(minutes) / 60
-        let m = Int(minutes) % 60
-        if let updated = cal.date(bySettingHour: h, minute: m, second: 0,
-                                   of: viewModel.displayDate) {
-            viewModel.displayDate = updated
-        }
+    private var timeSliderBinding: Binding<Double> {
+        Binding(
+            get: { viewModel.timeSliderMinutes },
+            set: { viewModel.setTimeSliderMinutes($0) }
+        )
     }
 }
 

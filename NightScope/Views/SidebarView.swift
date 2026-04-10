@@ -27,7 +27,7 @@ struct SidebarView: View {
                 viewModel.handleLocationSectionAppear(selectedCoordinate: viewModel.selectedCoordinate)
             }
             .onChange(of: viewModel.locationInputMode) {
-                Task { @MainActor in viewModel.handleLocationInputModeChanged() }
+                viewModel.handleLocationInputModeChanged()
             }
             .alert(
                 "位置情報エラー",
@@ -66,18 +66,6 @@ struct SidebarView: View {
         )
     }
 
-    private func handleLocationSectionAppear() {
-        viewModel.handleLocationSectionAppear(selectedCoordinate: viewModel.selectedCoordinate)
-    }
-
-    private func handleLocationUpdateIDChanged() {
-        viewModel.handleLocationUpdateIDChanged()
-    }
-
-    private func handleLocationInputModeChanged() {
-        viewModel.handleLocationInputModeChanged()
-    }
-
     private func clearLocationError() {
         viewModel.clearLocationError()
     }
@@ -105,54 +93,22 @@ struct SidebarView: View {
             onEscape: handleSearchEscape
         )
         .onChange(of: viewModel.searchFocusTrigger) {
-            Task { @MainActor in isSearchFocused = true }
+            isSearchFocused = true
         }
-    }
-
-    private var searchResults: [MKMapItem] {
-        viewModel.searchResults
-    }
-
-    private var hasSearchResults: Bool {
-        !searchResults.isEmpty
-    }
-
-    private var selectedCoordinate: CLLocationCoordinate2D {
-        viewModel.selectedCoordinate
-    }
-
-    private var selectedLocationName: String {
-        viewModel.selectedLocationName
-    }
-
-    private var isSearching: Bool {
-        viewModel.isSearching
-    }
-
-    private var isLocating: Bool {
-        viewModel.isLocating
-    }
-
-    private var searchFocusTrigger: Int {
-        viewModel.searchFocusTrigger
-    }
-
-    private var currentLocationCenterTrigger: Int {
-        viewModel.currentLocationCenterTrigger
     }
 
     @ViewBuilder
     private var searchResultsList: some View {
-        if hasSearchResults {
+        if !viewModel.searchResults.isEmpty {
             SidebarSearchResultsList(
-                searchResults: searchResults,
+                searchResults: viewModel.searchResults,
                 highlightedIndex: viewModel.searchState.highlightedIndex,
                 onSelect: confirmSelection
             )
         } else if SidebarSearchInteraction.shouldShowEmptyState(
             searchText: viewModel.searchState.text,
-            isSearching: isSearching,
-            hasResults: hasSearchResults
+            isSearching: viewModel.isSearching,
+            hasResults: !viewModel.searchResults.isEmpty
         ) {
             ContentUnavailableView.search(text: viewModel.searchState.text)
                 .padding(.vertical, Spacing.xs)
@@ -161,14 +117,14 @@ struct SidebarView: View {
 
     private var mapView: some View {
         MapLocationPicker(
-            selectedCoordinate: selectedCoordinate,
+            selectedCoordinate: viewModel.selectedCoordinate,
             onSelect: handleMapCoordinateSelection,
             syncState: mapSyncState,
             onRegionChange: handleMapRegionChanged,
             showLightPollution: shouldShowLightPollutionOverlay,
             onCurrentLocation: handleCurrentLocationRequest,
-            isLocating: isLocating,
-            centerTrigger: currentLocationCenterTrigger,
+            isLocating: viewModel.isLocating,
+            centerTrigger: viewModel.currentLocationCenterTrigger,
             viewingDirection: viewingDirection
         )
         .equatable()
@@ -201,8 +157,8 @@ struct SidebarView: View {
 
     private var selectedLocationLabel: some View {
         SidebarSelectedLocationSummaryView(
-            locationName: selectedLocationName,
-            coordinate: selectedCoordinate
+            locationName: viewModel.selectedLocationName,
+            coordinate: viewModel.selectedCoordinate
         )
     }
 
@@ -221,7 +177,7 @@ struct SidebarView: View {
     /// ハイライト中の候補（なければ先頭）を確定する
     private func confirmHighlightedOrFirst() {
         let target = SidebarSearchInteraction.highlightedTarget(
-            in: searchResults,
+            in: viewModel.searchResults,
             highlightedIndex: viewModel.searchState.highlightedIndex
         )
         if let item = target {
@@ -240,7 +196,7 @@ struct SidebarView: View {
         Task { @MainActor in
             viewModel.searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(
                 current: viewModel.searchState.highlightedIndex,
-                totalResults: searchResults.count
+                totalResults: viewModel.searchResults.count
             )
         }
         return .handled
@@ -362,7 +318,7 @@ private struct SidebarBortleLabel: View {
                     .accessibilityLabel("光害データなし")
             }
         }
-        .frame(width: 62, alignment: .trailing)
+        .frame(width: Layout.sidebarStatusWidth, alignment: .trailing)
     }
 
     private func color(for bortleClass: Double) -> Color {
@@ -380,7 +336,7 @@ private struct SidebarSelectedLocationSummaryView: View {
     let coordinate: CLLocationCoordinate2D
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcons.Navigation.locationPinPlain)
                     .foregroundStyle(Color.accentColor)
