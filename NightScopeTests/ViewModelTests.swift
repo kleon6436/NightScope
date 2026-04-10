@@ -106,6 +106,56 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(StarMapLayout.clampedFOV(160), StarMapLayout.maxFOV)
     }
 
+    func test_StarMapLayout_panoramaHelpers_keepHorizonNearBottomEdge() {
+        let size = CGSize(width: 860, height: 620)
+        let fov = 90.0
+
+        let maxAltitude = StarMapLayout.panoramaMaxAltitude(size: size, fov: fov)
+        let preferredAltitude = StarMapLayout.preferredPanoramaAltitude(size: size, fov: fov)
+        let horizonY = StarMapLayout.panoramaHorizonY(altitude: preferredAltitude, size: size, fov: fov)
+
+        XCTAssertEqual(maxAltitude, 29.5, accuracy: 0.3)
+        XCTAssertEqual(preferredAltitude, maxAltitude, accuracy: 0.001)
+        XCTAssertLessThanOrEqual(horizonY, size.height - StarMapLayout.panoramaBottomMargin + 0.001)
+        XCTAssertGreaterThanOrEqual(preferredAltitude, 0)
+        XCTAssertLessThanOrEqual(preferredAltitude, 90)
+    }
+
+    func test_StarMapViewModel_initialPanoramaPose_usesViewportGeometry() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let size = CGSize(width: 860, height: 620)
+
+        viewModel.viewAzimuth = 123
+        viewModel.viewAltitude = 10
+        viewModel.updatePanoramaViewport(size: size)
+        viewModel.prepareForStarMapPresentation()
+        viewModel.applyInitialPanoramaPoseIfNeeded()
+
+        XCTAssertEqual(viewModel.viewAzimuth, 0)
+        XCTAssertEqual(
+            viewModel.viewAltitude,
+            StarMapLayout.preferredPanoramaAltitude(size: size, fov: viewModel.fov),
+            accuracy: 0.001
+        )
+    }
+
+    func test_StarMapViewModel_resetToNorth_usesViewportGeometry() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let size = CGSize(width: 400, height: 500)
+
+        viewModel.updatePanoramaViewport(size: size)
+        viewModel.resetToNorth()
+
+        XCTAssertEqual(viewModel.viewAzimuth, 0)
+        XCTAssertEqual(
+            viewModel.viewAltitude,
+            StarMapLayout.preferredPanoramaAltitude(size: size, fov: viewModel.fov),
+            accuracy: 0.001
+        )
+    }
+
     func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)

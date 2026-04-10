@@ -57,6 +57,8 @@ enum StarMapLayout {
     static let maxFOV: Double = 150
     static let defaultFOV: Double = 90
     static let resetAltitude: Double = 30
+    static let panoramaBottomMargin: CGFloat = 28
+    static let panoramaCardinalLabelOffset: CGFloat = 12
     static let directionStep: Double = 5
     static let zoomStep: Double = 10
     static let minutesInDay: Double = 1_439
@@ -69,6 +71,46 @@ enum StarMapLayout {
 
     static func clampedFOV(_ value: Double) -> Double {
         max(minFOV, min(maxFOV, value))
+    }
+
+    static func panoramaMaxAltitude(size: CGSize, fov: Double,
+                                    bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        let clampedFOV = clampedFOV(fov)
+        guard size.width > 0, size.height > 0, clampedFOV > 0 else {
+            return 90
+        }
+
+        let hScale = size.width / clampedFOV
+        guard hScale > 0 else { return 90 }
+
+        let usableHeight = max(0, size.height / 2 - bottomMargin)
+        return max(0, min(90, Double(usableHeight) / hScale))
+    }
+
+    /// パノラマ操作時に地平線が上へ逃げすぎないようにする下限。
+    /// 初期表示の下端寄せと同じ幾何条件を使う。
+    static func panoramaLowerBoundAltitude(size: CGSize, fov: Double,
+                                           bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        preferredPanoramaAltitude(size: size, fov: fov, bottomMargin: bottomMargin)
+    }
+
+    static func preferredPanoramaAltitude(size: CGSize, fov: Double,
+                                          bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        guard size.width > 0, size.height > 0 else { return resetAltitude }
+        return panoramaMaxAltitude(size: size, fov: fov, bottomMargin: bottomMargin)
+    }
+
+    static func clampedPanoramaAltitude(_ altitude: Double, size: CGSize, fov: Double,
+                                        bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        let lowerBound = panoramaLowerBoundAltitude(size: size, fov: fov, bottomMargin: bottomMargin)
+        return max(lowerBound, min(90, altitude))
+    }
+
+    static func panoramaHorizonY(altitude: Double, size: CGSize, fov: Double) -> Double {
+        let clampedFOV = clampedFOV(fov)
+        guard size.width > 0 else { return size.height / 2 }
+        let hScale = size.width / clampedFOV
+        return (size.height / 2) + altitude * hScale
     }
 }
 

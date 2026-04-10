@@ -31,6 +31,7 @@ struct iOSStarMapView: View {
             }
         }
         .onAppear {
+            viewModel.prepareForStarMapPresentation()
             viewModel.syncWithSelectedDate()
             handleGyroChange()
         }
@@ -89,10 +90,9 @@ struct iOSStarMapView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Slider(value: timeSliderBinding, in: 0...StarMapLayout.minutesInDay, step: 1) {
-                Text("時刻")
-            }
-            .tint(.accentColor)
+            Slider(value: timeSliderBinding, in: 0...StarMapLayout.minutesInDay, step: 1)
+                .accessibilityLabel("時刻")
+                .tint(.accentColor)
 
             Text(viewModel.displayTimeString)
                 .font(.system(size: 12, design: .monospaced))

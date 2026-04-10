@@ -117,6 +117,9 @@ final class StarMapViewModel: ObservableObject {
     /// 水平視野角 (度): 30°〜150°, デフォルト 90°
     @Published var fov: Double = StarMapLayout.defaultFOV
 
+    /// 星空マップ描画領域の最新サイズ
+    @Published private(set) var panoramaViewportSize: CGSize = .zero
+
     /// 星空マップシートが表示中か（サイドバーの視野オーバーレイ連動用）
     @Published var isStarMapOpen: Bool = false
 
@@ -129,6 +132,7 @@ final class StarMapViewModel: ObservableObject {
 
     private let appController: AppController
     private var cancellables: Set<AnyCancellable> = []
+    private var shouldApplyInitialPanoramaPose = true
 
     // MARK: - Init
 
@@ -418,6 +422,36 @@ final class StarMapViewModel: ObservableObject {
         displayDate = referenceDate
     }
 
+    /// 星空マップ表示に入る直前に、初期表示位置の再適用を要求する。
+    func prepareForStarMapPresentation() {
+        shouldApplyInitialPanoramaPose = true
+    }
+
+    /// 星空マップ描画領域の最新サイズを記録する。
+    func updatePanoramaViewport(size: CGSize) {
+        panoramaViewportSize = size
+    }
+
+    /// 初回表示時に、地平線が下端付近に来るような仰角を適用する。
+    func applyInitialPanoramaPoseIfNeeded() {
+        guard shouldApplyInitialPanoramaPose else { return }
+        viewAzimuth = 0
+        viewAltitude = StarMapLayout.preferredPanoramaAltitude(
+            size: panoramaViewportSize,
+            fov: fov
+        )
+        shouldApplyInitialPanoramaPose = false
+    }
+
+    /// 北向きへ戻し、地平線が下端付近に来る仰角へ合わせる。
+    func resetToNorth() {
+        viewAzimuth = 0
+        viewAltitude = StarMapLayout.preferredPanoramaAltitude(
+            size: panoramaViewportSize,
+            fov: fov
+        )
+    }
+
     /// 選択日付に現在の時刻を合成して、星空マップの表示日時へ反映する。
     func syncWithSelectedDate(referenceDate: Date = Date()) {
         let selected = appController.selectedDate
@@ -446,12 +480,6 @@ final class StarMapViewModel: ObservableObject {
 
     var displayTimeString: String {
         StarMapPresentation.timeString(from: timeSliderMinutes)
-    }
-
-    /// 北向き (方位0°, 仰角30°) にリセット
-    func resetToNorth() {
-        viewAzimuth = 0
-        viewAltitude = StarMapLayout.resetAltitude
     }
 
     private func syncTimeSliderWithDisplayDate() {

@@ -35,7 +35,10 @@ struct DetailView: View {
             MacStarMapSheet(viewModel: starMapViewModel)
         }
         .onChange(of: starMapViewModel.isStarMapOpen) { _, isOpen in
-            if isOpen { starMapViewModel.syncWithSelectedDate() }
+            if isOpen {
+                starMapViewModel.prepareForStarMapPresentation()
+                starMapViewModel.syncWithSelectedDate()
+            }
         }
         .overlay(alignment: .bottom, content: errorOverlay)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasWeatherError)
@@ -203,7 +206,7 @@ private struct MacStarMapSheet: View {
                 Label("北を向く", systemImage: "arrow.up.circle")
             }
             .buttonStyle(.bordered)
-            .help("北 (方位0°, 仰角30°) にリセット  [N]")
+            .help("北を向き、地平線を下端付近に合わせてリセット  [N]")
 
             Button(action: closeSheet) {
                 Image(systemName: "xmark.circle.fill")
