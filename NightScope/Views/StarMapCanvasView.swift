@@ -27,7 +27,8 @@ struct StarMapCanvasView: View {
             ZStack {
                 canvas(size: size)
                     .gesture(
-                        viewModel.isGyroMode ? nil : panoramaDragGesture(size: size)
+                        panoramaDragGesture(size: size),
+                        including: viewModel.isGyroMode ? .none : .all
                     )
                     .gesture(pinchGesture)
                     .onTapGesture(coordinateSpace: .local) { location in
