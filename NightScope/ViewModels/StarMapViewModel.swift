@@ -341,7 +341,7 @@ final class StarMapViewModel: ObservableObject {
 
     /// 天の川バンドの alt/az/halfH を計算して返す (描画には含まない純データ)。
     private nonisolated static func _computeMilkyWayBandPoints(cosLat: Double, sinLat: Double,
-                                                               lat: Double, lst: Double) -> [MilkyWayBandPoint] {
+                                                               lat _: Double, lst: Double) -> [MilkyWayBandPoint] {
         var result = [MilkyWayBandPoint]()
         let step: Double = 5
         for li in stride(from: 0.0, through: 360.0, by: step) {
