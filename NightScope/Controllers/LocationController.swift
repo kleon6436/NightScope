@@ -60,8 +60,8 @@ final class UserDefaultsLocationStorage: LocationStorage {
 
     var latitude: Double? {
         get {
-            let v = userDefaults.double(forKey: "location.latitude")
-            return v == 0 ? nil : v
+            guard userDefaults.object(forKey: "location.latitude") != nil else { return nil }
+            return userDefaults.double(forKey: "location.latitude")
         }
         set {
             if let value = newValue {
@@ -74,8 +74,8 @@ final class UserDefaultsLocationStorage: LocationStorage {
 
     var longitude: Double? {
         get {
-            let v = userDefaults.double(forKey: "location.longitude")
-            return v == 0 ? nil : v
+            guard userDefaults.object(forKey: "location.longitude") != nil else { return nil }
+            return userDefaults.double(forKey: "location.longitude")
         }
         set {
             if let value = newValue {

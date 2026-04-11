@@ -7,13 +7,10 @@ import MapKit
 private struct MapContainerView<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
-    private var verticalSpacing: CGFloat { 4 }
-    private var minMapHeight: CGFloat { 160 }
-    private var maxMapHeight: CGFloat { 280 }
     private var instructionText: String { "地図をクリックして場所を選択" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: verticalSpacing) {
+        VStack(alignment: .leading, spacing: Layout.mapInstructionSpacing) {
             mapSurface
             instructionLabel
         }
@@ -21,7 +18,7 @@ private struct MapContainerView<Content: View>: View {
 
     private var mapSurface: some View {
         content()
-            .frame(minHeight: minMapHeight, maxHeight: maxMapHeight)
+            .frame(minHeight: Layout.mapMinHeight, maxHeight: Layout.mapMaxHeight)
             .frame(maxHeight: .infinity)
             .clipShape(RoundedRectangle(cornerRadius: Layout.mapCornerRadius))
             .overlay(
@@ -47,6 +44,8 @@ struct MapKitViewRepresentable: NSViewRepresentable {
     let showLightPollution: Bool
     /// 現在地取得成功時にインクリメントされるトリガー（変化時のみマップをセンタリング）
     let centerTrigger: Int
+    /// 視野方向オーバーレイ（nil の場合は非表示）
+    var viewingDirection: ViewingDirection?
 
     private var overlayAlpha: CGFloat {
         MapKitViewSharedLogic.overlayAlpha(showLightPollution: showLightPollution)
@@ -93,6 +92,8 @@ struct MapKitViewRepresentable: NSViewRepresentable {
             centerTrigger: centerTrigger,
             lastCenterTrigger: &context.coordinator.lastCenterTrigger
         )
+        MapKitViewSharedLogic.updateViewingDirectionOverlay(
+            on: nsView, pinCoordinate: pinCoordinate, viewingDirection: viewingDirection)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -125,6 +126,13 @@ struct MapKitViewRepresentable: NSViewRepresentable {
                 renderer.alpha = parent.overlayAlpha
                 return renderer
             }
+            if overlay is ViewingDirectionOverlay {
+                let renderer = MKPolygonRenderer(overlay: overlay)
+                renderer.fillColor = NSColor.white.withAlphaComponent(0.15)
+                renderer.strokeColor = NSColor.white.withAlphaComponent(0.5)
+                renderer.lineWidth = 1.0
+                return renderer
+            }
             return MKOverlayRenderer(overlay: overlay)
         }
     }
@@ -141,13 +149,15 @@ struct MapLocationPicker: View, Equatable {
     var onCurrentLocation: (() -> Void)? = nil
     var isLocating: Bool = false
     var centerTrigger: Int = 0
+    var viewingDirection: ViewingDirection? = nil
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         coordinatesEqual(lhs.selectedCoordinate, rhs.selectedCoordinate) &&
         lhs.syncState == rhs.syncState &&
         lhs.showLightPollution == rhs.showLightPollution &&
         lhs.isLocating == rhs.isLocating &&
-        lhs.centerTrigger == rhs.centerTrigger
+        lhs.centerTrigger == rhs.centerTrigger &&
+        lhs.viewingDirection == rhs.viewingDirection
     }
 
     private static func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
@@ -167,7 +177,8 @@ struct MapLocationPicker: View, Equatable {
             syncState: syncState,
             onRegionChange: onRegionChange,
             showLightPollution: showLightPollution,
-            centerTrigger: centerTrigger
+            centerTrigger: centerTrigger,
+            viewingDirection: viewingDirection
         )
         .overlay(alignment: .bottomTrailing) {
             currentLocationOverlay
@@ -180,10 +191,11 @@ struct MapLocationPicker: View, Equatable {
             Button(action: onCurrentLocation) {
                 currentLocationButtonLabel
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .padding(Spacing.xs)
             .disabled(isLocating)
             .accessibilityLabel("現在地を取得")
+            .accessibilityHint("地図を現在地へ移動します")
         }
     }
 
@@ -193,11 +205,10 @@ struct MapLocationPicker: View, Equatable {
             if isLocating {
                 ProgressView().controlSize(.small)
             } else {
-                Image(systemName: "location.fill")
+                Image(systemName: AppIcons.Navigation.currentLocation)
                     .font(.system(size: Layout.mapIconSize))
             }
         }
         .frame(width: Layout.mapButtonSize, height: Layout.mapButtonSize)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Layout.mapButtonCornerRadius))
     }
 }

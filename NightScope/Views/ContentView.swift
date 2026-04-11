@@ -4,25 +4,24 @@ struct ContentView: View {
     @StateObject private var appController: AppController
     @StateObject private var sidebarViewModel: SidebarViewModel
     @StateObject private var detailViewModel: DetailViewModel
+    @StateObject private var starMapViewModel: StarMapViewModel
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
-    init() {
-        let appController = AppController()
-        _appController = StateObject(wrappedValue: appController)
-        _sidebarViewModel = StateObject(
-            wrappedValue: SidebarViewModel(
-                locationController: appController.locationController,
-                lightPollutionService: appController.lightPollutionService
-            )
-        )
-        _detailViewModel = StateObject(wrappedValue: DetailViewModel(appController: appController))
+    @MainActor
+    init(dependencies: AppRootDependencies? = nil) {
+        let dependencies = dependencies ?? .makeDefault()
+        _appController = StateObject(wrappedValue: dependencies.appController)
+        _sidebarViewModel = StateObject(wrappedValue: dependencies.sidebarViewModel)
+        _detailViewModel = StateObject(wrappedValue: dependencies.detailViewModel)
+        _starMapViewModel = StateObject(wrappedValue: dependencies.starMapViewModel)
     }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(
                 viewModel: sidebarViewModel,
-                selectedDate: $appController.selectedDate
+                selectedDate: $detailViewModel.selectedDate,
+                viewingDirection: starMapViewModel.viewingDirection
             )
             .navigationSplitViewColumnWidth(
                 min: LayoutMacOS.sidebarMinWidth,
@@ -37,7 +36,7 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            DetailView(viewModel: detailViewModel)
+            DetailView(viewModel: detailViewModel, starMapViewModel: starMapViewModel)
         }
         .frame(minWidth: LayoutMacOS.windowMinWidth, minHeight: LayoutMacOS.windowMinHeight)
         .toolbar(removing: .sidebarToggle)
@@ -49,10 +48,7 @@ struct ContentView: View {
         .onAppear {
             appController.onStart()
         }
-        .onChange(of: appController.selectedDate) {
-            appController.recalculate()
-        }
-        .focusedValue(\.selectedDate, $appController.selectedDate)
+        .focusedValue(\.selectedDate, $detailViewModel.selectedDate)
         .focusedValue(\.refreshAction, {
             appController.refreshExternalDataInBackground()
         })

@@ -28,6 +28,12 @@ enum Layout {
     static let sidebarVerticalPadding: CGFloat = 16
     /// 地図コンテナの角丸半径
     static let mapCornerRadius: CGFloat = 8
+    /// 地図コンテナ内の補助ラベル間隔
+    static let mapInstructionSpacing: CGFloat = 8
+    /// 地図コンテナの最小高
+    static let mapMinHeight: CGFloat = 160
+    /// 地図コンテナの最大高
+    static let mapMaxHeight: CGFloat = 280
     /// 地図上ボタン（現在地）の角丸半径
     static let mapButtonCornerRadius: CGFloat = 6
     /// 地図上ボタン（現在地）のサイズ
@@ -36,10 +42,99 @@ enum Layout {
     static let mapIconSize: CGFloat = 14
     /// 地図コンテナの枠線太さ
     static let mapSeparatorLineWidth: CGFloat = 0.5
+    /// サイドバー補助ラベルの固定幅
+    static let sidebarStatusWidth: CGFloat = 64
     /// 今後2週間グリッドカードの高さ
     static let upcomingCardHeight: CGFloat = 170
     /// グリッドのアイコン列幅
     static let gridIconWidth: CGFloat = 14
+}
+
+// MARK: - Star Map Presentation
+
+enum StarMapLayout {
+    static let minFOV: Double = 30
+    static let maxFOV: Double = 150
+    static let defaultFOV: Double = 90
+    static let resetAltitude: Double = 30
+    static let panoramaBottomMargin: CGFloat = 28
+    static let panoramaCardinalLabelOffset: CGFloat = 12
+    static let directionStep: Double = 5
+    static let zoomStep: Double = 10
+    static let minutesInDay: Double = 1_439
+    static let sliderIconWidth: CGFloat = 18
+    static let timeLabelWidth: CGFloat = 52
+    static let sheetMinWidth: CGFloat = 900
+    static let sheetMinHeight: CGFloat = 820
+    static let canvasMinWidth: CGFloat = 860
+    static let canvasMinHeight: CGFloat = 620
+
+    static func clampedFOV(_ value: Double) -> Double {
+        max(minFOV, min(maxFOV, value))
+    }
+
+    static func panoramaMaxAltitude(size: CGSize, fov: Double,
+                                    bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        let clampedFOV = clampedFOV(fov)
+        guard size.width > 0, size.height > 0, clampedFOV > 0 else {
+            return 90
+        }
+
+        let hScale = size.width / clampedFOV
+        guard hScale > 0 else { return 90 }
+
+        let usableHeight = max(0, size.height / 2 - bottomMargin)
+        return max(0, min(90, Double(usableHeight) / hScale))
+    }
+
+    /// パノラマ操作時に地平線が上へ逃げすぎないようにする下限。
+    /// 初期表示の下端寄せと同じ幾何条件を使う。
+    static func panoramaLowerBoundAltitude(size: CGSize, fov: Double,
+                                           bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        preferredPanoramaAltitude(size: size, fov: fov, bottomMargin: bottomMargin)
+    }
+
+    static func preferredPanoramaAltitude(size: CGSize, fov: Double,
+                                          bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        guard size.width > 0, size.height > 0 else { return resetAltitude }
+        return panoramaMaxAltitude(size: size, fov: fov, bottomMargin: bottomMargin)
+    }
+
+    static func clampedPanoramaAltitude(_ altitude: Double, size: CGSize, fov: Double,
+                                        bottomMargin: CGFloat = panoramaBottomMargin) -> Double {
+        let lowerBound = panoramaLowerBoundAltitude(size: size, fov: fov, bottomMargin: bottomMargin)
+        return max(lowerBound, min(90, altitude))
+    }
+
+    static func panoramaHorizonY(altitude: Double, size: CGSize, fov: Double) -> Double {
+        let clampedFOV = clampedFOV(fov)
+        guard size.width > 0 else { return size.height / 2 }
+        let hScale = size.width / clampedFOV
+        return (size.height / 2) + altitude * hScale
+    }
+}
+
+enum StarMapPalette {
+    static let canvasBackground = Color(red: 0.02, green: 0.04, blue: 0.12)
+    static let groundFill = Color(red: 0.06, green: 0.04, blue: 0.02)
+    static let meteorAccent = Color(red: 0.4, green: 1.0, blue: 0.7)
+}
+
+enum StarMapPresentation {
+    private static let azimuthNames = ["北", "北東", "東", "南東", "南", "南西", "西", "北西"]
+
+    static func azimuthName(for degrees: Double) -> String {
+        let normalized = (degrees.truncatingRemainder(dividingBy: 360) + 360)
+            .truncatingRemainder(dividingBy: 360)
+        let index = Int((normalized + 22.5) / 45) % azimuthNames.count
+        return azimuthNames[index]
+    }
+
+    static func timeString(from minutes: Double) -> String {
+        let hour = Int(minutes) / 60
+        let minute = Int(minutes) % 60
+        return String(format: "%02d:%02d", hour, minute)
+    }
 }
 
 #if os(macOS)
@@ -199,6 +294,7 @@ enum AppIcons {
         static let locationPin      = "mappin.circle.fill"
         static let locationPinPlain = "mappin"
         static let calendar         = "calendar"
+        static let currentLocation  = "location.fill"
     }
     enum Astronomy {
         static let star         = "star"

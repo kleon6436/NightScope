@@ -378,3 +378,57 @@ final class MockURLProtocol: URLProtocol {
 
     override func stopLoading() {}
 }
+
+final class TerrainServiceTests: XCTestCase {
+
+    override func tearDown() {
+        MockURLProtocol.requestHandler = nil
+        super.tearDown()
+    }
+
+    func test_fetchProfile_decodesTerrainAnglesAndCachesRoundedCoordinate() async {
+        let session = makeMockSession()
+        let service = TerrainService(session: session)
+        var requestCount = 0
+
+        MockURLProtocol.requestHandler = { request in
+            requestCount += 1
+            guard let url = request.url else {
+                throw URLError(.badURL)
+            }
+
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Self.makeTerrainResponseData(baseElevation: 120))
+        }
+
+        let firstProfile = await service.fetchProfile(latitude: 35.1234, longitude: 139.5678)
+        let secondProfile = await service.fetchProfile(latitude: 35.1239, longitude: 139.5671)
+
+        XCTAssertEqual(requestCount, 1)
+        XCTAssertEqual(firstProfile?.horizonAngles.count, 72)
+        XCTAssertEqual(secondProfile?.horizonAngles.count, 72)
+    }
+
+    func test_parseAngles_invalidPayload_returnsNil() async {
+        let service = TerrainService(session: makeMockSession())
+        let invalidPayload = Data(#"{"results":[{"elevation":120}]}"#.utf8)
+
+        let angles = await service.parseAngles(from: invalidPayload)
+
+        XCTAssertNil(angles)
+    }
+
+    private func makeMockSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockURLProtocol.self]
+        return URLSession(configuration: configuration)
+    }
+
+    private static func makeTerrainResponseData(baseElevation: Double) -> Data {
+        let results: [[String: Double]] = (0...72).map { index in
+            ["elevation": baseElevation + Double(index)]
+        }
+        let payload: [String: Any] = ["results": results]
+        return (try? JSONSerialization.data(withJSONObject: payload)) ?? Data()
+    }
+}

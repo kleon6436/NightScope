@@ -85,6 +85,173 @@ final class ViewModelTests: XCTestCase {
         XCTFail("条件を満たすまでにタイムアウトしました", file: file, line: line)
     }
 
+    // MARK: - Presentation Helpers
+
+    func test_StarMapPresentation_azimuthName_normalizesDegrees() {
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: -1), "北")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 44), "北東")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), "南西")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 359), "北")
+    }
+
+    func test_StarMapPresentation_timeString_formatsMinutes() {
+        XCTAssertEqual(StarMapPresentation.timeString(from: 0), "00:00")
+        XCTAssertEqual(StarMapPresentation.timeString(from: 61), "01:01")
+        XCTAssertEqual(StarMapPresentation.timeString(from: 1_439), "23:59")
+    }
+
+    func test_StarMapLayout_clampedFOV_limitsRange() {
+        XCTAssertEqual(StarMapLayout.clampedFOV(20), StarMapLayout.minFOV)
+        XCTAssertEqual(StarMapLayout.clampedFOV(90), 90)
+        XCTAssertEqual(StarMapLayout.clampedFOV(160), StarMapLayout.maxFOV)
+    }
+
+    func test_StarMapLayout_panoramaHelpers_keepHorizonNearBottomEdge() {
+        let size = CGSize(width: 860, height: 620)
+        let fov = 90.0
+
+        let maxAltitude = StarMapLayout.panoramaMaxAltitude(size: size, fov: fov)
+        let preferredAltitude = StarMapLayout.preferredPanoramaAltitude(size: size, fov: fov)
+        let horizonY = StarMapLayout.panoramaHorizonY(altitude: preferredAltitude, size: size, fov: fov)
+
+        XCTAssertEqual(maxAltitude, 29.5, accuracy: 0.3)
+        XCTAssertEqual(preferredAltitude, maxAltitude, accuracy: 0.001)
+        XCTAssertLessThanOrEqual(horizonY, size.height - StarMapLayout.panoramaBottomMargin + 0.001)
+        XCTAssertGreaterThanOrEqual(preferredAltitude, 0)
+        XCTAssertLessThanOrEqual(preferredAltitude, 90)
+    }
+
+    func test_StarMapViewModel_initialPanoramaPose_usesViewportGeometry() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let size = CGSize(width: 860, height: 620)
+
+        viewModel.viewAzimuth = 123
+        viewModel.viewAltitude = 10
+        viewModel.updatePanoramaViewport(size: size)
+        viewModel.prepareForStarMapPresentation()
+        viewModel.applyInitialPanoramaPoseIfNeeded()
+
+        XCTAssertEqual(viewModel.viewAzimuth, 0)
+        XCTAssertEqual(
+            viewModel.viewAltitude,
+            StarMapLayout.preferredPanoramaAltitude(size: size, fov: viewModel.fov),
+            accuracy: 0.001
+        )
+    }
+
+    func test_StarMapViewModel_resetToNorth_usesViewportGeometry() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let size = CGSize(width: 400, height: 500)
+
+        viewModel.updatePanoramaViewport(size: size)
+        viewModel.resetToNorth()
+
+        XCTAssertEqual(viewModel.viewAzimuth, 0)
+        XCTAssertEqual(
+            viewModel.viewAltitude,
+            StarMapLayout.preferredPanoramaAltitude(size: size, fov: viewModel.fov),
+            accuracy: 0.001
+        )
+    }
+
+    func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let targetDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 22,
+            minute: 45
+        ))!
+
+        viewModel.displayDate = targetDate
+
+        let realMinutes = 22 * 60 + 45
+        var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
+        if expectedOffset < 0 { expectedOffset += 1_440 }
+        expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
+
+        XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
+        XCTAssertEqual(viewModel.displayTimeString, "22:45")
+    }
+
+    func test_StarMapViewModel_setTimeSliderMinutes_updatesDisplayDateKeepingDate() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let baseDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 21,
+            minute: 15
+        ))!
+        viewModel.displayDate = baseDate
+
+        let sliderOffset = min(120.0, viewModel.nightDurationMinutes)
+        viewModel.setTimeSliderMinutes(sliderOffset)
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        let expectedRealMinutes = (viewModel.nightStartMinutes + sliderOffset)
+            .truncatingRemainder(dividingBy: 1_440)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 4)
+        XCTAssertEqual(components.day, 10)
+        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
+        XCTAssertEqual(viewModel.timeSliderMinutes, sliderOffset, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_syncWithSelectedDate_usesCurrentTimeOnSelectedDate() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 6,
+            minute: 7
+        ))!
+
+        appController.selectedDate = selectedDate
+        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 12)
+        XCTAssertEqual(components.hour, 6)
+        XCTAssertEqual(components.minute, 7)
+        let realMinutes = 6 * 60 + 7
+        var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
+        if expectedOffset < 0 { expectedOffset += 1_440 }
+        expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
+        XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_terrainCacheKey_roundsCoordinatesConsistently() {
+        XCTAssertEqual(
+            StarMapViewModel.terrainCacheKey(latitude: 35.1234, longitude: 139.5678),
+            "35.12,139.57"
+        )
+        XCTAssertEqual(
+            StarMapViewModel.terrainCacheKey(latitude: -35.1251, longitude: -139.5651),
+            "-35.13,-139.57"
+        )
+    }
+
     // MARK: - Mock Types
 
     final class MockLocationController: LocationProviding {
@@ -299,7 +466,31 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(locationController.currentLocationCenterTrigger, 1)
     }
 
+    func test_AppRootDependencies_makeDefault_sharesControllerDependencies() {
+        let dependencies = AppRootDependencies.makeDefault()
+
+        XCTAssertTrue((dependencies.sidebarViewModel.locationController as AnyObject) === dependencies.appController.locationController)
+        XCTAssertTrue(dependencies.detailViewModel.appControllerRef === dependencies.appController)
+    }
+
     // MARK: - LocationController
+
+    func test_UserDefaultsLocationStorage_zeroCoordinatesRoundTrip() {
+        let suiteName = "ViewModelTests.\(UUID().uuidString)"
+        guard let userDefaults = UserDefaults(suiteName: suiteName) else {
+            return XCTFail("テスト用 UserDefaults を生成できませんでした")
+        }
+        defer {
+            userDefaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let storage = UserDefaultsLocationStorage(userDefaults: userDefaults)
+        storage.latitude = 0
+        storage.longitude = 0
+
+        XCTAssertEqual(storage.latitude, 0)
+        XCTAssertEqual(storage.longitude, 0)
+    }
 
     func test_LocationController_search_success_updatesResults() async {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
