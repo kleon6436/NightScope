@@ -54,7 +54,11 @@ struct iOSStarMapView: View {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .padding(.horizontal, Spacing.sm)
-        .padding(.bottom, Spacing.sm)
+        .padding(.bottom, bottomControlBottomPadding)
+    }
+
+    private var bottomControlBottomPadding: CGFloat {
+        StarMapLayout.cardinalLabelBottomInset + Spacing.lg
     }
 
     private var dateControlRow: some View {

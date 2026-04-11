@@ -65,6 +65,10 @@ enum StarMapLayout {
     static let sheetMinHeight: CGFloat = 820
     static let canvasMinWidth: CGFloat = 860
     static let canvasMinHeight: CGFloat = 620
+    static let cardinalLabelBottomInset: CGFloat = 28
+    static let cardinalLabelSidePadding: CGFloat = 12
+    static let cardinalLabelHorizontalPadding: CGFloat = 8
+    static let cardinalLabelVerticalPadding: CGFloat = 4
 
     static func clampedFOV(_ value: Double) -> Double {
         max(minFOV, min(maxFOV, value))

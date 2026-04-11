@@ -94,6 +94,17 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(StarMapPresentation.azimuthName(for: 359), "北")
     }
 
+    func test_StarMapPresentation_azimuthName_supportsEightDirections() {
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 0), "北")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 45), "北東")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 90), "東")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 135), "南東")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 180), "南")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), "南西")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 270), "西")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 315), "北西")
+    }
+
     func test_StarMapPresentation_timeString_formatsMinutes() {
         XCTAssertEqual(StarMapPresentation.timeString(from: 0), "00:00")
         XCTAssertEqual(StarMapPresentation.timeString(from: 61), "01:01")
@@ -122,6 +133,32 @@ final class ViewModelTests: XCTestCase {
             StarMapLayout.minFOV,
             accuracy: 0.001
         )
+    }
+
+    func test_StarMapCanvasView_cardinalLabelHelpers_placeLabelsInFixedBottomOverlay() {
+        XCTAssertEqual(
+            StarMapCanvasView.cardinalOverlayY(sizeHeight: 400),
+            400 - Double(StarMapLayout.cardinalLabelBottomInset),
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            StarMapCanvasView.clampedCardinalLabelX(-5, sizeWidth: 320),
+            Double(StarMapLayout.cardinalLabelSidePadding),
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            StarMapCanvasView.clampedCardinalLabelX(400, sizeWidth: 320),
+            320 - Double(StarMapLayout.cardinalLabelSidePadding),
+            accuracy: 0.0001
+        )
+
+        let placements = StarMapCanvasView.cardinalLabelPlacements(
+            size: CGSize(width: 320, height: 400),
+            centerAlt: 30,
+            centerAz: 0,
+            fov: 90
+        )
+        XCTAssertEqual(placements.map(\.label), ["北", "北東", "北西"])
     }
 
     func test_StarMapViewModel_initialPose_usesResetAltitude() {

@@ -9,6 +9,14 @@ import AppKit
 /// 星空マップを描画する共有ビュー (iPhone / Mac 共通)
 /// - 心射図法 (viewAltitude/viewAzimuth が画面中心)
 struct StarMapCanvasView: View {
+    struct CardinalOverlayPlacement: Identifiable, Equatable {
+        let azimuthDegrees: Double
+        let label: String
+        let x: Double
+
+        var id: Double { azimuthDegrees }
+    }
+
     @ObservedObject var viewModel: StarMapViewModel
 
     /// クリック/タップで天体を選択したときに呼ばれるコールバック (macOS で使用)
@@ -47,6 +55,10 @@ struct StarMapCanvasView: View {
                 // ピンチ中のみ視野角を表示
                 if gestureScale != 1.0 {
                     pinchFOVOverlay
+                }
+
+                if !viewModel.isTimeSliderScrubbing {
+                    cardinalOverlay(size: size)
                 }
             }
             .onAppear {
@@ -144,6 +156,27 @@ struct StarMapCanvasView: View {
         }
     }
 
+    private func cardinalOverlay(size: CGSize) -> some View {
+        let placements = cardinalLabelPlacements(size: size)
+
+        return ZStack {
+            ForEach(placements) { placement in
+                Text(placement.label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, StarMapLayout.cardinalLabelHorizontalPadding)
+                    .padding(.vertical, StarMapLayout.cardinalLabelVerticalPadding)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .position(
+                        x: placement.x,
+                        y: Self.cardinalOverlayY(sizeHeight: size.height)
+                    )
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
 
     // MARK: - Gnomonic Projection (心射図法)
 
@@ -213,15 +246,12 @@ struct StarMapCanvasView: View {
         }
 
         // 地平線・地面描画
+        let horizonScreenY = Self.horizonScreenY(centerAlt: centerAlt, cy: cy, scale: scale)
         drawGnomonicGround(ctx: ctx, cx: cx, cy: cy, size: size,
                            centerAlt: centerAlt, scale: scale,
                            fwdX: fwdX, fwdY: fwdY, fwdZ: fwdZ,
-                           upX: upX, upY: upY, upZ: upZ)
-
-        // 方位ラベル描画
-        if !simplifyDuringScrub {
-            drawGnomonicCardinals(ctx: ctx, project: project)
-        }
+                           upX: upX, upY: upY, upZ: upZ,
+                           horizonScreenY: horizonScreenY)
 
         // 星座線
         var constPath = Path()
@@ -328,17 +358,18 @@ struct StarMapCanvasView: View {
     /// 地平線と地面を解析的に描画する。
     /// 心射図法では地平線（大円）は直線に射影されるため、
     /// カメラの仰角から地平線の Y 座標を直接計算する。
+    static func horizonScreenY(centerAlt: Double, cy: Double, scale: Double) -> Double {
+        let cAltRad = centerAlt * .pi / 180
+        let horizonProjY = -tan(cAltRad) * scale
+        return cy - horizonProjY
+    }
+
     private func drawGnomonicGround(ctx: GraphicsContext,
                                     cx: Double, cy: Double, size: CGSize,
                                     centerAlt: Double, scale: Double,
                                     fwdX: Double, fwdY: Double, fwdZ: Double,
-                                    upX: Double, upY: Double, upZ: Double) {
-        // 地平線上の点 (alt=0) の up 成分を解析的に算出
-        // 地平線は up ベクトルに対して一定の y 座標に射影される
-        let cAltRad = centerAlt * .pi / 180
-        // 地平線の射影 Y (スクリーン上方が +projY) = -sin(cAlt) / cos(cAlt) * scale = -tan(cAlt) * scale
-        let horizonProjY = -tan(cAltRad) * scale
-        let horizonScreenY = cy - horizonProjY
+                                    upX: Double, upY: Double, upZ: Double,
+                                    horizonScreenY: Double) {
 
         // 地面色 (暗い緑/茶)
         let groundColor = Color(red: 0.08, green: 0.12, blue: 0.06)
@@ -364,25 +395,95 @@ struct StarMapCanvasView: View {
         }
     }
 
-    /// 東西南北の方位ラベルを地平線上に描画する。
-    private func drawGnomonicCardinals(ctx: GraphicsContext,
-                                       project: (Double, Double) -> CGPoint?) {
-        let cardinals: [(String, Double)] = [
-            ("N", 0), ("E", 90), ("S", 180), ("W", 270)
+    private func cardinalLabelPlacements(size: CGSize) -> [CardinalOverlayPlacement] {
+        let center = effectiveGnomonicCenter(size: size)
+        return Self.cardinalLabelPlacements(
+            size: size,
+            centerAlt: center.alt,
+            centerAz: center.az,
+            fov: effectiveGnomonicFOV()
+        )
+    }
+
+    static func cardinalLabelPlacements(
+        size: CGSize,
+        centerAlt: Double,
+        centerAz: Double,
+        fov: Double
+    ) -> [CardinalOverlayPlacement] {
+        let cardinals: [(Double, String)] = [
+            (0, StarMapPresentation.azimuthName(for: 0)),
+            (45, StarMapPresentation.azimuthName(for: 45)),
+            (90, StarMapPresentation.azimuthName(for: 90)),
+            (135, StarMapPresentation.azimuthName(for: 135)),
+            (180, StarMapPresentation.azimuthName(for: 180)),
+            (225, StarMapPresentation.azimuthName(for: 225)),
+            (270, StarMapPresentation.azimuthName(for: 270)),
+            (315, StarMapPresentation.azimuthName(for: 315))
         ]
 
-        for (label, azDeg) in cardinals {
-            // 地平線のわずか上に配置 (alt = -2°)
-            let alt = -2.0 * .pi / 180
-            let az = azDeg * .pi / 180
-            if let pt = project(alt, az) {
-                ctx.draw(
-                    Text(label)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(red: 0.4, green: 0.7, blue: 0.4).opacity(0.7)),
-                    at: pt)
+        return cardinals.compactMap { azimuthDegrees, label in
+            guard let x = projectedCardinalLabelX(
+                azimuthDegrees: azimuthDegrees,
+                size: size,
+                centerAlt: centerAlt,
+                centerAz: centerAz,
+                fov: fov
+            ) else {
+                return nil
             }
+
+            return CardinalOverlayPlacement(
+                azimuthDegrees: azimuthDegrees,
+                label: label,
+                x: x
+            )
         }
+    }
+
+    static func clampedCardinalLabelX(_ x: Double, sizeWidth: Double) -> Double {
+        let minX = Double(StarMapLayout.cardinalLabelSidePadding)
+        let maxX = sizeWidth - Double(StarMapLayout.cardinalLabelSidePadding)
+        return min(max(x, minX), maxX)
+    }
+
+    static func cardinalOverlayY(sizeHeight: Double) -> Double {
+        sizeHeight - Double(StarMapLayout.cardinalLabelBottomInset)
+    }
+
+    private static func projectedCardinalLabelX(
+        azimuthDegrees: Double,
+        size: CGSize,
+        centerAlt: Double,
+        centerAz: Double,
+        fov: Double
+    ) -> Double? {
+        let cx = size.width / 2
+        let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
+        let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
+
+        let cAlt = centerAlt * .pi / 180
+        let cAz = centerAz * .pi / 180
+        let (fwdX, fwdY, fwdZ) = altAzToCartesianStatic(alt: cAlt, az: cAz)
+        let rightX = cos(cAz)
+        let rightY = -sin(cAz)
+        let rightZ = 0.0
+
+        let alt = -1.5 * .pi / 180
+        let az = azimuthDegrees * .pi / 180
+        let (px, py, pz) = altAzToCartesianStatic(alt: alt, az: az)
+        let dot = px * fwdX + py * fwdY + pz * fwdZ
+        guard dot > 0.1 else { return nil }
+
+        let projX = (px * rightX + py * rightY + pz * rightZ) / dot * scale
+        return clampedCardinalLabelX(cx + projX, sizeWidth: size.width)
+    }
+
+    private static func altAzToCartesianStatic(alt: Double, az: Double) -> (Double, Double, Double) {
+        let x = cos(alt) * sin(az)
+        let y = cos(alt) * cos(az)
+        let z = sin(alt)
+        return (x, y, z)
     }
 
     // MARK: - Drawing primitives
