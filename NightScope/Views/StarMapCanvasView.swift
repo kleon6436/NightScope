@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+#endif
+
 // MARK: - StarMapCanvasView
 
 /// 星空マップを描画する共有ビュー (iPhone / Mac 共通)
@@ -18,6 +22,10 @@ struct StarMapCanvasView: View {
 
     // キーボードフォーカス
     @FocusState private var isFocused: Bool
+
+#if os(macOS)
+    @State private var scrollWheelMonitor: Any?
+#endif
 
     // MARK: Body
 
@@ -46,6 +54,14 @@ struct StarMapCanvasView: View {
             }
             .onAppear {
                 syncPanoramaViewport(size)
+#if os(macOS)
+                installMacScrollWheelMonitor()
+#endif
+            }
+            .onDisappear {
+#if os(macOS)
+                removeMacScrollWheelMonitor()
+#endif
             }
             .onChange(of: size) { _, newSize in
                 syncPanoramaViewport(newSize)
@@ -293,6 +309,11 @@ struct StarMapCanvasView: View {
 
     /// 方位角の差 (-180〜+180, 折り返し考慮)
     private func angularDiff(_ az: Double, _ center: Double) -> Double {
+        Self.angularDiff(az, center)
+    }
+
+    /// 方位角の差 (-180〜+180, 折り返し考慮)
+    private static func angularDiff(_ az: Double, _ center: Double) -> Double {
         atan2(
             sin((az - center) * .pi / 180),
             cos((az - center) * .pi / 180)
@@ -741,35 +762,32 @@ struct StarMapCanvasView: View {
     /// 描画フレームごとの天文座標変換コストがゼロ。
     private func drawMilkyWayBand(ctx: GraphicsContext, cx: Double, horizonY: Double,
                                    hScale: Double, az0: Double, size: CGSize) {
-        let cachedPoints = viewModel.milkyWayBandPoints
-        guard cachedPoints.count > 2 else { return }
-
-        struct ScreenPoint { var x, y, halfH: Double }
-        var screenPoints = [ScreenPoint]()
-        screenPoints.reserveCapacity(cachedPoints.count)
-
-        for bp in cachedPoints {
-            let px = cx + angularDiff(bp.az, az0) * hScale
-            guard px > -100 && px < size.width + 100 else { continue }
-            let py = horizonY - bp.alt * hScale
-            screenPoints.append(ScreenPoint(x: px, y: py, halfH: bp.halfH * hScale))
-        }
-
-        guard screenPoints.count > 2 else { return }
+        let segments = Self.milkyWayBandSegments(
+            cachedPoints: viewModel.milkyWayBandPoints,
+            cx: cx,
+            horizonY: horizonY,
+            hScale: hScale,
+            az0: az0,
+            size: size
+        )
+        guard !segments.isEmpty else { return }
 
         // 各スラブを個別に塗る（銀経依存の色変化）
-        for i in 0..<screenPoints.count - 1 {
-            let p0 = screenPoints[i], p1 = screenPoints[i + 1]
-            var slab = Path()
-            slab.move(to:    CGPoint(x: p0.x, y: p0.y - p0.halfH))
-            slab.addLine(to: CGPoint(x: p1.x, y: p1.y - p1.halfH))
-            slab.addLine(to: CGPoint(x: p1.x, y: p1.y + p1.halfH))
-            slab.addLine(to: CGPoint(x: p0.x, y: p0.y + p0.halfH))
-            slab.closeSubpath()
-            let lDeg = cachedPoints[i].li <= 180 ? cachedPoints[i].li : 360 - cachedPoints[i].li
-            let tCenter = 1.0 - lDeg / 180.0
-            let slabColor = Color(red: 0.50 + 0.20 * tCenter, green: 0.55, blue: 0.85 - 0.25 * tCenter)
-            ctx.fill(slab, with: .color(slabColor.opacity(0.10)))
+        for segment in segments {
+            guard segment.count > 1 else { continue }
+            for i in 0..<segment.count - 1 {
+                let p0 = segment[i], p1 = segment[i + 1]
+                var slab = Path()
+                slab.move(to: CGPoint(x: p0.x, y: p0.y - p0.halfH))
+                slab.addLine(to: CGPoint(x: p1.x, y: p1.y - p1.halfH))
+                slab.addLine(to: CGPoint(x: p1.x, y: p1.y + p1.halfH))
+                slab.addLine(to: CGPoint(x: p0.x, y: p0.y + p0.halfH))
+                slab.closeSubpath()
+                let lDeg = p0.li <= 180 ? p0.li : 360 - p0.li
+                let tCenter = 1.0 - lDeg / 180.0
+                let slabColor = Color(red: 0.50 + 0.20 * tCenter, green: 0.55, blue: 0.85 - 0.25 * tCenter)
+                ctx.fill(slab, with: .color(slabColor.opacity(0.10)))
+            }
         }
     }
 
@@ -886,6 +904,29 @@ struct StarMapCanvasView: View {
         StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
     }
 
+#if os(macOS)
+    private func installMacScrollWheelMonitor() {
+        guard scrollWheelMonitor == nil else { return }
+        scrollWheelMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [viewModel] event in
+            let updatedFOV = Self.zoomedFOV(
+                currentFOV: viewModel.fov,
+                scrollDeltaY: event.scrollingDeltaY,
+                preciseScrolling: event.hasPreciseScrollingDeltas
+            )
+            if updatedFOV != viewModel.fov {
+                viewModel.fov = updatedFOV
+            }
+            return nil
+        }
+    }
+
+    private func removeMacScrollWheelMonitor() {
+        guard let scrollWheelMonitor else { return }
+        NSEvent.removeMonitor(scrollWheelMonitor)
+        self.scrollWheelMonitor = nil
+    }
+#endif
+
     private func syncPanoramaViewport(_ size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
         viewModel.updatePanoramaViewport(size: size)
@@ -917,8 +958,14 @@ struct StarMapCanvasView: View {
 
 // MARK: - New Drawing Primitives
 
-private extension StarMapCanvasView {
+struct MilkyWayBandScreenPoint: Equatable {
+    let x: Double
+    let y: Double
+    let halfH: Double
+    let li: Double
+}
 
+private extension StarMapCanvasView {
     // MARK: Sky Background
 
     func drawSkyBackground(ctx: GraphicsContext, horizonY: Double, size: CGSize) {
@@ -1063,6 +1110,82 @@ private extension StarMapCanvasView {
         ctx.stroke(ridgePath,
                    with: .color(Color(red: 0.2, green: 0.35, blue: 0.15).opacity(0.4)),
                    lineWidth: 1.5)
+    }
+}
+
+extension StarMapCanvasView {
+    static func zoomedFOV(currentFOV: Double, scrollDeltaY: Double, preciseScrolling: Bool) -> Double {
+        let sensitivity = preciseScrolling ? 1.2 : 4.0
+        return StarMapLayout.clampedFOV(currentFOV - scrollDeltaY * sensitivity)
+    }
+
+    static func milkyWayBandSegments(
+        cachedPoints: [MilkyWayBandPoint],
+        cx: Double,
+        horizonY: Double,
+        hScale: Double,
+        az0: Double,
+        size: CGSize
+    ) -> [[MilkyWayBandScreenPoint]] {
+        let maxXJump = max(size.width * 0.35, hScale * 40)
+        var visibleGroups = [[MilkyWayBandScreenPoint]]()
+        var currentGroup = [MilkyWayBandScreenPoint]()
+        currentGroup.reserveCapacity(cachedPoints.count)
+
+        for bp in cachedPoints {
+            let diff = atan2(
+                sin((bp.az - az0) * .pi / 180),
+                cos((bp.az - az0) * .pi / 180)
+            ) * 180 / .pi
+            let px = cx + diff * hScale
+            guard px > -100 && px < size.width + 100 else {
+                if !currentGroup.isEmpty {
+                    visibleGroups.append(currentGroup)
+                    currentGroup = []
+                }
+                continue
+            }
+
+            currentGroup.append(MilkyWayBandScreenPoint(
+                x: px,
+                y: horizonY - bp.alt * hScale,
+                halfH: bp.halfH * hScale,
+                li: bp.li
+            ))
+        }
+
+        if !currentGroup.isEmpty {
+            visibleGroups.append(currentGroup)
+        }
+
+        return visibleGroups.flatMap { splitMilkyWayBandSegments($0, maxXJump: maxXJump) }
+    }
+
+    static func splitMilkyWayBandSegments(
+        _ screenPoints: [MilkyWayBandScreenPoint],
+        maxXJump: Double
+    ) -> [[MilkyWayBandScreenPoint]] {
+        var segments = [[MilkyWayBandScreenPoint]]()
+        var currentSegment = [MilkyWayBandScreenPoint]()
+        var previousPoint: MilkyWayBandScreenPoint?
+
+        for point in screenPoints {
+            if let previousPoint, abs(point.x - previousPoint.x) > maxXJump {
+                if currentSegment.count > 1 {
+                    segments.append(currentSegment)
+                }
+                currentSegment = [point]
+            } else {
+                currentSegment.append(point)
+            }
+            previousPoint = point
+        }
+
+        if currentSegment.count > 1 {
+            segments.append(currentSegment)
+        }
+
+        return segments
     }
 }
 

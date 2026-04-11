@@ -18,7 +18,7 @@ enum MeteorShowerCatalog {
     static let all: [MeteorShower] = [
         MeteorShower(id: "quadrantids",   name: "しぶんぎ座流星群",   radiantRA: 230.1, radiantDec: 48.5,  peakMonth:  1, peakDay:  4, activityDays: 2,  zhr: 120, symbol: "✦"),
         MeteorShower(id: "lyrids",        name: "こと座流星群",       radiantRA: 271.4, radiantDec: 33.6,  peakMonth:  4, peakDay: 22, activityDays: 3,  zhr:  18, symbol: "✦"),
-        MeteorShower(id: "eta_aquarids",  name: "みずがめ座η流星群",  radiantRA: 338.0, radiantDec: -1.0,  peakMonth:  5, peakDay:  6, activityDays: 5,  zhr:  50, symbol: "✦"),
+        MeteorShower(id: "eta_aquarids",  name: "みずがめ座流星群",  radiantRA: 338.0, radiantDec: -1.0,  peakMonth:  5, peakDay:  6, activityDays: 5,  zhr:  50, symbol: "✦"),
         MeteorShower(id: "perseids",      name: "ペルセウス座流星群",  radiantRA:  48.2, radiantDec: 58.1,  peakMonth:  8, peakDay: 13, activityDays: 5,  zhr: 100, symbol: "✦"),
         MeteorShower(id: "orionids",      name: "オリオン座流星群",    radiantRA:  95.0, radiantDec: 16.0,  peakMonth: 10, peakDay: 21, activityDays: 4,  zhr:  20, symbol: "✦"),
         MeteorShower(id: "leonids",       name: "しし座流星群",       radiantRA: 153.5, radiantDec: 22.0,  peakMonth: 11, peakDay: 17, activityDays: 3,  zhr:  15, symbol: "✦"),

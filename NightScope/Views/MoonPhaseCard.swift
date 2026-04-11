@@ -20,15 +20,18 @@ struct MoonPhaseCard: View {
             }
             Text(summary.moonPhaseName)
                 .font(.headline)
-            HStack(spacing: Spacing.sm) {
-                Text(summary.isMoonFavorable ? "撮影に適しています" : "月明かりに注意")
+            HStack(spacing: Spacing.xs) {
+                Text("月齢")
                     .font(.body)
                     .foregroundStyle(.secondary)
-                Spacer()
-                Text(String(format: "月齢 %.1f日", moonAgeDays))
-                    .font(.caption)
-                    .foregroundStyle(.secondary.opacity(0.8))
+                Text(String(format: "%.1f日", moonAgeDays))
+                    .font(.body.monospacedDigit())
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
             }
+            Text(summary.isMoonFavorable ? "撮影に適しています" : "月明かりに注意")
+                .font(.body)
+                .foregroundStyle(.secondary)
         }
         .glassCard()
         .accessibilityElement(children: .combine)

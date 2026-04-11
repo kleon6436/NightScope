@@ -409,7 +409,7 @@ final class StarMapViewModel: ObservableObject {
     ) -> [MilkyWayBandPoint] {
         var result = [MilkyWayBandPoint]()
         let step: Double = 5
-        for li in stride(from: 0.0, through: 360.0, by: step) {
+        for li in stride(from: 0.0, to: 360.0, by: step) {
             let eq0 = MilkyWayCalculator.galacticToEquatorial(l: li, b: 0)
             let (alt0, az0) = MilkyWayCalculator.altAzFast(ra: eq0.ra, dec: eq0.dec,
                                                             cosLat: cosLat, sinLat: sinLat,
