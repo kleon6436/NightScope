@@ -1,9 +1,4 @@
 import MapKit
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
 import ImageIO
 import CoreGraphics
 
@@ -33,24 +28,6 @@ struct MapKitSyncState: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.trigger == rhs.trigger
     }
-}
-
-/// 非 Sendable な completion handler をバックグラウンド描画から安全に呼ぶためのラッパー。
-final class TileLoadCompletion: @unchecked Sendable {
-    private let callback: (Data?, Error?) -> Void
-
-    init(_ callback: @escaping (Data?, Error?) -> Void) {
-        self.callback = callback
-    }
-
-    func call(data: Data?, error: Error?) {
-        callback(data, error)
-    }
-}
-
-struct RenderedLightPollutionTile {
-    let data: Data
-    let image: CGImage
 }
 
 // MARK: - LightPollutionTileOverlay
@@ -95,29 +72,25 @@ final class LightPollutionTileOverlay: MKTileOverlay {
     }
 
     override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, Error?) -> Void) {
-        // キャッシュ確認（メモリ or ディスク）
         if let cached = tileService.cachedTileData(for: path) {
             result(cached, nil)
             return
         }
         guard let grid = bortleGrid else {
-            // バンドルデータなし → 透明タイルを返す
             result(Self.transparentTileData(), nil)
             return
         }
-        // バックグラウンドでタイルをレンダリングしてキャッシュに保存
         let tileService = self.tileService
-        let completion = TileLoadCompletion(result)
+        // @unchecked Sendable ラッパーなしで completion を渡すため nonisolated クロージャを使用
+        let resultBox = ResultBox(result)
         Self.renderQueue.addOperation {
-            let renderedTile = Self.renderedTile(path: path, grid: grid, size: OverlayConfig.tilePixelSize)
-            if let renderedTile {
-                tileService.storeRenderedTile(renderedTile, for: path)
-            }
-            completion.call(data: renderedTile?.data, error: nil)
+            let data = Self.renderTile(path: path, grid: grid, size: OverlayConfig.tilePixelSize)
+            let tileData = data ?? Self.transparentTileData()
+            tileService.storeTileData(tileData, for: path)
+            resultBox.call(tileData, nil)
         }
     }
 
-    // MKTileOverlay のデフォルト実装との互換性のために残す（実際には使われない）
     override func url(forTilePath path: MKTileOverlayPath) -> URL {
         URL(string: "about:blank")!
     }
@@ -143,10 +116,6 @@ final class LightPollutionTileOverlay: MKTileOverlay {
 
     /// バンドル Bortle グリッドから 256×256 PNG タイルをレンダリングする。
     static func renderTile(path: MKTileOverlayPath, grid: BortleGridData, size: Int) -> Data? {
-        renderedTile(path: path, grid: grid, size: size)?.data
-    }
-
-    static func renderedTile(path: MKTileOverlayPath, grid: BortleGridData, size: Int) -> RenderedLightPollutionTile? {
         let n = pow(2.0, Double(path.z))
         let minLon = Double(path.x) / n * 360.0 - 180.0
         let lonSpan = 360.0 / n
@@ -162,22 +131,27 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         let sizeD = Double(size)
 
         grid.withStorage { rawBuffer, latCells, lonCells in
+            // 経度サンプルを事前計算（行ループ外）
+            // セル中心補正: rasterio from_bounds は各セルが均等幅のピクセルとして
+            // 格納されており、インデックス i が緯度/経度範囲の先頭 (left edge) に対応する。
+            // そのため `lonF - 0.5` でセル中心を正しく参照する。
             let longitudeSamples = (0..<size).map { px in
                 let lon = minLon + lonSpan * (Double(px) + 0.5) / sizeD
-                let lonF = (lon + 180.0) / 360.0 * Double(lonCells)
-                let lon0 = clampedIndex(Int(lonF), upperBound: lonCells)
+                let lonF = (lon + 180.0) / 360.0 * Double(lonCells) - 0.5
+                let lon0 = clampedIndex(Int(lonF.rounded(.down)), upperBound: lonCells)
                 let lon1 = clampedIndex(lon0 + 1, upperBound: lonCells)
-                return LongitudeSample(lon0: lon0, lon1: lon1, fraction: lonF - Double(lon0))
+                return LongitudeSample(lon0: lon0, lon1: lon1, fraction: lonF - lonF.rounded(.down))
             }
 
             for py in 0..<size {
                 // メルカトル Y 空間で線形補間し、緯度に変換（ピクセル中心サンプリング）
                 let mercY = mercYTop + (mercYBottom - mercYTop) * (Double(py) + 0.5) / sizeD
                 let lat = atan(sinh(mercY)) * 180.0 / .pi
-                let latF = (lat + 90.0) / 180.0 * Double(latCells)
-                let lat0 = clampedIndex(Int(latF), upperBound: latCells)
+                // セル中心補正
+                let latF = (lat + 90.0) / 180.0 * Double(latCells) - 0.5
+                let lat0 = clampedIndex(Int(latF.rounded(.down)), upperBound: latCells)
                 let lat1 = clampedIndex(lat0 + 1, upperBound: latCells)
-                let dt = latF - Double(lat0)
+                let dt = latF - latF.rounded(.down)
                 let row0 = lat0 * lonCells
                 let row1 = lat1 * lonCells
 
@@ -203,63 +177,56 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         }
 
         let pixelData = Data(bytes: pixels, count: byteCount)
-        guard let image = cgImage(from: pixelData, width: size, height: size),
-              let data = pngData(from: image), !data.isEmpty else {
-            return nil
-        }
-        return RenderedLightPollutionTile(data: data, image: image)
+        guard let image = cgImage(from: pixelData, width: size, height: size) else { return nil }
+        return pngData(from: image)
     }
 
-    /// 人工輝度 (mcd/m²) から RGBA カラーを生成する。
-    /// Falchi Atlas の標準カラーマップに準拠。
+    /// 人工輝度 (mcd/m²) から **プリマルチプライド** RGBA カラーを生成する。
+    /// CGImage は premultipliedLast で作成するため RGB に alpha を乗算する。
     private static func bortleToRGBA(_ brightness: Double) -> (UInt8, UInt8, UInt8, UInt8) {
         let naturalSky = 0.172  // mcd/m²
         let ratio = brightness / naturalSky
         if ratio < 0.01 { return (0, 0, 0, 0) }   // 真の暗天 → 透明
 
-        let alpha: UInt8 = 180  // 半透明
+        let alpha = 180.0 / 255.0   // 半透明係数
+        let a = UInt8(180)
+
+        // 各カラーは straight alpha 値に alpha を掛けてプリマルチプライドに変換
+        func premul(_ v: Double) -> UInt8 { UInt8(min(255, (v * alpha).rounded())) }
 
         switch ratio {
-        case ..<0.03:  return (20,  20,  60,  alpha)    // Bortle 2: 非常に濃い青
-        case ..<0.10:  return (0,   0,   140, alpha)    // Bortle 3: 濃い青
-        case ..<0.30:  return (0,   100, 0,   alpha)    // Bortle 4: 濃い緑
-        case ..<1.0:   return (150, 175, 30,  alpha)    // Bortle 5: 黄緑
-        case ..<3.0:   return (255, 230, 0,   alpha)    // Bortle 6: 黄
-        case ..<9.0:   return (255, 140, 0,   alpha)    // Bortle 7: オレンジ
-        case ..<27.0:  return (220, 30,  30,  alpha)    // Bortle 8: 赤
-        default:       return (255, 255, 255, alpha)    // Bortle 9: 白
+        case ..<0.03:  return (premul(20),  premul(20),  premul(60),  a)   // Bortle 2
+        case ..<0.10:  return (premul(0),   premul(0),   premul(140), a)   // Bortle 3
+        case ..<0.30:  return (premul(0),   premul(100), premul(0),   a)   // Bortle 4
+        case ..<1.0:   return (premul(150), premul(175), premul(30),  a)   // Bortle 5
+        case ..<3.0:   return (premul(255), premul(230), premul(0),   a)   // Bortle 6
+        case ..<9.0:   return (premul(255), premul(140), premul(0),   a)   // Bortle 7
+        case ..<27.0:  return (premul(220), premul(30),  premul(30),  a)   // Bortle 8
+        default:       return (premul(255), premul(255), premul(255), a)   // Bortle 9
         }
     }
 
-    /// 1×1 ピクセルの透明 PNG を返す（バンドルデータなし時のプレースホルダー）。
+    /// 1×1 ピクセルの透明 PNG（バンドルデータなし時のプレースホルダー）。
     private static let _transparentTileCache: Data = {
-        let pixels: [UInt8] = Array(repeating: 0, count: 4)
-        return pixels.withUnsafeBytes { ptr in
-            let pixelData = Data(bytes: ptr.baseAddress!, count: ptr.count)
-            guard let image = cgImage(from: pixelData, width: 1, height: 1) else {
-                return Data()
-            }
-            return pngData(from: image) ?? Data()
-        }
+        let pixels = Data(count: 4)
+        guard let image = cgImage(from: pixels, width: 1, height: 1),
+              let data = pngData(from: image) else { return Data() }
+        return data
     }()
 
     static func transparentTileData() -> Data { _transparentTileCache }
 
     private static func cgImage(from pixelData: Data, width: Int, height: Int) -> CGImage? {
-        guard let provider = CGDataProvider(data: pixelData as CFData),
-              let cgImage = CGImage(
-                width: width, height: height,
-                bitsPerComponent: 8, bitsPerPixel: 32,
-                bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-                provider: provider, decode: nil,
-                shouldInterpolate: false, intent: .defaultIntent
-              )
-        else {
-            return nil
-        }
-        return cgImage
+        guard let provider = CGDataProvider(data: pixelData as CFData) else { return nil }
+        return CGImage(
+            width: width, height: height,
+            bitsPerComponent: 8, bitsPerPixel: 32,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider, decode: nil,
+            shouldInterpolate: false, intent: .defaultIntent
+        )
     }
 
     private static func pngData(from cgImage: CGImage) -> Data? {
@@ -269,106 +236,5 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         CGImageDestinationAddImage(dest, cgImage, nil)
         guard CGImageDestinationFinalize(dest) else { return nil }
         return mutableData as Data
-    }
-}
-
-// MARK: - LightPollutionTileRenderer
-
-/// 光害タイルのカスタムレンダラー。
-/// キャッシュミスのタイルが読み込まれるまでの間、低ズームのキャッシュ済みタイルを
-/// スケールアップしてフォールバック描画し、ズーム時の空白（ちらつき）を防ぐ。
-final class LightPollutionTileRenderer: MKTileOverlayRenderer {
-
-    private enum FallbackConfig {
-        static let minimumZoomLevel = 1
-        static let maxAncestorDepth = 4
-    }
-
-    override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
-        guard alpha > 0 else { return }
-        guard tileService != nil else { return }
-        guard let path = tilePath(for: mapRect, zoomScale: zoomScale) else { return }
-
-        // 単一パス: 画像取得を試み、失敗時はフォールバック描画。
-        // hasTileData() と resolveCachedImage() を分離していた旧実装では
-        // NSCache エビクションによる TOCTOU 競合が発生していた。
-        if let image = resolveCachedImage(for: path) {
-            drawImage(image, in: mapRect, context: context)
-        } else {
-            drawFallback(for: path, mapRect: mapRect, in: context)
-        }
-    }
-
-    /// mapRect + zoomScale から対応するタイルパスを算出
-    private func tilePath(for mapRect: MKMapRect, zoomScale: MKZoomScale) -> MKTileOverlayPath? {
-        let worldWidth = MKMapRect.world.size.width
-        let tileSize = (overlay as? MKTileOverlay)?.tileSize.width ?? 256.0
-        let z = max(1, Int(floor(log2(worldWidth * Double(zoomScale) / tileSize))))
-        guard let tileOverlay = overlay as? LightPollutionTileOverlay else { return nil }
-        let clampedZ = min(z, tileOverlay.maximumZ)
-        guard clampedZ >= tileOverlay.minimumZ else { return nil }
-        let n = pow(2.0, Double(clampedZ))
-        let x = max(0, min(Int(n) - 1, Int(mapRect.minX / worldWidth * n)))
-        let y = max(0, min(Int(n) - 1, Int(mapRect.minY / worldWidth * n)))
-        return MKTileOverlayPath(x: x, y: y, z: clampedZ, contentScaleFactor: 1)
-    }
-
-    /// 低ズームのキャッシュ済みタイルをサブ領域切り出し＋スケールアップして描画
-    private func drawFallback(for path: MKTileOverlayPath, mapRect: MKMapRect, in context: CGContext) {
-        guard let tileService else { return }
-
-        // プリクロップ済み画像がフォールバックキャッシュにあれば即描画
-        if let cached = tileService.cachedFallbackImage(for: path) {
-            drawImage(cached, in: mapRect, context: context)
-            return
-        }
-
-        // 親ズームの正確タイルを探してクロップ（dz=1,2 は preCropDescendants でほぼヒット）
-        for dz in 1...FallbackConfig.maxAncestorDepth {
-            guard let parentPath = parentPath(for: path, dz: dz) else { break }
-            guard let parentImage = resolveCachedImage(for: parentPath) else { continue }
-            let srcRect = cropRect(for: path, dz: dz, image: parentImage)
-            guard let cropped = parentImage.cropping(to: srcRect) else { continue }
-
-            tileService.cacheCroppedImage(cropped, for: path)
-            drawImage(cropped, in: mapRect, context: context)
-            break
-        }
-    }
-
-    private var tileService: LightPollutionTileService? {
-        (overlay as? LightPollutionTileOverlay)?.tileService
-    }
-
-    private func parentPath(for path: MKTileOverlayPath, dz: Int) -> MKTileOverlayPath? {
-        let parentZ = path.z - dz
-        guard parentZ >= FallbackConfig.minimumZoomLevel else { return nil }
-        let parentX = path.x >> dz
-        let parentY = path.y >> dz
-        return MKTileOverlayPath(x: parentX, y: parentY, z: parentZ, contentScaleFactor: 1)
-    }
-
-    private func resolveCachedImage(for path: MKTileOverlayPath) -> CGImage? {
-        guard let tileService else { return nil }
-        return tileService.cachedImage(for: path) ?? tileService.decodeImageFromMemoryIfNeeded(for: path)
-    }
-
-    private func cropRect(for path: MKTileOverlayPath, dz: Int, image: CGImage) -> CGRect {
-        let scale = 1 << dz
-        let divisions = CGFloat(scale)
-        let subX = CGFloat(path.x % scale)
-        let subY = CGFloat(path.y % scale)
-        let tileW = CGFloat(image.width) / divisions
-        let tileH = CGFloat(image.height) / divisions
-        return CGRect(x: subX * tileW, y: subY * tileH, width: tileW, height: tileH)
-    }
-
-    private func drawImage(_ image: CGImage, in mapRect: MKMapRect, context: CGContext) {
-        let drawRect = rect(for: mapRect)
-        context.saveGState()
-        context.setAlpha(alpha)
-        context.interpolationQuality = .medium
-        context.draw(image, in: drawRect)
-        context.restoreGState()
     }
 }

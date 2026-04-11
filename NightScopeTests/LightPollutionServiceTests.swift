@@ -59,139 +59,20 @@ final class LightPollutionServiceTests: XCTestCase {
         }
         let path = MKTileOverlayPath(x: 0, y: 0, z: 1, contentScaleFactor: 1)
 
-        let renderedTile = LightPollutionTileOverlay.renderedTile(path: path, grid: grid, size: 8)
+        let data = LightPollutionTileOverlay.renderTile(path: path, grid: grid, size: 8)
 
-        XCTAssertNotNil(renderedTile)
-        XCTAssertEqual(renderedTile?.image.width, 8)
-        XCTAssertEqual(renderedTile?.image.height, 8)
-        XCTAssertFalse(renderedTile?.data.isEmpty ?? true)
+        XCTAssertNotNil(data, "タイルデータが返るべき")
+        XCTAssertFalse(data?.isEmpty ?? true, "タイルデータが空でないべき")
     }
 
-    func test_storeRenderedTile_cachesImageAndData() {
-        guard let grid = makeSingleCellGrid(brightness: 0.172) else {
-            XCTFail("グリッドを生成できませんでした")
-            return
-        }
+    func test_tileService_storeAndRetrieveData() {
         let path = MKTileOverlayPath(x: 0, y: 0, z: 1, contentScaleFactor: 1)
         let service = LightPollutionTileService()
-        guard let renderedTile = LightPollutionTileOverlay.renderedTile(path: path, grid: grid, size: 4) else {
-            XCTFail("タイルを生成できませんでした")
-            return
-        }
+        let testData = Data([0x89, 0x50, 0x4E, 0x47])  // PNG magic bytes
 
-        service.storeRenderedTile(renderedTile, for: path)
+        service.storeTileData(testData, for: path)
 
-        XCTAssertNotNil(service.cachedTileData(for: path))
-        XCTAssertNotNil(service.cachedImage(for: path))
-    }
-
-    // MARK: - Cache Separation Tests
-
-    func test_cacheCroppedImage_storesInFallbackCache() {
-        let service = LightPollutionTileService()
-        let path = MKTileOverlayPath(x: 0, y: 0, z: 3, contentScaleFactor: 1)
-        guard let image = createTestCGImage(width: 4, height: 4) else {
-            XCTFail("テスト画像を生成できませんでした")
-            return
-        }
-
-        service.cacheCroppedImage(image, for: path)
-
-        // フォールバックキャッシュに保存され、正確タイルキャッシュには入らない
-        XCTAssertNotNil(service.cachedFallbackImage(for: path), "フォールバックキャッシュにヒットすべき")
-        XCTAssertNil(service.cachedImage(for: path), "正確タイルキャッシュにはヒットしないべき")
-    }
-
-    func test_storeRenderedTile_doesNotPolluteFallbackCache() {
-        guard let grid = makeSingleCellGrid(brightness: 0.172) else {
-            XCTFail("グリッドを生成できませんでした")
-            return
-        }
-        let path = MKTileOverlayPath(x: 0, y: 0, z: 1, contentScaleFactor: 1)
-        let service = LightPollutionTileService()
-        guard let renderedTile = LightPollutionTileOverlay.renderedTile(path: path, grid: grid, size: 4) else {
-            XCTFail("タイルを生成できませんでした")
-            return
-        }
-
-        service.storeRenderedTile(renderedTile, for: path)
-
-        XCTAssertNotNil(service.cachedImage(for: path), "正確タイルキャッシュにヒットすべき")
-        XCTAssertNil(service.cachedFallbackImage(for: path), "フォールバックキャッシュにはヒットしないべき")
-    }
-
-    // MARK: - Pre-Crop Zoom Level Tests
-
-    func test_preCrop_respectsMaximumZoomLevel() {
-        guard let grid = makeSingleCellGrid(brightness: 0.5) else {
-            XCTFail("グリッドを生成できませんでした")
-            return
-        }
-        let maxZoom = 5
-        let service = LightPollutionTileService(maximumZoomLevel: maxZoom)
-        let parentPath = MKTileOverlayPath(x: 0, y: 0, z: maxZoom - 1, contentScaleFactor: 1)
-        guard let renderedTile = LightPollutionTileOverlay.renderedTile(path: parentPath, grid: grid, size: 4) else {
-            XCTFail("タイルを生成できませんでした")
-            return
-        }
-
-        service.storeRenderedTile(renderedTile, for: parentPath)
-
-        // プリクロップが非同期実行されるのを待つ
-        let expectation = expectation(description: "プリクロップ完了")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { expectation.fulfill() }
-        wait(for: [expectation], timeout: 3.0)
-
-        // z=maxZoom のタイルはプリクロップされるべき
-        let childAtMax = MKTileOverlayPath(x: 0, y: 0, z: maxZoom, contentScaleFactor: 1)
-        XCTAssertNotNil(service.cachedFallbackImage(for: childAtMax), "maxZoom のタイルはプリクロップされるべき")
-
-        // z=maxZoom+1 のタイルはプリクロップされないべき
-        let childBeyondMax = MKTileOverlayPath(x: 0, y: 0, z: maxZoom + 1, contentScaleFactor: 1)
-        XCTAssertNil(service.cachedFallbackImage(for: childBeyondMax), "maxZoom を超えるタイルはプリクロップされないべき")
-    }
-
-    func test_maximumZoomLevel_defaultsTo12() {
-        let service = LightPollutionTileService()
-        XCTAssertEqual(service.maximumZoomLevel, 12)
-    }
-
-    func test_decodeImageFromMemory_populatesExactCache() {
-        guard let grid = makeSingleCellGrid(brightness: 0.3) else {
-            XCTFail("グリッドを生成できませんでした")
-            return
-        }
-        let path = MKTileOverlayPath(x: 0, y: 0, z: 1, contentScaleFactor: 1)
-        let service = LightPollutionTileService()
-        guard let renderedTile = LightPollutionTileOverlay.renderedTile(path: path, grid: grid, size: 4) else {
-            XCTFail("タイルを生成できませんでした")
-            return
-        }
-
-        // PNG データのみキャッシュ（画像キャッシュはスキップ）
-        service.storeTileData(renderedTile.data, for: path)
-
-        // decodeImageFromMemoryIfNeeded で正確タイルキャッシュに復元されるべき
-        let decoded = service.decodeImageFromMemoryIfNeeded(for: path)
-        XCTAssertNotNil(decoded, "メモリキャッシュからデコードできるべき")
-        XCTAssertNotNil(service.cachedImage(for: path), "デコード後に正確タイルキャッシュにヒットすべき")
-    }
-
-    // MARK: - Helpers
-
-    private func createTestCGImage(width: Int, height: Int) -> CGImage? {
-        let byteCount = width * height * 4
-        let pixelData = Data(count: byteCount)
-        guard let provider = CGDataProvider(data: pixelData as CFData) else { return nil }
-        return CGImage(
-            width: width, height: height,
-            bitsPerComponent: 8, bitsPerPixel: 32,
-            bytesPerRow: width * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-            provider: provider, decode: nil,
-            shouldInterpolate: false, intent: .defaultIntent
-        )
+        XCTAssertNotNil(service.cachedTileData(for: path), "保存したデータが取得できるべき")
     }
 
     private func makeSingleCellGrid(brightness: Double) -> BortleGridData? {
@@ -256,8 +137,8 @@ final class LightPollutionServiceTests: XCTestCase {
         }
         // z=2, y=0 は北極付近のタイル
         let highLatPath = MKTileOverlayPath(x: 0, y: 0, z: 2, contentScaleFactor: 1)
-        let tile = LightPollutionTileOverlay.renderedTile(path: highLatPath, grid: grid, size: 4)
-        XCTAssertNotNil(tile, "高緯度タイルのレンダリングに成功するべき")
+        let data = LightPollutionTileOverlay.renderTile(path: highLatPath, grid: grid, size: 4)
+        XCTAssertNotNil(data, "高緯度タイルのレンダリングに成功するべき")
     }
 
     private func makeSingleCellGridV2(brightness: Double) -> BortleGridData? {

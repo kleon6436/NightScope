@@ -36,7 +36,7 @@ enum MapKitViewSharedLogic {
 
     static func updateLightPollutionOverlayAlpha(on mapView: MKMapView, targetAlpha: CGFloat) {
         if let overlay = mapView.overlays.first(where: { $0 is LightPollutionTileOverlay }),
-           let renderer = mapView.renderer(for: overlay) as? LightPollutionTileRenderer,
+           let renderer = mapView.renderer(for: overlay) as? MKTileOverlayRenderer,
            renderer.alpha != targetAlpha {
             renderer.alpha = targetAlpha
             renderer.setNeedsDisplay(MKMapRect.world)

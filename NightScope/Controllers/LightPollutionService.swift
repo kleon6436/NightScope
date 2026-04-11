@@ -150,11 +150,12 @@ struct BortleGridData {
 
     /// 指定座標の人工輝度 (mcd/m²) をバイリニア補間で返す。
     func brightness(latitude: Double, longitude: Double) -> Double {
-        let latF = (latitude + 90.0) / 180.0 * Double(latCells)
-        let lonF = (longitude + 180.0) / 360.0 * Double(lonCells)
+        // rasterio from_bounds はセル中心グリッドを生成するため 0.5 セル分引く
+        let latF = (latitude + 90.0) / 180.0 * Double(latCells) - 0.5
+        let lonF = (longitude + 180.0) / 360.0 * Double(lonCells) - 0.5
 
-        let lat0 = Int(latF).clamped(to: 0..<latCells)
-        let lon0 = Int(lonF).clamped(to: 0..<lonCells)
+        let lat0 = Int(latF.rounded(.down)).clamped(to: 0..<latCells)
+        let lon0 = Int(lonF.rounded(.down)).clamped(to: 0..<lonCells)
         let lat1 = (lat0 + 1).clamped(to: 0..<latCells)
         let lon1 = (lon0 + 1).clamped(to: 0..<lonCells)
 
@@ -208,184 +209,42 @@ private extension Int {
     }
 }
 
-// MARK: - Tile Image Cache Box
+// MARK: - ResultBox
 
-/// NSCache に CGImage を格納するための参照型ラッパー。
-final class CGImageBox {
-    let image: CGImage
-    init(_ image: CGImage) { self.image = image }
+/// completion handler（非 Sendable な関数型）を @unchecked Sendable でラップする。
+/// バックグラウンドキューから安全に呼び出すために使用する。
+final class ResultBox: @unchecked Sendable {
+    private let handler: (Data?, Error?) -> Void
+    init(_ handler: @escaping (Data?, Error?) -> Void) { self.handler = handler }
+    func call(_ data: Data?, _ error: Error?) { handler(data, error) }
 }
 
 // MARK: - Tile Service
 
-/// 光害タイルのメモリキャッシュ・デコードを担うサービス層。
-/// バンドルデータからローカルレンダリングされたタイルをメモリキャッシュで管理する。
+/// 光害タイルの PNG データをメモリキャッシュで管理するサービス層。
 final class LightPollutionTileService: @unchecked Sendable {
     private enum TileConfig {
-        static let memoryCacheCostLimit = 100 * 1024 * 1024
-        static let exactImageCacheCostLimit = 60 * 1024 * 1024
-        static let fallbackImageCacheCostLimit = 20 * 1024 * 1024
-        static let descendantPreCropDepth = 2
-        static let preCropMaxConcurrency = 2
+        static let memoryCacheCostLimit = 50 * 1024 * 1024
     }
-
-    /// オーバーレイの maximumZ と同じ値を使用する（唯一の真実の源）
-    let maximumZoomLevel: Int
 
     static let shared = LightPollutionTileService()
 
-    /// PNG タイルデータのキャッシュ（loadTile 用）
     private let memoryCache: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()
         cache.totalCostLimit = TileConfig.memoryCacheCostLimit
         return cache
     }()
 
-    /// 正確にレンダリングされたタイル画像のキャッシュ（draw 用）
-    private let exactImageCache: NSCache<NSString, CGImageBox> = {
-        let cache = NSCache<NSString, CGImageBox>()
-        cache.totalCostLimit = TileConfig.exactImageCacheCostLimit
-        return cache
-    }()
-
-    /// フォールバック/投機的プリクロップ画像のキャッシュ
-    /// 正確タイルと分離し、投機的エントリによる正確タイルのエビクションを防止する。
-    private let fallbackImageCache: NSCache<NSString, CGImageBox> = {
-        let cache = NSCache<NSString, CGImageBox>()
-        cache.totalCostLimit = TileConfig.fallbackImageCacheCostLimit
-        return cache
-    }()
-
-    /// プリクロップ専用キュー（renderQueue の同時実行数制限をバイパスしないようにする）
-    private let preCropQueue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.maxConcurrentOperationCount = TileConfig.preCropMaxConcurrency
-        queue.qualityOfService = .background
-        return queue
-    }()
-
-    init(maximumZoomLevel: Int = 12) {
-        self.maximumZoomLevel = maximumZoomLevel
-    }
-
-    /// メモリキャッシュからデータを返す。なければ nil。
     func cachedTileData(for path: MKTileOverlayPath) -> Data? {
         memoryCache.object(forKey: cacheKey(for: path)) as Data?
     }
 
-    /// データをメモリキャッシュに書き込み、子ズームタイルを先読みする。
     func storeTileData(_ data: Data, for path: MKTileOverlayPath) {
-        let key = cacheKey(for: path)
-        memoryCache.setObject(data as NSData, forKey: key, cost: data.count)
-        if let image = decodeAndCacheExact(data: data, forKey: key) {
-            scheduleDescendantPreCrop(from: image, path: path)
-        }
+        memoryCache.setObject(data as NSData, forKey: cacheKey(for: path), cost: data.count)
     }
-
-    func storeRenderedTile(_ renderedTile: RenderedLightPollutionTile, for path: MKTileOverlayPath) {
-        let key = cacheKey(for: path)
-        memoryCache.setObject(renderedTile.data as NSData, forKey: key, cost: renderedTile.data.count)
-        exactImageCache.setObject(
-            CGImageBox(renderedTile.image),
-            forKey: key,
-            cost: Self.cgImageCost(renderedTile.image)
-        )
-        scheduleDescendantPreCrop(from: renderedTile.image, path: path)
-    }
-
-    func hasTileData(for path: MKTileOverlayPath) -> Bool {
-        memoryCache.object(forKey: cacheKey(for: path)) != nil
-    }
-
-    /// 正確タイル画像を返す。
-    func cachedImage(for path: MKTileOverlayPath) -> CGImage? {
-        let key = cacheKey(for: path)
-        return exactImageCache.object(forKey: key)?.image
-    }
-
-    /// フォールバック/プリクロップ画像を返す。
-    func cachedFallbackImage(for path: MKTileOverlayPath) -> CGImage? {
-        let key = cacheKey(for: path)
-        return fallbackImageCache.object(forKey: key)?.image
-    }
-
-    func decodeImageFromMemoryIfNeeded(for path: MKTileOverlayPath) -> CGImage? {
-        let key = cacheKey(for: path)
-        if let image = exactImageCache.object(forKey: key)?.image {
-            return image
-        }
-        guard let data = memoryCache.object(forKey: key) as Data?,
-              let image = Self.cgImage(from: data)
-        else {
-            return nil
-        }
-        exactImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
-        return image
-    }
-
-    func cacheCroppedImage(_ image: CGImage, for path: MKTileOverlayPath) {
-        let key = cacheKey(for: path)
-        fallbackImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
-    }
-
-    /// プリクロップキューの保留中オペレーションをすべてキャンセルする。
-    func cancelPendingPreCrops() {
-        preCropQueue.cancelAllOperations()
-    }
-
-    static func cgImageCost(_ image: CGImage) -> Int { image.width * image.height * 4 }
 
     private func cacheKey(for path: MKTileOverlayPath) -> NSString {
         "\(path.z)_\(path.x)_\(path.y)" as NSString
-    }
-
-    private func decodeAndCacheExact(data: Data, forKey key: NSString) -> CGImage? {
-        guard let cgImage = Self.cgImage(from: data) else { return nil }
-        exactImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: Self.cgImageCost(cgImage))
-        return cgImage
-    }
-
-    private static func cgImage(from data: Data) -> CGImage? {
-        #if os(macOS)
-        guard let nsImage = NSImage(data: data) else { return nil }
-        return nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        #else
-        return UIImage(data: data)?.cgImage
-        #endif
-    }
-
-    private func preCropDescendants(from cgImage: CGImage, path: MKTileOverlayPath) {
-        for dz in 1...TileConfig.descendantPreCropDepth {
-            let childZ = path.z + dz
-            guard childZ <= maximumZoomLevel else { break }
-            let scale = 1 << dz
-            let baseX = path.x * scale
-            let baseY = path.y * scale
-            let divisions = CGFloat(scale)
-            let tileW = CGFloat(cgImage.width) / divisions
-            let tileH = CGFloat(cgImage.height) / divisions
-
-            for dy in 0..<scale {
-                for dx in 0..<scale {
-                    let childPath = MKTileOverlayPath(x: baseX + dx, y: baseY + dy, z: childZ, contentScaleFactor: 1)
-                    let srcRect = CGRect(
-                        x: CGFloat(dx) * tileW,
-                        y: CGFloat(dy) * tileH,
-                        width: tileW,
-                        height: tileH
-                    )
-                    if let cropped = cgImage.cropping(to: srcRect) {
-                        cacheCroppedImage(cropped, for: childPath)
-                    }
-                }
-            }
-        }
-    }
-
-    private func scheduleDescendantPreCrop(from image: CGImage, path: MKTileOverlayPath) {
-        preCropQueue.addOperation { [weak self] in
-            self?.preCropDescendants(from: image, path: path)
-        }
     }
 }
 
