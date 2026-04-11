@@ -109,24 +109,38 @@ python3 Tools/prepare_srtm.py --input-dir ~/srtm_tiles/ \
 
 ## 利用上の注意（個人利用 / 将来商用）
 
+### 現在採用しているデータソースのライセンス概要
+
+| データソース | ライセンス | 商用利用 | 主な要件 |
+|---|---|---|---|
+| MET Norway Locationforecast 2.0 | CC BY 4.0 | ✅ 可 | 帰属表示・User-Agent 設定 |
+| Falchi et al. 2016 World Atlas | CC BY 4.0 | ✅ 可 | 帰属表示（論文・DOI の明示） |
+| NASA SRTM | Public Domain | ✅ 可 | 帰属表示（推奨） |
+| Yale BSC5 / CDS VizieR | Public Domain | ✅ 可 | 帰属表示（推奨） |
+| Apple MapKit | Apple Developer Program 規約 | ✅ 可（規約の範囲内） | Apple Developer Program への参加 |
+
+全データソースが **CC BY 4.0 / Public Domain / Apple Developer Program 規約**のみで構成されており、商用配布・課金・法人利用においても帰属表示を適切に行うことで利用可能な状態です。
+
 ### 個人利用（現状）
 
-- 現在の実装範囲では、**各データソースの条件を守る前提で利用可能**という整理です。
+- 各データソースの条件を守る前提で利用可能です。
 - MET Norway は User-Agent ヘッダの設定が必須です（`WeatherService` で対応済み）。
 - 帰属表示はアプリ内「設定 > データソースとクレジット」で行っています。
 
-### 将来商用化
+### 商用化時の確認事項
 
-- 商用配布・課金・法人利用を開始する前に、各データソースの利用規約を再確認してください。
-- MET Norway の商用利用ポリシーを確認し、必要に応じて商用プランを検討してください。
+- MET Norway の利用規約に変更がないことを確認してください。
+- CC BY 4.0 データソースの帰属表示がアプリ内・配布物（App Store ページ等）に含まれていることを確認してください。
+- Apple Developer Program 規約の最新版を確認してください。
 
 ## 商用化前チェックリスト
 
-- [ ] MET Norway Locationforecast 2.0 の商用利用条件を確認
-- [ ] Falchi World Atlas の CC BY 4.0 帰属表示がアプリ内・配布物に含まれている
-- [ ] NASA SRTM の利用条件（Public Domain）が変更されていないことを確認
-- [ ] Yale BSC5 の再配布・商用利用条件を再確認
-- [ ] README とアプリ内表示（設定画面など）で帰属が明示されている
+- [ ] MET Norway Locationforecast 2.0 の利用規約に変更がないことを確認
+- [ ] Falchi World Atlas (CC BY 4.0) の帰属表示（Falchi et al. 2016 / GFZ Data Services / DOI）がアプリ内・配布物に含まれている
+- [ ] NASA SRTM の利用条件（Public Domain）に変更がないことを確認
+- [ ] Yale BSC5 の帰属表示が設定画面に含まれている
+- [ ] Apple MapKit の利用が Apple Developer Program 規約の範囲内であることを確認
+- [ ] README とアプリ内「設定 > データソースとクレジット」で全帰属が明示されている
 
 ## 開発メモ
 

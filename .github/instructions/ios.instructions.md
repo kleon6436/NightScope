@@ -8,7 +8,7 @@ applyTo: "NightScopeiOS/**"
 ## プロジェクト概要
 
 - **プロジェクト名**: NightScope
-- **概要**: 星空観察支援 iOS アプリ。Open-Meteo API による天気予報・lightpollutionmap.info API による光害情報・天文計算エンジンを組み合わせて星空指数（0〜100）を算出し、月相・観測可能ウィンドウ・2週間予報を表示する。
+- **概要**: 星空観察支援 iOS アプリ。MET Norway Locationforecast 2.0 による天気予報・Falchi 光害アトラス（バンドル）による光害情報・NASA SRTM（バンドル）による標高データ・天文計算エンジンを組み合わせて星空指数（0〜100）を算出し、月相・観測可能ウィンドウ・2週間予報を表示する。
 - **対象プラットフォーム**: iOS 26.0+
 - **対応デバイス**: iPhone のみ
 - **最低 Deployment Target**: iOS 26.0
