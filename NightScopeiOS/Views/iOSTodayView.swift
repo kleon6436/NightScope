@@ -142,6 +142,7 @@ struct iOSTodayView: View {
 
     @ViewBuilder
     private func mainContent(summary: NightSummary) -> some View {
+        // ヒーロー: 星空指数カード（フル幅、目立つ配置）
         if let index = starGazingIndex {
             StarGazingIndexCard(
                 index: index,
@@ -149,9 +150,23 @@ struct iOSTodayView: View {
             )
         }
 
-        DarkTimeCard(summary: summary, weather: weather)
-        NightWeatherCard(weather: weather, viewModel: weatherViewModel)
-        MoonPhaseCard(summary: summary)
+        // 2カラムグリッド: 情報カード群
+        let columns = [
+            GridItem(.flexible(), spacing: LayoutiOS.gridSpacing),
+            GridItem(.flexible(), spacing: LayoutiOS.gridSpacing)
+        ]
+        LazyVGrid(columns: columns, spacing: LayoutiOS.gridSpacing) {
+            DarkTimeCard(summary: summary, weather: weather)
+                .frame(minHeight: LayoutiOS.gridCardMinHeight)
+
+            NightWeatherCard(weather: weather, viewModel: weatherViewModel)
+                .frame(minHeight: LayoutiOS.gridCardMinHeight)
+
+            MoonPhaseCard(summary: summary)
+                .frame(minHeight: LayoutiOS.gridCardMinHeight)
+        }
+
+        // 天の川観測ウィンドウ（フル幅）
         ViewingWindowsSection(summary: summary)
             .padding(.top, Spacing.xs)
     }

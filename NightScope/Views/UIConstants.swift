@@ -151,6 +151,15 @@ enum LayoutMacOS {
 }
 #endif
 
+#if os(iOS)
+enum LayoutiOS {
+    /// 2カラムグリッドのカード最小高さ
+    static let gridCardMinHeight: CGFloat = 140
+    /// グリッドの列間隔
+    static let gridSpacing: CGFloat = Spacing.sm
+}
+#endif
+
 // MARK: - GlassCard ViewModifier
 
 struct GlassCardModifier: ViewModifier {

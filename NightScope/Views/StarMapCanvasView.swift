@@ -23,6 +23,15 @@ struct StarMapCanvasView: View {
     // キーボードフォーカス
     @FocusState private var isFocused: Bool
 
+    /// iOS では常に心射図法、macOS ではジャイロモード時のみ
+    private var usesGnomonicProjection: Bool {
+        #if os(iOS)
+        return true
+        #else
+        return viewModel.isGyroMode
+        #endif
+    }
+
 #if os(macOS)
     @State private var scrollWheelMonitor: Any?
 #endif
@@ -34,16 +43,23 @@ struct StarMapCanvasView: View {
             let size = geo.size
             ZStack {
                 canvas(size: size)
+                #if os(iOS)
+                    .gesture(
+                        gnomonicDragGesture(size: size),
+                        including: viewModel.isGyroMode ? .none : .all
+                    )
+                #else
                     .gesture(
                         panoramaDragGesture(size: size),
                         including: viewModel.isGyroMode ? .none : .all
                     )
+                #endif
                     .gesture(pinchGesture)
                     .onTapGesture(coordinateSpace: .local) { location in
                         handleTap(at: location, size: size)
                     }
 
-                if viewModel.isGyroMode {
+                if usesGnomonicProjection {
                     gyroModeIndicator
                 }
 
@@ -125,8 +141,12 @@ struct StarMapCanvasView: View {
     }
 
     private func handleAltitudeKey(step: Double, size: CGSize) -> KeyPress.Result {
-        let lowerBound = StarMapLayout.panoramaLowerBoundAltitude(size: size, fov: effectivePanoramaFOV())
-        viewModel.viewAltitude = max(lowerBound, min(90, viewModel.viewAltitude + step))
+        if usesGnomonicProjection {
+            viewModel.viewAltitude = max(-10, min(89, viewModel.viewAltitude + step))
+        } else {
+            let lowerBound = StarMapLayout.panoramaLowerBoundAltitude(size: size, fov: effectivePanoramaFOV())
+            viewModel.viewAltitude = max(lowerBound, min(90, viewModel.viewAltitude + step))
+        }
         return .handled
     }
 
@@ -142,8 +162,11 @@ struct StarMapCanvasView: View {
             let cx = sz.width / 2
             let cy = sz.height / 2
 
-            if viewModel.isGyroMode {
-                drawGnomonicProjection(ctx: ctx, cx: cx, cy: cy, size: sz)
+            if usesGnomonicProjection {
+                let (centerAlt, centerAz) = effectiveGnomonicCenter(size: sz)
+                let fov = effectiveGnomonicFOV()
+                drawGnomonicProjection(ctx: ctx, cx: cx, cy: cy, size: sz,
+                                       centerAlt: centerAlt, centerAz: centerAz, fov: fov)
             } else {
                 drawPanoramicProjection(ctx: ctx, cx: cx, cy: cy, size: sz)
             }
@@ -169,6 +192,36 @@ struct StarMapCanvasView: View {
         az = az.truncatingRemainder(dividingBy: 360)
         if az < 0 { az += 360 }
         return (alt: alt, az: az)
+    }
+
+    // MARK: - Gnomonic Helpers
+
+    /// ピンチ中のライブ視野角（心射図法用）
+    private func effectiveGnomonicFOV() -> Double {
+        StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
+    }
+
+    /// ドラッグ中のライブ中心方向（心射図法用）。
+    /// スクリーン移動量をカメラ空間の角度変化に正確に変換する。
+    private func effectiveGnomonicCenter(size: CGSize) -> (alt: Double, az: Double) {
+        guard gestureDragOffset != .zero else {
+            return (viewModel.viewAltitude, viewModel.viewAzimuth)
+        }
+        let fov = effectiveGnomonicFOV()
+        let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
+        let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
+
+        // スクリーン移動 → カメラ空間の角度変化 (atan で正確に)
+        let yawRad = atan2(gestureDragOffset.width, scale)
+        let pitchRad = atan2(gestureDragOffset.height, scale)
+
+        var newAlt = viewModel.viewAltitude + pitchRad * 180 / .pi
+        var newAz = viewModel.viewAzimuth - yawRad * 180 / .pi
+
+        newAlt = max(-10, min(89, newAlt))
+        newAz = newAz.truncatingRemainder(dividingBy: 360)
+        if newAz < 0 { newAz += 360 }
+        return (newAlt, newAz)
     }
 
     private func drawPanoramicProjection(ctx: GraphicsContext,
@@ -482,37 +535,53 @@ struct StarMapCanvasView: View {
         }
     }
 
-    // MARK: - Gnomonic Projection (心射図法, ジャイロモード)
+    // MARK: - Gnomonic Projection (心射図法, iOS デフォルト / macOS ジャイロモード)
 
     private func drawGnomonicProjection(ctx: GraphicsContext,
-                                        cx: Double, cy: Double, size: CGSize) {
+                                        cx: Double, cy: Double, size: CGSize,
+                                        centerAlt: Double, centerAz: Double, fov: Double) {
         let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
-        let scale = min(size.width, size.height) / (2 * tan(45 * .pi / 180))
+        let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
+        let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
 
-        let cAlt = viewModel.viewAltitude * .pi / 180
-        let cAz  = viewModel.viewAzimuth  * .pi / 180
-        let (cx3, cy3, cz3) = altAzToCartesian(alt: cAlt, az: cAz)
+        let cAlt = centerAlt * .pi / 180
+        let cAz  = centerAz * .pi / 180
 
-        let eAzE = (cAz + .pi / 2)
-        let eEastX = cos(eAzE)
-        let eEastY = sin(eAzE)
-        let eEastZ = 0.0
+        // カメラ中心方向 (forward)
+        let (fwdX, fwdY, fwdZ) = altAzToCartesian(alt: cAlt, az: cAz)
 
-        let eUpX = cy3 * eEastZ - cz3 * eEastY
-        let eUpY = cz3 * eEastX - cx3 * eEastZ
-        let eUpZ = cx3 * eEastY - cy3 * eEastX
-        let eUpLen = sqrt(eUpX*eUpX + eUpY*eUpY + eUpZ*eUpZ)
-        let (eUX, eUY, eUZ) = eUpLen > 1e-10
-            ? (eUpX/eUpLen, eUpY/eUpLen, eUpZ/eUpLen)
+        // 水平右方向ベクトル (方位に直交、水平面内)
+        let rightX = cos(cAz)
+        let rightY = -sin(cAz)
+        let rightZ = 0.0
+
+        // 上方向ベクトル = right × forward, 正規化
+        let uCrossX = rightY * fwdZ - rightZ * fwdY
+        let uCrossY = rightZ * fwdX - rightX * fwdZ
+        let uCrossZ = rightX * fwdY - rightY * fwdX
+        let uLen = sqrt(uCrossX * uCrossX + uCrossY * uCrossY + uCrossZ * uCrossZ)
+        let (upX, upY, upZ) = uLen > 1e-10
+            ? (uCrossX / uLen, uCrossY / uLen, uCrossZ / uLen)
             : (0.0, 0.0, 1.0)
 
         func project(alt: Double, az: Double) -> CGPoint? {
             let (px, py, pz) = altAzToCartesian(alt: alt, az: az)
-            let dot = px*cx3 + py*cy3 + pz*cz3
+            let dot = px * fwdX + py * fwdY + pz * fwdZ
             guard dot > 0.1 else { return nil }
-            let projX = (px*eEastX + py*eEastY + pz*eEastZ) / dot * scale
-            let projY = (px*eUX    + py*eUY    + pz*eUZ)    / dot * scale
+            let projX = (px * rightX + py * rightY + pz * rightZ) / dot * scale
+            let projY = (px * upX    + py * upY    + pz * upZ)    / dot * scale
             return CGPoint(x: cx + projX, y: cy - projY)
+        }
+
+        // 地平線・地面描画
+        drawGnomonicGround(ctx: ctx, cx: cx, cy: cy, size: size,
+                           centerAlt: centerAlt, scale: scale,
+                           fwdX: fwdX, fwdY: fwdY, fwdZ: fwdZ,
+                           upX: upX, upY: upY, upZ: upZ)
+
+        // 方位ラベル描画
+        if !simplifyDuringScrub {
+            drawGnomonicCardinals(ctx: ctx, project: project)
         }
 
         // 星座線
@@ -601,6 +670,68 @@ struct StarMapCanvasView: View {
         let y = cos(alt) * cos(az)
         let z = sin(alt)
         return (x, y, z)
+    }
+
+    // MARK: - Gnomonic Ground / Horizon / Cardinals
+
+    /// 地平線と地面を解析的に描画する。
+    /// 心射図法では地平線（大円）は直線に射影されるため、
+    /// カメラの仰角から地平線の Y 座標を直接計算する。
+    private func drawGnomonicGround(ctx: GraphicsContext,
+                                    cx: Double, cy: Double, size: CGSize,
+                                    centerAlt: Double, scale: Double,
+                                    fwdX: Double, fwdY: Double, fwdZ: Double,
+                                    upX: Double, upY: Double, upZ: Double) {
+        // 地平線上の点 (alt=0) の up 成分を解析的に算出
+        // 地平線は up ベクトルに対して一定の y 座標に射影される
+        let cAltRad = centerAlt * .pi / 180
+        // 地平線の射影 Y (スクリーン上方が +projY) = -sin(cAlt) / cos(cAlt) * scale = -tan(cAlt) * scale
+        let horizonProjY = -tan(cAltRad) * scale
+        let horizonScreenY = cy - horizonProjY
+
+        // 地面色 (暗い緑/茶)
+        let groundColor = Color(red: 0.08, green: 0.12, blue: 0.06)
+
+        if horizonScreenY < size.height {
+            // 地平線が画面内にある場合: 地平線より下を地面色で塗る
+            let groundRect = CGRect(x: 0, y: horizonScreenY,
+                                    width: size.width,
+                                    height: size.height - horizonScreenY)
+            ctx.fill(Path(groundRect), with: .color(groundColor.opacity(0.6)))
+
+            // 地平線ライン
+            var horizonPath = Path()
+            horizonPath.move(to: CGPoint(x: 0, y: horizonScreenY))
+            horizonPath.addLine(to: CGPoint(x: size.width, y: horizonScreenY))
+            ctx.stroke(horizonPath,
+                       with: .color(Color(red: 0.3, green: 0.5, blue: 0.3).opacity(0.5)),
+                       lineWidth: 1)
+        } else if centerAlt < 0 {
+            // カメラが地平線より下を向いている: 全面地面
+            let groundRect = CGRect(origin: .zero, size: size)
+            ctx.fill(Path(groundRect), with: .color(groundColor.opacity(0.6)))
+        }
+    }
+
+    /// 東西南北の方位ラベルを地平線上に描画する。
+    private func drawGnomonicCardinals(ctx: GraphicsContext,
+                                       project: (Double, Double) -> CGPoint?) {
+        let cardinals: [(String, Double)] = [
+            ("N", 0), ("E", 90), ("S", 180), ("W", 270)
+        ]
+
+        for (label, azDeg) in cardinals {
+            // 地平線のわずか上に配置 (alt = -2°)
+            let alt = -2.0 * .pi / 180
+            let az = azDeg * .pi / 180
+            if let pt = project(alt, az) {
+                ctx.draw(
+                    Text(label)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color(red: 0.4, green: 0.7, blue: 0.4).opacity(0.7)),
+                    at: pt)
+            }
+        }
     }
 
     // MARK: - Drawing primitives
@@ -844,6 +975,35 @@ struct StarMapCanvasView: View {
         return nearest
     }
 
+    // MARK: - Drag Gesture (心射図法 カメラ空間ドラッグ — iOS)
+
+    #if os(iOS)
+    private func gnomonicDragGesture(size: CGSize) -> some Gesture {
+        DragGesture()
+            .updating($gestureDragOffset) { value, state, _ in
+                state = value.translation
+            }
+            .onEnded { [self] value in
+                let fov = effectiveGnomonicFOV()
+                let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
+                let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
+
+                let yawRad = atan2(value.translation.width, scale)
+                let pitchRad = atan2(value.translation.height, scale)
+
+                var newAlt = viewModel.viewAltitude + pitchRad * 180 / .pi
+                var newAz = viewModel.viewAzimuth - yawRad * 180 / .pi
+
+                newAlt = max(-10, min(89, newAlt))
+                newAz = newAz.truncatingRemainder(dividingBy: 360)
+                if newAz < 0 { newAz += 360 }
+
+                viewModel.viewAltitude = newAlt
+                viewModel.viewAzimuth = newAz
+            }
+    }
+    #endif
+
     // MARK: - Drag Gesture (パノラマ 上下左右スクロール)
 
     private func panoramaDragGesture(size: CGSize) -> some Gesture {
@@ -930,7 +1090,11 @@ struct StarMapCanvasView: View {
     private func syncPanoramaViewport(_ size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
         viewModel.updatePanoramaViewport(size: size)
+        #if os(macOS)
         viewModel.applyInitialPanoramaPoseIfNeeded()
+        #else
+        viewModel.clearInitialPanoramaPoseFlag()
+        #endif
     }
 
     // MARK: - Gyro Mode Indicator

@@ -503,9 +503,19 @@ final class StarMapViewModel: ObservableObject {
         shouldApplyInitialPanoramaPose = false
     }
 
-    /// 北向きへ戻し、地平線が下端付近に来る仰角へ合わせる。
+    /// 北向きへ戻す。
     func resetToNorth() {
+        #if os(iOS)
+        viewAzimuth = 0
+        viewAltitude = 45
+        #else
         setPanoramaPose(azimuth: 0)
+        #endif
+    }
+
+    /// iOS 用: 初期パノラマポーズフラグをクリアする（心射図法デフォルトでは適用しない）。
+    func clearInitialPanoramaPoseFlag() {
+        shouldApplyInitialPanoramaPose = false
     }
 
     /// 選択日へ現在の時刻を反映し、昼間なら当日夕方側の夜へ寄せて表示日時を決める。

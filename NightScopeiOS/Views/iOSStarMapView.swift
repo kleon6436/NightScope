@@ -50,11 +50,11 @@ struct iOSStarMapView: View {
             locationLabel
         }
         .padding(.horizontal, Spacing.sm)
-        .padding(.bottom, Spacing.sm)
+        .padding(.vertical, Spacing.sm)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .padding(.horizontal, Spacing.sm)
-        .padding(.bottom, Spacing.xs)
+        .padding(.bottom, Spacing.sm)
     }
 
     private var dateControlRow: some View {
@@ -152,10 +152,10 @@ struct iOSStarMapView: View {
                 viewModel.isGyroMode.toggle()
             }
         } label: {
-            Image(systemName: viewModel.isGyroMode ? "gyroscope" : "map")
+            Image(systemName: viewModel.isGyroMode ? "gyroscope" : "hand.draw")
                 .symbolEffect(.bounce, value: viewModel.isGyroMode)
         }
-        .help(viewModel.isGyroMode ? "全天マップに切替" : "ジャイロモードに切替")
+        .help(viewModel.isGyroMode ? "タッチ操作に切替" : "ジャイロ操作に切替")
         .disabled(!motionManager.isDeviceMotionAvailable)
     }
 
