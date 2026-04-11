@@ -1,4 +1,5 @@
 import XCTest
+import Combine
 @testable import NightScope
 
 @MainActor
@@ -76,6 +77,68 @@ final class StarMapViewModelTests: XCTestCase {
             fov: 90
         )
         XCTAssertEqual(placements.map(\.label), ["北", "北東", "北西"])
+    }
+
+    func test_StarDisplayDensity_usesExpectedThresholdsAndLabels() {
+        XCTAssertEqual(StarDisplayDensity.maximum.settingsLabel, "最大（7.5等級まで）")
+        XCTAssertEqual(StarDisplayDensity.large.settingsLabel, "大（6.8等級まで）")
+        XCTAssertEqual(StarDisplayDensity.medium.settingsLabel, "中（6.0等級まで）")
+        XCTAssertEqual(StarDisplayDensity.small.settingsLabel, "小（5.0等級まで）")
+
+        XCTAssertEqual(StarDisplayDensity.maximum.maxMagnitude, 7.5, accuracy: 0.0001)
+        XCTAssertEqual(StarDisplayDensity.large.maxMagnitude, 6.8, accuracy: 0.0001)
+        XCTAssertEqual(StarDisplayDensity.medium.maxMagnitude, 6.0, accuracy: 0.0001)
+        XCTAssertEqual(StarDisplayDensity.small.maxMagnitude, 5.0, accuracy: 0.0001)
+    }
+
+    func test_StarMapViewModel_recomputesWhenStarDisplayDensityChanges() {
+        let key = StarDisplayDensity.defaultsKey
+        let previousValue = UserDefaults.standard.string(forKey: key)
+        UserDefaults.standard.set(StarDisplayDensity.maximum.rawValue, forKey: key)
+        defer {
+            if let previousValue {
+                UserDefaults.standard.set(previousValue, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        var cancellables = Set<AnyCancellable>()
+
+        let initialExpectation = expectation(description: "initial star positions")
+        var initialCount = 0
+        var initialCancellable: AnyCancellable?
+        initialCancellable = viewModel.$starPositions
+            .sink { stars in
+                guard stars.count > 0 else { return }
+                guard initialCount == 0 else { return }
+                initialCount = stars.count
+                initialExpectation.fulfill()
+                initialCancellable?.cancel()
+            }
+        if let initialCancellable {
+            initialCancellable.store(in: &cancellables)
+        }
+        wait(for: [initialExpectation], timeout: 5)
+
+        let reducedExpectation = expectation(description: "reduced star positions")
+        var reducedCancellable: AnyCancellable?
+        reducedCancellable = viewModel.$starPositions
+            .dropFirst()
+            .sink { stars in
+                guard stars.count < initialCount else { return }
+                reducedExpectation.fulfill()
+                reducedCancellable?.cancel()
+            }
+        if let reducedCancellable {
+            reducedCancellable.store(in: &cancellables)
+        }
+
+        viewModel.setStarDisplayDensity(.small)
+
+        wait(for: [reducedExpectation], timeout: 5)
     }
 
     func test_StarMapViewModel_initialPose_usesResetAltitude() {

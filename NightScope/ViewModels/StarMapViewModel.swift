@@ -75,17 +75,25 @@ final class StarMapViewModel: ObservableObject {
     private var pendingTimeSliderDate: Date?
     private var timeSliderCommitTask: Task<Void, Never>?
     private var displayDateUpdateMode: DisplayDateUpdateMode = .standard
+    private var starDisplayDensity: StarDisplayDensity
 
     // MARK: - Init
 
     init(appController: AppController) {
         self.appController = appController
+        self.starDisplayDensity = StarDisplayDensity.load()
         // 場所が変わったら再計算
         appController.locationController.anyChangePublisher
             .receive(on: RunLoop.main)
             .sink { [weak self] in
                 self?.updateNightRange()
                 self?.update()
+            }
+            .store(in: &cancellables)
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.reloadStarDisplayDensityFromDefaults()
             }
             .store(in: &cancellables)
         updateNightRange()
@@ -174,6 +182,7 @@ final class StarMapViewModel: ObservableObject {
 
         // 前の計算タスクをキャンセルして新しいタスクを開始
         updateTask?.cancel()
+        let density = starDisplayDensity
         updateTask = Task { [weak self] in
             guard let self else { return }
 
@@ -184,7 +193,8 @@ final class StarMapViewModel: ObservableObject {
                     lon: context.longitude,
                     jd: context.julianDate,
                     lst: context.localSiderealTime,
-                    activeMeteorShowers: context.activeMeteorShowers
+                    activeMeteorShowers: context.activeMeteorShowers,
+                    starDisplayDensity: density
                 )
             }.value
 
@@ -208,6 +218,19 @@ final class StarMapViewModel: ObservableObject {
             ),
             activeMeteorShowers: MeteorShowerCatalog.active(on: date)
         )
+    }
+
+    func setStarDisplayDensity(_ density: StarDisplayDensity) {
+        guard density != starDisplayDensity else { return }
+        starDisplayDensity = density
+        update()
+    }
+
+    private func reloadStarDisplayDensityFromDefaults() {
+        let density = StarDisplayDensity.load()
+        guard density != starDisplayDensity else { return }
+        starDisplayDensity = density
+        update()
     }
 
     private func scheduleTerrainFetchIfNeeded(for context: UpdateContext) {
@@ -248,7 +271,8 @@ final class StarMapViewModel: ObservableObject {
         lon: Double,
         jd: Double,
         lst: Double,
-        activeMeteorShowers: [MeteorShower]
+        activeMeteorShowers: [MeteorShower],
+        starDisplayDensity: StarDisplayDensity
     ) -> _Snapshot {
         // lat の sin/cos を 1 度だけ計算して全天体で共有 (Fix 3)
         let latRad = lat * .pi / 180.0
@@ -260,8 +284,10 @@ final class StarMapViewModel: ObservableObject {
         let catalog = StarCatalog.stars
         var stars = [StarPosition]()
         stars.reserveCapacity(catalog.count / 2)
+        let starMagnitudeLimit = starDisplayDensity.maxMagnitude
         for i in catalog.indices {
             let star = catalog[i]
+            guard star.magnitude <= starMagnitudeLimit else { continue }
             let (alt, az) = MilkyWayCalculator.altAzFast(ra: star.ra, dec: star.dec,
                                                           cosLat: cosLat, sinLat: sinLat,
                                                           lst: lst)
