@@ -34,54 +34,61 @@ protocol WeatherProviding: AnyObject, ObservableObject {
     func summary(for date: Date) -> DayWeatherSummary?
 }
 
-// MARK: - API Response
+// MARK: - MET Norway Locationforecast 2.0 API Response
 
-struct OpenMeteoResponse: Decodable {
-    struct Hourly: Decodable {
-        let time: [String]
-        let temperature_2m: [Double?]
-        let cloudcover: [Double?]
-        let precipitation: [Double?]
-        let windspeed_10m: [Double?]
-        let relative_humidity_2m: [Double?]
-        let dewpoint_2m: [Double?]
-        let weathercode: [Int?]
-        // 新規追加フィールド（配列自体もオプショナル — 後方互換性のため）
-        let visibility: [Double?]?
-        let windgusts_10m: [Double?]?
-        let cloud_cover_low: [Double?]?
-        let cloud_cover_mid: [Double?]?
-        let cloud_cover_high: [Double?]?
-        let windspeed_500hpa: [Double?]?
-
-        // API キー名（wind_gusts_10m / windspeed_500hPa）と Swift プロパティ名のマッピング
-        enum CodingKeys: String, CodingKey {
-            case time
-            case temperature_2m
-            case cloudcover
-            case precipitation
-            case windspeed_10m
-            case relative_humidity_2m
-            case dewpoint_2m
-            case weathercode
-            case visibility
-            case windgusts_10m = "wind_gusts_10m"
-            case cloud_cover_low
-            case cloud_cover_mid
-            case cloud_cover_high
-            case windspeed_500hpa = "windspeed_500hPa"
+struct MetNorwayResponse: Decodable {
+    struct Properties: Decodable {
+        struct Timeseries: Decodable {
+            let time: String
+            struct Data: Decodable {
+                struct Instant: Decodable {
+                    struct Details: Decodable {
+                        let air_temperature: Double?
+                        let cloud_area_fraction: Double?
+                        let cloud_area_fraction_low: Double?
+                        let cloud_area_fraction_medium: Double?
+                        let cloud_area_fraction_high: Double?
+                        let wind_speed: Double?
+                        let wind_speed_of_gust: Double?
+                        let relative_humidity: Double?
+                        let dew_point_temperature: Double?
+                    }
+                    let details: Details
+                }
+                struct Next1Hours: Decodable {
+                    struct Summary: Decodable {
+                        let symbol_code: String?
+                    }
+                    struct Details: Decodable {
+                        let precipitation_amount: Double?
+                    }
+                    let summary: Summary
+                    let details: Details
+                }
+                struct Next6Hours: Decodable {
+                    struct Summary: Decodable {
+                        let symbol_code: String?
+                    }
+                    struct Details: Decodable {
+                        let precipitation_amount: Double?
+                    }
+                    let summary: Summary?
+                    let details: Details?
+                }
+                let instant: Instant
+                let next_1_hours: Next1Hours?
+                let next_6_hours: Next6Hours?
+            }
+            let data: Data
         }
+        let timeseries: [Timeseries]
     }
-    let hourly: Hourly
-    let timezone: String
+    let properties: Properties
 }
 
-// MARK: - Service
-
-@MainActor
-final class WeatherService: ObservableObject, WeatherProviding {
-    // "yyyy-MM-dd" キー生成・復元に使う共有フォーマッタ
-    private static let dateKeyFormatter: DateFormatter = {
+enum MetNorwayFormatting {
+    // "yyyy-MM-dd" キー生成・復元に使う共有フォーマッタ（ローカル時刻）
+    static let dateKeyFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -89,20 +96,186 @@ final class WeatherService: ObservableObject, WeatherProviding {
         return f
     }()
 
-    private static let isoTimestampFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        f.timeZone = TimeZone(secondsFromGMT: 0)
+    // MET Norway タイムスタンプ（UTC ISO8601 "Z" 形式）パーサー
+    nonisolated(unsafe) static let isoDateFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
         return f
     }()
 
+    // HTTP-date フォーマッタ（If-Modified-Since / Last-Modified）
+    static let httpDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        f.timeZone = TimeZone(identifier: "GMT")
+        return f
+    }()
+}
+
+struct MetNorwayRequestFactory {
+    func makeRequest(latitude: Double, longitude: Double, lastModifiedDate: Date?) throws -> URLRequest {
+        let lat = String(format: "%.4f", latitude)
+        let lon = String(format: "%.4f", longitude)
+        let urlString = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
+            + "?lat=\(lat)&lon=\(lon)"
+
+        guard let url = URL(string: urlString) else {
+            throw WeatherServiceError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.setValue(
+            "NightScope/1.0 github.com/nightscope/app",
+            forHTTPHeaderField: "User-Agent"
+        )
+
+        if let lastModifiedDate {
+            request.setValue(
+                MetNorwayFormatting.httpDateFormatter.string(from: lastModifiedDate),
+                forHTTPHeaderField: "If-Modified-Since"
+            )
+        }
+
+        return request
+    }
+}
+
+struct MetNorwayForecastParser {
+    func parse(response: MetNorwayResponse) -> [String: DayWeatherSummary] {
+        var hoursByDate: [String: [HourlyWeather]] = [:]
+        let calendar = Calendar(identifier: .gregorian)
+
+        for timeseries in response.properties.timeseries {
+            guard let date = MetNorwayFormatting.isoDateFormatter.date(from: timeseries.time) else {
+                continue
+            }
+
+            let details = timeseries.data.instant.details
+            let temperature = details.air_temperature ?? 0
+            let precipitation = timeseries.data.next_1_hours?.details.precipitation_amount
+                ?? timeseries.data.next_6_hours?.details?.precipitation_amount
+                ?? 0
+            let symbolCode = timeseries.data.next_1_hours?.summary.symbol_code
+                ?? timeseries.data.next_6_hours?.summary?.symbol_code
+
+            let hourlyWeather = HourlyWeather(
+                date: date,
+                temperatureCelsius: temperature,
+                cloudCoverPercent: details.cloud_area_fraction ?? 0,
+                precipitationMM: precipitation,
+                windSpeedKmh: (details.wind_speed ?? 0) * 3.6,
+                humidityPercent: details.relative_humidity ?? 0,
+                dewpointCelsius: details.dew_point_temperature ?? temperature,
+                weatherCode: Self.symbolCodeToWMO(symbolCode),
+                visibilityMeters: nil,
+                windGustsKmh: details.wind_speed_of_gust.map { $0 * 3.6 },
+                cloudCoverLowPercent: details.cloud_area_fraction_low,
+                cloudCoverMidPercent: details.cloud_area_fraction_medium,
+                cloudCoverHighPercent: details.cloud_area_fraction_high,
+                windSpeedKmh500hpa: nil
+            )
+
+            if let key = nightDateKey(for: date, calendar: calendar) {
+                hoursByDate[key, default: []].append(hourlyWeather)
+            }
+        }
+
+        var summaries: [String: DayWeatherSummary] = [:]
+        for (key, hours) in hoursByDate {
+            guard let date = MetNorwayFormatting.dateKeyFormatter.date(from: key) else {
+                continue
+            }
+            summaries[key] = DayWeatherSummary(
+                date: date,
+                nighttimeHours: hours.sorted { $0.date < $1.date }
+            )
+        }
+        return summaries
+    }
+
+    func dateKey(_ date: Date) -> String {
+        MetNorwayFormatting.dateKeyFormatter.string(from: date)
+    }
+
+    private func nightDateKey(for date: Date, calendar: Calendar) -> String? {
+        var localCalendar = calendar
+        localCalendar.timeZone = .current
+        let hour = localCalendar.component(.hour, from: date)
+
+        if hour >= 18 {
+            return dateKey(date)
+        }
+
+        if hour <= 6,
+           let previousDate = localCalendar.date(byAdding: .day, value: -1, to: date) {
+            return dateKey(previousDate)
+        }
+
+        return nil
+    }
+
+    static func symbolCodeToWMO(_ symbolCode: String?) -> Int {
+        guard let code = symbolCode else { return 0 }
+        var base = code
+        for suffix in ["_day", "_night", "_polartwilight"] {
+            if base.hasSuffix(suffix) {
+                base = String(base.dropLast(suffix.count))
+                break
+            }
+        }
+
+        switch base {
+        case "clearsky":                          return 0
+        case "fair":                              return 1
+        case "partlycloudy":                      return 2
+        case "cloudy":                            return 3
+        case "fog":                               return 45
+        case "lightrain":                         return 61
+        case "rain":                              return 63
+        case "heavyrain":                         return 65
+        case "lightsleet":                        return 68
+        case "sleet":                             return 69
+        case "lightsnow":                         return 71
+        case "snow":                              return 73
+        case "heavysnow":                         return 75
+        case "lightrainshowers":                  return 80
+        case "rainshowers":                       return 81
+        case "heavyrainshowers":                  return 82
+        case "lightsnowshowers":                  return 85
+        case "snowshowers", "heavysnowshowers":   return 86
+        case let value where value.contains("thunder"): return 95
+        default:                                  return 3
+        }
+    }
+}
+
+// MARK: - Service
+
+@MainActor
+final class WeatherService: ObservableObject, WeatherProviding {
     @Published var weatherByDate: [String: DayWeatherSummary] = [:]
     var weatherByDatePublisher: Published<[String: DayWeatherSummary]>.Publisher { $weatherByDate }
     @Published var isLoading = false
     @Published var errorMessage: String?
 
     private var currentTask: Task<Void, Never>?
+    private let urlSession: URLSession
+    private let requestFactory: MetNorwayRequestFactory
+    private let forecastParser: MetNorwayForecastParser
+    /// MET Norway の Last-Modified を保持（If-Modified-Since キャッシュ制御用）
+    private var lastModifiedDate: Date?
+
+    init(
+        urlSession: URLSession = .shared,
+        requestFactory: MetNorwayRequestFactory = MetNorwayRequestFactory(),
+        forecastParser: MetNorwayForecastParser = MetNorwayForecastParser()
+    ) {
+        self.urlSession = urlSession
+        self.requestFactory = requestFactory
+        self.forecastParser = forecastParser
+    }
 
     func fetchWeather(latitude: Double, longitude: Double) async {
         currentTask?.cancel()
@@ -113,7 +286,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
     }
 
     func summary(for date: Date) -> DayWeatherSummary? {
-        weatherByDate[dateKey(date)]
+        weatherByDate[forecastParser.dateKey(date)]
     }
 
     // MARK: - Private
@@ -122,42 +295,42 @@ final class WeatherService: ObservableObject, WeatherProviding {
         isLoading = true
         errorMessage = nil
 
-        // Use forecast API for upcoming days
-        let urlString = "https://api.open-meteo.com/v1/forecast" +
-            "?latitude=\(latitude)" +
-            "&longitude=\(longitude)" +
-            "&hourly=temperature_2m,cloudcover,precipitation,windspeed_10m,relative_humidity_2m,dewpoint_2m,weathercode,visibility,wind_gusts_10m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,windspeed_500hPa" +
-            "&forecast_days=14" +
-            "&past_days=2" +
-            "&timezone=auto"
-
-        guard let url = URL(string: urlString) else {
-            errorMessage = "URLの生成に失敗しました"
-            isLoading = false
-            return
-        }
-
         do {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 15
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let request = try requestFactory.makeRequest(
+                latitude: latitude,
+                longitude: longitude,
+                lastModifiedDate: lastModifiedDate
+            )
+            let (data, response) = try await urlSession.data(for: request)
             if Task.isCancelled { return }
 
             guard let http = response as? HTTPURLResponse else {
                 throw WeatherServiceError.invalidResponse(statusCode: -1)
             }
+
+            // 304 Not Modified: キャッシュデータをそのまま使う
+            if http.statusCode == 304 {
+                isLoading = false
+                return
+            }
+
             guard http.statusCode == 200 else {
                 throw WeatherServiceError.invalidResponse(statusCode: http.statusCode)
             }
 
-            let apiResponse: OpenMeteoResponse
+            // Last-Modified ヘッダーを保存
+            if let lastModifiedHeader = http.value(forHTTPHeaderField: "Last-Modified") {
+                lastModifiedDate = MetNorwayFormatting.httpDateFormatter.date(from: lastModifiedHeader)
+            }
+
+            let apiResponse: MetNorwayResponse
             do {
-                apiResponse = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
+                apiResponse = try JSONDecoder().decode(MetNorwayResponse.self, from: data)
             } catch {
                 throw WeatherServiceError.decodingError(underlying: error)
             }
 
-            let summaries = parse(response: apiResponse)
+            let summaries = forecastParser.parse(response: apiResponse)
             weatherByDate = summaries
         } catch {
             if !Task.isCancelled {
@@ -180,86 +353,19 @@ final class WeatherService: ObservableObject, WeatherProviding {
         isLoading = false
     }
 
-    func parse(response: OpenMeteoResponse) -> [String: DayWeatherSummary] {
-        let hourly = response.hourly
-
-        // Parse timestamps as local time (API returns local time when timezone=auto)
-        let formatter = WeatherService.isoTimestampFormatter
-        if let tz = TimeZone(identifier: response.timezone) {
-            formatter.timeZone = tz
-        } else {
-            formatter.timeZone = .current
-        }
-
-        var hoursByDate: [String: [HourlyWeather]] = [:]
-
-        for i in 0..<hourly.time.count {
-            guard let date = formatter.date(from: hourly.time[i]) else { continue }
-
-            let temp = hourly.temperature_2m[i] ?? 0
-            let cloud = hourly.cloudcover[i] ?? 0
-            let precip = hourly.precipitation[i] ?? 0
-            let wind = hourly.windspeed_10m[i] ?? 0
-            let humidity = hourly.relative_humidity_2m[i] ?? 0
-            let dewpoint = hourly.dewpoint_2m[i] ?? temp
-            let wcode = hourly.weathercode[i] ?? 0
-            let visibility = hourly.visibility?[i] ?? nil
-            let windGusts = hourly.windgusts_10m?[i] ?? nil
-            let cloudLow = hourly.cloud_cover_low?[i] ?? nil
-            let cloudMid = hourly.cloud_cover_mid?[i] ?? nil
-            let cloudHigh = hourly.cloud_cover_high?[i] ?? nil
-            let wind500hpa = hourly.windspeed_500hpa?[i] ?? nil
-
-            let hw = HourlyWeather(
-                date: date,
-                temperatureCelsius: temp,
-                cloudCoverPercent: cloud,
-                precipitationMM: precip,
-                windSpeedKmh: wind,
-                humidityPercent: humidity,
-                dewpointCelsius: dewpoint,
-                weatherCode: wcode,
-                visibilityMeters: visibility,
-                windGustsKmh: windGusts,
-                cloudCoverLowPercent: cloudLow,
-                cloudCoverMidPercent: cloudMid,
-                cloudCoverHighPercent: cloudHigh,
-                windSpeedKmh500hpa: wind500hpa
-            )
-
-            let cal = Calendar(identifier: .gregorian)
-            if let key = nightDateKey(for: date, calendar: cal) {
-                hoursByDate[key, default: []].append(hw)
-            }
-        }
-
-        var result: [String: DayWeatherSummary] = [:]
-        for (key, hours) in hoursByDate {
-            if let date = WeatherService.dateKeyFormatter.date(from: key) {
-                result[key] = DayWeatherSummary(date: date, nighttimeHours: hours.sorted { $0.date < $1.date })
-            }
-        }
-        return result
+    func parse(response: MetNorwayResponse) -> [String: DayWeatherSummary] {
+        forecastParser.parse(response: response)
     }
 
     func dateKey(_ date: Date) -> String {
-        WeatherService.dateKeyFormatter.string(from: date)
+        forecastParser.dateKey(date)
     }
 
-    /// 夜間観測の集約キー（18:00-23:59 は当日、00:00-06:59 は前日）
-    /// 07:00-17:59 は夜間集計対象外として nil を返す
-    private func nightDateKey(for date: Date, calendar: Calendar) -> String? {
-        let hour = calendar.component(.hour, from: date)
+    // MARK: - MET Norway symbol_code → WMO 互換コード
 
-        if hour >= 18 {
-            return dateKey(date)
-        }
-
-        if hour <= 6,
-           let previousDate = calendar.date(byAdding: .day, value: -1, to: date) {
-            return dateKey(previousDate)
-        }
-
-        return nil
+    /// MET Norway の symbol_code を WMO 互換の天気コード（Int）に変換する。
+    /// _day / _night / _polartwilight サフィックスを除いてマッチングする。
+    static func symbolCodeToWMO(_ symbolCode: String?) -> Int {
+        MetNorwayForecastParser.symbolCodeToWMO(symbolCode)
     }
 }

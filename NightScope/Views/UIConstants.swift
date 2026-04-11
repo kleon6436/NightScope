@@ -368,7 +368,7 @@ enum WindSpeedUnit: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Open-Meteo が返す km/h 値をこの単位に変換してフォーマットする
+    /// WeatherService が km/h に変換済みの風速値をこの単位に変換してフォーマットする
     func format(_ kmh: Double) -> String {
         switch self {
         case .kmh:  return String(format: "風速 %.0f km/h", kmh)

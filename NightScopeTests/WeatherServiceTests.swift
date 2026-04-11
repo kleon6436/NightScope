@@ -8,9 +8,8 @@ final class WeatherServiceTests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// デバイスのローカルタイムゾーンで指定時刻の時刻文字列を生成
-    /// parse() の formatter と cal.component(.hour) が同じタイムゾーンを使うよう
-    /// レスポンスの timezone には TimeZone.current.identifier を指定すること
+    /// デバイスのローカルタイムゾーンで指定ローカル時刻に対応する UTC ISO8601 文字列を生成。
+    /// MET Norway API はすべてのタイムスタンプを UTC ("Z" サフィックス) で返す。
     private func makeTimeString(year: Int, month: Int, day: Int, hour: Int, minute: Int = 0) -> String {
         let tz = TimeZone.current
         var comps = DateComponents()
@@ -18,47 +17,68 @@ final class WeatherServiceTests: XCTestCase {
         comps.year = year; comps.month = month; comps.day = day
         comps.hour = hour; comps.minute = minute
         let date = Calendar(identifier: .gregorian).date(from: comps)!
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        fmt.timeZone = tz
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        return fmt.string(from: date)
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime]
+        return fmt.string(from: date)  // UTC ISO8601 e.g. "2024-06-15T12:00:00Z" (UTC+9 hour=21)
     }
 
-    /// 最小限のモック OpenMeteoResponse を生成
+    /// 1 タイムステップ分の MetNorwayResponse タイムシリーズエントリを生成するヘルパー。
+    private func makeTimeseries(
+        time: String,
+        cloud: Double = 0,
+        temp: Double = 20,
+        windMps: Double = 5.0 / 3.6,
+        humidity: Double = 50,
+        dewpoint: Double = 10,
+        precip: Double = 0,
+        symbolCode: String = "clearsky_night",
+        cloudLow: Double? = nil,
+        cloudMid: Double? = nil,
+        cloudHigh: Double? = nil
+    ) -> MetNorwayResponse.Properties.Timeseries {
+        let details = MetNorwayResponse.Properties.Timeseries.Data.Instant.Details(
+            air_temperature: temp,
+            cloud_area_fraction: cloud,
+            cloud_area_fraction_low: cloudLow,
+            cloud_area_fraction_medium: cloudMid,
+            cloud_area_fraction_high: cloudHigh,
+            wind_speed: windMps,
+            wind_speed_of_gust: nil,
+            relative_humidity: humidity,
+            dew_point_temperature: dewpoint
+        )
+        let next1 = MetNorwayResponse.Properties.Timeseries.Data.Next1Hours(
+            summary: .init(symbol_code: symbolCode),
+            details: .init(precipitation_amount: precip)
+        )
+        let data = MetNorwayResponse.Properties.Timeseries.Data(
+            instant: .init(details: details),
+            next_1_hours: next1,
+            next_6_hours: nil
+        )
+        return MetNorwayResponse.Properties.Timeseries(time: time, data: data)
+    }
+
+    /// 最小限のモック MetNorwayResponse を生成
     private func makeResponse(
         times: [String],
         clouds: [Double?]? = nil,
-        timezone: String? = nil,
-        visibility: [Double?]? = nil,
-        windGusts: [Double?]? = nil,
         cloudLow: [Double?]? = nil,
         cloudMid: [Double?]? = nil,
-        cloudHigh: [Double?]? = nil,
-        windSpeed500hpa: [Double?]? = nil
-    ) -> OpenMeteoResponse {
+        cloudHigh: [Double?]? = nil
+    ) -> MetNorwayResponse {
         let n = times.count
-        let tz = timezone ?? TimeZone.current.identifier
-        let cloudData: [Double?] = clouds ?? Array(repeating: 0.0, count: n)
-        return OpenMeteoResponse(
-            hourly: OpenMeteoResponse.Hourly(
-                time: times,
-                temperature_2m: Array(repeating: 20.0, count: n),
-                cloudcover: cloudData,
-                precipitation: Array(repeating: 0.0, count: n),
-                windspeed_10m: Array(repeating: 5.0, count: n),
-                relative_humidity_2m: Array(repeating: 50.0, count: n),
-                dewpoint_2m: Array(repeating: 10.0, count: n),
-                weathercode: Array(repeating: 0, count: n),
-                visibility: visibility,
-                windgusts_10m: windGusts,
-                cloud_cover_low: cloudLow,
-                cloud_cover_mid: cloudMid,
-                cloud_cover_high: cloudHigh,
-                windspeed_500hpa: windSpeed500hpa
-            ),
-            timezone: tz
-        )
+        var entries: [MetNorwayResponse.Properties.Timeseries] = []
+        for i in 0..<n {
+            entries.append(makeTimeseries(
+                time: times[i],
+                cloud: clouds?[i] ?? 0,
+                cloudLow: cloudLow?[i] ?? nil,
+                cloudMid: cloudMid?[i] ?? nil,
+                cloudHigh: cloudHigh?[i] ?? nil
+            ))
+        }
+        return MetNorwayResponse(properties: .init(timeseries: entries))
     }
 
     // MARK: - dateKey
@@ -167,24 +187,26 @@ final class WeatherServiceTests: XCTestCase {
 
     func test_parse_nilValues_defaultToZero() {
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
-        let response = OpenMeteoResponse(
-            hourly: OpenMeteoResponse.Hourly(
-                time: [t21],
-                temperature_2m: [nil],
-                cloudcover: [nil],
-                precipitation: [nil],
-                windspeed_10m: [nil],
-                relative_humidity_2m: [nil],
-                dewpoint_2m: [nil],
-                weathercode: [nil],
-                visibility: nil,
-                windgusts_10m: nil,
-                cloud_cover_low: nil,
-                cloud_cover_mid: nil,
-                cloud_cover_high: nil,
-                windspeed_500hpa: nil
-            ),
-            timezone: TimeZone.current.identifier
+        let details = MetNorwayResponse.Properties.Timeseries.Data.Instant.Details(
+            air_temperature: nil,
+            cloud_area_fraction: nil,
+            cloud_area_fraction_low: nil,
+            cloud_area_fraction_medium: nil,
+            cloud_area_fraction_high: nil,
+            wind_speed: nil,
+            wind_speed_of_gust: nil,
+            relative_humidity: nil,
+            dew_point_temperature: nil
+        )
+        let data = MetNorwayResponse.Properties.Timeseries.Data(
+            instant: .init(details: details),
+            next_1_hours: nil,
+            next_6_hours: nil
+        )
+        let response = MetNorwayResponse(
+            properties: .init(timeseries: [
+                MetNorwayResponse.Properties.Timeseries(time: t21, data: data)
+            ])
         )
         let result = service.parse(response: response)
         guard let hw = result["2024-06-15"]?.nighttimeHours.first else {
@@ -194,30 +216,34 @@ final class WeatherServiceTests: XCTestCase {
         XCTAssertEqual(hw.precipitationMM, 0)
         XCTAssertEqual(hw.windSpeedKmh, 0)
         XCTAssertEqual(hw.humidityPercent, 0)
-        XCTAssertEqual(hw.weatherCode, 0)
+        XCTAssertEqual(hw.weatherCode, 0)  // nil symbol_code → 0 (clearsky)
     }
 
     func test_parse_nilTemperature_dewpointFallsBackToTemp() {
-        // dewpoint_2m が nil のとき temperature を使う (temp=0 のフォールバック)
+        // dew_point_temperature が nil のとき air_temperature を使う
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
-        let response = OpenMeteoResponse(
-            hourly: OpenMeteoResponse.Hourly(
-                time: [t21],
-                temperature_2m: [15.0],
-                cloudcover: [0.0],
-                precipitation: [0.0],
-                windspeed_10m: [0.0],
-                relative_humidity_2m: [0.0],
-                dewpoint_2m: [nil], // nil → temp にフォールバック
-                weathercode: [0],
-                visibility: nil,
-                windgusts_10m: nil,
-                cloud_cover_low: nil,
-                cloud_cover_mid: nil,
-                cloud_cover_high: nil,
-                windspeed_500hpa: nil
-            ),
-            timezone: TimeZone.current.identifier
+        let ts = makeTimeseries(time: t21, cloud: 0, temp: 15.0, dewpoint: 15.0)
+        // dewpoint を nil にしたいので別途作る
+        let details = MetNorwayResponse.Properties.Timeseries.Data.Instant.Details(
+            air_temperature: 15.0,
+            cloud_area_fraction: 0,
+            cloud_area_fraction_low: nil,
+            cloud_area_fraction_medium: nil,
+            cloud_area_fraction_high: nil,
+            wind_speed: 0,
+            wind_speed_of_gust: nil,
+            relative_humidity: 0,
+            dew_point_temperature: nil  // nil → temp にフォールバック
+        )
+        let data = MetNorwayResponse.Properties.Timeseries.Data(
+            instant: .init(details: details),
+            next_1_hours: ts.data.next_1_hours,
+            next_6_hours: nil
+        )
+        let response = MetNorwayResponse(
+            properties: .init(timeseries: [
+                MetNorwayResponse.Properties.Timeseries(time: t21, data: data)
+            ])
         )
         let result = service.parse(response: response)
         let hw = result["2024-06-15"]?.nighttimeHours.first
@@ -245,107 +271,158 @@ final class WeatherServiceTests: XCTestCase {
             XCTAssertLessThan(h[0].date, h[1].date, "nighttimeHours は date 昇順であるべき")
         }
     }
-}
 
-@MainActor
-final class LightPollutionServiceTests: XCTestCase {
+    // MARK: - fetchWeather
 
     override func tearDown() {
         MockURLProtocol.requestHandler = nil
         super.tearDown()
     }
 
-    func test_fetch_primarySuccess_usesLightPollutionMap() async {
-        let session = makeMockSession()
-        let service = LightPollutionService(session: session, qkTimestampProvider: { 1 })
+    func test_fetchWeather_setsMETHeadersAndStoresParsedWeather() async throws {
+        let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
+        let session = makeMockSession { request in
+            XCTAssertEqual(
+                request.value(forHTTPHeaderField: "User-Agent"),
+                "NightScope/1.0 github.com/nightscope/app"
+            )
+            XCTAssertNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
 
-        MockURLProtocol.requestHandler = { request in
-            guard let url = request.url else {
-                throw URLError(.badURL)
+            let response = HTTPURLResponse(
+                url: try XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Last-Modified": "Wed, 01 Jan 2025 00:00:00 GMT"]
+            )!
+            return (response, self.makePayload(times: [t21]))
+        }
+
+        let service = WeatherService(urlSession: session)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.nighttimeHours.count, 1)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 0, accuracy: 0.001)
+        XCTAssertNil(service.errorMessage)
+    }
+
+    func test_fetchWeather_304_keepsExistingWeatherData() async throws {
+        let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
+        var requestCount = 0
+        let session = makeMockSession { request in
+            requestCount += 1
+            let url = try XCTUnwrap(request.url)
+
+            if requestCount == 1 {
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Last-Modified": "Wed, 01 Jan 2025 00:00:00 GMT"]
+                )!
+                return (response, self.makePayload(times: [t21]))
             }
 
-            if url.host?.contains("lightpollutionmap.info") == true {
-                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-                let data = Data("6.6520867347717285,36.0".utf8)
-                return (response, data)
-            }
-
-            XCTFail("主戦略成功時に Nominatim フォールバックは呼ばれない想定")
-            let response = HTTPURLResponse(url: url, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            XCTAssertNotNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 304,
+                httpVersion: nil,
+                headerFields: nil
+            )!
             return (response, Data())
         }
 
-        await service.fetch(latitude: 35.6762, longitude: 139.6503)
+        let service = WeatherService(urlSession: session)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        let firstCloudCover = service.weatherByDate["2024-06-15"]?.avgCloudCover
 
-        XCTAssertFalse(service.fetchFailed)
-        guard let bortleClass = service.bortleClass else {
-            return XCTFail("Bortle 値が取得されませんでした")
-        }
-        XCTAssertEqual(bortleClass, 9.0, accuracy: 0.001)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+
+        XCTAssertEqual(requestCount, 2)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover, firstCloudCover)
     }
 
-    func test_fetch_primaryFailure_fallsBackToNominatim() async {
-        let session = makeMockSession()
-        let service = LightPollutionService(session: session, qkTimestampProvider: { 1 })
+    // MARK: - symbolCodeToWMO
 
-        MockURLProtocol.requestHandler = { request in
-            guard let url = request.url else {
-                throw URLError(.badURL)
-            }
-
-            if url.host?.contains("lightpollutionmap.info") == true {
-                let response = HTTPURLResponse(url: url, statusCode: 500, httpVersion: nil, headerFields: nil)!
-                return (response, Data("server error".utf8))
-            }
-
-            if url.host?.contains("openstreetmap.org") == true {
-                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-                let json = """
-                {
-                  "type": "town",
-                  "address": {
-                    "town": "Hakuba"
-                  }
-                }
-                """
-                return (response, Data(json.utf8))
-            }
-
-            let response = HTTPURLResponse(url: url, statusCode: 404, httpVersion: nil, headerFields: nil)!
-            return (response, Data())
-        }
-
-        await service.fetch(latitude: 36.6982, longitude: 137.8618)
-
-        XCTAssertFalse(service.fetchFailed)
-        guard let bortleClass = service.bortleClass else {
-            return XCTFail("フォールバック後の Bortle 値が nil でした")
-        }
-        XCTAssertEqual(bortleClass, 5.5, accuracy: 0.001)
+    func test_symbolCodeToWMO_clearsky() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("clearsky_night"), 0)
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("clearsky_day"), 0)
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("clearsky"), 0)
     }
 
-    func test_fetch_allStrategiesFail_setsFailureState() async {
-        let session = makeMockSession()
-        let service = LightPollutionService(session: session, qkTimestampProvider: { 1 })
-
-        MockURLProtocol.requestHandler = { request in
-            guard let url = request.url else {
-                throw URLError(.badURL)
-            }
-            let response = HTTPURLResponse(url: url, statusCode: 500, httpVersion: nil, headerFields: nil)!
-            return (response, Data("error".utf8))
-        }
-
-        await service.fetch(latitude: 0, longitude: 0)
-
-        XCTAssertTrue(service.fetchFailed)
-        XCTAssertNil(service.bortleClass)
+    func test_symbolCodeToWMO_fair() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("fair_night"), 1)
     }
 
-    private func makeMockSession() -> URLSession {
+    func test_symbolCodeToWMO_partlycloudy() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("partlycloudy_day"), 2)
+    }
+
+    func test_symbolCodeToWMO_cloudy() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("cloudy"), 3)
+    }
+
+    func test_symbolCodeToWMO_rain() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("lightrain"), 61)
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("rain"), 63)
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("heavyrain"), 65)
+    }
+
+    func test_symbolCodeToWMO_snow() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("lightsnow"), 71)
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("snow"), 73)
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("heavysnow"), 75)
+    }
+
+    func test_symbolCodeToWMO_thunder() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("lightrainandthunder"), 95)
+        XCTAssertEqual(WeatherService.symbolCodeToWMO("rainandthunder"), 95)
+    }
+
+    func test_symbolCodeToWMO_nil_returnsZero() {
+        XCTAssertEqual(WeatherService.symbolCodeToWMO(nil), 0)
+    }
+    
+    private func makeMockSession(
+        handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data)
+    ) -> URLSession {
+        MockURLProtocol.requestHandler = handler
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]
         return URLSession(configuration: configuration)
+    }
+
+    private func makePayload(times: [String]) -> Data {
+        let entries = times.map { time in
+            """
+            {
+              "time": "\(time)",
+              "data": {
+                "instant": {
+                  "details": {
+                    "air_temperature": 12,
+                    "cloud_area_fraction": 0,
+                    "wind_speed": 1.5,
+                    "relative_humidity": 40,
+                    "dew_point_temperature": 5
+                  }
+                },
+                "next_1_hours": {
+                  "summary": { "symbol_code": "clearsky_night" },
+                  "details": { "precipitation_amount": 0 }
+                }
+              }
+            }
+            """
+        }.joined(separator: ",")
+
+        return Data("""
+        {
+          "properties": {
+            "timeseries": [\(entries)]
+          }
+        }
+        """.utf8)
     }
 }
 
@@ -377,58 +454,4 @@ final class MockURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
-}
-
-final class TerrainServiceTests: XCTestCase {
-
-    override func tearDown() {
-        MockURLProtocol.requestHandler = nil
-        super.tearDown()
-    }
-
-    func test_fetchProfile_decodesTerrainAnglesAndCachesRoundedCoordinate() async {
-        let session = makeMockSession()
-        let service = TerrainService(session: session)
-        var requestCount = 0
-
-        MockURLProtocol.requestHandler = { request in
-            requestCount += 1
-            guard let url = request.url else {
-                throw URLError(.badURL)
-            }
-
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, Self.makeTerrainResponseData(baseElevation: 120))
-        }
-
-        let firstProfile = await service.fetchProfile(latitude: 35.1234, longitude: 139.5678)
-        let secondProfile = await service.fetchProfile(latitude: 35.1239, longitude: 139.5671)
-
-        XCTAssertEqual(requestCount, 1)
-        XCTAssertEqual(firstProfile?.horizonAngles.count, 72)
-        XCTAssertEqual(secondProfile?.horizonAngles.count, 72)
-    }
-
-    func test_parseAngles_invalidPayload_returnsNil() async {
-        let service = TerrainService(session: makeMockSession())
-        let invalidPayload = Data(#"{"results":[{"elevation":120}]}"#.utf8)
-
-        let angles = await service.parseAngles(from: invalidPayload)
-
-        XCTAssertNil(angles)
-    }
-
-    private func makeMockSession() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [MockURLProtocol.self]
-        return URLSession(configuration: configuration)
-    }
-
-    private static func makeTerrainResponseData(baseElevation: Double) -> Data {
-        let results: [[String: Double]] = (0...72).map { index in
-            ["elevation": baseElevation + Double(index)]
-        }
-        let payload: [String: Any] = ["results": results]
-        return (try? JSONSerialization.data(withJSONObject: payload)) ?? Data()
-    }
 }

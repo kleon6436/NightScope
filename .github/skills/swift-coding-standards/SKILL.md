@@ -232,7 +232,7 @@ func loadData() async throws {
   月相・銀河中心高度・ユリウス日などの計算ロジックを他のファイルに散在させない。
 
 - **外部 API 呼び出しは Service クラスに限定する。**  
-  `WeatherService`（Open-Meteo）・`LightPollutionService`（lightpollutionmap.info）のみが外部ネットワークリクエストを発行する。View や ViewModel から直接 URL リクエストを行わない。
+  `WeatherService`（MET Norway Locationforecast 2.0）のみが外部ネットワークリクエストを発行する。`LightPollutionService`・`TerrainService` はバンドルデータを参照するためネットワーク不要。View や ViewModel から直接 URL リクエストを行わない。
 
 - **星空指数スコア計算は `StarGazingIndex.swift` に集中させる。**  
   スコア算出ロジック（星座条件・気象・光害の加重合算）を他のファイルに記述しない。

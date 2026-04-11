@@ -301,6 +301,7 @@ final class ViewModelTests: XCTestCase {
         @Published var bortleClass: Double? = nil
         var bortleClassPublisher: Published<Double?>.Publisher { $bortleClass }
         @Published var isLoading = false
+        var isLoadingPublisher: Published<Bool>.Publisher { $isLoading }
         @Published var fetchFailed = false
 
         func fetch(latitude: Double, longitude: Double) async {

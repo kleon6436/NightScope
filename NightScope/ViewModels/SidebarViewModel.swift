@@ -30,6 +30,17 @@ final class SidebarViewModel: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
+        // lightPollutionService の変化（bortleClass / isLoading）を SidebarView に伝播
+        lightPollutionService.bortleClassPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        lightPollutionService.isLoadingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
         // locationUpdateID の変化を Combine で検知し、検索状態をクリア
         // View の onChange で処理するとビュー更新コミットフェーズ中に @Published を変更してしまうため
         locationController.locationUpdateIDPublisher
