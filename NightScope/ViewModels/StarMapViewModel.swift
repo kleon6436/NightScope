@@ -3,72 +3,6 @@ import CoreLocation
 import Combine
 import SwiftUI
 
-// MARK: - Star Color Helper
-
-/// B-V 色指数をスペクトル色にマッピングする。
-/// バックグラウンドスレッドから呼び出せるよう nonisolated な自由関数として定義。
-func _starColorForBV(_ bvIndex: Double?) -> Color {
-    guard let bv = bvIndex else { return .white }
-    let table: [(bv: Double, r: Double, g: Double, b: Double)] = [
-        (-0.40, 0.55, 0.65, 1.00),
-        (-0.20, 0.70, 0.80, 1.00),
-        ( 0.00, 0.90, 0.92, 1.00),
-        ( 0.15, 1.00, 1.00, 1.00),
-        ( 0.40, 1.00, 0.96, 0.85),
-        ( 0.65, 1.00, 0.88, 0.65),
-        ( 1.00, 1.00, 0.75, 0.45),
-        ( 1.40, 1.00, 0.58, 0.30),
-        ( 2.00, 1.00, 0.40, 0.20),
-    ]
-    if bv <= table.first!.bv { return Color(red: table.first!.r, green: table.first!.g, blue: table.first!.b) }
-    if bv >= table.last!.bv  { return Color(red: table.last!.r,  green: table.last!.g,  blue: table.last!.b) }
-    for i in 1..<table.count {
-        let prev = table[i - 1], next = table[i]
-        if bv <= next.bv {
-            let t = (bv - prev.bv) / (next.bv - prev.bv)
-            return Color(red:   prev.r + t * (next.r - prev.r),
-                         green: prev.g + t * (next.g - prev.g),
-                         blue:  prev.b + t * (next.b - prev.b))
-        }
-    }
-    return .white
-}
-
-// MARK: - Computed Star Position
-
-struct StarPosition {
-    let star: Star
-    let altitude: Double          // 度 (-90〜90)
-    let azimuth: Double           // 度 (0=北, 90=東, 180=南, 270=西)
-    let precomputedColor: Color   // B-V 色指数から事前に計算したスペクトル色
-}
-
-// MARK: - Milky Way Band Point (キャッシュ用)
-
-/// lat/LST から事前計算した天の川バンド中心点。
-/// hScale・az0 を掛けるだけで画面座標に変換できる。
-struct MilkyWayBandPoint: Sendable {
-    let az: Double      // 方位角 (度)
-    let alt: Double     // 高度 (度)
-    let halfH: Double   // バンド半幅 (度)
-    let li: Double      // 銀経 (色計算用)
-}
-
-// MARK: - Constellation overlay types
-
-struct ConstellationLineAltAz {
-    let startAlt: Double
-    let startAz: Double
-    let endAlt: Double
-    let endAz: Double
-}
-
-struct ConstellationLabelAltAz {
-    let alt: Double
-    let az: Double
-    let name: String
-}
-
 // MARK: - ViewModel
 
 @MainActor
@@ -745,8 +679,6 @@ final class StarMapViewModel: ObservableObject {
         return "\(roundedLatitude),\(roundedLongitude)"
     }
 }
-
-// MARK: - StarPosition + Identifiable
 
 extension StarPosition: Identifiable {
     /// 赤経・赤緯の組み合わせで一意に識別する

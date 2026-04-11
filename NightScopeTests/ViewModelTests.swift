@@ -28,7 +28,7 @@ final class ViewModelTests: XCTestCase {
         )
     }
 
-    private func makeDayWeatherSummary(cloudCover: Double = 10, weatherCode: Int = 0, windSpeed: Double = 5, precipitation: Double = 0) -> DayWeatherSummary {
+    private func makeDayWeatherSummary(cloudCover: Double = 10, weatherCode: Int = 0, windSpeed: Double = 5) -> DayWeatherSummary {
         let hour = makeHourlyWeather(cloudCover: cloudCover, weatherCode: weatherCode, windSpeed: windSpeed)
         return DayWeatherSummary(date: Date(), nighttimeHours: [hour])
     }
@@ -61,299 +61,8 @@ final class ViewModelTests: XCTestCase {
             moonPhaseAtMidnight: moonPhase
         )
     }
-    
-    private func makeMapItem(coordinate: CLLocationCoordinate2D, name: String? = nil) -> MKMapItem {
-        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        let item = MKMapItem(location: location, address: nil)
-        item.name = name
-        return item
-    }
 
-    private func waitUntil(
-        timeout: TimeInterval = 1.0,
-        file: StaticString = #filePath,
-        line: UInt = #line,
-        condition: @escaping @MainActor () -> Bool
-    ) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if condition() {
-                return
-            }
-            try? await Task.sleep(nanoseconds: 10_000_000)
-        }
-        XCTFail("条件を満たすまでにタイムアウトしました", file: file, line: line)
-    }
-
-    // MARK: - Presentation Helpers
-
-    func test_StarMapPresentation_azimuthName_normalizesDegrees() {
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: -1), "北")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 44), "北東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), "南西")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 359), "北")
-    }
-
-    func test_StarMapPresentation_azimuthName_supportsEightDirections() {
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 0), "北")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 45), "北東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 90), "東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 135), "南東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 180), "南")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), "南西")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 270), "西")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 315), "北西")
-    }
-
-    func test_StarMapPresentation_timeString_formatsMinutes() {
-        XCTAssertEqual(StarMapPresentation.timeString(from: 0), "00:00")
-        XCTAssertEqual(StarMapPresentation.timeString(from: 61), "01:01")
-        XCTAssertEqual(StarMapPresentation.timeString(from: 1_439), "23:59")
-    }
-
-    func test_StarMapLayout_clampedFOV_limitsRange() {
-        XCTAssertEqual(StarMapLayout.clampedFOV(20), StarMapLayout.minFOV)
-        XCTAssertEqual(StarMapLayout.clampedFOV(90), 90)
-        XCTAssertEqual(StarMapLayout.clampedFOV(160), StarMapLayout.maxFOV)
-    }
-
-    func test_StarMapCanvasView_zoomedFOV_clampsAndFollowsScrollDirection() {
-        XCTAssertEqual(
-            StarMapCanvasView.zoomedFOV(currentFOV: 90, scrollDeltaY: 1, preciseScrolling: false),
-            86,
-            accuracy: 0.001
-        )
-        XCTAssertEqual(
-            StarMapCanvasView.zoomedFOV(currentFOV: 90, scrollDeltaY: -1, preciseScrolling: true),
-            91.2,
-            accuracy: 0.001
-        )
-        XCTAssertEqual(
-            StarMapCanvasView.zoomedFOV(currentFOV: 31, scrollDeltaY: 10, preciseScrolling: false),
-            StarMapLayout.minFOV,
-            accuracy: 0.001
-        )
-    }
-
-    func test_StarMapCanvasView_cardinalLabelHelpers_placeLabelsInFixedBottomOverlay() {
-        XCTAssertEqual(
-            StarMapCanvasView.cardinalOverlayY(sizeHeight: 400),
-            400 - Double(StarMapLayout.cardinalLabelBottomInset),
-            accuracy: 0.0001
-        )
-        XCTAssertEqual(
-            StarMapCanvasView.clampedCardinalLabelX(-5, sizeWidth: 320),
-            Double(StarMapLayout.cardinalLabelSidePadding),
-            accuracy: 0.0001
-        )
-        XCTAssertEqual(
-            StarMapCanvasView.clampedCardinalLabelX(400, sizeWidth: 320),
-            320 - Double(StarMapLayout.cardinalLabelSidePadding),
-            accuracy: 0.0001
-        )
-
-        let placements = StarMapCanvasView.cardinalLabelPlacements(
-            size: CGSize(width: 320, height: 400),
-            centerAlt: 30,
-            centerAz: 0,
-            fov: 90
-        )
-        XCTAssertEqual(placements.map(\.label), ["北", "北東", "北西"])
-    }
-
-    func test_StarMapViewModel_initialPose_usesResetAltitude() {
-        let appController = AppController(calculationService: MockNightCalculationService())
-        let viewModel = StarMapViewModel(appController: appController)
-        let size = CGSize(width: 860, height: 620)
-
-        viewModel.viewAzimuth = 123
-        viewModel.viewAltitude = 10
-        viewModel.updateCanvasSize(size)
-        viewModel.prepareForStarMapPresentation()
-        viewModel.applyInitialPoseIfNeeded()
-
-        XCTAssertEqual(viewModel.viewAzimuth, 0)
-        XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
-    }
-
-    func test_StarMapViewModel_resetToNorth_usesResetAltitude() {
-        let appController = AppController(calculationService: MockNightCalculationService())
-        let viewModel = StarMapViewModel(appController: appController)
-
-        viewModel.viewAzimuth = 180
-        viewModel.viewAltitude = 60
-        viewModel.resetToNorth()
-
-        XCTAssertEqual(viewModel.viewAzimuth, 0)
-        XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
-    }
-
-    func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
-        let appController = AppController(calculationService: MockNightCalculationService())
-        let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
-        let targetDate = calendar.date(from: DateComponents(
-            year: 2026,
-            month: 4,
-            day: 10,
-            hour: 22,
-            minute: 45
-        ))!
-
-        viewModel.displayDate = targetDate
-
-        let realMinutes = 22 * 60 + 45
-        var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
-        if expectedOffset < 0 { expectedOffset += 1_440 }
-        expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
-
-        XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
-        XCTAssertEqual(viewModel.displayTimeString, "22:45")
-    }
-
-    func test_StarMapViewModel_setTimeSliderMinutes_updatesDisplayDateKeepingDate() {
-        let appController = AppController(calculationService: MockNightCalculationService())
-        let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
-        let baseDate = calendar.date(from: DateComponents(
-            year: 2026,
-            month: 4,
-            day: 10,
-            hour: 21,
-            minute: 15
-        ))!
-        viewModel.displayDate = baseDate
-
-        let sliderOffset = min(120.0, viewModel.nightDurationMinutes)
-        viewModel.setTimeSliderMinutes(sliderOffset)
-
-        let components = calendar.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: viewModel.displayDate
-        )
-        let expectedRealMinutes = (viewModel.nightStartMinutes + sliderOffset)
-            .truncatingRemainder(dividingBy: 1_440)
-        XCTAssertEqual(components.year, 2026)
-        XCTAssertEqual(components.month, 4)
-        XCTAssertEqual(components.day, 10)
-        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
-        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
-        XCTAssertEqual(viewModel.timeSliderMinutes, sliderOffset, accuracy: 0.001)
-    }
-
-    func test_StarMapViewModel_timeSliderInteraction_commitsFinalDateOnEnd() {
-        let appController = AppController(calculationService: MockNightCalculationService())
-        let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
-        let baseDate = calendar.date(from: DateComponents(
-            year: 2026,
-            month: 4,
-            day: 10,
-            hour: 20,
-            minute: 0
-        ))!
-        viewModel.displayDate = baseDate
-
-        viewModel.beginTimeSliderInteraction()
-        viewModel.setTimeSliderMinutes(90)
-
-        XCTAssertTrue(viewModel.isTimeSliderScrubbing)
-        XCTAssertEqual(viewModel.timeSliderMinutes, 90, accuracy: 0.001)
-
-        viewModel.endTimeSliderInteraction()
-
-        let components = calendar.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: viewModel.displayDate
-        )
-        let expectedRealMinutes = (viewModel.nightStartMinutes + 90)
-            .truncatingRemainder(dividingBy: 1_440)
-        XCTAssertEqual(components.year, 2026)
-        XCTAssertEqual(components.month, 4)
-        XCTAssertEqual(components.day, 10)
-        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
-        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
-        XCTAssertFalse(viewModel.isTimeSliderScrubbing)
-    }
-
-    func test_StarMapViewModel_syncWithSelectedDate_snapsDaytimeToSelectedEvening() throws {
-        let appController = AppController(calculationService: MockNightCalculationService())
-        let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
-        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
-        let referenceDate = calendar.date(from: DateComponents(
-            year: 2025,
-            month: 1,
-            day: 1,
-            hour: 6,
-            minute: 7
-        ))!
-
-        appController.selectedDate = selectedDate
-        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
-
-        let twilight = try XCTUnwrap(
-            MilkyWayCalculator.findCivilTwilightMinutes(
-                date: selectedDate,
-                location: appController.locationController.selectedLocation
-            )
-        )
-        let components = calendar.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: viewModel.displayDate
-        )
-        XCTAssertEqual(components.year, 2026)
-        XCTAssertEqual(components.month, 8)
-        XCTAssertEqual(components.day, 12)
-        XCTAssertEqual(components.hour, Int(twilight.eveningMinutes) / 60)
-        XCTAssertEqual(components.minute, Int(twilight.eveningMinutes) % 60)
-        XCTAssertEqual(viewModel.timeSliderMinutes, 0, accuracy: 0.001)
-    }
-
-    func test_StarMapViewModel_syncWithSelectedDate_keepsCurrentTimeDuringNight() {
-        let appController = AppController(calculationService: MockNightCalculationService())
-        let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
-        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
-        let referenceDate = calendar.date(from: DateComponents(
-            year: 2025,
-            month: 1,
-            day: 1,
-            hour: 21,
-            minute: 7
-        ))!
-
-        appController.selectedDate = selectedDate
-        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
-
-        let components = calendar.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: viewModel.displayDate
-        )
-        XCTAssertEqual(components.year, 2026)
-        XCTAssertEqual(components.month, 8)
-        XCTAssertEqual(components.day, 12)
-        XCTAssertEqual(components.hour, 21)
-        XCTAssertEqual(components.minute, 7)
-        let realMinutes = 21 * 60 + 7
-        var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
-        if expectedOffset < 0 { expectedOffset += 1_440 }
-        expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
-        XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
-    }
-
-    func test_StarMapViewModel_terrainCacheKey_roundsCoordinatesConsistently() {
-        XCTAssertEqual(
-            StarMapViewModel.terrainCacheKey(latitude: 35.1234, longitude: 139.5678),
-            "35.12,139.57"
-        )
-        XCTAssertEqual(
-            StarMapViewModel.terrainCacheKey(latitude: -35.1251, longitude: -139.5651),
-            "-35.13,-139.57"
-        )
-    }
-
-    // MARK: - Mock Types
+    // MARK: - Shared Mocks
 
     final class MockLocationController: LocationProviding {
         var selectedLocation = CLLocationCoordinate2D(latitude: 0, longitude: 0)
@@ -416,132 +125,7 @@ final class ViewModelTests: XCTestCase {
         }
     }
 
-    final class InMemoryLocationStorage: LocationStorage {
-        var latitude: Double?
-        var longitude: Double?
-        var name: String?
-    }
-
-    enum MockLocationSearchError: Error {
-        case failed
-    }
-
-    actor MockLocationSearchService: LocationSearchServicing {
-        let result: Result<[MKMapItem], Error>
-        private var lastQuery: String?
-
-        init(result: Result<[MKMapItem], Error>) {
-            self.result = result
-        }
-
-        func search(query: String) async throws -> [MKMapItem] {
-            lastQuery = query
-            return try result.get()
-        }
-
-        func getLastQuery() -> String? {
-            lastQuery
-        }
-    }
-
-    actor MockLocationNameResolver: LocationNameResolving {
-        let resolvedName: String
-        private var lastCoordinate: CLLocationCoordinate2D?
-
-        init(resolvedName: String) {
-            self.resolvedName = resolvedName
-        }
-
-        func resolveName(for coordinate: CLLocationCoordinate2D) async -> String {
-            lastCoordinate = coordinate
-            return resolvedName
-        }
-
-        func getLastCoordinate() -> CLLocationCoordinate2D? {
-            lastCoordinate
-        }
-    }
-
-    actor SequencedLocationNameResolver: LocationNameResolving {
-        private let resolvedNames: [String]
-        private let delaysInNanoseconds: [UInt64]
-        private var callCount = 0
-
-        init(resolvedNames: [String], delaysInNanoseconds: [UInt64]) {
-            self.resolvedNames = resolvedNames
-            self.delaysInNanoseconds = delaysInNanoseconds
-        }
-
-        func resolveName(for coordinate: CLLocationCoordinate2D) async -> String {
-            let index = callCount
-            callCount += 1
-            let delay = index < delaysInNanoseconds.count ? delaysInNanoseconds[index] : 0
-            if delay > 0 {
-                try? await Task.sleep(nanoseconds: delay)
-            }
-            return index < resolvedNames.count ? resolvedNames[index] : "現在地"
-        }
-
-        func getCallCount() -> Int {
-            callCount
-        }
-    }
-
-    actor DelayedQueryLocationSearchService: LocationSearchServicing {
-        private var queries: [String] = []
-
-        func search(query: String) async throws -> [MKMapItem] {
-            queries.append(query)
-
-            if query == "tok" {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                return [Self.makeMapItem(latitude: 35.0, longitude: 139.0, name: "旧結果")]
-            }
-
-            if query == "tokyo" {
-                try? await Task.sleep(nanoseconds: 1_000_000)
-                return [Self.makeMapItem(latitude: 35.6762, longitude: 139.6503, name: "最新結果")]
-            }
-
-            return []
-        }
-
-        func getQueries() -> [String] {
-            queries
-        }
-
-        private static func makeMapItem(latitude: Double, longitude: Double, name: String) -> MKMapItem {
-            let location = CLLocation(latitude: latitude, longitude: longitude)
-            let item = MKMapItem(location: location, address: nil)
-            item.name = name
-            return item
-        }
-    }
-
-    actor CountingLocationSearchService: LocationSearchServicing {
-        private let delayInNanoseconds: UInt64
-        private var queries: [String] = []
-
-        init(delayInNanoseconds: UInt64 = 300_000_000) {
-            self.delayInNanoseconds = delayInNanoseconds
-        }
-
-        func search(query: String) async throws -> [MKMapItem] {
-            queries.append(query)
-            if delayInNanoseconds > 0 {
-                try? await Task.sleep(nanoseconds: delayInNanoseconds)
-            }
-
-            let location = CLLocation(latitude: 35.6762, longitude: 139.6503)
-            let item = MKMapItem(location: location, address: nil)
-            item.name = query
-            return [item]
-        }
-
-        func getQueries() -> [String] {
-            queries
-        }
-    }
+    // MARK: - SidebarViewModel
 
     func test_SidebarViewModel_handleSearchTextChanged_triggersSearch() {
         let locationController = MockLocationController()
@@ -576,205 +160,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(dependencies.detailViewModel.lightPollutionService === dependencies.appController.lightPollutionService)
     }
 
-    // MARK: - LocationController
-
-    func test_UserDefaultsLocationStorage_zeroCoordinatesRoundTrip() {
-        let suiteName = "ViewModelTests.\(UUID().uuidString)"
-        guard let userDefaults = UserDefaults(suiteName: suiteName) else {
-            return XCTFail("テスト用 UserDefaults を生成できませんでした")
-        }
-        defer {
-            userDefaults.removePersistentDomain(forName: suiteName)
-        }
-
-        let storage = UserDefaultsLocationStorage(userDefaults: userDefaults)
-        storage.latitude = 0
-        storage.longitude = 0
-
-        XCTAssertEqual(storage.latitude, 0)
-        XCTAssertEqual(storage.longitude, 0)
-    }
-
-    func test_LocationController_search_success_updatesResults() async {
-        let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
-        let item = makeMapItem(coordinate: coordinate, name: "東京駅")
-
-        let storage = InMemoryLocationStorage()
-        let searchService = MockLocationSearchService(result: .success([item]))
-        let resolver = MockLocationNameResolver(resolvedName: "東京")
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-
-        sut.search(query: "東京駅")
-
-        await waitUntil {
-            sut.isSearching == false && sut.searchResults.count == 1
-        }
-
-        let lastQuery = await searchService.getLastQuery()
-        XCTAssertEqual(lastQuery, "東京駅")
-        XCTAssertEqual(sut.searchResults.first?.name, "東京駅")
-    }
-
-    func test_LocationController_search_failure_clearsResults() async {
-        let storage = InMemoryLocationStorage()
-        let searchService = MockLocationSearchService(result: .failure(MockLocationSearchError.failed))
-        let resolver = MockLocationNameResolver(resolvedName: "東京")
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-        sut.searchResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))]
-
-        sut.search(query: "invalid")
-
-        await waitUntil {
-            sut.isSearching == false
-        }
-
-        let lastQuery = await searchService.getLastQuery()
-        XCTAssertEqual(lastQuery, "invalid")
-        XCTAssertTrue(sut.searchResults.isEmpty)
-    }
-
-    func test_LocationController_search_trimsWhitespaceAndNewline() async {
-        let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
-        let item = makeMapItem(coordinate: coordinate, name: "東京駅")
-
-        let storage = InMemoryLocationStorage()
-        let searchService = MockLocationSearchService(result: .success([item]))
-        let resolver = MockLocationNameResolver(resolvedName: "東京")
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-
-        sut.search(query: "  東京駅\n")
-
-        await waitUntil {
-            sut.isSearching == false && sut.searchResults.count == 1
-        }
-
-        let lastQuery = await searchService.getLastQuery()
-        XCTAssertEqual(lastQuery, "東京駅")
-    }
-
-    func test_LocationController_search_latestQueryResultWins() async {
-        let storage = InMemoryLocationStorage()
-        let searchService = DelayedQueryLocationSearchService()
-        let resolver = MockLocationNameResolver(resolvedName: "東京")
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-
-        sut.search(query: "tok")
-        try? await Task.sleep(nanoseconds: 170_000_000)
-        sut.search(query: "tokyo")
-
-        await waitUntil(timeout: 2.0) {
-            sut.isSearching == false && sut.searchResults.first?.name == "最新結果"
-        }
-
-        try? await Task.sleep(nanoseconds: 120_000_000)
-
-        XCTAssertEqual(sut.searchResults.first?.name, "最新結果")
-        let queries = await searchService.getQueries()
-        XCTAssertTrue(queries.contains("tok"))
-        XCTAssertEqual(queries.last, "tokyo")
-    }
-
-    func test_LocationController_search_sameNormalizedQueryWhileSearching_skipsRedundantRequest() async {
-        let storage = InMemoryLocationStorage()
-        let searchService = CountingLocationSearchService(delayInNanoseconds: 300_000_000)
-        let resolver = MockLocationNameResolver(resolvedName: "東京")
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-
-        sut.search(query: "tokyo")
-        try? await Task.sleep(nanoseconds: 30_000_000)
-        sut.search(query: "  tokyo\n")
-
-        await waitUntil(timeout: 2.0) {
-            sut.isSearching == false && sut.searchResults.first?.name == "tokyo"
-        }
-
-        let queries = await searchService.getQueries()
-        XCTAssertEqual(queries, ["tokyo"])
-    }
-
-    func test_LocationController_select_updatesCenterTriggerAndResolvedName() async {
-        let storage = InMemoryLocationStorage()
-        let searchService = MockLocationSearchService(result: .success([]))
-        let resolver = MockLocationNameResolver(resolvedName: "新宿区")
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-
-        let coordinate = CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034)
-        let item = makeMapItem(coordinate: coordinate, name: "新宿駅")
-        let baseTrigger = sut.currentLocationCenterTrigger
-
-        sut.searchResults = [item]
-        sut.isSearching = true
-        sut.select(item)
-
-        await waitUntil {
-            sut.locationName == "新宿区"
-        }
-
-        XCTAssertEqual(sut.selectedLocation.latitude, coordinate.latitude, accuracy: 0.000001)
-        XCTAssertEqual(sut.selectedLocation.longitude, coordinate.longitude, accuracy: 0.000001)
-        XCTAssertEqual(sut.currentLocationCenterTrigger, baseTrigger + 1)
-        XCTAssertFalse(sut.isSearching)
-        XCTAssertTrue(sut.searchResults.isEmpty)
-        guard let resolvedLatitude = await resolver.getLastCoordinate()?.latitude else {
-            return XCTFail("resolver に座標が渡されていません")
-        }
-        XCTAssertEqual(resolvedLatitude, coordinate.latitude, accuracy: 0.000001)
-    }
-
-    func test_LocationController_selectCoordinate_updatesNameWithoutCenterIncrement() async {
-        let storage = InMemoryLocationStorage()
-        let searchService = MockLocationSearchService(result: .success([]))
-        let resolver = MockLocationNameResolver(resolvedName: "渋谷区")
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-
-        let baseTrigger = sut.currentLocationCenterTrigger
-        let coordinate = CLLocationCoordinate2D(latitude: 35.6580, longitude: 139.7016)
-        sut.isLocating = true
-        sut.selectCoordinate(coordinate)
-
-        await waitUntil {
-            sut.locationName == "渋谷区"
-        }
-
-        XCTAssertEqual(sut.currentLocationCenterTrigger, baseTrigger)
-        XCTAssertFalse(sut.isLocating)
-        XCTAssertEqual(sut.selectedLocation.latitude, coordinate.latitude, accuracy: 0.000001)
-        XCTAssertEqual(sut.selectedLocation.longitude, coordinate.longitude, accuracy: 0.000001)
-                guard let storedLatitude = storage.latitude,
-                            let storedLongitude = storage.longitude else {
-                        return XCTFail("選択座標が storage に保存されていません")
-                }
-                XCTAssertEqual(storedLatitude, coordinate.latitude, accuracy: 0.000001)
-                XCTAssertEqual(storedLongitude, coordinate.longitude, accuracy: 0.000001)
-    }
-
-    func test_LocationController_selectCoordinate_latestResolutionWins() async {
-        let storage = InMemoryLocationStorage()
-        let searchService = MockLocationSearchService(result: .success([]))
-        let resolver = SequencedLocationNameResolver(
-            resolvedNames: ["古い候補", "最新候補"],
-            delaysInNanoseconds: [80_000_000, 1_000_000]
-        )
-        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-
-        let first = CLLocationCoordinate2D(latitude: 35.6580, longitude: 139.7016)
-        let second = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
-
-        sut.selectCoordinate(first)
-        sut.selectCoordinate(second)
-
-        await waitUntil {
-            sut.locationName == "最新候補"
-        }
-
-        try? await Task.sleep(nanoseconds: 120_000_000)
-
-        XCTAssertEqual(sut.locationName, "最新候補")
-        XCTAssertEqual(sut.selectedLocation.latitude, second.latitude, accuracy: 0.000001)
-        XCTAssertEqual(sut.selectedLocation.longitude, second.longitude, accuracy: 0.000001)
-        let callCount = await resolver.getCallCount()
-        XCTAssertEqual(callCount, 2)
-    }
+    // MARK: - DetailViewModel
 
     func test_DetailViewModel_selectedDate_syncsBidirectionally() async {
         let mockCalculationService = MockNightCalculationService()
@@ -832,18 +218,6 @@ final class ViewModelTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(upcomingCallCount, 1)
     }
 
-    // MARK: - SidebarSearchState
-
-    func test_SidebarSearchState_programmaticText_suppressesOnlyNextSearch() {
-        var state = SidebarSearchState()
-
-        XCTAssertTrue(state.setProgrammaticText("Tokyo"))
-        XCTAssertTrue(state.consumeSearchSuppression())
-        XCTAssertFalse(state.consumeSearchSuppression())
-    }
-
-    // MARK: - DetailViewModel error properties
-
     func test_DetailViewModel_hasLightPollutionError_reflectsService() async {
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
@@ -890,9 +264,7 @@ final class ViewModelTests: XCTestCase {
     func test_NightWeatherCardViewModel_weatherLabel_sameLabelCollapses() {
         let vm = NightWeatherCardViewModel()
         let weather = makeDayWeatherSummary(weatherCode: 0)
-        // weatherLabel == cloudLabel のとき重複表示しない
-        let label = vm.weatherLabel(weather)
-        XCTAssertFalse(label.contains("（"), "同一ラベルのときカッコが付かないこと")
+        XCTAssertFalse(vm.weatherLabel(weather).contains("（"))
     }
 
     func test_NightWeatherCardViewModel_accessibilityDescription_loading() {
@@ -935,7 +307,6 @@ final class ViewModelTests: XCTestCase {
     // MARK: - DarkTimeCardViewModel
 
     func test_DarkTimeCardViewModel_noWeather_emptyDarkRange_unavailable() {
-        // events が空の placeholder は darkRangeText が "" になる
         let summary = NightSummary.placeholder
         let vm = DarkTimeCardViewModel(summary: summary, weather: nil)
         XCTAssertTrue(vm.isUnavailable)
@@ -944,22 +315,16 @@ final class ViewModelTests: XCTestCase {
     }
 
     func test_DarkTimeCardViewModel_noWeather_hasRange_available() {
-        // darkRangeText が "〜" を含む summary を用意する
-        // NightSummary の darkRangeText は events から計算されるため、
-        // AstroEvent を夜間に設定した summary を使う
         let summary = makeNightSummary(withWindow: true)
         let vm = DarkTimeCardViewModel(summary: summary, weather: nil)
-        // weather なし → darkRangeText に委譲
         XCTAssertEqual(vm.accessibilityLabel, "観測可能時間: \(vm.displayText)")
     }
 
     func test_DarkTimeCardViewModel_heavyClouds_returnsWeatherAwareText() {
-        // 雲量 100% の weather → weatherAwareRangeText が空 → "天候不良"
         let summary = makeNightSummary(withWindow: true)
         let heavyCloud = makeHourlyWeather(cloudCover: 100, weatherCode: 61)
         let weather = DayWeatherSummary(date: Date(), nighttimeHours: [heavyCloud])
         let vm = DarkTimeCardViewModel(summary: summary, weather: weather)
-        // weatherAwareRangeText が "" を返すケースで "天候不良" になる
         if let text = summary.weatherAwareRangeText(nighttimeHours: weather.nighttimeHours), text.isEmpty {
             XCTAssertEqual(vm.displayText, "天候不良")
             XCTAssertTrue(vm.isUnavailable)
@@ -972,7 +337,6 @@ final class ViewModelTests: XCTestCase {
         let summary = makeNightSummary(withWindow: true)
         let vm = ViewingWindowsSectionViewModel(summary: summary)
         let window = summary.viewingWindows[0]
-        // duration = 3600s → "観測 1.0時間"
         XCTAssertEqual(vm.durationText(window), "観測 1.0時間")
     }
 
@@ -984,13 +348,13 @@ final class ViewModelTests: XCTestCase {
     }
 
     func test_ViewingWindowsSectionViewModel_moonStatusLabel_favorable() {
-        let summary = makeNightSummary(moonPhase: 0.01) // 新月 → isMoonFavorable = true
+        let summary = makeNightSummary(moonPhase: 0.01)
         let vm = ViewingWindowsSectionViewModel(summary: summary)
         XCTAssertEqual(vm.moonStatusLabel(for: summary.viewingWindows[0]), "条件良好")
     }
 
     func test_ViewingWindowsSectionViewModel_moonStatusLabel_unfavorable() {
-        let summary = makeNightSummary(moonPhase: 0.5) // 満月 → isMoonFavorable = false
+        let summary = makeNightSummary(moonPhase: 0.5)
         let vm = ViewingWindowsSectionViewModel(summary: summary)
         XCTAssertEqual(vm.moonStatusLabel(for: summary.viewingWindows[0]), "月明かりあり")
     }
@@ -1014,7 +378,6 @@ final class ViewModelTests: XCTestCase {
         let gridVM = UpcomingNightsGridViewModel(detailViewModel: detailVM)
 
         appController.recalculateUpcoming()
-        // Combine の非同期伝播を待つ
         for _ in 0..<20 {
             try? await Task.sleep(nanoseconds: 10_000_000)
             if !gridVM.displayNights.isEmpty { break }
@@ -1030,7 +393,6 @@ final class ViewModelTests: XCTestCase {
         let detailVM = DetailViewModel(appController: appController)
         let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
 
-        // events が空の placeholder は darkRangeText が "" → "—" を返す
         let night = NightSummary.placeholder
         XCTAssertEqual(vm.observableRangeText(night: night, weather: nil), "—")
     }
