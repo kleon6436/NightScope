@@ -54,7 +54,6 @@ struct MapKitViewRepresentable: NSViewRepresentable {
     func makeNSView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
-        // カメラ距離 10km 未満へのズームインを禁止（光害タイルの解像度上限に対応）
         mapView.cameraZoomRange = MKMapView.CameraZoomRange(minCenterCoordinateDistance: MapKitViewSharedLogic.minCenterCoordinateDistance)
         // 光害オーバーレイを常駐させタブ切り替え時のタイル再描画を防ぐ（alpha で表示/非表示を切り替える）
         mapView.addOverlay(LightPollutionTileOverlay(urlTemplate: nil), level: .aboveRoads)

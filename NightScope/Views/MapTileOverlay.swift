@@ -36,7 +36,9 @@ final class LightPollutionTileOverlay: MKTileOverlay {
 
     private enum OverlayConfig {
         static let minimumZoomLevel = 1
-        static let maximumZoomLevel = 12   // バンドルデータの解像度に合わせて上限を設定
+        /// ズームレベル上限。MapKit の最大タイルレベルに合わせて 19 を設定。
+        /// 上限値より高いズームでも loadTile が呼ばれ、グリッドデータをアップサンプリングして描画する。
+        static let maximumZoomLevel = 19
         static let tilePixelSize = 256
     }
 
