@@ -204,7 +204,7 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         case ..<3.0:   return (premul(255), premul(230), premul(0),   a)   // Bortle 6
         case ..<9.0:   return (premul(255), premul(140), premul(0),   a)   // Bortle 7
         case ..<27.0:  return (premul(220), premul(30),  premul(30),  a)   // Bortle 8
-        default:       return (premul(255), premul(255), premul(255), a)   // Bortle 9
+        default:       return (premul(255), premul(20),  premul(147), a)   // Bortle 9 (deep pink)
         }
     }
 
