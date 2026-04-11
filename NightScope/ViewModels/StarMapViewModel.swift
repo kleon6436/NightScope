@@ -122,7 +122,7 @@ final class StarMapViewModel: ObservableObject {
     @Published var fov: Double = StarMapLayout.defaultFOV
 
     /// 星空マップ描画領域の最新サイズ
-    @Published private(set) var panoramaViewportSize: CGSize = .zero
+    @Published private(set) var canvasSize: CGSize = .zero
 
     /// 星空マップシートが表示中か（サイドバーの視野オーバーレイ連動用）
     @Published var isStarMapOpen: Bool = false
@@ -136,7 +136,7 @@ final class StarMapViewModel: ObservableObject {
 
     private let appController: AppController
     private var cancellables: Set<AnyCancellable> = []
-    private var shouldApplyInitialPanoramaPose = true
+    private var shouldApplyInitialPose = true
     private var lastTimeSliderCommitTime: TimeInterval = 0
     private var pendingTimeSliderDate: Date?
     private var timeSliderCommitTask: Task<Void, Never>?
@@ -488,34 +488,31 @@ final class StarMapViewModel: ObservableObject {
 
     /// 星空マップ表示に入る直前に、初期表示位置の再適用を要求する。
     func prepareForStarMapPresentation() {
-        shouldApplyInitialPanoramaPose = true
+        shouldApplyInitialPose = true
     }
 
     /// 星空マップ描画領域の最新サイズを記録する。
-    func updatePanoramaViewport(size: CGSize) {
-        panoramaViewportSize = size
+    func updateCanvasSize(_ size: CGSize) {
+        canvasSize = size
     }
 
-    /// 初回表示時に、地平線が下端付近に来るような仰角を適用する。
-    func applyInitialPanoramaPoseIfNeeded() {
-        guard shouldApplyInitialPanoramaPose else { return }
-        setPanoramaPose(azimuth: 0)
-        shouldApplyInitialPanoramaPose = false
+    /// 初回表示時に、デフォルト視点（北向き 仰角45°）を適用する。
+    func applyInitialPoseIfNeeded() {
+        guard shouldApplyInitialPose else { return }
+        viewAzimuth = 0
+        viewAltitude = StarMapLayout.resetAltitude
+        shouldApplyInitialPose = false
     }
 
     /// 北向きへ戻す。
     func resetToNorth() {
-        #if os(iOS)
         viewAzimuth = 0
-        viewAltitude = 45
-        #else
-        setPanoramaPose(azimuth: 0)
-        #endif
+        viewAltitude = StarMapLayout.resetAltitude
     }
 
-    /// iOS 用: 初期パノラマポーズフラグをクリアする（心射図法デフォルトでは適用しない）。
-    func clearInitialPanoramaPoseFlag() {
-        shouldApplyInitialPanoramaPose = false
+    /// 初期ポーズフラグをクリアする（心射図法デフォルトでは適用しない）。
+    func clearInitialPoseFlag() {
+        shouldApplyInitialPose = false
     }
 
     /// 選択日へ現在の時刻を反映し、昼間なら当日夕方側の夜へ寄せて表示日時を決める。
@@ -670,13 +667,6 @@ final class StarMapViewModel: ObservableObject {
         // twilight が nil (白夜/極夜) の場合はデフォルト値のまま
     }
 
-    private func setPanoramaPose(azimuth: Double) {
-        viewAzimuth = azimuth
-        viewAltitude = StarMapLayout.preferredPanoramaAltitude(
-            size: panoramaViewportSize,
-            fov: fov
-        )
-    }
 
     private static func clockMinutes(for date: Date) -> Double {
         let calendar = Calendar.current

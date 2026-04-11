@@ -106,21 +106,6 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(StarMapLayout.clampedFOV(160), StarMapLayout.maxFOV)
     }
 
-    func test_StarMapLayout_panoramaHelpers_keepHorizonNearBottomEdge() {
-        let size = CGSize(width: 860, height: 620)
-        let fov = 90.0
-
-        let maxAltitude = StarMapLayout.panoramaMaxAltitude(size: size, fov: fov)
-        let preferredAltitude = StarMapLayout.preferredPanoramaAltitude(size: size, fov: fov)
-        let horizonY = StarMapLayout.panoramaHorizonY(altitude: preferredAltitude, size: size, fov: fov)
-
-        XCTAssertEqual(maxAltitude, 29.5, accuracy: 0.3)
-        XCTAssertEqual(preferredAltitude, maxAltitude, accuracy: 0.001)
-        XCTAssertLessThanOrEqual(horizonY, size.height - StarMapLayout.panoramaBottomMargin + 0.001)
-        XCTAssertGreaterThanOrEqual(preferredAltitude, 0)
-        XCTAssertLessThanOrEqual(preferredAltitude, 90)
-    }
-
     func test_StarMapCanvasView_zoomedFOV_clampsAndFollowsScrollDirection() {
         XCTAssertEqual(
             StarMapCanvasView.zoomedFOV(currentFOV: 90, scrollDeltaY: 1, preciseScrolling: false),
@@ -139,55 +124,31 @@ final class ViewModelTests: XCTestCase {
         )
     }
 
-    func test_StarMapCanvasView_splitMilkyWayBandSegments_breaksLargeXJumps() {
-        let segments = StarMapCanvasView.splitMilkyWayBandSegments(
-            [
-                MilkyWayBandScreenPoint(x: 10, y: 100, halfH: 4, li: 0),
-                MilkyWayBandScreenPoint(x: 22, y: 104, halfH: 4, li: 5),
-                MilkyWayBandScreenPoint(x: 260, y: 108, halfH: 4, li: 10),
-                MilkyWayBandScreenPoint(x: 272, y: 112, halfH: 4, li: 15),
-            ],
-            maxXJump: 100
-        )
-
-        XCTAssertEqual(segments.count, 2)
-        XCTAssertEqual(segments[0].count, 2)
-        XCTAssertEqual(segments[1].count, 2)
-    }
-
-    func test_StarMapViewModel_initialPanoramaPose_usesViewportGeometry() {
+    func test_StarMapViewModel_initialPose_usesResetAltitude() {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)
         let size = CGSize(width: 860, height: 620)
 
         viewModel.viewAzimuth = 123
         viewModel.viewAltitude = 10
-        viewModel.updatePanoramaViewport(size: size)
+        viewModel.updateCanvasSize(size)
         viewModel.prepareForStarMapPresentation()
-        viewModel.applyInitialPanoramaPoseIfNeeded()
+        viewModel.applyInitialPoseIfNeeded()
 
         XCTAssertEqual(viewModel.viewAzimuth, 0)
-        XCTAssertEqual(
-            viewModel.viewAltitude,
-            StarMapLayout.preferredPanoramaAltitude(size: size, fov: viewModel.fov),
-            accuracy: 0.001
-        )
+        XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
     }
 
-    func test_StarMapViewModel_resetToNorth_usesViewportGeometry() {
+    func test_StarMapViewModel_resetToNorth_usesResetAltitude() {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)
-        let size = CGSize(width: 400, height: 500)
 
-        viewModel.updatePanoramaViewport(size: size)
+        viewModel.viewAzimuth = 180
+        viewModel.viewAltitude = 60
         viewModel.resetToNorth()
 
         XCTAssertEqual(viewModel.viewAzimuth, 0)
-        XCTAssertEqual(
-            viewModel.viewAltitude,
-            StarMapLayout.preferredPanoramaAltitude(size: size, fov: viewModel.fov),
-            accuracy: 0.001
-        )
+        XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
     }
 
     func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
