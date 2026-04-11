@@ -39,7 +39,6 @@ enum MapKitViewSharedLogic {
            let renderer = mapView.renderer(for: overlay) as? MKTileOverlayRenderer,
            renderer.alpha != targetAlpha {
             renderer.alpha = targetAlpha
-            renderer.setNeedsDisplay(MKMapRect.world)
         }
     }
 

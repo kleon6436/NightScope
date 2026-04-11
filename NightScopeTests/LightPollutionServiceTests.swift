@@ -1,5 +1,7 @@
 import XCTest
 import MapKit
+import CoreGraphics
+import ImageIO
 @testable import NightScope
 
 @MainActor
@@ -139,6 +141,74 @@ final class LightPollutionServiceTests: XCTestCase {
         let highLatPath = MKTileOverlayPath(x: 0, y: 0, z: 2, contentScaleFactor: 1)
         let data = LightPollutionTileOverlay.renderTile(path: highLatPath, grid: grid, size: 4)
         XCTAssertNotNil(data, "高緯度タイルのレンダリングに成功するべき")
+    }
+
+    // MARK: - Bortle 9 可視性テスト（回帰）
+
+    func test_bortleToRGBA_bortle9_isNotWhite() {
+        // 東京都心相当の輝度 100 mcd/m²（ratio ≈ 581）は Bortle 9 ゾーンに入る。
+        // 修正前は白 (255,255,255) が返り明るい地図で不可視だったため、白でないことを確認する。
+        guard let grid = makeSingleCellGrid(brightness: 100.0) else {
+            XCTFail("グリッドを生成できませんでした")
+            return
+        }
+        let path = MKTileOverlayPath(x: 0, y: 0, z: 1, contentScaleFactor: 1)
+        guard let tileData = LightPollutionTileOverlay.renderTile(path: path, grid: grid, size: 4),
+              let pixels = decodePNGPixels(tileData, expectedSize: 4) else {
+            XCTFail("タイルのデコードに失敗しました")
+            return
+        }
+        // アルファ > 0 のピクセルを取得してグレー/白でないことを確認
+        let opaquePixels = pixels.filter { $0.a > 0 }
+        XCTAssertFalse(opaquePixels.isEmpty, "光害のある領域に不透明ピクセルが存在するべき")
+        for pixel in opaquePixels {
+            let isGrayish = abs(Int(pixel.r) - Int(pixel.g)) < 10 && abs(Int(pixel.r) - Int(pixel.b)) < 10
+            XCTAssertFalse(isGrayish, "Bortle 9 のピクセルが白/グレーであってはならない: (\(pixel.r),\(pixel.g),\(pixel.b),\(pixel.a))")
+        }
+    }
+
+    func test_bortleToRGBA_tokyoLevel_hasHighRed() {
+        // 東京都心相当（100 mcd/m²）でレンダリングした場合、赤成分が支配的なピンク系の色が出ること。
+        guard let grid = makeSingleCellGrid(brightness: 100.0) else {
+            XCTFail("グリッドを生成できませんでした")
+            return
+        }
+        let path = MKTileOverlayPath(x: 0, y: 0, z: 1, contentScaleFactor: 1)
+        guard let tileData = LightPollutionTileOverlay.renderTile(path: path, grid: grid, size: 4),
+              let pixels = decodePNGPixels(tileData, expectedSize: 4) else {
+            XCTFail("タイルのデコードに失敗しました")
+            return
+        }
+        let opaquePixels = pixels.filter { $0.a > 0 }
+        XCTAssertFalse(opaquePixels.isEmpty, "光害のある領域に不透明ピクセルが存在するべき")
+        for pixel in opaquePixels {
+            XCTAssertGreaterThan(pixel.r, pixel.g, "Bortle 9 (deep pink) は R > G であるべき")
+        }
+    }
+
+    // MARK: - PNG デコードヘルパー
+
+    private struct RGBA { let r: UInt8; let g: UInt8; let b: UInt8; let a: UInt8 }
+
+    /// PNG Data をデコードして RGBA ピクセル配列を返す。
+    private func decodePNGPixels(_ pngData: Data, expectedSize: Int) -> [RGBA]? {
+        guard let source = CGImageSourceCreateWithData(pngData as CFData, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let width = cgImage.width
+        let height = cgImage.height
+        let byteCount = width * height * 4
+        var rawPixels = [UInt8](repeating: 0, count: byteCount)
+        guard let context = CGContext(
+            data: &rawPixels,
+            width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue).rawValue
+        ) else { return nil }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return stride(from: 0, to: byteCount, by: 4).map {
+            RGBA(r: rawPixels[$0], g: rawPixels[$0+1], b: rawPixels[$0+2], a: rawPixels[$0+3])
+        }
     }
 
     private func makeSingleCellGridV2(brightness: Double) -> BortleGridData? {

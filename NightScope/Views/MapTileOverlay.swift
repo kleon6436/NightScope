@@ -51,7 +51,7 @@ final class LightPollutionTileOverlay: MKTileOverlay {
     private static let renderQueue: OperationQueue = {
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = max(2, ProcessInfo.processInfo.activeProcessorCount / 2)
-        queue.qualityOfService = .utility
+        queue.qualityOfService = .userInitiated
         return queue
     }()
 

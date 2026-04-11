@@ -72,8 +72,6 @@
 		AA000000000000000000TB04 /* AppControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF04 /* AppControllerTests.swift */; };
 		AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF05 /* AstroModelsTests.swift */; };
 		AA000000000000000000TB06 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF06 /* ViewModelTests.swift */; };
-		CC0000000000000000TB07 /* LightPollutionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000TF07 /* LightPollutionServiceTests.swift */; };
-		CC0000000000000000TB08 /* TerrainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000TF08 /* TerrainServiceTests.swift */; };
 		B66ECDD7AD401F013891BF8E /* StarGazingIndexCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */; };
 		BD26966CB632FA724659667D /* LightPollutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F12 /* LightPollutionService.swift */; };
 		C3624AC873043476C6CD9CD9 /* iOSLocationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4FF1AF217AF56546E11BB3 /* iOSLocationView.swift */; };
@@ -173,8 +171,6 @@
 		AA000000000000000000TF04 /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF05 /* AstroModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModelsTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF06 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
-		CC0000000000000000TF07 /* LightPollutionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightPollutionServiceTests.swift; sourceTree = "<group>"; };
-		CC0000000000000000TF08 /* TerrainServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerrainServiceTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0E51B35725701CA2DB51488 /* iOSMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSMapView.swift; sourceTree = "<group>"; };
 		E874E471E7767792A4000D47 /* iOSRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSRootView.swift; sourceTree = "<group>"; };
@@ -346,8 +342,6 @@
 				AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */,
 				AA000000000000000000TF02 /* StarGazingIndexTests.swift */,
 				AA000000000000000000TF03 /* WeatherServiceTests.swift */,
-				CC0000000000000000TF07 /* LightPollutionServiceTests.swift */,
-				CC0000000000000000TF08 /* TerrainServiceTests.swift */,
 				AA000000000000000000TF04 /* AppControllerTests.swift */,
 				AA000000000000000000TF05 /* AstroModelsTests.swift */,
 				AA000000000000000000TF06 /* ViewModelTests.swift */,
@@ -612,8 +606,6 @@
 				AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */,
 				AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */,
 				AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */,
-				CC0000000000000000TB07 /* LightPollutionServiceTests.swift in Sources */,
-				CC0000000000000000TB08 /* TerrainServiceTests.swift in Sources */,
 				AA000000000000000000TB04 /* AppControllerTests.swift in Sources */,
 				AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */,
 				AA000000000000000000TB06 /* ViewModelTests.swift in Sources */,
