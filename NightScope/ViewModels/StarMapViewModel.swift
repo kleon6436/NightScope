@@ -179,6 +179,19 @@ final class StarMapViewModel: ObservableObject {
     /// 計算更新インターバル: 30fps
     private static let minUpdateInterval: TimeInterval = 1.0 / 30
 
+    private struct UpdateContext {
+        let latitude: Double
+        let longitude: Double
+        let date: Date
+        let julianDate: Double
+        let localSiderealTime: Double
+        let activeMeteorShowers: [MeteorShower]
+
+        var terrainCacheKey: String {
+            StarMapViewModel.terrainCacheKey(latitude: latitude, longitude: longitude)
+        }
+    }
+
     func update() {
         let now = Date.timeIntervalSinceReferenceDate
         let elapsed = now - lastPositionUpdateTime
@@ -202,21 +215,8 @@ final class StarMapViewModel: ObservableObject {
         trailingTask?.cancel()
         trailingTask = nil
 
-        // MainActor 上でパラメータを読み取り、バックグラウンドへ渡す
-        let location = appController.locationController.selectedLocation
-        let lat = location.latitude
-        let lon = location.longitude
-        let date = displayDate
-        let jd = MilkyWayCalculator.julianDate(from: date)
-        let lst = MilkyWayCalculator.localSiderealTime(jd: jd, longitude: lon)
-        let activeMeteorShowerList = MeteorShowerCatalog.active(on: date)
-
-        // 地形プロファイル（座標変化時のみ再取得）
-        let newKey = Self.terrainCacheKey(latitude: lat, longitude: lon)
-        if newKey != lastTerrainKey {
-            lastTerrainKey = newKey
-            fetchTerrain(latitude: lat, longitude: lon)
-        }
+        let context = makeUpdateContext()
+        scheduleTerrainFetchIfNeeded(for: context)
 
         // 前の計算タスクをキャンセルして新しいタスクを開始
         updateTask?.cancel()
@@ -225,30 +225,61 @@ final class StarMapViewModel: ObservableObject {
 
             // 重い計算をバックグラウンドスレッドで実行
             let snapshot = await Task.detached(priority: .userInitiated) {
-                StarMapViewModel._compute(lat: lat, lon: lon, jd: jd, lst: lst,
-                                          date: date,
-                                          activeMeteorShowers: activeMeteorShowerList)
+                StarMapViewModel._compute(
+                    lat: context.latitude,
+                    lon: context.longitude,
+                    jd: context.julianDate,
+                    lst: context.localSiderealTime,
+                    date: context.date,
+                    activeMeteorShowers: context.activeMeteorShowers
+                )
             }.value
 
             guard !Task.isCancelled else { return }
-
-            // 結果をまとめて MainActor に反映
-            self.latitude   = snapshot.lat
-            self.currentLST = snapshot.lst
-            self.starPositions             = snapshot.starPositions
-            self.sunAltitude               = snapshot.sunAltitude
-            self.sunAzimuth                = snapshot.sunAzimuth
-            self.moonAltitude              = snapshot.moonAltitude
-            self.moonAzimuth               = snapshot.moonAzimuth
-            self.moonPhase                 = snapshot.moonPhase
-            self.galacticCenterAltitude    = snapshot.galacticCenterAltitude
-            self.galacticCenterAzimuth     = snapshot.galacticCenterAzimuth
-            self.constellationLines        = snapshot.constellationLines
-            self.constellationLabels       = snapshot.constellationLabels
-            self.planetPositions           = snapshot.planetPositions
-            self.meteorShowerRadiants      = snapshot.meteorShowerRadiants
-            self.milkyWayBandPoints        = snapshot.milkyWayBandPoints
+            apply(snapshot)
         }
+    }
+
+    private func makeUpdateContext() -> UpdateContext {
+        let location = appController.locationController.selectedLocation
+        let date = displayDate
+        let julianDate = MilkyWayCalculator.julianDate(from: date)
+
+        return UpdateContext(
+            latitude: location.latitude,
+            longitude: location.longitude,
+            date: date,
+            julianDate: julianDate,
+            localSiderealTime: MilkyWayCalculator.localSiderealTime(
+                jd: julianDate,
+                longitude: location.longitude
+            ),
+            activeMeteorShowers: MeteorShowerCatalog.active(on: date)
+        )
+    }
+
+    private func scheduleTerrainFetchIfNeeded(for context: UpdateContext) {
+        guard context.terrainCacheKey != lastTerrainKey else { return }
+        lastTerrainKey = context.terrainCacheKey
+        fetchTerrain(latitude: context.latitude, longitude: context.longitude)
+    }
+
+    private func apply(_ snapshot: _Snapshot) {
+        latitude = snapshot.lat
+        currentLST = snapshot.lst
+        starPositions = snapshot.starPositions
+        sunAltitude = snapshot.sunAltitude
+        sunAzimuth = snapshot.sunAzimuth
+        moonAltitude = snapshot.moonAltitude
+        moonAzimuth = snapshot.moonAzimuth
+        moonPhase = snapshot.moonPhase
+        galacticCenterAltitude = snapshot.galacticCenterAltitude
+        galacticCenterAzimuth = snapshot.galacticCenterAzimuth
+        constellationLines = snapshot.constellationLines
+        constellationLabels = snapshot.constellationLabels
+        planetPositions = snapshot.planetPositions
+        meteorShowerRadiants = snapshot.meteorShowerRadiants
+        milkyWayBandPoints = snapshot.milkyWayBandPoints
     }
 
     // MARK: - Background Computation
@@ -445,21 +476,13 @@ final class StarMapViewModel: ObservableObject {
     /// 初回表示時に、地平線が下端付近に来るような仰角を適用する。
     func applyInitialPanoramaPoseIfNeeded() {
         guard shouldApplyInitialPanoramaPose else { return }
-        viewAzimuth = 0
-        viewAltitude = StarMapLayout.preferredPanoramaAltitude(
-            size: panoramaViewportSize,
-            fov: fov
-        )
+        setPanoramaPose(azimuth: 0)
         shouldApplyInitialPanoramaPose = false
     }
 
     /// 北向きへ戻し、地平線が下端付近に来る仰角へ合わせる。
     func resetToNorth() {
-        viewAzimuth = 0
-        viewAltitude = StarMapLayout.preferredPanoramaAltitude(
-            size: panoramaViewportSize,
-            fov: fov
-        )
+        setPanoramaPose(azimuth: 0)
     }
 
     /// 選択日付に現在の時刻を合成して、星空マップの表示日時へ反映する。
@@ -475,17 +498,8 @@ final class StarMapViewModel: ObservableObject {
         guard abs(timeSliderMinutes - clampedMinutes) > 0.5 else { return }
         timeSliderMinutes = clampedMinutes
 
-        // スライダーオフセットを実際の時刻 (分) に変換
         let realMinutes = nightOffsetToRealMinutes(clampedMinutes)
-        let hour = Int(realMinutes) / 60
-        let minute = Int(realMinutes) % 60
-        let calendar = Calendar.current
-        if let updatedDate = calendar.date(
-            bySettingHour: hour,
-            minute: minute,
-            second: 0,
-            of: displayDate
-        ) {
+        if let updatedDate = Self.date(bySettingClockMinutes: realMinutes, on: displayDate) {
             displayDate = updatedDate
         }
     }
@@ -530,6 +544,14 @@ final class StarMapViewModel: ObservableObject {
         // twilight が nil (白夜/極夜) の場合はデフォルト値のまま
     }
 
+    private func setPanoramaPose(azimuth: Double) {
+        viewAzimuth = azimuth
+        viewAltitude = StarMapLayout.preferredPanoramaAltitude(
+            size: panoramaViewportSize,
+            fov: fov
+        )
+    }
+
     private static func clockMinutes(for date: Date) -> Double {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.hour, .minute], from: date)
@@ -547,7 +569,17 @@ final class StarMapViewModel: ObservableObject {
         )
     }
 
-    static func terrainCacheKey(latitude: Double, longitude: Double) -> String {
+    private static func date(bySettingClockMinutes minutes: Double, on date: Date) -> Date? {
+        let normalizedMinutes = ((Int(minutes.rounded()) % 1440) + 1440) % 1440
+        return Calendar.current.date(
+            bySettingHour: normalizedMinutes / 60,
+            minute: normalizedMinutes % 60,
+            second: 0,
+            of: date
+        )
+    }
+
+    nonisolated static func terrainCacheKey(latitude: Double, longitude: Double) -> String {
         let roundedLatitude = (latitude * 100).rounded() / 100
         let roundedLongitude = (longitude * 100).rounded() / 100
         return "\(roundedLatitude),\(roundedLongitude)"

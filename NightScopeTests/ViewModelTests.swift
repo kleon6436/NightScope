@@ -471,7 +471,8 @@ final class ViewModelTests: XCTestCase {
         let dependencies = AppRootDependencies.makeDefault()
 
         XCTAssertTrue((dependencies.sidebarViewModel.locationController as AnyObject) === dependencies.appController.locationController)
-        XCTAssertTrue(dependencies.detailViewModel.appControllerRef === dependencies.appController)
+        XCTAssertTrue(dependencies.detailViewModel.weatherService === dependencies.appController.weatherService)
+        XCTAssertTrue(dependencies.detailViewModel.lightPollutionService === dependencies.appController.lightPollutionService)
     }
 
     // MARK: - LocationController

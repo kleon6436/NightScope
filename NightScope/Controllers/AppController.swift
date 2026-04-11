@@ -200,33 +200,35 @@ final class AppController: ObservableObject {
         await refreshExternalData()
     }
 
+    private func scheduleLocationChangeHandling() {
+        locationTask?.cancel()
+        locationTask = Task { [weak self] in
+            guard let self else { return }
+            await handleLocationChanged()
+        }
+    }
+
     private func setupObservers() {
         locationController.$locationUpdateID
             .dropFirst()
             .sink { [weak self] _ in
-                self?.locationTask?.cancel()
-                self?.locationTask = Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    await handleLocationChanged()
-                }
+                self?.scheduleLocationChangeHandling()
             }
             .store(in: &cancellables)
 
         weatherService.$weatherByDate
             .dropFirst()
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.recomputeAllIndexes()
-                }
+                self?.recomputeAllIndexes()
             }
             .store(in: &cancellables)
 
         lightPollutionService.bortleClassPublisher
             .dropFirst()
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.recomputeAllIndexes()
-                }
+                self?.recomputeAllIndexes()
             }
             .store(in: &cancellables)
     }

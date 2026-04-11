@@ -32,10 +32,7 @@ struct StarMapCanvasView: View {
                     )
                     .gesture(pinchGesture)
                     .onTapGesture(coordinateSpace: .local) { location in
-                        isFocused = true
-                        if let star = nearestStar(at: location, size: size) {
-                            onStarSelected?(star)
-                        }
+                        handleTap(at: location, size: size)
                     }
 
                 if viewModel.isGyroMode {
@@ -44,18 +41,7 @@ struct StarMapCanvasView: View {
 
                 // ピンチ中のみ視野角を表示
                 if gestureScale != 1.0 {
-                    let displayFov = StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
-                    VStack {
-                        Spacer()
-                        Text(String(format: "視野 %.0f°", displayFov))
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .padding(.bottom, 24)
-                    }
+                    pinchFOVOverlay
                 }
             }
             .onAppear {
@@ -68,37 +54,22 @@ struct StarMapCanvasView: View {
             .focused($isFocused)
             // MARK: Keyboard Navigation (デフォルト phases = [.down, .repeat])
             .onKeyPress(.leftArrow) {
-                var az = viewModel.viewAzimuth - StarMapLayout.directionStep
-                if az < 0 { az += 360 }
-                viewModel.viewAzimuth = az
-                return .handled
+                handleAzimuthKey(step: -StarMapLayout.directionStep)
             }
             .onKeyPress(.rightArrow) {
-                var az = viewModel.viewAzimuth + StarMapLayout.directionStep
-                az = az.truncatingRemainder(dividingBy: 360)
-                viewModel.viewAzimuth = az
-                return .handled
+                handleAzimuthKey(step: StarMapLayout.directionStep)
             }
             .onKeyPress(.upArrow) {
-                viewModel.viewAltitude = min(90, viewModel.viewAltitude + StarMapLayout.directionStep)
-                return .handled
+                handleAltitudeKey(step: StarMapLayout.directionStep, size: size)
             }
             .onKeyPress(.downArrow) {
-                viewModel.viewAltitude = max(
-                    StarMapLayout.panoramaLowerBoundAltitude(size: size, fov: effectivePanoramaFOV()),
-                    viewModel.viewAltitude - StarMapLayout.directionStep
-                )
-                return .handled
+                handleAltitudeKey(step: -StarMapLayout.directionStep, size: size)
             }
             .onKeyPress(KeyEquivalent("=")) {
-                // ズームイン (視野を狭める)
-                viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov - StarMapLayout.zoomStep)
-                return .handled
+                handleZoomKey(step: -StarMapLayout.zoomStep)
             }
             .onKeyPress(KeyEquivalent("-")) {
-                // ズームアウト (視野を広げる)
-                viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov + StarMapLayout.zoomStep)
-                return .handled
+                handleZoomKey(step: StarMapLayout.zoomStep)
             }
             .onKeyPress(KeyEquivalent("n")) {
                 viewModel.resetToNorth()
@@ -106,6 +77,46 @@ struct StarMapCanvasView: View {
             }
         }
         .background(StarMapPalette.canvasBackground)
+    }
+
+    private var pinchFOVOverlay: some View {
+        let displayFov = StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
+
+        return VStack {
+            Spacer()
+            Text(String(format: "視野 %.0f°", displayFov))
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .padding(.bottom, 24)
+        }
+    }
+
+    private func handleTap(at location: CGPoint, size: CGSize) {
+        isFocused = true
+        if let star = nearestStar(at: location, size: size) {
+            onStarSelected?(star)
+        }
+    }
+
+    private func handleAzimuthKey(step: Double) -> KeyPress.Result {
+        viewModel.viewAzimuth = (viewModel.viewAzimuth + step + 360)
+            .truncatingRemainder(dividingBy: 360)
+        return .handled
+    }
+
+    private func handleAltitudeKey(step: Double, size: CGSize) -> KeyPress.Result {
+        let lowerBound = StarMapLayout.panoramaLowerBoundAltitude(size: size, fov: effectivePanoramaFOV())
+        viewModel.viewAltitude = max(lowerBound, min(90, viewModel.viewAltitude + step))
+        return .handled
+    }
+
+    private func handleZoomKey(step: Double) -> KeyPress.Result {
+        viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov + step)
+        return .handled
     }
 
     // MARK: Canvas

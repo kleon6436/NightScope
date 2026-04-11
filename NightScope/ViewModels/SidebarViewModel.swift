@@ -80,11 +80,6 @@ final class SidebarViewModel: ObservableObject {
         }
     }
 
-    func clearSearchState() {
-        locationController.searchResults = []
-        locationController.isSearching = false
-    }
-
     var isSearching: Bool { locationController.isSearching }
     var isLocating: Bool { locationController.isLocating }
     var searchResults: [MKMapItem] { locationController.searchResults }

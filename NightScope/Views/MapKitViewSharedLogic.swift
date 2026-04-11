@@ -29,9 +29,7 @@ enum MapKitViewSharedLogic {
                 longitudeDelta: Config.initialPinLongitudeDelta
             )
         )
-        Task { @MainActor in
-            mapView.setRegion(region, animated: false)
-        }
+        mapView.setRegion(region, animated: false)
     }
 
     static func updateLightPollutionOverlayAlpha(on mapView: MKMapView, targetAlpha: CGFloat) {
@@ -83,9 +81,7 @@ enum MapKitViewSharedLogic {
         lastSyncTrigger = syncState.trigger
         upsertPinAnnotation(on: mapView, existing: existing, coordinate: coordinate)
         let region = MKCoordinateRegion(center: syncState.center, span: syncState.span)
-        Task { @MainActor in
-            mapView.setRegion(region, animated: false)
-        }
+        mapView.setRegion(region, animated: false)
         return true
     }
 
@@ -107,9 +103,7 @@ enum MapKitViewSharedLogic {
                 longitudeDelta: Config.currentLocationLongitudeDelta
             )
         )
-        Task { @MainActor in
-            mapView.setRegion(region, animated: true)
-        }
+        mapView.setRegion(region, animated: true)
     }
 
     private static func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
