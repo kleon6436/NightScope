@@ -15,7 +15,6 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var hasLightPollutionError: Bool = false
 
     private let appController: AppController
-    var appControllerRef: AppController { appController }
     private var cancellables = Set<AnyCancellable>()
 
     init(appController: AppController) {
@@ -60,11 +59,11 @@ final class DetailViewModel: ObservableObject {
             .assign(to: &$locationName)
 
         appController.weatherService.$errorMessage
-            .map { $0 != nil }
-            .assign(to: &$hasWeatherError)
-
-        appController.weatherService.$errorMessage
-            .assign(to: &$weatherErrorMessage)
+            .sink { [weak self] errorMessage in
+                self?.weatherErrorMessage = errorMessage
+                self?.hasWeatherError = errorMessage != nil
+            }
+            .store(in: &cancellables)
 
         appController.lightPollutionService.$fetchFailed
             .assign(to: &$hasLightPollutionError)
@@ -84,13 +83,6 @@ final class DetailViewModel: ObservableObject {
 
     func refreshLightPollution() async {
         await appController.refreshLightPollution()
-    }
-
-    func refreshAllInBackground() {
-        Task {
-            await refreshWeather()
-            await refreshLightPollution()
-        }
     }
 
     func retryWeatherInBackground() {

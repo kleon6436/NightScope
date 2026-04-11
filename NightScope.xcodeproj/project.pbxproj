@@ -102,6 +102,10 @@
 		FCBBDF3EB1CA5D5B3BE17896 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
 		BB0000000000000000003B01 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
 		BB0000000000000000003B02 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
+		BB0000000000000000003B03 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
+		BB0000000000000000003B04 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
+		BB0000000000000000003B05 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
+		BB0000000000000000003B06 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -179,6 +183,8 @@
 		BB0000000000000000002F24 /* StarInfoMacView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarInfoMacView.swift; sourceTree = "<group>"; };
 		BB0000000000000000004F01 /* iOSStarMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSStarMapView.swift; sourceTree = "<group>"; };
 		BB0000000000000000003F01 /* stars_fill.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stars_fill.json; sourceTree = "<group>"; };
+		BB0000000000000000003F02 /* bortle_map.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = bortle_map.bin; sourceTree = "<group>"; };
+		BB0000000000000000003F03 /* srtm_elevation.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = srtm_elevation.bin; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -283,6 +289,8 @@
 				AA0000000000000000002F03 /* StarGazingIndex.swift */,
 				AA0000000000000000002F21 /* TerrainProfile.swift */,
 				BB0000000000000000003F01 /* stars_fill.json */,
+				BB0000000000000000003F02 /* bortle_map.bin */,
+				BB0000000000000000003F03 /* srtm_elevation.bin */,
 				BB0000000000000000002F21 /* StarCatalog.swift */,
 				BB0000000000000000002F23 /* ConstellationData.swift */,
 				BB0000000000000000002F25 /* MeteorShowerData.swift */,
@@ -473,6 +481,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB0000000000000000003B02 /* stars_fill.json in Resources */,
+				BB0000000000000000003B04 /* bortle_map.bin in Resources */,
+				BB0000000000000000003B06 /* srtm_elevation.bin in Resources */,
 				7E100000000000000000IC01 /* NightScope.icon in Resources */,
 				824FD5CAFE4F9BD597800662 /* Assets.xcassets in Resources */,
 			);
@@ -483,6 +493,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB0000000000000000003B01 /* stars_fill.json in Resources */,
+				BB0000000000000000003B03 /* bortle_map.bin in Resources */,
+				BB0000000000000000003B05 /* srtm_elevation.bin in Resources */,
 				6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */,
 				AA0000000000000000001B05 /* Assets.xcassets in Resources */,
 			);

@@ -145,10 +145,11 @@ struct iOSLocationView: View {
             }
             .frame(width: Layout.mapButtonSize, height: Layout.mapButtonSize)
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Layout.mapButtonCornerRadius))
+        .buttonStyle(.glass)
         .padding([.trailing, .bottom], Spacing.sm)
         .disabled(sidebarViewModel.isLocating)
         .accessibilityLabel("現在地を取得")
+        .accessibilityHint("地図を現在地へ移動します")
     }
 
     // MARK: - Bottom Bar

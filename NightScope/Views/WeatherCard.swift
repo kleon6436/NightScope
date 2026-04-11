@@ -37,7 +37,7 @@ struct NightWeatherCard: View {
                 Text("データなし")
                     .font(.headline)
                     .foregroundStyle(.secondary)
-                Text("16日以内のみ")
+                Text("10日以内のみ")
                     .font(.body)
                     .foregroundStyle(.secondary)
             }

@@ -34,7 +34,9 @@ struct SidebarView: View {
                 isPresented: locationErrorAlertBinding,
                 presenting: viewModel.locationController.locationError
             ) { _ in
-                Button("OK", action: clearLocationError)
+                Button("OK") {
+                    viewModel.clearLocationError()
+                }
             } message: { error in
                 Text(error.localizedDescription)
             }
@@ -60,14 +62,10 @@ struct SidebarView: View {
             get: { viewModel.locationController.locationError != nil },
             set: { isPresented in
                 if !isPresented {
-                    clearLocationError()
+                    viewModel.clearLocationError()
                 }
             }
         )
-    }
-
-    private func clearLocationError() {
-        viewModel.clearLocationError()
     }
 
     private var mapModePickerRow: some View {
@@ -118,11 +116,15 @@ struct SidebarView: View {
     private var mapView: some View {
         MapLocationPicker(
             selectedCoordinate: viewModel.selectedCoordinate,
-            onSelect: handleMapCoordinateSelection,
+            onSelect: { coordinate in
+                viewModel.locationController.selectCoordinate(coordinate)
+            },
             syncState: mapSyncState,
             onRegionChange: handleMapRegionChanged,
             showLightPollution: shouldShowLightPollutionOverlay,
-            onCurrentLocation: handleCurrentLocationRequest,
+            onCurrentLocation: {
+                viewModel.locationController.requestCurrentLocation()
+            },
             isLocating: viewModel.isLocating,
             centerTrigger: viewModel.currentLocationCenterTrigger,
             viewingDirection: viewingDirection
@@ -142,17 +144,9 @@ struct SidebarView: View {
         viewModel.locationInputMode == .lightPollutionMap
     }
 
-    private func handleMapCoordinateSelection(_ coordinate: CLLocationCoordinate2D) {
-        viewModel.locationController.selectCoordinate(coordinate)
-    }
-
     private func handleMapRegionChanged(center: CLLocationCoordinate2D, span: MKCoordinateSpan) {
         viewModel.viewport.center = center
         viewModel.viewport.span = span
-    }
-
-    private func handleCurrentLocationRequest() {
-        viewModel.locationController.requestCurrentLocation()
     }
 
     private var selectedLocationLabel: some View {
@@ -163,11 +157,6 @@ struct SidebarView: View {
     }
 
     // MARK: - Search Helpers
-
-    /// onChange の再検索を抑制しながら検索テキストをコード側から更新する
-    private func setSearchTextProgrammatically(_ text: String) {
-        _ = viewModel.searchState.setProgrammaticText(text)
-    }
 
     private func resetSearchSelectionAndFocus() {
         viewModel.searchState.clearHighlight()
@@ -188,7 +177,7 @@ struct SidebarView: View {
     /// 候補を選択して検索状態をリセットする
     private func confirmSelection(_ item: MKMapItem) {
         viewModel.locationController.select(item)
-        setSearchTextProgrammatically(item.name ?? "")
+        viewModel.setSearchTextProgrammatically(item.name ?? "")
         resetSearchSelectionAndFocus()
     }
 
@@ -213,7 +202,7 @@ struct SidebarView: View {
 
     private func handleSearchEscape() -> KeyPress.Result {
         Task { @MainActor in
-            setSearchTextProgrammatically("")
+            viewModel.setSearchTextProgrammatically("")
             resetSearchSelectionAndFocus()
         }
         return .handled

@@ -121,6 +121,40 @@ final class ViewModelTests: XCTestCase {
         XCTAssertLessThanOrEqual(preferredAltitude, 90)
     }
 
+    func test_StarMapCanvasView_zoomedFOV_clampsAndFollowsScrollDirection() {
+        XCTAssertEqual(
+            StarMapCanvasView.zoomedFOV(currentFOV: 90, scrollDeltaY: 1, preciseScrolling: false),
+            86,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCanvasView.zoomedFOV(currentFOV: 90, scrollDeltaY: -1, preciseScrolling: true),
+            91.2,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCanvasView.zoomedFOV(currentFOV: 31, scrollDeltaY: 10, preciseScrolling: false),
+            StarMapLayout.minFOV,
+            accuracy: 0.001
+        )
+    }
+
+    func test_StarMapCanvasView_splitMilkyWayBandSegments_breaksLargeXJumps() {
+        let segments = StarMapCanvasView.splitMilkyWayBandSegments(
+            [
+                MilkyWayBandScreenPoint(x: 10, y: 100, halfH: 4, li: 0),
+                MilkyWayBandScreenPoint(x: 22, y: 104, halfH: 4, li: 5),
+                MilkyWayBandScreenPoint(x: 260, y: 108, halfH: 4, li: 10),
+                MilkyWayBandScreenPoint(x: 272, y: 112, halfH: 4, li: 15),
+            ],
+            maxXJump: 100
+        )
+
+        XCTAssertEqual(segments.count, 2)
+        XCTAssertEqual(segments[0].count, 2)
+        XCTAssertEqual(segments[1].count, 2)
+    }
+
     func test_StarMapViewModel_initialPanoramaPose_usesViewportGeometry() {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)
@@ -209,7 +243,42 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.timeSliderMinutes, sliderOffset, accuracy: 0.001)
     }
 
-    func test_StarMapViewModel_syncWithSelectedDate_usesCurrentTimeOnSelectedDate() {
+    func test_StarMapViewModel_timeSliderInteraction_commitsFinalDateOnEnd() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let baseDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 20,
+            minute: 0
+        ))!
+        viewModel.displayDate = baseDate
+
+        viewModel.beginTimeSliderInteraction()
+        viewModel.setTimeSliderMinutes(90)
+
+        XCTAssertTrue(viewModel.isTimeSliderScrubbing)
+        XCTAssertEqual(viewModel.timeSliderMinutes, 90, accuracy: 0.001)
+
+        viewModel.endTimeSliderInteraction()
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        let expectedRealMinutes = (viewModel.nightStartMinutes + 90)
+            .truncatingRemainder(dividingBy: 1_440)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 4)
+        XCTAssertEqual(components.day, 10)
+        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
+        XCTAssertFalse(viewModel.isTimeSliderScrubbing)
+    }
+
+    func test_StarMapViewModel_syncWithSelectedDate_snapsDaytimeToSelectedEvening() throws {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)
         let calendar = Calendar.current
@@ -225,6 +294,12 @@ final class ViewModelTests: XCTestCase {
         appController.selectedDate = selectedDate
         viewModel.syncWithSelectedDate(referenceDate: referenceDate)
 
+        let twilight = try XCTUnwrap(
+            MilkyWayCalculator.findCivilTwilightMinutes(
+                date: selectedDate,
+                location: appController.locationController.selectedLocation
+            )
+        )
         let components = calendar.dateComponents(
             [.year, .month, .day, .hour, .minute],
             from: viewModel.displayDate
@@ -232,9 +307,37 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 8)
         XCTAssertEqual(components.day, 12)
-        XCTAssertEqual(components.hour, 6)
+        XCTAssertEqual(components.hour, Int(twilight.eveningMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(twilight.eveningMinutes) % 60)
+        XCTAssertEqual(viewModel.timeSliderMinutes, 0, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_syncWithSelectedDate_keepsCurrentTimeDuringNight() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 21,
+            minute: 7
+        ))!
+
+        appController.selectedDate = selectedDate
+        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 12)
+        XCTAssertEqual(components.hour, 21)
         XCTAssertEqual(components.minute, 7)
-        let realMinutes = 6 * 60 + 7
+        let realMinutes = 21 * 60 + 7
         var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
         if expectedOffset < 0 { expectedOffset += 1_440 }
         expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
@@ -301,6 +404,7 @@ final class ViewModelTests: XCTestCase {
         @Published var bortleClass: Double? = nil
         var bortleClassPublisher: Published<Double?>.Publisher { $bortleClass }
         @Published var isLoading = false
+        var isLoadingPublisher: Published<Bool>.Publisher { $isLoading }
         @Published var fetchFailed = false
 
         func fetch(latitude: Double, longitude: Double) async {
@@ -470,7 +574,8 @@ final class ViewModelTests: XCTestCase {
         let dependencies = AppRootDependencies.makeDefault()
 
         XCTAssertTrue((dependencies.sidebarViewModel.locationController as AnyObject) === dependencies.appController.locationController)
-        XCTAssertTrue(dependencies.detailViewModel.appControllerRef === dependencies.appController)
+        XCTAssertTrue(dependencies.detailViewModel.weatherService === dependencies.appController.weatherService)
+        XCTAssertTrue(dependencies.detailViewModel.lightPollutionService === dependencies.appController.lightPollutionService)
     }
 
     // MARK: - LocationController

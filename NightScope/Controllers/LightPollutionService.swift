@@ -1,4 +1,5 @@
 import Foundation
+import Compression
 #if os(macOS)
 import AppKit
 #else
@@ -7,28 +8,10 @@ import UIKit
 import MapKit
 
 enum LightPollutionServiceError: Error, LocalizedError {
-    case invalidURL
-    case invalidResponse(statusCode: Int)
-    case invalidData
-    case decodingError(underlying: Error)
-    case networkFailure(underlying: Error)
     case noData
 
     var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "有効なURLが生成できませんでした。"
-        case .invalidResponse(let statusCode):
-            return "予期しないHTTPステータスコード: \(statusCode)"
-        case .invalidData:
-            return "レスポンスの形式が不正です。"
-        case .decodingError(let underlying):
-            return "デコード中にエラーが発生しました: \(underlying.localizedDescription)"
-        case .networkFailure(let underlying):
-            return "ネットワークエラー: \(underlying.localizedDescription)"
-        case .noData:
-            return "現在地の光害データが取得できませんでした。"
-        }
+        "現在地の光害データが取得できませんでした。"
     }
 }
 
@@ -37,37 +20,199 @@ protocol LightPollutionProviding: AnyObject, ObservableObject {
     var bortleClass: Double? { get }
     var bortleClassPublisher: Published<Double?>.Publisher { get }
     var isLoading: Bool { get }
+    var isLoadingPublisher: Published<Bool>.Publisher { get }
     var fetchFailed: Bool { get }
 
     func fetch(latitude: Double, longitude: Double) async
     func fetchBortle(latitude: Double, longitude: Double) async throws -> Double
 }
 
-// MARK: - Nominatim Response (fallback)
+enum LightPollutionBundleDataSource {
+    /// Map overlay と service の両方から使う共有グリッドデータ。
+    static let sharedGridData: BortleGridData? = loadBundledGridData()
 
-private struct NominatimResponse: Decodable {
-    struct Address: Decodable {
-        let city: String?
-        let town: String?
-        let village: String?
-        let hamlet: String?
-        let suburb: String?
-        let county: String?   // 郡（農村地域の指標）
+    private static func loadBundledGridData() -> BortleGridData? {
+        guard let url = Bundle.main.url(forResource: "bortle_map", withExtension: "bin"),
+              let data = try? Data(contentsOf: url, options: .mappedIfSafe)
+        else { return nil }
+        return BortleGridData(data: data)
     }
-    let address: Address?
-    /// OSM の place type（"city", "town", "village", "hamlet", "suburb" など）
-    let type: String?
 }
 
-// MARK: - Tile Image Cache Box
+struct BortleScaleConverter {
+    private enum Constants {
+        /// 自然夜空輝度 (mcd/m²)。Bortle 換算の基準値。
+        static let naturalSkyBrightnessMcdPerSqm = 0.172
+    }
 
-/// NSCache に CGImage を格納するための参照型ラッパー。
-final class CGImageBox {
-    let image: CGImage
-    init(_ image: CGImage) { self.image = image }
+    func bortleClass(for brightness: Double) -> Double {
+        let ratio = brightness / Constants.naturalSkyBrightnessMcdPerSqm
+
+        let anchors: [(Double, Double)] = [
+            (0.01, 2.0),
+            (0.03, 3.0),
+            (0.10, 4.0),
+            (0.30, 5.0),
+            (1.0,  6.0),
+            (3.0,  7.0),
+            (9.0,  8.0),
+            (27.0, 9.0)
+        ]
+
+        if ratio < 0.01 { return 1.0 }
+        if ratio >= 27.0 { return 9.0 }
+
+        for i in 0..<(anchors.count - 1) {
+            let (ratioLo, bortleLo) = anchors[i]
+            let (ratioHi, bortleHi) = anchors[i + 1]
+            if ratio >= ratioLo && ratio < ratioHi {
+                let t = log(ratio / ratioLo) / log(ratioHi / ratioLo)
+                return bortleLo + t * (bortleHi - bortleLo)
+            }
+        }
+        return 9.0
+    }
 }
 
-/// URLSession の completion handler（非 Sendable な関数型）を @unchecked Sendable でラップする。
+// MARK: - Bortle Grid Data (Falchi World Atlas 2015 バンドルデータ)
+
+/// バンドルされた光害バイナリデータを読み込む構造体。
+///
+/// バイナリフォーマット v1:
+///   - Magic:     4 bytes  = 0x42 0x4F 0x52 0x54 ("BORT")
+///   - Version:   UInt32 LE = 1
+///   - Lat cells: Int32  LE (南から北: -90 → +90)
+///   - Lon cells: Int32  LE (西から東: -180 → +180)
+///   - Data:      Float32[] LE, row-major, 人工輝度 (mcd/m² 相当)
+///
+/// バイナリフォーマット v2 (zlib 圧縮):
+///   - Magic:     4 bytes  = 0x42 0x4F 0x52 0x54 ("BORT")
+///   - Version:   UInt32 LE = 2
+///   - Lat cells: Int32  LE
+///   - Lon cells: Int32  LE
+///   - Raw size:  UInt32 LE (非圧縮データサイズ)
+///   - Data:      zlib compressed Float32[] LE
+///
+/// 生成: Tools/generate_bortle_map.py
+struct BortleGridData {
+    private let latCells: Int
+    private let lonCells: Int
+    /// Float32 配列データを保持。
+    /// v1: ファイルデータのスライスを直接保持（コピーなし）。
+    /// v2: zlib 解凍後のデータを保持。
+    private let data: Data
+
+    private static let magic: [UInt8] = [0x42, 0x4F, 0x52, 0x54]  // "BORT"
+    private static let headerSizeV1 = 16
+    private static let headerSizeV2 = 20
+
+    init?(data fileData: Data) {
+        guard fileData.count >= Self.headerSizeV1 else { return nil }
+        guard fileData[0..<4].elementsEqual(Self.magic) else { return nil }
+
+        let version = Int(fileData[4..<8].withUnsafeBytes {
+            $0.loadUnaligned(as: UInt32.self).littleEndian
+        })
+        let latCells = Int(fileData[8..<12].withUnsafeBytes {
+            $0.loadUnaligned(as: Int32.self).littleEndian
+        })
+        let lonCells = Int(fileData[12..<16].withUnsafeBytes {
+            $0.loadUnaligned(as: Int32.self).littleEndian
+        })
+        guard latCells > 0, lonCells > 0 else { return nil }
+
+        let expectedRawSize = latCells * lonCells * 4
+
+        switch version {
+        case 1:
+            guard fileData.count == Self.headerSizeV1 + expectedRawSize else { return nil }
+            self.data = fileData[Self.headerSizeV1...]
+
+        case 2:
+            guard fileData.count >= Self.headerSizeV2 else { return nil }
+            let rawSize = Int(fileData[16..<20].withUnsafeBytes {
+                $0.loadUnaligned(as: UInt32.self).littleEndian
+            })
+            guard rawSize == expectedRawSize else { return nil }
+            let compressedData = fileData[Self.headerSizeV2...]
+            guard let decompressed = Self.zlibDecompress(compressedData, expectedSize: rawSize) else {
+                return nil
+            }
+            self.data = decompressed
+
+        default:
+            return nil
+        }
+
+        self.latCells = latCells
+        self.lonCells = lonCells
+    }
+
+    /// 指定座標の人工輝度 (mcd/m²) をバイリニア補間で返す。
+    func brightness(latitude: Double, longitude: Double) -> Double {
+        // rasterio from_bounds はセル中心グリッドを生成するため 0.5 セル分引く
+        let latF = (latitude + 90.0) / 180.0 * Double(latCells) - 0.5
+        let lonF = (longitude + 180.0) / 360.0 * Double(lonCells) - 0.5
+
+        let lat0 = Int(latF.rounded(.down)).clamped(to: 0..<latCells)
+        let lon0 = Int(lonF.rounded(.down)).clamped(to: 0..<lonCells)
+        let lat1 = (lat0 + 1).clamped(to: 0..<latCells)
+        let lon1 = (lon0 + 1).clamped(to: 0..<lonCells)
+
+        let dt = latF - Double(lat0)
+        let ds = lonF - Double(lon0)
+
+        let v00 = Double(float(at: lat0 * lonCells + lon0))
+        let v01 = Double(float(at: lat0 * lonCells + lon1))
+        let v10 = Double(float(at: lat1 * lonCells + lon0))
+        let v11 = Double(float(at: lat1 * lonCells + lon1))
+
+        return (1 - dt) * (1 - ds) * v00
+             + (1 - dt) *      ds  * v01
+             +      dt  * (1 - ds) * v10
+             +      dt  *      ds  * v11
+    }
+
+    @inline(__always)
+    private func float(at index: Int) -> Float {
+        data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: index * 4, as: Float.self) }
+    }
+
+    func withStorage<Result>(_ body: (UnsafeRawBufferPointer, Int, Int) -> Result) -> Result {
+        data.withUnsafeBytes { body($0, latCells, lonCells) }
+    }
+
+    // MARK: - zlib Decompression
+
+    private static func zlibDecompress(_ compressed: Data, expectedSize: Int) -> Data? {
+        var decompressed = Data(count: expectedSize)
+        let result = compressed.withUnsafeBytes { srcPtr -> Int in
+            decompressed.withUnsafeMutableBytes { dstPtr -> Int in
+                guard let srcBase = srcPtr.baseAddress,
+                      let dstBase = dstPtr.baseAddress else { return -1 }
+                let written = compression_decode_buffer(
+                    dstBase.assumingMemoryBound(to: UInt8.self), expectedSize,
+                    srcBase.assumingMemoryBound(to: UInt8.self), compressed.count,
+                    nil, COMPRESSION_ZLIB
+                )
+                return written
+            }
+        }
+        guard result == expectedSize else { return nil }
+        return decompressed
+    }
+}
+
+private extension Int {
+    func clamped(to range: Range<Int>) -> Int {
+        Swift.max(range.lowerBound, Swift.min(self, range.upperBound - 1))
+    }
+}
+
+// MARK: - ResultBox
+
+/// completion handler（非 Sendable な関数型）を @unchecked Sendable でラップする。
+/// バックグラウンドキューから安全に呼び出すために使用する。
 final class ResultBox: @unchecked Sendable {
     private let handler: (Data?, Error?) -> Void
     init(_ handler: @escaping (Data?, Error?) -> Void) { self.handler = handler }
@@ -76,23 +221,13 @@ final class ResultBox: @unchecked Sendable {
 
 // MARK: - Tile Service
 
-/// 光害タイルの取得・キャッシュ・デコードを担うサービス層。
-/// View / Renderer からネットワーク・ディスクI/Oを分離する。
+/// 光害タイルの PNG データをメモリキャッシュで管理するサービス層。
 final class LightPollutionTileService: @unchecked Sendable {
     private enum TileConfig {
-        static let cacheDirectoryName = "LightPollutionTiles"
-        static let requestTimeout: TimeInterval = 15
-        static let maxConnectionsPerHost = 8
-        static let memoryCacheCostLimit = 100 * 1024 * 1024
-        static let cgImageCacheCostLimit = 80 * 1024 * 1024
-        static let descendantPreCropDepth = 2
-        static let maximumZoomLevel = 19
+        static let memoryCacheCostLimit = 50 * 1024 * 1024
     }
 
     static let shared = LightPollutionTileService()
-
-    private let diskCacheDir: URL
-    private let session: URLSession
 
     private let memoryCache: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()
@@ -100,248 +235,50 @@ final class LightPollutionTileService: @unchecked Sendable {
         return cache
     }()
 
-    private let cgImageCache: NSCache<NSString, CGImageBox> = {
-        let cache = NSCache<NSString, CGImageBox>()
-        cache.totalCostLimit = TileConfig.cgImageCacheCostLimit
-        return cache
-    }()
-
-    init(
-        fileManager: FileManager = .default,
-        cachesDirectory: URL? = nil,
-        session: URLSession? = nil
-    ) {
-        let cacheBase = cachesDirectory ?? fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let dir = cacheBase.appendingPathComponent(TileConfig.cacheDirectoryName, isDirectory: true)
-        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
-        self.diskCacheDir = dir
-
-        if let session {
-            self.session = session
-        } else {
-            let config = URLSessionConfiguration.default
-            config.urlCache = nil
-            config.requestCachePolicy = .reloadIgnoringLocalCacheData
-            config.httpMaximumConnectionsPerHost = TileConfig.maxConnectionsPerHost
-            config.timeoutIntervalForRequest = TileConfig.requestTimeout
-            self.session = URLSession(configuration: config)
-        }
+    func cachedTileData(for path: MKTileOverlayPath) -> Data? {
+        memoryCache.object(forKey: cacheKey(for: path)) as Data?
     }
 
-    func loadTile(path: MKTileOverlayPath, url: URL, result: @escaping (Data?, Error?) -> Void) {
-        let cacheKey = cacheKey(for: path)
-        let diskURL = diskURL(for: cacheKey)
-
-        if respondFromMemoryCache(cacheKey: cacheKey, path: path, result: result) {
-            return
-        }
-
-        if respondFromDiskCache(cacheKey: cacheKey, path: path, diskURL: diskURL, result: result) {
-            return
-        }
-
-        loadFromNetwork(path: path, cacheKey: cacheKey, diskURL: diskURL, url: url, result: result)
+    func storeTileData(_ data: Data, for path: MKTileOverlayPath) {
+        memoryCache.setObject(data as NSData, forKey: cacheKey(for: path), cost: data.count)
     }
-
-    func hasTileData(for path: MKTileOverlayPath) -> Bool {
-        memoryCache.object(forKey: cacheKey(for: path)) != nil
-    }
-
-    func cachedImage(for path: MKTileOverlayPath) -> CGImage? {
-        cgImageCache.object(forKey: cacheKey(for: path))?.image
-    }
-
-    func decodeImageFromMemoryIfNeeded(for path: MKTileOverlayPath) -> CGImage? {
-        let key = cacheKey(for: path)
-        if let image = cgImageCache.object(forKey: key)?.image {
-            return image
-        }
-        guard let data = memoryCache.object(forKey: key) as Data?,
-              let image = Self.cgImage(from: data)
-        else {
-            return nil
-        }
-        cgImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
-        return image
-    }
-
-    func cacheCroppedImage(_ image: CGImage, for path: MKTileOverlayPath) {
-        let key = cacheKey(for: path)
-        cgImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
-    }
-
-    static func cgImageCost(_ image: CGImage) -> Int { image.width * image.height * 4 }
 
     private func cacheKey(for path: MKTileOverlayPath) -> NSString {
         "\(path.z)_\(path.x)_\(path.y)" as NSString
-    }
-
-    private func diskURL(for cacheKey: NSString) -> URL {
-        diskCacheDir.appendingPathComponent("\(cacheKey).png")
-    }
-
-    private func respondFromMemoryCache(
-        cacheKey: NSString,
-        path: MKTileOverlayPath,
-        result: @escaping (Data?, Error?) -> Void
-    ) -> Bool {
-        guard let cached = memoryCache.object(forKey: cacheKey) else {
-            return false
-        }
-
-        if cgImageCache.object(forKey: cacheKey) == nil {
-            let data = cached as Data
-            let key = cacheKey as String
-            Task.detached(priority: .utility) { [weak self] in
-                guard let self else { return }
-                if let image = self.decodeAndCache(data: data, forKey: key as NSString) {
-                    self.scheduleDescendantPreCrop(from: image, path: path)
-                }
-            }
-        }
-
-        result(cached as Data, nil)
-        return true
-    }
-
-    private func respondFromDiskCache(
-        cacheKey: NSString,
-        path: MKTileOverlayPath,
-        diskURL: URL,
-        result: @escaping (Data?, Error?) -> Void
-    ) -> Bool {
-        guard let diskData = try? Data(contentsOf: diskURL, options: .mappedIfSafe) else {
-            return false
-        }
-
-        memoryCache.setObject(diskData as NSData, forKey: cacheKey, cost: diskData.count)
-        let image = decodeAndCache(data: diskData, forKey: cacheKey)
-        result(diskData, nil)
-
-        if let image {
-            scheduleDescendantPreCrop(from: image, path: path)
-        }
-
-        return true
-    }
-
-    private func loadFromNetwork(
-        path: MKTileOverlayPath,
-        cacheKey: NSString,
-        diskURL: URL,
-        url: URL,
-        result: @escaping (Data?, Error?) -> Void
-    ) {
-        let request = URLRequest(url: url, timeoutInterval: TileConfig.requestTimeout)
-        let key = cacheKey as String
-        // result と key を @Sendable クロージャに渡すため nonisolated な型に変換
-        let resultBox = ResultBox(result)
-        session.dataTask(with: request) { [weak self] data, response, error in
-            guard let self else { return }
-            let nsKey = key as NSString
-            guard let data, let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                resultBox.call(data, error)
-                return
-            }
-
-            self.memoryCache.setObject(data as NSData, forKey: nsKey, cost: data.count)
-            let image = self.decodeAndCache(data: data, forKey: nsKey)
-            try? data.write(to: diskURL, options: .atomic)
-            resultBox.call(data, nil)
-
-            if let image {
-                self.scheduleDescendantPreCrop(from: image, path: path)
-            }
-        }.resume()
-    }
-
-    private func decodeAndCache(data: Data, forKey key: NSString) -> CGImage? {
-        guard let cgImage = Self.cgImage(from: data) else { return nil }
-        cgImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: Self.cgImageCost(cgImage))
-        return cgImage
-    }
-
-    private static func cgImage(from data: Data) -> CGImage? {
-        #if os(macOS)
-        guard let nsImage = NSImage(data: data) else { return nil }
-        return nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
-        #else
-        return UIImage(data: data)?.cgImage
-        #endif
-    }
-
-    private func preCropDescendants(from cgImage: CGImage, path: MKTileOverlayPath) {
-        for dz in 1...TileConfig.descendantPreCropDepth {
-            let childZ = path.z + dz
-            guard childZ <= TileConfig.maximumZoomLevel else { break }
-            let scale = 1 << dz
-            let baseX = path.x * scale
-            let baseY = path.y * scale
-            let divisions = CGFloat(scale)
-            let tileW = CGFloat(cgImage.width) / divisions
-            let tileH = CGFloat(cgImage.height) / divisions
-
-            for dy in 0..<scale {
-                for dx in 0..<scale {
-                    let childPath = MKTileOverlayPath(x: baseX + dx, y: baseY + dy, z: childZ, contentScaleFactor: 1)
-                    let srcRect = CGRect(
-                        x: CGFloat(dx) * tileW,
-                        y: CGFloat(dy) * tileH,
-                        width: tileW,
-                        height: tileH
-                    )
-                    if let cropped = cgImage.cropping(to: srcRect) {
-                        cacheCroppedImage(cropped, for: childPath)
-                    }
-                }
-            }
-        }
-    }
-
-    private func scheduleDescendantPreCrop(from image: CGImage, path: MKTileOverlayPath) {
-        Task.detached(priority: .utility) { [weak self] in
-            self?.preCropDescendants(from: image, path: path)
-        }
     }
 }
 
 // MARK: - Service
 
-/// lightpollutionmap.info の World Atlas 2015 データから Bortle 値（連続 Double）を取得するサービス。
+/// Falchi World Atlas 2015 バンドルデータから Bortle 値（連続 Double）を取得するサービス。
 ///
-/// 主戦略: lightpollutionmap.info/api/queryraster (wa_2015 レイヤー)
-///   - 座標: lon,lat 形式
-///   - レスポンス: "{人工輝度_mcd/m²},{標高_m}"
-///   - Bortle 換算: 輝度 / 自然夜空輝度(0.172 mcd/m²) = 比率 → Bortle 値（対数補間）
-///
-/// フォールバック: OSM Nominatim 逆ジオコーディング
+/// バンドルデータが存在しない場合は fetchFailed = true、bortleClass = nil となる。
+/// バンドルデータの生成: Tools/generate_bortle_map.py (CC-BY 4.0, Falchi et al. 2016)
 @MainActor
 final class LightPollutionService: ObservableObject, LightPollutionProviding {
     private enum Constants {
         /// 同一座標とみなすキャッシュ半径（度）≈ 5 km
         static let cacheRadiusDegrees = 0.05
-        /// 自然夜空輝度 (mcd/m²)。Bortle 換算の基準値。
-        static let naturalSkyBrightnessMcdPerSqm = 0.172
-        /// qk トークン組み立て時の suffix（外部 API 固有）
-        static let qkTokenSuffix = ";isuckdicks:)"
     }
 
     @Published var bortleClass: Double?
     var bortleClassPublisher: Published<Double?>.Publisher { $bortleClass }
     @Published var isLoading = false
+    var isLoadingPublisher: Published<Bool>.Publisher { $isLoading }
     @Published var fetchFailed = false
 
     private var lastFetchedCoordinate: (lat: Double, lon: Double)?
 
-    private let session: URLSession
-    private let qkTimestampProvider: () -> Int64
+    /// バンドルデータ（アプリ起動時に一度だけロード）
+    private let gridData: BortleGridData?
+    private let scaleConverter: BortleScaleConverter
 
     init(
-        session: URLSession = .shared,
-        qkTimestampProvider: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
+        gridData: BortleGridData? = LightPollutionBundleDataSource.sharedGridData,
+        scaleConverter: BortleScaleConverter = BortleScaleConverter()
     ) {
-        self.session = session
-        self.qkTimestampProvider = qkTimestampProvider
+        self.gridData = gridData
+        self.scaleConverter = scaleConverter
     }
 
     func fetch(latitude: Double, longitude: Double) async {
@@ -361,119 +298,19 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
             bortleClass = bortle
             lastFetchedCoordinate = (latitude, longitude)
             fetchFailed = false
-            return
         } catch {
-            // 主戦略失敗: フォールバックを試行
+            bortleClass = nil
+            fetchFailed = true
+            lastFetchedCoordinate = nil
         }
-
-        do {
-            let bortle = try await fetchBortleFromNominatim(lat: latitude, lon: longitude)
-            bortleClass = bortle
-            lastFetchedCoordinate = (latitude, longitude)
-            fetchFailed = false
-            return
-        } catch {
-            // 失敗
-        }
-
-        bortleClass = nil
-        fetchFailed = true
-        lastFetchedCoordinate = nil
     }
 
     func fetchBortle(latitude: Double, longitude: Double) async throws -> Double {
-        try await fetchBortleFromLightPollutionMap(lat: latitude, lon: longitude)
-    }
-
-    // MARK: - Primary: lightpollutionmap.info
-
-    private func fetchBortleFromLightPollutionMap(lat: Double, lon: Double) async throws -> Double {
-        // qk トークン: btoa(Date.now() + Constants.qkTokenSuffix)  ← JS ソースより
-        let timestamp = qkTimestampProvider()
-        let raw = "\(timestamp)\(Constants.qkTokenSuffix)"
-        let qk = Data(raw.utf8).base64EncodedString()
-
-        // 座標順序は lon,lat（OpenLayers の慣例）
-        // wa_2015: World Atlas 2015 データ。viirs_2022 はサーバーサイドバグで使用不可。
-        let urlString = "https://www.lightpollutionmap.info/api/queryraster"
-            + "?qk=\(qk)"
-            + "&ql=wa_2015"
-            + "&qt=point"
-            + "&qd=\(lon),\(lat)"
-
-        guard let url = URL(string: urlString) else {
-            throw LightPollutionServiceError.invalidURL
+        guard let grid = gridData else {
+            throw LightPollutionServiceError.noData
         }
-
-        var request = URLRequest(url: url)
-        request.setValue("NightScope/1.0", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 10
-
-        do {
-            let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw LightPollutionServiceError.invalidResponse(statusCode: -1)
-            }
-            guard http.statusCode == 200 else {
-                throw LightPollutionServiceError.invalidResponse(statusCode: http.statusCode)
-            }
-            guard let body = String(data: data, encoding: .utf8) else {
-                throw LightPollutionServiceError.invalidData
-            }
-
-            let parts = body.split(separator: ",")
-            guard let value = parts.first, let brightness = Double(value) else {
-                throw LightPollutionServiceError.invalidData
-            }
-
-            return wa2015ToBortle(brightness)
-        } catch let error as LightPollutionServiceError {
-            throw error
-        } catch {
-            throw LightPollutionServiceError.networkFailure(underlying: error)
-        }
-    }
-
-    // MARK: - Fallback: OSM Nominatim
-
-    private func fetchBortleFromNominatim(lat: Double, lon: Double) async throws -> Double {
-        let urlString = "https://nominatim.openstreetmap.org/reverse"
-            + "?format=jsonv2"
-            + "&lat=\(lat)"
-            + "&lon=\(lon)"
-            + "&addressdetails=1"
-            + "&zoom=14"
-
-        guard let url = URL(string: urlString) else {
-            throw LightPollutionServiceError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("NightScope/1.0", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 10
-
-        do {
-            let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw LightPollutionServiceError.invalidResponse(statusCode: -1)
-            }
-            guard http.statusCode == 200 else {
-                throw LightPollutionServiceError.invalidResponse(statusCode: http.statusCode)
-            }
-
-            let decoded: NominatimResponse
-            do {
-                decoded = try JSONDecoder().decode(NominatimResponse.self, from: data)
-            } catch {
-                throw LightPollutionServiceError.decodingError(underlying: error)
-            }
-
-            return estimateBortleFromAddress(decoded)
-        } catch let error as LightPollutionServiceError {
-            throw error
-        } catch {
-            throw LightPollutionServiceError.networkFailure(underlying: error)
-        }
+        let brightness = grid.brightness(latitude: latitude, longitude: longitude)
+        return scaleConverter.bortleClass(for: brightness)
     }
 
     // MARK: - Bortle Conversion
@@ -483,87 +320,8 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     /// 変換根拠:
     ///   - 自然夜空輝度 ≈ 0.172 mcd/m²
     ///   - ratio = 人工輝度 / 自然輝度
-    ///   - Falchi 2016 論文の比率–Bortle対応表を使用（lightpollutionmap.info と同一）
-    ///
-    /// 補間方式:
-    ///   - 対数スケール: 各 Bortle クラス間は約3倍の輝度差（対数スケール）
-    ///   - クラス内: 隣接 ratio アンカーポイント間で対数補間
-    ///   - 例: ratio 3.0（Bortle 7.0）→ 6.0（Bortle 7.63）→ 9.0（Bortle 8.0）
-    private func wa2015ToBortle(_ brightness: Double) -> Double {
-        let ratio = brightness / Constants.naturalSkyBrightnessMcdPerSqm
-
-        // アンカーポイント: (ratio の下限, Bortle 値)
-        let anchors: [(Double, Double)] = [
-            (0.01, 2.0),
-            (0.03, 3.0),
-            (0.10, 4.0),
-            (0.30, 5.0),
-            (1.0, 6.0),
-            (3.0, 7.0),
-            (9.0, 8.0),
-            (27.0, 9.0)
-        ]
-
-        // ratio < 0.01 → Bortle 1
-        if ratio < 0.01 { return 1.0 }
-
-        // ratio >= 27.0 → Bortle 9
-        if ratio >= 27.0 { return 9.0 }
-
-        // 隣接アンカー (lo, hi) を見つけて対数補間
-        for i in 0..<(anchors.count - 1) {
-            let (ratioLo, bortleLo) = anchors[i]
-            let (ratioHi, bortleHi) = anchors[i + 1]
-
-            if ratio >= ratioLo && ratio < ratioHi {
-                // 対数補間: t = log(ratio / ratioLo) / log(ratioHi / ratioLo)
-                let t = log(ratio / ratioLo) / log(ratioHi / ratioLo)
-                return bortleLo + t * (bortleHi - bortleLo)
-            }
-        }
-
-        // フォールバック（到達不可通）
-        return 9.0
-    }
-
-    /// Nominatim レスポンスから Bortle を推定（フォールバック用）
-    ///
-    /// 推定根拠:
-    ///   1. type フィールド（OSM place type）: 人口規模・都市機能と強く相関
-    ///   2. address フィールド: type が取得できない場合のフォールバック
-    ///   精度はおよそ ±1.5 Bortle クラス（lightpollutionmap.info 主戦略の補完用）
-    private func estimateBortleFromAddress(_ response: NominatimResponse?) -> Double {
-        // 1. type フィールドによる一次推定（Nominatim jsonv2 で利用可能）
-        switch response?.type {
-        case "city":               return 7.5  // 都市（数万〜数百万人規模）
-        case "town":               return 5.5  // 町（1万〜10万人規模）
-        case "village":            return 3.5  // 村（数百〜数千人規模）
-        case "hamlet":             return 2.5  // 集落（数十〜数百人）
-        case "isolated_dwelling":  return 2.0  // 孤立した建物
-        case "suburb":             return 6.5  // 郊外住宅地
-        case "quarter", "neighbourhood": return 6.0  // 市内の地区
-        default: break
-        }
-
-        // 2. アドレスフィールドによる推定（フォールバック）
-        let addr = response?.address
-        let hasCity    = addr?.city    != nil
-        let hasSuburb  = addr?.suburb  != nil
-        let hasTown    = addr?.town    != nil
-        let hasVillage = addr?.village != nil
-        let hasHamlet  = addr?.hamlet  != nil
-        let hasCounty  = addr?.county  != nil
-
-        switch (hasCity, hasSuburb) {
-        case (true, true):  return 7.5  // 都市内の郊外（市街地）
-        case (false, true): return 6.5  // 郊外（suburb のみ）
-        case (true, false): return 6.0  // 都市（suburb なし）
-        default: break
-        }
-        if hasTown    { return 5.0 }  // 町
-        if hasVillage { return 3.5 }  // 村
-        if hasHamlet  { return 2.5 }  // 集落
-        if hasCounty  { return 4.0 }  // 郡（農村地域）
-        return 3.0                    // 不明（農村として推定）
+    ///   - Falchi 2016 論文の比率–Bortle対応表を使用
+    func wa2015ToBortle(_ brightness: Double) -> Double {
+        scaleConverter.bortleClass(for: brightness)
     }
 }

@@ -1,5 +1,9 @@
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+#endif
+
 // MARK: - StarMapCanvasView
 
 /// 星空マップを描画する共有ビュー (iPhone / Mac 共通)
@@ -19,6 +23,10 @@ struct StarMapCanvasView: View {
     // キーボードフォーカス
     @FocusState private var isFocused: Bool
 
+#if os(macOS)
+    @State private var scrollWheelMonitor: Any?
+#endif
+
     // MARK: Body
 
     var body: some View {
@@ -32,10 +40,7 @@ struct StarMapCanvasView: View {
                     )
                     .gesture(pinchGesture)
                     .onTapGesture(coordinateSpace: .local) { location in
-                        isFocused = true
-                        if let star = nearestStar(at: location, size: size) {
-                            onStarSelected?(star)
-                        }
+                        handleTap(at: location, size: size)
                     }
 
                 if viewModel.isGyroMode {
@@ -44,22 +49,19 @@ struct StarMapCanvasView: View {
 
                 // ピンチ中のみ視野角を表示
                 if gestureScale != 1.0 {
-                    let displayFov = StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
-                    VStack {
-                        Spacer()
-                        Text(String(format: "視野 %.0f°", displayFov))
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .padding(.bottom, 24)
-                    }
+                    pinchFOVOverlay
                 }
             }
             .onAppear {
                 syncPanoramaViewport(size)
+#if os(macOS)
+                installMacScrollWheelMonitor()
+#endif
+            }
+            .onDisappear {
+#if os(macOS)
+                removeMacScrollWheelMonitor()
+#endif
             }
             .onChange(of: size) { _, newSize in
                 syncPanoramaViewport(newSize)
@@ -68,37 +70,22 @@ struct StarMapCanvasView: View {
             .focused($isFocused)
             // MARK: Keyboard Navigation (デフォルト phases = [.down, .repeat])
             .onKeyPress(.leftArrow) {
-                var az = viewModel.viewAzimuth - StarMapLayout.directionStep
-                if az < 0 { az += 360 }
-                viewModel.viewAzimuth = az
-                return .handled
+                handleAzimuthKey(step: -StarMapLayout.directionStep)
             }
             .onKeyPress(.rightArrow) {
-                var az = viewModel.viewAzimuth + StarMapLayout.directionStep
-                az = az.truncatingRemainder(dividingBy: 360)
-                viewModel.viewAzimuth = az
-                return .handled
+                handleAzimuthKey(step: StarMapLayout.directionStep)
             }
             .onKeyPress(.upArrow) {
-                viewModel.viewAltitude = min(90, viewModel.viewAltitude + StarMapLayout.directionStep)
-                return .handled
+                handleAltitudeKey(step: StarMapLayout.directionStep, size: size)
             }
             .onKeyPress(.downArrow) {
-                viewModel.viewAltitude = max(
-                    StarMapLayout.panoramaLowerBoundAltitude(size: size, fov: effectivePanoramaFOV()),
-                    viewModel.viewAltitude - StarMapLayout.directionStep
-                )
-                return .handled
+                handleAltitudeKey(step: -StarMapLayout.directionStep, size: size)
             }
             .onKeyPress(KeyEquivalent("=")) {
-                // ズームイン (視野を狭める)
-                viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov - StarMapLayout.zoomStep)
-                return .handled
+                handleZoomKey(step: -StarMapLayout.zoomStep)
             }
             .onKeyPress(KeyEquivalent("-")) {
-                // ズームアウト (視野を広げる)
-                viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov + StarMapLayout.zoomStep)
-                return .handled
+                handleZoomKey(step: StarMapLayout.zoomStep)
             }
             .onKeyPress(KeyEquivalent("n")) {
                 viewModel.resetToNorth()
@@ -106,6 +93,46 @@ struct StarMapCanvasView: View {
             }
         }
         .background(StarMapPalette.canvasBackground)
+    }
+
+    private var pinchFOVOverlay: some View {
+        let displayFov = StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
+
+        return VStack {
+            Spacer()
+            Text(String(format: "視野 %.0f°", displayFov))
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .padding(.bottom, 24)
+        }
+    }
+
+    private func handleTap(at location: CGPoint, size: CGSize) {
+        isFocused = true
+        if let star = nearestStar(at: location, size: size) {
+            onStarSelected?(star)
+        }
+    }
+
+    private func handleAzimuthKey(step: Double) -> KeyPress.Result {
+        viewModel.viewAzimuth = (viewModel.viewAzimuth + step + 360)
+            .truncatingRemainder(dividingBy: 360)
+        return .handled
+    }
+
+    private func handleAltitudeKey(step: Double, size: CGSize) -> KeyPress.Result {
+        let lowerBound = StarMapLayout.panoramaLowerBoundAltitude(size: size, fov: effectivePanoramaFOV())
+        viewModel.viewAltitude = max(lowerBound, min(90, viewModel.viewAltitude + step))
+        return .handled
+    }
+
+    private func handleZoomKey(step: Double) -> KeyPress.Result {
+        viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov + step)
+        return .handled
     }
 
     // MARK: Canvas
@@ -146,6 +173,7 @@ struct StarMapCanvasView: View {
 
     private func drawPanoramicProjection(ctx: GraphicsContext,
                                          cx: Double, cy: Double, size: CGSize) {
+        let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
         // 水平視野: ピンチで調整可能 (30°〜150°), デフォルト 90°
         let hFOV = effectivePanoramaFOV()
         let hScale = size.width / hFOV           // pt/degree
@@ -199,24 +227,15 @@ struct StarMapCanvasView: View {
             drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                      isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                      altitude: pos.altitude)
-            if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
+            if !simplifyDuringScrub, pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                 drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
             }
         }
 
         // ---- 星座名ラベル ----
-        drawPanoramicConstellationLabels(ctx: ctx, cx: cx, horizonY: horizonY,
-                                         hScale: hScale, az0: az0)
-
-        // ---- 太陽 ----
-        if viewModel.sunAltitude > -10 {
-            let pt = panoramicPoint(alt: viewModel.sunAltitude, az: viewModel.sunAzimuth,
-                                     cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
-            if isVisible(x: pt.x, width: size.width) {
-                let opacity = viewModel.sunAltitude > 0 ? 0.9
-                              : max(0, 0.3 + viewModel.sunAltitude / 18)
-                drawSunSymbol(ctx: ctx, at: pt, radius: 12, opacity: opacity)
-            }
+        if !simplifyDuringScrub {
+            drawPanoramicConstellationLabels(ctx: ctx, cx: cx, horizonY: horizonY,
+                                             hScale: hScale, az0: az0)
         }
 
         // ---- 月 ----
@@ -263,15 +282,19 @@ struct StarMapCanvasView: View {
         }
 
         // ---- 天頂ミラーリング（天頂が画面内にあるとき）----
-        let zenithY = horizonY - 90 * hScale
-        if zenithY > -size.height * 0.5 && zenithY < size.height {
-            drawZenithMirror(ctx: ctx, cx: cx, zenithY: zenithY,
-                             horizonY: horizonY, hScale: hScale, az0: az0, size: size)
+        if !simplifyDuringScrub {
+            let zenithY = horizonY - 90 * hScale
+            if zenithY > -size.height * 0.5 && zenithY < size.height {
+                drawZenithMirror(ctx: ctx, cx: cx, zenithY: zenithY,
+                                 horizonY: horizonY, hScale: hScale, az0: az0, size: size)
+            }
         }
 
         // ---- 方位ラベル（地形より前面に）----
-        drawPanoramicCardinalLabels(ctx: ctx, cx: cx, horizonY: horizonY,
-                                     hScale: hScale, az0: az0, width: size.width)
+        if !simplifyDuringScrub {
+            drawPanoramicCardinalLabels(ctx: ctx, cx: cx, horizonY: horizonY,
+                                         hScale: hScale, az0: az0, width: size.width)
+        }
     }
 
     /// 高度・方位角 → パノラマ画面座標
@@ -286,6 +309,11 @@ struct StarMapCanvasView: View {
 
     /// 方位角の差 (-180〜+180, 折り返し考慮)
     private func angularDiff(_ az: Double, _ center: Double) -> Double {
+        Self.angularDiff(az, center)
+    }
+
+    /// 方位角の差 (-180〜+180, 折り返し考慮)
+    private static func angularDiff(_ az: Double, _ center: Double) -> Double {
         atan2(
             sin((az - center) * .pi / 180),
             cos((az - center) * .pi / 180)
@@ -458,6 +486,7 @@ struct StarMapCanvasView: View {
 
     private func drawGnomonicProjection(ctx: GraphicsContext,
                                         cx: Double, cy: Double, size: CGSize) {
+        let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
         let scale = min(size.width, size.height) / (2 * tan(45 * .pi / 180))
 
         let cAlt = viewModel.viewAltitude * .pi / 180
@@ -511,30 +540,24 @@ struct StarMapCanvasView: View {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                          altitude: pos.altitude)
-                if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
+                if !simplifyDuringScrub, pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                     drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
                 }
             }
         }
 
         // 星座名ラベル
-        for label in viewModel.constellationLabels {
-            let alt = label.alt * .pi / 180
-            let az  = label.az  * .pi / 180
-            if let pt = project(alt: alt, az: az) {
-                ctx.draw(
-                    Text(label.name)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
-                    at: pt)
-            }
-        }
-
-        // 太陽
-        if viewModel.sunAltitude > -1 {
-            let alt = viewModel.sunAltitude * .pi / 180
-            if let pt = project(alt: alt, az: viewModel.sunAzimuth * .pi / 180) {
-                drawSunSymbol(ctx: ctx, at: pt, radius: 14)
+        if !simplifyDuringScrub {
+            for label in viewModel.constellationLabels {
+                let alt = label.alt * .pi / 180
+                let az  = label.az  * .pi / 180
+                if let pt = project(alt: alt, az: az) {
+                    ctx.draw(
+                        Text(label.name)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
+                        at: pt)
+                }
             }
         }
 
@@ -696,19 +719,6 @@ struct StarMapCanvasView: View {
         }
     }
 
-    private func drawSunSymbol(ctx: GraphicsContext, at point: CGPoint,
-                                radius: Double, opacity: Double = 0.9) {
-        let rect = CGRect(x: point.x - radius, y: point.y - radius,
-                          width: radius * 2, height: radius * 2)
-        ctx.fill(Circle().path(in: rect),
-                 with: .color(Color.yellow.opacity(opacity)))
-        let glowR = radius * 2.2
-        let glowRect = CGRect(x: point.x - glowR, y: point.y - glowR,
-                              width: glowR * 2, height: glowR * 2)
-        ctx.fill(Circle().path(in: glowRect),
-                 with: .color(Color.yellow.opacity(0.08 * opacity)))
-    }
-
     private func drawMoon(ctx: GraphicsContext, at point: CGPoint, phase: Double) {
         let radius: Double = 10
         let rect = CGRect(x: point.x - radius, y: point.y - radius,
@@ -752,35 +762,32 @@ struct StarMapCanvasView: View {
     /// 描画フレームごとの天文座標変換コストがゼロ。
     private func drawMilkyWayBand(ctx: GraphicsContext, cx: Double, horizonY: Double,
                                    hScale: Double, az0: Double, size: CGSize) {
-        let cachedPoints = viewModel.milkyWayBandPoints
-        guard cachedPoints.count > 2 else { return }
-
-        struct ScreenPoint { var x, y, halfH: Double }
-        var screenPoints = [ScreenPoint]()
-        screenPoints.reserveCapacity(cachedPoints.count)
-
-        for bp in cachedPoints {
-            let px = cx + angularDiff(bp.az, az0) * hScale
-            guard px > -100 && px < size.width + 100 else { continue }
-            let py = horizonY - bp.alt * hScale
-            screenPoints.append(ScreenPoint(x: px, y: py, halfH: bp.halfH * hScale))
-        }
-
-        guard screenPoints.count > 2 else { return }
+        let segments = Self.milkyWayBandSegments(
+            cachedPoints: viewModel.milkyWayBandPoints,
+            cx: cx,
+            horizonY: horizonY,
+            hScale: hScale,
+            az0: az0,
+            size: size
+        )
+        guard !segments.isEmpty else { return }
 
         // 各スラブを個別に塗る（銀経依存の色変化）
-        for i in 0..<screenPoints.count - 1 {
-            let p0 = screenPoints[i], p1 = screenPoints[i + 1]
-            var slab = Path()
-            slab.move(to:    CGPoint(x: p0.x, y: p0.y - p0.halfH))
-            slab.addLine(to: CGPoint(x: p1.x, y: p1.y - p1.halfH))
-            slab.addLine(to: CGPoint(x: p1.x, y: p1.y + p1.halfH))
-            slab.addLine(to: CGPoint(x: p0.x, y: p0.y + p0.halfH))
-            slab.closeSubpath()
-            let lDeg = cachedPoints[i].li <= 180 ? cachedPoints[i].li : 360 - cachedPoints[i].li
-            let tCenter = 1.0 - lDeg / 180.0
-            let slabColor = Color(red: 0.50 + 0.20 * tCenter, green: 0.55, blue: 0.85 - 0.25 * tCenter)
-            ctx.fill(slab, with: .color(slabColor.opacity(0.10)))
+        for segment in segments {
+            guard segment.count > 1 else { continue }
+            for i in 0..<segment.count - 1 {
+                let p0 = segment[i], p1 = segment[i + 1]
+                var slab = Path()
+                slab.move(to: CGPoint(x: p0.x, y: p0.y - p0.halfH))
+                slab.addLine(to: CGPoint(x: p1.x, y: p1.y - p1.halfH))
+                slab.addLine(to: CGPoint(x: p1.x, y: p1.y + p1.halfH))
+                slab.addLine(to: CGPoint(x: p0.x, y: p0.y + p0.halfH))
+                slab.closeSubpath()
+                let lDeg = p0.li <= 180 ? p0.li : 360 - p0.li
+                let tCenter = 1.0 - lDeg / 180.0
+                let slabColor = Color(red: 0.50 + 0.20 * tCenter, green: 0.55, blue: 0.85 - 0.25 * tCenter)
+                ctx.fill(slab, with: .color(slabColor.opacity(0.10)))
+            }
         }
     }
 
@@ -897,6 +904,29 @@ struct StarMapCanvasView: View {
         StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
     }
 
+#if os(macOS)
+    private func installMacScrollWheelMonitor() {
+        guard scrollWheelMonitor == nil else { return }
+        scrollWheelMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [viewModel] event in
+            let updatedFOV = Self.zoomedFOV(
+                currentFOV: viewModel.fov,
+                scrollDeltaY: event.scrollingDeltaY,
+                preciseScrolling: event.hasPreciseScrollingDeltas
+            )
+            if updatedFOV != viewModel.fov {
+                viewModel.fov = updatedFOV
+            }
+            return nil
+        }
+    }
+
+    private func removeMacScrollWheelMonitor() {
+        guard let scrollWheelMonitor else { return }
+        NSEvent.removeMonitor(scrollWheelMonitor)
+        self.scrollWheelMonitor = nil
+    }
+#endif
+
     private func syncPanoramaViewport(_ size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
         viewModel.updatePanoramaViewport(size: size)
@@ -928,8 +958,14 @@ struct StarMapCanvasView: View {
 
 // MARK: - New Drawing Primitives
 
-private extension StarMapCanvasView {
+struct MilkyWayBandScreenPoint: Equatable {
+    let x: Double
+    let y: Double
+    let halfH: Double
+    let li: Double
+}
 
+private extension StarMapCanvasView {
     // MARK: Sky Background
 
     func drawSkyBackground(ctx: GraphicsContext, horizonY: Double, size: CGSize) {
@@ -1074,6 +1110,82 @@ private extension StarMapCanvasView {
         ctx.stroke(ridgePath,
                    with: .color(Color(red: 0.2, green: 0.35, blue: 0.15).opacity(0.4)),
                    lineWidth: 1.5)
+    }
+}
+
+extension StarMapCanvasView {
+    static func zoomedFOV(currentFOV: Double, scrollDeltaY: Double, preciseScrolling: Bool) -> Double {
+        let sensitivity = preciseScrolling ? 1.2 : 4.0
+        return StarMapLayout.clampedFOV(currentFOV - scrollDeltaY * sensitivity)
+    }
+
+    static func milkyWayBandSegments(
+        cachedPoints: [MilkyWayBandPoint],
+        cx: Double,
+        horizonY: Double,
+        hScale: Double,
+        az0: Double,
+        size: CGSize
+    ) -> [[MilkyWayBandScreenPoint]] {
+        let maxXJump = max(size.width * 0.35, hScale * 40)
+        var visibleGroups = [[MilkyWayBandScreenPoint]]()
+        var currentGroup = [MilkyWayBandScreenPoint]()
+        currentGroup.reserveCapacity(cachedPoints.count)
+
+        for bp in cachedPoints {
+            let diff = atan2(
+                sin((bp.az - az0) * .pi / 180),
+                cos((bp.az - az0) * .pi / 180)
+            ) * 180 / .pi
+            let px = cx + diff * hScale
+            guard px > -100 && px < size.width + 100 else {
+                if !currentGroup.isEmpty {
+                    visibleGroups.append(currentGroup)
+                    currentGroup = []
+                }
+                continue
+            }
+
+            currentGroup.append(MilkyWayBandScreenPoint(
+                x: px,
+                y: horizonY - bp.alt * hScale,
+                halfH: bp.halfH * hScale,
+                li: bp.li
+            ))
+        }
+
+        if !currentGroup.isEmpty {
+            visibleGroups.append(currentGroup)
+        }
+
+        return visibleGroups.flatMap { splitMilkyWayBandSegments($0, maxXJump: maxXJump) }
+    }
+
+    static func splitMilkyWayBandSegments(
+        _ screenPoints: [MilkyWayBandScreenPoint],
+        maxXJump: Double
+    ) -> [[MilkyWayBandScreenPoint]] {
+        var segments = [[MilkyWayBandScreenPoint]]()
+        var currentSegment = [MilkyWayBandScreenPoint]()
+        var previousPoint: MilkyWayBandScreenPoint?
+
+        for point in screenPoints {
+            if let previousPoint, abs(point.x - previousPoint.x) > maxXJump {
+                if currentSegment.count > 1 {
+                    segments.append(currentSegment)
+                }
+                currentSegment = [point]
+            } else {
+                currentSegment.append(point)
+            }
+            previousPoint = point
+        }
+
+        if currentSegment.count > 1 {
+            segments.append(currentSegment)
+        }
+
+        return segments
     }
 }
 

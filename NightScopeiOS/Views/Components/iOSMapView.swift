@@ -85,7 +85,7 @@ struct iOSMapView: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let tileOverlay = overlay as? LightPollutionTileOverlay {
-                let renderer = LightPollutionTileRenderer(tileOverlay: tileOverlay)
+                let renderer = MKTileOverlayRenderer(tileOverlay: tileOverlay)
                 renderer.alpha = parent.overlayAlpha
                 return renderer
             }

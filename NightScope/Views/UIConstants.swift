@@ -61,7 +61,6 @@ enum StarMapLayout {
     static let panoramaCardinalLabelOffset: CGFloat = 12
     static let directionStep: Double = 5
     static let zoomStep: Double = 10
-    static let minutesInDay: Double = 1_439
     static let sliderIconWidth: CGFloat = 18
     static let timeLabelWidth: CGFloat = 52
     static let sheetMinWidth: CGFloat = 900
@@ -178,31 +177,39 @@ extension Animation {
 
 // MARK: - Time Formatting
 
+private enum FormatterFactory {
+    static func currentTimeZone(dateFormat: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = dateFormat
+        formatter.timeZone = .current
+        return formatter
+    }
+
+    static func currentTimeZone(dateStyle: DateFormatter.Style, timeStyle: DateFormatter.Style) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = dateStyle
+        formatter.timeStyle = timeStyle
+        formatter.timeZone = .current
+        return formatter
+    }
+
+    static func localizedDate(localeIdentifier: String, dateFormat: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: localeIdentifier)
+        formatter.dateFormat = dateFormat
+        return formatter
+    }
+}
+
 enum DateFormatters {
     /// HH:mm 形式の夜間時刻フォーマッタ
-    static let nightTime: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.timeZone = .current
-        return formatter
-    }()
+    static let nightTime = FormatterFactory.currentTimeZone(dateFormat: "HH:mm")
 
     /// カレンダー見出し（yyyy年M月）
-    static let monthTitle: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年M月"
-        formatter.timeZone = .current
-        return formatter
-    }()
+    static let monthTitle = FormatterFactory.currentTimeZone(dateFormat: "yyyy年M月")
 
     /// アクセシビリティ用の完全日付
-    static let fullDate: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        formatter.timeZone = .current
-        return formatter
-    }()
+    static let fullDate = FormatterFactory.currentTimeZone(dateStyle: .full, timeStyle: .none)
 }
 
 extension String {
@@ -260,12 +267,10 @@ struct ForecastCardPresentation {
     let night: NightSummary
     let weather: DayWeatherSummary?
 
-    private static let shortDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "M/d(E)"
-        return formatter
-    }()
+    private static let shortDateFormatter = FormatterFactory.localizedDate(
+        localeIdentifier: "ja_JP",
+        dateFormat: "M/d(E)"
+    )
 
     var shortDateLabel: String {
         Self.shortDateFormatter.string(from: night.date)
@@ -368,7 +373,7 @@ enum WindSpeedUnit: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Open-Meteo が返す km/h 値をこの単位に変換してフォーマットする
+    /// WeatherService が km/h に変換済みの風速値をこの単位に変換してフォーマットする
     func format(_ kmh: Double) -> String {
         switch self {
         case .kmh:  return String(format: "風速 %.0f km/h", kmh)
