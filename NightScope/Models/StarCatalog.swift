@@ -12,14 +12,14 @@ struct Star {
 
 // MARK: - Star Catalog
 // namedStars: 日本語名付き 121 星 (等級 ≤ 3.8)
-// fillStars:  Yale BSC5 全星 ~8,971 星 (名前なし、stars_fill.json から読み込み)
-// 合計 ~9,092 星
-// 座標は Yale Bright Star Catalogue (BSC5) J2000.0 赤道座標
+// fillStars:  25,650 星 (名前なし、mag ≤ 7.5、stars_fill.json から読み込み)
+// 合計 25,771 星
+// 座標は J2000.0 赤道座標 (赤経 deg, 赤緯 deg)
 
 enum StarCatalog {
     static let stars: [Star] = namedStars + fillStars
 
-    // MARK: - Named Stars (150 星, 日本語名付き)
+    // MARK: - Named Stars (121 星, 日本語名付き)
     private static let namedStars: [Star] = [
 
         // MARK: -1.5 ~ 0.0
@@ -156,9 +156,9 @@ enum StarCatalog {
         Star(name: "ファイ・スゲータリ",  ra: 277.893, dec: -26.987, magnitude:  3.17, colorIndex: -0.17),
     ]
 
-    // MARK: - Fill Stars (名前なし、HYG v41 全星 mag ≤ 7.5)
+    // MARK: - Fill Stars (名前なし、mag ≤ 7.5)
     // stars_fill.json から読み込み: [[ra°, dec°, 等級, ci?], ...]
-    // namedStars と重複しない約 25,650 星
+    // 25,650 星
     private static let fillStars: [Star] = {
         guard let url = Bundle.main.url(forResource: "stars_fill", withExtension: "json"),
               let data = try? Data(contentsOf: url),
