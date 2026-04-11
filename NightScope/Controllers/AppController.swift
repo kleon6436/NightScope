@@ -54,14 +54,7 @@ final class AppController: ObservableObject {
     let lightPollutionService: LightPollutionService
 
     // MARK: - Published State
-    @Published var selectedDate: Date = {
-        let saved = UserDefaults.standard.double(forKey: "selectedDate")
-        return saved > 0 ? Date(timeIntervalSince1970: saved) : Date()
-    }() {
-        didSet {
-            UserDefaults.standard.set(selectedDate.timeIntervalSince1970, forKey: "selectedDate")
-        }
-    }
+    @Published var selectedDate: Date = Date()
     @Published var nightSummary: NightSummary?
     @Published var upcomingNights: [NightSummary] = []
     @Published var starGazingIndex: StarGazingIndex?

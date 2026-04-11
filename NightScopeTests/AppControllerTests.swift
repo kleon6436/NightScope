@@ -5,6 +5,27 @@ import CoreLocation
 @MainActor
 final class AppControllerTests: XCTestCase {
 
+    func test_init_usesLaunchDateAndIgnoresPersistedSelectedDate() {
+        let key = "selectedDate"
+        let userDefaults = UserDefaults.standard
+        let originalValue = userDefaults.object(forKey: key)
+        let sentinelDate = Date(timeIntervalSince1970: 123_456_789)
+        userDefaults.set(sentinelDate.timeIntervalSince1970, forKey: key)
+        defer {
+            if let originalValue {
+                userDefaults.set(originalValue, forKey: key)
+            } else {
+                userDefaults.removeObject(forKey: key)
+            }
+        }
+
+        let appController = AppController(calculationService: MockNightCalculationService())
+
+        XCTAssertTrue(Calendar.current.isDateInToday(appController.selectedDate))
+        XCTAssertFalse(Calendar.current.isDate(appController.selectedDate, inSameDayAs: sentinelDate))
+        XCTAssertEqual(userDefaults.double(forKey: key), sentinelDate.timeIntervalSince1970)
+    }
+
     private func makeNightSummary(date: Date) -> NightSummary {
         let location = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
         let eventDate = Calendar.current.date(byAdding: .hour, value: 21, to: date) ?? date
