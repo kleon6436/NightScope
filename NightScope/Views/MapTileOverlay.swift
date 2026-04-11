@@ -203,10 +203,10 @@ final class LightPollutionTileOverlay: MKTileOverlay {
         }
 
         let pixelData = Data(bytes: pixels, count: byteCount)
-        guard let image = cgImage(from: pixelData, width: size, height: size) else {
+        guard let image = cgImage(from: pixelData, width: size, height: size),
+              let data = pngData(from: image), !data.isEmpty else {
             return nil
         }
-        let data = pngData(from: image) ?? Data()
         return RenderedLightPollutionTile(data: data, image: image)
     }
 
@@ -285,35 +285,18 @@ final class LightPollutionTileRenderer: MKTileOverlayRenderer {
     }
 
     override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
-        // alpha=0（非表示）のときは一切描画しない。super.draw() が非ゼロ alpha を要求するため。
         guard alpha > 0 else { return }
-        guard let tileService else {
-            super.draw(mapRect, zoomScale: zoomScale, in: context)
-            return
-        }
+        guard tileService != nil else { return }
+        guard let path = tilePath(for: mapRect, zoomScale: zoomScale) else { return }
 
-        guard let path = tilePath(for: mapRect, zoomScale: zoomScale) else {
-            super.draw(mapRect, zoomScale: zoomScale, in: context)
-            return
-        }
-
-        let tileLoaded = tileService.hasTileData(for: path)
-
-        if !tileLoaded {
-            // loadTile 未完了：super.draw() はタイルデータなしで alpha=0 fill を試みアサーションが発生する。
-            // フォールバック描画のみ行い、loadTile 完了後の再描画コールで super.draw() を呼ぶ。
-            drawFallback(for: path, mapRect: mapRect, in: context)
-            return
-        }
-
+        // 単一パス: 画像取得を試み、失敗時はフォールバック描画。
+        // hasTileData() と resolveCachedImage() を分離していた旧実装では
+        // NSCache エビクションによる TOCTOU 競合が発生していた。
         if let image = resolveCachedImage(for: path) {
             drawImage(image, in: mapRect, context: context)
-            return
+        } else {
+            drawFallback(for: path, mapRect: mapRect, in: context)
         }
-
-        // タイルロード済みだが画像キャッシュがまだ用意できていない場合のみフォールバック→既存描画へ戻す
-        drawFallback(for: path, mapRect: mapRect, in: context)
-        super.draw(mapRect, zoomScale: zoomScale, in: context)
     }
 
     /// mapRect + zoomScale から対応するタイルパスを算出
@@ -334,13 +317,13 @@ final class LightPollutionTileRenderer: MKTileOverlayRenderer {
     private func drawFallback(for path: MKTileOverlayPath, mapRect: MKMapRect, in context: CGContext) {
         guard let tileService else { return }
 
-        // クロップ済み画像が既にキャッシュされていれば即描画（2フレーム目以降はゼロコスト）
-        if let cached = tileService.cachedImage(for: path) {
+        // プリクロップ済み画像がフォールバックキャッシュにあれば即描画
+        if let cached = tileService.cachedFallbackImage(for: path) {
             drawImage(cached, in: mapRect, context: context)
             return
         }
 
-        // 親ズームのタイルを探してクロップ（dz=1,2 は preCropDescendants でほぼヒット）
+        // 親ズームの正確タイルを探してクロップ（dz=1,2 は preCropDescendants でほぼヒット）
         for dz in 1...FallbackConfig.maxAncestorDepth {
             guard let parentPath = parentPath(for: path, dz: dz) else { break }
             guard let parentImage = resolveCachedImage(for: parentPath) else { continue }

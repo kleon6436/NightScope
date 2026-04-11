@@ -223,26 +223,50 @@ final class CGImageBox {
 final class LightPollutionTileService: @unchecked Sendable {
     private enum TileConfig {
         static let memoryCacheCostLimit = 100 * 1024 * 1024
-        static let cgImageCacheCostLimit = 80 * 1024 * 1024
+        static let exactImageCacheCostLimit = 60 * 1024 * 1024
+        static let fallbackImageCacheCostLimit = 20 * 1024 * 1024
         static let descendantPreCropDepth = 2
-        static let maximumZoomLevel = 19
+        static let preCropMaxConcurrency = 2
     }
+
+    /// オーバーレイの maximumZ と同じ値を使用する（唯一の真実の源）
+    let maximumZoomLevel: Int
 
     static let shared = LightPollutionTileService()
 
+    /// PNG タイルデータのキャッシュ（loadTile 用）
     private let memoryCache: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()
         cache.totalCostLimit = TileConfig.memoryCacheCostLimit
         return cache
     }()
 
-    private let cgImageCache: NSCache<NSString, CGImageBox> = {
+    /// 正確にレンダリングされたタイル画像のキャッシュ（draw 用）
+    private let exactImageCache: NSCache<NSString, CGImageBox> = {
         let cache = NSCache<NSString, CGImageBox>()
-        cache.totalCostLimit = TileConfig.cgImageCacheCostLimit
+        cache.totalCostLimit = TileConfig.exactImageCacheCostLimit
         return cache
     }()
 
-    init() {}
+    /// フォールバック/投機的プリクロップ画像のキャッシュ
+    /// 正確タイルと分離し、投機的エントリによる正確タイルのエビクションを防止する。
+    private let fallbackImageCache: NSCache<NSString, CGImageBox> = {
+        let cache = NSCache<NSString, CGImageBox>()
+        cache.totalCostLimit = TileConfig.fallbackImageCacheCostLimit
+        return cache
+    }()
+
+    /// プリクロップ専用キュー（renderQueue の同時実行数制限をバイパスしないようにする）
+    private let preCropQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = TileConfig.preCropMaxConcurrency
+        queue.qualityOfService = .background
+        return queue
+    }()
+
+    init(maximumZoomLevel: Int = 12) {
+        self.maximumZoomLevel = maximumZoomLevel
+    }
 
     /// メモリキャッシュからデータを返す。なければ nil。
     func cachedTileData(for path: MKTileOverlayPath) -> Data? {
@@ -253,7 +277,7 @@ final class LightPollutionTileService: @unchecked Sendable {
     func storeTileData(_ data: Data, for path: MKTileOverlayPath) {
         let key = cacheKey(for: path)
         memoryCache.setObject(data as NSData, forKey: key, cost: data.count)
-        if let image = decodeAndCache(data: data, forKey: key) {
+        if let image = decodeAndCacheExact(data: data, forKey: key) {
             scheduleDescendantPreCrop(from: image, path: path)
         }
     }
@@ -261,7 +285,7 @@ final class LightPollutionTileService: @unchecked Sendable {
     func storeRenderedTile(_ renderedTile: RenderedLightPollutionTile, for path: MKTileOverlayPath) {
         let key = cacheKey(for: path)
         memoryCache.setObject(renderedTile.data as NSData, forKey: key, cost: renderedTile.data.count)
-        cgImageCache.setObject(
+        exactImageCache.setObject(
             CGImageBox(renderedTile.image),
             forKey: key,
             cost: Self.cgImageCost(renderedTile.image)
@@ -273,13 +297,21 @@ final class LightPollutionTileService: @unchecked Sendable {
         memoryCache.object(forKey: cacheKey(for: path)) != nil
     }
 
+    /// 正確タイル画像を返す。
     func cachedImage(for path: MKTileOverlayPath) -> CGImage? {
-        cgImageCache.object(forKey: cacheKey(for: path))?.image
+        let key = cacheKey(for: path)
+        return exactImageCache.object(forKey: key)?.image
+    }
+
+    /// フォールバック/プリクロップ画像を返す。
+    func cachedFallbackImage(for path: MKTileOverlayPath) -> CGImage? {
+        let key = cacheKey(for: path)
+        return fallbackImageCache.object(forKey: key)?.image
     }
 
     func decodeImageFromMemoryIfNeeded(for path: MKTileOverlayPath) -> CGImage? {
         let key = cacheKey(for: path)
-        if let image = cgImageCache.object(forKey: key)?.image {
+        if let image = exactImageCache.object(forKey: key)?.image {
             return image
         }
         guard let data = memoryCache.object(forKey: key) as Data?,
@@ -287,13 +319,18 @@ final class LightPollutionTileService: @unchecked Sendable {
         else {
             return nil
         }
-        cgImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
+        exactImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
         return image
     }
 
     func cacheCroppedImage(_ image: CGImage, for path: MKTileOverlayPath) {
         let key = cacheKey(for: path)
-        cgImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
+        fallbackImageCache.setObject(CGImageBox(image), forKey: key, cost: Self.cgImageCost(image))
+    }
+
+    /// プリクロップキューの保留中オペレーションをすべてキャンセルする。
+    func cancelPendingPreCrops() {
+        preCropQueue.cancelAllOperations()
     }
 
     static func cgImageCost(_ image: CGImage) -> Int { image.width * image.height * 4 }
@@ -302,9 +339,9 @@ final class LightPollutionTileService: @unchecked Sendable {
         "\(path.z)_\(path.x)_\(path.y)" as NSString
     }
 
-    private func decodeAndCache(data: Data, forKey key: NSString) -> CGImage? {
+    private func decodeAndCacheExact(data: Data, forKey key: NSString) -> CGImage? {
         guard let cgImage = Self.cgImage(from: data) else { return nil }
-        cgImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: Self.cgImageCost(cgImage))
+        exactImageCache.setObject(CGImageBox(cgImage), forKey: key, cost: Self.cgImageCost(cgImage))
         return cgImage
     }
 
@@ -320,7 +357,7 @@ final class LightPollutionTileService: @unchecked Sendable {
     private func preCropDescendants(from cgImage: CGImage, path: MKTileOverlayPath) {
         for dz in 1...TileConfig.descendantPreCropDepth {
             let childZ = path.z + dz
-            guard childZ <= TileConfig.maximumZoomLevel else { break }
+            guard childZ <= maximumZoomLevel else { break }
             let scale = 1 << dz
             let baseX = path.x * scale
             let baseY = path.y * scale
@@ -346,7 +383,7 @@ final class LightPollutionTileService: @unchecked Sendable {
     }
 
     private func scheduleDescendantPreCrop(from image: CGImage, path: MKTileOverlayPath) {
-        Task.detached(priority: .utility) { [weak self] in
+        preCropQueue.addOperation { [weak self] in
             self?.preCropDescendants(from: image, path: path)
         }
     }
