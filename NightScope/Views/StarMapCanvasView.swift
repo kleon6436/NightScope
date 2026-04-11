@@ -262,6 +262,13 @@ struct StarMapCanvasView: View {
                                   hScale: hScale, az0: az0, size: size, terrain: terrain)
         }
 
+        // ---- 天頂ミラーリング（天頂が画面内にあるとき）----
+        let zenithY = horizonY - 90 * hScale
+        if zenithY > -size.height * 0.5 && zenithY < size.height {
+            drawZenithMirror(ctx: ctx, cx: cx, zenithY: zenithY,
+                             horizonY: horizonY, hScale: hScale, az0: az0, size: size)
+        }
+
         // ---- 方位ラベル（地形より前面に）----
         drawPanoramicCardinalLabels(ctx: ctx, cx: cx, horizonY: horizonY,
                                      hScale: hScale, az0: az0, width: size.width)
@@ -346,6 +353,104 @@ struct StarMapCanvasView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.white.opacity(0.6)),
                 at: CGPoint(x: x, y: labelY))
+        }
+
+        // 天頂上方のミラー方位ラベル
+        let zenithY = horizonY - 90 * hScale
+        if zenithY > -width * 0.3 && zenithY < width {
+            let mirrorAz0 = (az0 + 180).truncatingRemainder(dividingBy: 360)
+            let mirrorLabelY = zenithY - StarMapLayout.panoramaCardinalLabelOffset
+            for (text, az) in cardinals {
+                let dAz = angularDiff(az, mirrorAz0)
+                guard abs(dAz) < 70 else { continue }
+                // X 反転: 天頂を越えると左右が入れ替わる
+                let x = cx - dAz * hScale
+                let distFromZenith = zenithY - mirrorLabelY
+                let opacity = min(0.5, distFromZenith / (15 * hScale))
+                guard opacity > 0.05 else { continue }
+                ctx.draw(
+                    Text(text)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white.opacity(opacity)),
+                    at: CGPoint(x: x, y: mirrorLabelY))
+            }
+        }
+    }
+
+    // MARK: - Zenith Mirror (天頂ミラーリング描画)
+
+    /// 天頂が画面内にあるとき、天頂ラインの上方に反対方位の天空をミラーリング描画する。
+    /// 実際に頭上を越えて見上げた時のように、反対方位の星が天頂の向こう側に自然に見える。
+    private func drawZenithMirror(ctx: GraphicsContext, cx: Double, zenithY: Double,
+                                   horizonY: Double, hScale: Double, az0: Double,
+                                   size: CGSize) {
+        let mirrorAz0 = (az0 + 180).truncatingRemainder(dividingBy: 360)
+        let fadeRange = 15.0 * hScale  // 15° のフェード範囲
+
+        // ミラー座標変換: alt/az → 天頂上方の画面座標
+        // 天頂を軸に、反対方位の天体を上方に描画
+        // alt=80° の天体は天頂から10°下、ミラー側では天頂から10°上に描画
+        func mirrorPoint(alt: Double, az: Double) -> CGPoint? {
+            let distFromZenith = 90.0 - alt  // 天頂からの角距離 (度)
+            guard distFromZenith < 60 else { return nil }  // 天頂から60°以上は描画しない
+            let dAz = angularDiff(az, mirrorAz0)
+            // X 反転: 天頂を越えると東西が入れ替わる
+            let x = cx - dAz * hScale
+            // Y: 天頂ラインから上方へ
+            let y = zenithY - distFromZenith * hScale
+            return CGPoint(x: x, y: y)
+        }
+
+        func mirrorOpacity(y: Double) -> Double {
+            let dist = zenithY - y  // 天頂からの上方距離 (pt)
+            guard dist > 0 else { return 0 }
+            return min(0.8, dist / fadeRange)
+        }
+
+        // ミラー星座線
+        var constPath = Path()
+        for line in viewModel.constellationLines {
+            guard line.startAlt > 30 || line.endAlt > 30 else { continue }
+            if let p1 = mirrorPoint(alt: max(line.startAlt, -5), az: line.startAz),
+               let p2 = mirrorPoint(alt: max(line.endAlt, -5), az: line.endAz) {
+                let op = min(mirrorOpacity(y: p1.y), mirrorOpacity(y: p2.y))
+                guard op > 0.05 else { continue }
+                constPath.move(to: p1)
+                constPath.addLine(to: p2)
+            }
+        }
+        ctx.stroke(constPath,
+                   with: .color(Color(red: 0.4, green: 0.6, blue: 0.9).opacity(0.25)),
+                   lineWidth: 1)
+
+        // ミラー恒星
+        for pos in viewModel.starPositions {
+            guard pos.altitude > 30 else { continue }
+            guard pos.star.magnitude < 5.0 else { continue }
+            if let pt = mirrorPoint(alt: pos.altitude, az: pos.azimuth) {
+                guard isVisible(x: pt.x, width: size.width) else { continue }
+                let op = mirrorOpacity(y: pt.y)
+                guard op > 0.05 else { continue }
+                let radius = max(0.6, (5 - (pos.star.magnitude + 1.5) * (4 / 4.5)) * 0.8)
+                let rect = CGRect(x: pt.x - radius, y: pt.y - radius,
+                                  width: radius * 2, height: radius * 2)
+                ctx.fill(Circle().path(in: rect),
+                         with: .color(pos.precomputedColor.opacity(op * 0.7)))
+            }
+        }
+
+        // ミラー星座名ラベル
+        for label in viewModel.constellationLabels {
+            guard label.alt > 30 else { continue }
+            if let pt = mirrorPoint(alt: label.alt, az: label.az) {
+                let op = mirrorOpacity(y: pt.y)
+                guard op > 0.05 else { continue }
+                ctx.draw(
+                    Text(label.name)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.35 * op)),
+                    at: pt)
+            }
         }
     }
 
@@ -745,7 +850,8 @@ struct StarMapCanvasView: View {
                 let rawAlt = viewModel.viewAltitude - value.translation.height / hScale
                 var commitAlt = rawAlt
                 var azFlip: Double = 0
-                if commitAlt > 90 {
+                let crossedZenith = commitAlt > 90
+                if crossedZenith {
                     commitAlt = 180 - commitAlt
                     azFlip = 180
                 }
@@ -761,8 +867,16 @@ struct StarMapCanvasView: View {
                 newAz = newAz.truncatingRemainder(dividingBy: 360)
                 if newAz < 0 { newAz += 360 }
 
-                viewModel.viewAltitude = commitAlt
-                viewModel.viewAzimuth  = newAz
+                if crossedZenith {
+                    // 天頂越え時はアニメーション付きで方位を遷移
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        viewModel.viewAltitude = commitAlt
+                        viewModel.viewAzimuth  = newAz
+                    }
+                } else {
+                    viewModel.viewAltitude = commitAlt
+                    viewModel.viewAzimuth  = newAz
+                }
             }
     }
 

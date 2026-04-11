@@ -170,7 +170,12 @@ final class ViewModelTests: XCTestCase {
 
         viewModel.displayDate = targetDate
 
-        XCTAssertEqual(viewModel.timeSliderMinutes, 1_365)
+        let realMinutes = 22 * 60 + 45
+        var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
+        if expectedOffset < 0 { expectedOffset += 1_440 }
+        expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
+
+        XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
         XCTAssertEqual(viewModel.displayTimeString, "22:45")
     }
 
@@ -187,18 +192,21 @@ final class ViewModelTests: XCTestCase {
         ))!
         viewModel.displayDate = baseDate
 
-        viewModel.setTimeSliderMinutes(330)
+        let sliderOffset = min(120.0, viewModel.nightDurationMinutes)
+        viewModel.setTimeSliderMinutes(sliderOffset)
 
         let components = calendar.dateComponents(
             [.year, .month, .day, .hour, .minute],
             from: viewModel.displayDate
         )
+        let expectedRealMinutes = (viewModel.nightStartMinutes + sliderOffset)
+            .truncatingRemainder(dividingBy: 1_440)
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 4)
         XCTAssertEqual(components.day, 10)
-        XCTAssertEqual(components.hour, 5)
-        XCTAssertEqual(components.minute, 30)
-        XCTAssertEqual(viewModel.timeSliderMinutes, 330)
+        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
+        XCTAssertEqual(viewModel.timeSliderMinutes, sliderOffset, accuracy: 0.001)
     }
 
     func test_StarMapViewModel_syncWithSelectedDate_usesCurrentTimeOnSelectedDate() {
@@ -226,7 +234,11 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(components.day, 12)
         XCTAssertEqual(components.hour, 6)
         XCTAssertEqual(components.minute, 7)
-        XCTAssertEqual(viewModel.timeSliderMinutes, 367)
+        let realMinutes = 6 * 60 + 7
+        var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
+        if expectedOffset < 0 { expectedOffset += 1_440 }
+        expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
+        XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
     }
 
     func test_StarMapViewModel_terrainCacheKey_roundsCoordinatesConsistently() {

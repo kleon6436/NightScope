@@ -105,6 +105,54 @@ enum MilkyWayCalculator {
         return (ra, dec)
     }
 
+    // MARK: - 市民薄明の計算
+
+    /// 指定日・場所の市民薄明 (太陽高度 -6°) の開始/終了時刻を分単位で返す。
+    /// 正午 (12:00) を起点に探索し、日没側 → 翌朝側の順に見つける。
+    /// 白夜・極夜などで夜がない場合は nil を返す。
+    static func findCivilTwilightMinutes(date: Date, location: CLLocationCoordinate2D)
+        -> (eveningMinutes: Double, morningMinutes: Double)? {
+        let cal = Calendar.current
+        let startOfDay = cal.startOfDay(for: date)
+        let latRad = location.latitude * .pi / 180.0
+        let cosLat = cos(latRad)
+        let sinLat = sin(latRad)
+        let threshold = -6.0  // 市民薄明
+
+        // 正午 (720分) から翌日正午 (2160分) まで1分刻みで太陽高度を評価
+        var eveningMinutes: Double?
+        var morningMinutes: Double?
+        var prevAlt: Double?
+
+        for m in 720...2160 {
+            let sampleDate = startOfDay.addingTimeInterval(Double(m) * 60)
+            let jd = julianDate(from: sampleDate)
+            let lst = localSiderealTime(jd: jd, longitude: location.longitude)
+            let sun = sunRaDec(jd: jd)
+            let (sunAlt, _) = altAzFast(ra: sun.ra, dec: sun.dec,
+                                         cosLat: cosLat, sinLat: sinLat, lst: lst)
+
+            if let prev = prevAlt {
+                if eveningMinutes == nil && prev >= threshold && sunAlt < threshold {
+                    // 太陽が閾値を下回った (夕方の薄明終了)
+                    eveningMinutes = Double(m)
+                } else if eveningMinutes != nil && morningMinutes == nil && prev < threshold && sunAlt >= threshold {
+                    // 太陽が閾値を上回った (朝方の薄明開始)
+                    morningMinutes = Double(m)
+                    break
+                }
+            }
+            prevAlt = sunAlt
+        }
+
+        guard let evening = eveningMinutes, let morning = morningMinutes else {
+            return nil  // 白夜または極夜
+        }
+        // 1440 を超えた分は翌日扱い→ mod 1440 で 0:00〜23:59 に変換
+        return (eveningMinutes: evening.truncatingRemainder(dividingBy: 1440),
+                morningMinutes: morning.truncatingRemainder(dividingBy: 1440))
+    }
+
     // 月の赤経・赤緯・位相 (簡易計算)
     static func moonRaDec(jd: Double) -> (ra: Double, dec: Double, phase: Double) {
         let d = jd - 2451545.0

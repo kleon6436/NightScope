@@ -96,12 +96,18 @@ final class StarMapViewModel: ObservableObject {
 
     @Published var displayDate: Date = Date() {
         didSet {
+            updateNightRange()
             syncTimeSliderWithDisplayDate()
             update()
         }
     }
 
     @Published private(set) var timeSliderMinutes: Double = 0
+
+    /// 夜間開始時刻 (分, 0-1439) — 市民薄明 (太陽高度 -6°) 基準
+    @Published private(set) var nightStartMinutes: Double = 1080  // デフォルト 18:00
+    /// 夜間の長さ (分)
+    @Published private(set) var nightDurationMinutes: Double = 600 // デフォルト 10時間
 
     // MARK: - View direction (full-sky planisphere rotation or gyro center)
 
@@ -141,8 +147,12 @@ final class StarMapViewModel: ObservableObject {
         // 場所が変わったら再計算
         appController.locationController.anyChangePublisher
             .receive(on: RunLoop.main)
-            .sink { [weak self] in self?.update() }
+            .sink { [weak self] in
+                self?.updateNightRange()
+                self?.update()
+            }
             .store(in: &cancellables)
+        updateNightRange()
         syncTimeSliderWithDisplayDate()
         update()
     }
@@ -461,12 +471,14 @@ final class StarMapViewModel: ObservableObject {
     }
 
     func setTimeSliderMinutes(_ minutes: Double) {
-        let clampedMinutes = max(0, min(StarMapLayout.minutesInDay, minutes.rounded()))
+        let clampedMinutes = max(0, min(nightDurationMinutes, minutes.rounded()))
         guard abs(timeSliderMinutes - clampedMinutes) > 0.5 else { return }
         timeSliderMinutes = clampedMinutes
 
-        let hour = Int(clampedMinutes) / 60
-        let minute = Int(clampedMinutes) % 60
+        // スライダーオフセットを実際の時刻 (分) に変換
+        let realMinutes = nightOffsetToRealMinutes(clampedMinutes)
+        let hour = Int(realMinutes) / 60
+        let minute = Int(realMinutes) % 60
         let calendar = Calendar.current
         if let updatedDate = calendar.date(
             bySettingHour: hour,
@@ -479,16 +491,46 @@ final class StarMapViewModel: ObservableObject {
     }
 
     var displayTimeString: String {
-        StarMapPresentation.timeString(from: timeSliderMinutes)
+        let realMinutes = nightOffsetToRealMinutes(timeSliderMinutes)
+        return StarMapPresentation.timeString(from: realMinutes)
     }
 
     private func syncTimeSliderWithDisplayDate() {
-        let minutes = Self.sliderMinutes(for: displayDate)
-        guard abs(timeSliderMinutes - minutes) > 0.5 else { return }
-        timeSliderMinutes = minutes
+        let realMinutes = Self.clockMinutes(for: displayDate)
+        let offset = realMinutesToNightOffset(realMinutes)
+        guard abs(timeSliderMinutes - offset) > 0.5 else { return }
+        timeSliderMinutes = offset
     }
 
-    private static func sliderMinutes(for date: Date) -> Double {
+    /// 夜間オフセット (0〜nightDuration) を実際の時刻 (0〜1439) に変換
+    private func nightOffsetToRealMinutes(_ offset: Double) -> Double {
+        let real = nightStartMinutes + offset
+        return real.truncatingRemainder(dividingBy: 1440)
+    }
+
+    /// 実際の時刻 (0〜1439) を夜間オフセット (0〜nightDuration) に変換
+    private func realMinutesToNightOffset(_ realMinutes: Double) -> Double {
+        var offset = realMinutes - nightStartMinutes
+        if offset < 0 { offset += 1440 }
+        return max(0, min(nightDurationMinutes, offset))
+    }
+
+    /// 夜間範囲を現在の日付・場所で再計算
+    private func updateNightRange() {
+        let location = appController.locationController.selectedLocation
+        if let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
+            date: displayDate,
+            location: location
+        ) {
+            nightStartMinutes = twilight.eveningMinutes
+            var duration = twilight.morningMinutes - twilight.eveningMinutes
+            if duration < 0 { duration += 1440 }
+            nightDurationMinutes = max(60, duration) // 最低1時間
+        }
+        // twilight が nil (白夜/極夜) の場合はデフォルト値のまま
+    }
+
+    private static func clockMinutes(for date: Date) -> Double {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.hour, .minute], from: date)
         return Double((components.hour ?? 0) * 60 + (components.minute ?? 0))

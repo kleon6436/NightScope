@@ -185,7 +185,6 @@ private struct MacStarMapSheet: View {
 
             Divider()
             statusSection
-            Divider()
             controlsSection
         }
         .frame(minWidth: StarMapLayout.sheetMinWidth, minHeight: StarMapLayout.sheetMinHeight)
@@ -227,21 +226,21 @@ private struct MacStarMapSheet: View {
                 String(format: "%@ %.0f°", StarMapPresentation.azimuthName(for: viewModel.viewAzimuth), viewModel.viewAzimuth),
                 systemImage: "location.north.circle"
             )
-            .font(.footnote)
+            .font(.body)
             .foregroundStyle(.secondary)
 
             Label(
                 String(format: "仰角 %.0f°", viewModel.viewAltitude),
                 systemImage: "arrow.up.circle"
             )
-            .font(.footnote)
+            .font(.body)
             .foregroundStyle(.secondary)
 
             Label(
                 String(format: "視野 %.0f°", viewModel.fov),
                 systemImage: "viewfinder"
             )
-            .font(.footnote)
+            .font(.body)
             .foregroundStyle(.secondary)
 
             Spacer()
@@ -251,7 +250,7 @@ private struct MacStarMapSheet: View {
                     String(format: "太陽 %.0f°", viewModel.sunAltitude),
                     systemImage: "sun.max.fill"
                 )
-                .font(.footnote)
+                .font(.body)
                 .foregroundStyle(.yellow)
             }
 
@@ -260,18 +259,18 @@ private struct MacStarMapSheet: View {
                     String(format: "月 %.0f°", viewModel.moonAltitude),
                     systemImage: "moon.fill"
                 )
-                .font(.footnote)
+                .font(.body)
                 .foregroundStyle(.white.opacity(0.8))
             }
 
             if !viewModel.meteorShowerRadiants.isEmpty {
                 let shower = viewModel.meteorShowerRadiants[0].shower
                 Label("\(shower.name) 活動中", systemImage: AppIcons.Astronomy.sparkles)
-                    .font(.footnote)
+                    .font(.body)
                     .foregroundStyle(StarMapPalette.meteorAccent.opacity(0.9))
             } else if let next = viewModel.nextMeteorShower {
                 Label("\(next.shower.name) まで\(next.daysUntilPeak)日", systemImage: AppIcons.Astronomy.sparkles)
-                    .font(.footnote)
+                    .font(.body)
                     .foregroundStyle(.secondary)
             }
         }
@@ -289,19 +288,15 @@ private struct MacStarMapSheet: View {
                 DatePicker("", selection: $viewModel.displayDate, displayedComponents: [.date])
                     .labelsHidden()
                     .datePickerStyle(.compact)
+                    .fixedSize()
 
                 Spacer()
-
-                if !viewModel.isNight {
-                    Label("昼間", systemImage: "sun.max")
-                        .font(.footnote)
-                        .foregroundStyle(.yellow)
-                }
 
                 Button("現在") {
                     viewModel.resetToNow()
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.regular)
             }
 
             HStack(spacing: Spacing.sm) {
@@ -309,7 +304,7 @@ private struct MacStarMapSheet: View {
                     .foregroundStyle(.secondary)
                     .font(.body)
 
-                Slider(value: timeSliderBinding, in: 0...StarMapLayout.minutesInDay, step: 1)
+                Slider(value: timeSliderBinding, in: 0...viewModel.nightDurationMinutes, step: 1)
                     .labelsHidden()
 
                 Text(viewModel.displayTimeString)

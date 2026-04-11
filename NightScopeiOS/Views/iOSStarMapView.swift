@@ -63,8 +63,6 @@ struct iOSStarMapView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Spacer()
-
             DatePicker(
                 "",
                 selection: $viewModel.displayDate,
@@ -73,6 +71,9 @@ struct iOSStarMapView: View {
             .labelsHidden()
             .datePickerStyle(.compact)
             .colorScheme(.dark)
+            .fixedSize()
+
+            Spacer()
 
             Button("現在") {
                 viewModel.resetToNow()
@@ -90,7 +91,7 @@ struct iOSStarMapView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Slider(value: timeSliderBinding, in: 0...StarMapLayout.minutesInDay, step: 1)
+            Slider(value: timeSliderBinding, in: 0...viewModel.nightDurationMinutes, step: 1)
                 .accessibilityLabel("時刻")
                 .tint(.accentColor)
 
@@ -99,7 +100,7 @@ struct iOSStarMapView: View {
                 .foregroundStyle(.white)
                 .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Spacing.xs)
     }
 
     private var locationLabel: some View {
@@ -107,7 +108,7 @@ struct iOSStarMapView: View {
             Image(systemName: "location.fill")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(viewModel.isNight ? "夜空を表示中" : "昼間 (太陽が地平線上)")
+            Text("夜空を表示中")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
