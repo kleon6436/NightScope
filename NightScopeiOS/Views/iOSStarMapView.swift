@@ -91,7 +91,12 @@ struct iOSStarMapView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Slider(value: timeSliderBinding, in: 0...viewModel.nightDurationMinutes, step: 1)
+            Slider(
+                value: timeSliderBinding,
+                in: 0...viewModel.nightDurationMinutes,
+                step: 1,
+                onEditingChanged: timeSliderEditingChanged
+            )
                 .accessibilityLabel("時刻")
                 .tint(.accentColor)
 
@@ -112,19 +117,13 @@ struct iOSStarMapView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            sunMoonStatusLabel
+            skyStatusLabel
         }
         .padding(.bottom, 2)
     }
 
-    private var sunMoonStatusLabel: some View {
+    private var skyStatusLabel: some View {
         HStack(spacing: 4) {
-            if viewModel.sunAltitude > 0 {
-                Label(String(format: "太陽 %.0f°", viewModel.sunAltitude),
-                      systemImage: "sun.max.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.yellow)
-            }
             if viewModel.moonAltitude > 0 {
                 Label(String(format: "月 %.0f°", viewModel.moonAltitude),
                       systemImage: "moon.fill")
@@ -205,6 +204,14 @@ struct iOSStarMapView: View {
             get: { viewModel.timeSliderMinutes },
             set: { viewModel.setTimeSliderMinutes($0) }
         )
+    }
+
+    private func timeSliderEditingChanged(_ isEditing: Bool) {
+        if isEditing {
+            viewModel.beginTimeSliderInteraction()
+        } else {
+            viewModel.endTimeSliderInteraction()
+        }
     }
 }
 

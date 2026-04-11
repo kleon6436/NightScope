@@ -78,7 +78,6 @@ final class StarMapViewModel: ObservableObject {
 
     @Published private(set) var starPositions: [StarPosition] = []
     @Published private(set) var sunAltitude: Double = 0
-    @Published private(set) var sunAzimuth: Double = 0
     @Published private(set) var moonAltitude: Double = 0
     @Published private(set) var moonAzimuth: Double = 0
     @Published private(set) var moonPhase: Double = 0      // 0=新月, 0.5=満月, 1=新月
@@ -96,13 +95,12 @@ final class StarMapViewModel: ObservableObject {
 
     @Published var displayDate: Date = Date() {
         didSet {
-            updateNightRange()
-            syncTimeSliderWithDisplayDate()
-            update()
+            handleDisplayDateChange(from: oldValue, to: displayDate)
         }
     }
 
     @Published private(set) var timeSliderMinutes: Double = 0
+    @Published private(set) var isTimeSliderScrubbing: Bool = false
 
     /// 夜間開始時刻 (分, 0-1439) — 市民薄明 (太陽高度 -6°) 基準
     @Published private(set) var nightStartMinutes: Double = 1080  // デフォルト 18:00
@@ -139,6 +137,10 @@ final class StarMapViewModel: ObservableObject {
     private let appController: AppController
     private var cancellables: Set<AnyCancellable> = []
     private var shouldApplyInitialPanoramaPose = true
+    private var lastTimeSliderCommitTime: TimeInterval = 0
+    private var pendingTimeSliderDate: Date?
+    private var timeSliderCommitTask: Task<Void, Never>?
+    private var displayDateUpdateMode: DisplayDateUpdateMode = .standard
 
     // MARK: - Init
 
@@ -160,6 +162,7 @@ final class StarMapViewModel: ObservableObject {
     deinit {
         updateTask?.cancel()
         trailingTask?.cancel()
+        timeSliderCommitTask?.cancel()
         terrainFetchTask?.cancel()
     }
 
@@ -176,13 +179,16 @@ final class StarMapViewModel: ObservableObject {
     private var trailingTask: Task<Void, Never>?
     /// 前回の計算開始タイムスタンプ (全 update() 呼び出しで共通スロットルに使用)
     private var lastPositionUpdateTime: TimeInterval = 0
-    /// 計算更新インターバル: 30fps
+    /// 通常時の計算更新インターバル: 30fps
     private static let minUpdateInterval: TimeInterval = 1.0 / 30
+    /// スライダー編集中の計算更新インターバル: 20fps
+    private static let minScrubbingUpdateInterval: TimeInterval = 1.0 / 20
+    /// スライダー編集中の日時コミット間隔: 20fps
+    private static let timeSliderCommitInterval: TimeInterval = 1.0 / 20
 
     private struct UpdateContext {
         let latitude: Double
         let longitude: Double
-        let date: Date
         let julianDate: Double
         let localSiderealTime: Double
         let activeMeteorShowers: [MeteorShower]
@@ -192,14 +198,28 @@ final class StarMapViewModel: ObservableObject {
         }
     }
 
+    private enum DisplayDateUpdateMode {
+        case standard
+        case preserveNightRangeAndSlider
+
+        var skipsNightRange: Bool {
+            self == .preserveNightRangeAndSlider
+        }
+
+        var skipsTimeSliderSync: Bool {
+            self == .preserveNightRangeAndSlider
+        }
+    }
+
     func update() {
         let now = Date.timeIntervalSinceReferenceDate
         let elapsed = now - lastPositionUpdateTime
+        let minUpdateInterval = currentMinUpdateInterval
 
-        if elapsed < Self.minUpdateInterval {
+        if elapsed < minUpdateInterval {
             // 前回から時間が短い → trailing-edge debounce でインターバル後に最終値を計算
             trailingTask?.cancel()
-            let remaining = Self.minUpdateInterval - elapsed
+            let remaining = minUpdateInterval - elapsed
             trailingTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
                 guard !Task.isCancelled else { return }
@@ -230,7 +250,6 @@ final class StarMapViewModel: ObservableObject {
                     lon: context.longitude,
                     jd: context.julianDate,
                     lst: context.localSiderealTime,
-                    date: context.date,
                     activeMeteorShowers: context.activeMeteorShowers
                 )
             }.value
@@ -248,7 +267,6 @@ final class StarMapViewModel: ObservableObject {
         return UpdateContext(
             latitude: location.latitude,
             longitude: location.longitude,
-            date: date,
             julianDate: julianDate,
             localSiderealTime: MilkyWayCalculator.localSiderealTime(
                 jd: julianDate,
@@ -269,7 +287,6 @@ final class StarMapViewModel: ObservableObject {
         currentLST = snapshot.lst
         starPositions = snapshot.starPositions
         sunAltitude = snapshot.sunAltitude
-        sunAzimuth = snapshot.sunAzimuth
         moonAltitude = snapshot.moonAltitude
         moonAzimuth = snapshot.moonAzimuth
         moonPhase = snapshot.moonPhase
@@ -292,9 +309,13 @@ final class StarMapViewModel: ObservableObject {
 
     /// バックグラウンドスレッドで安全に実行できる純粋計算。
     /// MainActor の状態を一切参照しない nonisolated な static メソッド。
-    private nonisolated static func _compute(lat: Double, lon: Double, jd: Double, lst: Double,
-                                  date: Date,
-                                  activeMeteorShowers: [MeteorShower]) -> _Snapshot {
+    private nonisolated static func _compute(
+        lat: Double,
+        lon: Double,
+        jd: Double,
+        lst: Double,
+        activeMeteorShowers: [MeteorShower]
+    ) -> _Snapshot {
         // lat の sin/cos を 1 度だけ計算して全天体で共有 (Fix 3)
         let latRad = lat * .pi / 180.0
         let cosLat = cos(latRad)
@@ -317,9 +338,9 @@ final class StarMapViewModel: ObservableObject {
 
         // 太陽
         let sun = MilkyWayCalculator.sunRaDec(jd: jd)
-        let (sunAlt, sunAz) = MilkyWayCalculator.altAzFast(ra: sun.ra, dec: sun.dec,
-                                                            cosLat: cosLat, sinLat: sinLat,
-                                                            lst: lst)
+        let (sunAlt, _) = MilkyWayCalculator.altAzFast(ra: sun.ra, dec: sun.dec,
+                                                       cosLat: cosLat, sinLat: sinLat,
+                                                       lst: lst)
 
         // 月
         let moon = MilkyWayCalculator.moonRaDec(jd: jd)
@@ -368,11 +389,11 @@ final class StarMapViewModel: ObservableObject {
         }
 
         // 天の川バンド (事前計算してキャッシュ)
-        let bandPoints = _computeMilkyWayBandPoints(cosLat: cosLat, sinLat: sinLat, lat: lat, lst: lst)
+        let bandPoints = _computeMilkyWayBandPoints(cosLat: cosLat, sinLat: sinLat, lst: lst)
 
         return _Snapshot(lat: lat, lst: lst,
                          starPositions: stars,
-                         sunAltitude: sunAlt, sunAzimuth: sunAz,
+                         sunAltitude: sunAlt,
                          moonAltitude: moonAlt, moonAzimuth: moonAz, moonPhase: moon.phase,
                          galacticCenterAltitude: gcAlt, galacticCenterAzimuth: gcAz,
                          constellationLines: constLines, constellationLabels: constLabels,
@@ -381,8 +402,11 @@ final class StarMapViewModel: ObservableObject {
     }
 
     /// 天の川バンドの alt/az/halfH を計算して返す (描画には含まない純データ)。
-    private nonisolated static func _computeMilkyWayBandPoints(cosLat: Double, sinLat: Double,
-                                                               lat _: Double, lst: Double) -> [MilkyWayBandPoint] {
+    private nonisolated static func _computeMilkyWayBandPoints(
+        cosLat: Double,
+        sinLat: Double,
+        lst: Double
+    ) -> [MilkyWayBandPoint] {
         var result = [MilkyWayBandPoint]()
         let step: Double = 5
         for li in stride(from: 0.0, through: 360.0, by: step) {
@@ -414,7 +438,6 @@ final class StarMapViewModel: ObservableObject {
         let lst: Double
         let starPositions: [StarPosition]
         let sunAltitude: Double
-        let sunAzimuth: Double
         let moonAltitude: Double
         let moonAzimuth: Double
         let moonPhase: Double
@@ -485,10 +508,15 @@ final class StarMapViewModel: ObservableObject {
         setPanoramaPose(azimuth: 0)
     }
 
-    /// 選択日付に現在の時刻を合成して、星空マップの表示日時へ反映する。
+    /// 選択日へ現在の時刻を反映し、昼間なら当日夕方側の夜へ寄せて表示日時を決める。
     func syncWithSelectedDate(referenceDate: Date = Date()) {
         let selected = appController.selectedDate
-        if let date = Self.date(byApplyingTimeOf: referenceDate, to: selected) {
+        let location = appController.locationController.selectedLocation
+        if let date = resolvedPresentationDate(
+            for: selected,
+            referenceDate: referenceDate,
+            location: location
+        ) {
             displayDate = date
         }
     }
@@ -499,8 +527,19 @@ final class StarMapViewModel: ObservableObject {
         timeSliderMinutes = clampedMinutes
 
         let realMinutes = nightOffsetToRealMinutes(clampedMinutes)
-        if let updatedDate = Self.date(bySettingClockMinutes: realMinutes, on: displayDate) {
-            displayDate = updatedDate
+        guard let updatedDate = Self.date(bySettingClockMinutes: realMinutes, on: displayDate) else {
+            return
+        }
+
+        if isTimeSliderScrubbing {
+            pendingTimeSliderDate = updatedDate
+            schedulePendingTimeSliderDateCommit()
+        } else {
+            setDisplayDate(
+                updatedDate,
+                skipNightRange: true,
+                skipTimeSliderSync: true
+            )
         }
     }
 
@@ -514,6 +553,83 @@ final class StarMapViewModel: ObservableObject {
         let offset = realMinutesToNightOffset(realMinutes)
         guard abs(timeSliderMinutes - offset) > 0.5 else { return }
         timeSliderMinutes = offset
+    }
+
+    func beginTimeSliderInteraction() {
+        guard !isTimeSliderScrubbing else { return }
+        isTimeSliderScrubbing = true
+    }
+
+    func endTimeSliderInteraction() {
+        guard isTimeSliderScrubbing else { return }
+        isTimeSliderScrubbing = false
+        timeSliderCommitTask?.cancel()
+        timeSliderCommitTask = nil
+        commitPendingTimeSliderDate()
+    }
+
+    private func schedulePendingTimeSliderDateCommit() {
+        let now = Date.timeIntervalSinceReferenceDate
+        let elapsed = now - lastTimeSliderCommitTime
+        if elapsed >= Self.timeSliderCommitInterval {
+            commitPendingTimeSliderDate()
+            return
+        }
+
+        timeSliderCommitTask?.cancel()
+        let remaining = Self.timeSliderCommitInterval - elapsed
+        timeSliderCommitTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.commitPendingTimeSliderDate()
+            }
+        }
+    }
+
+    private func commitPendingTimeSliderDate() {
+        guard let date = pendingTimeSliderDate else { return }
+        pendingTimeSliderDate = nil
+        timeSliderCommitTask?.cancel()
+        timeSliderCommitTask = nil
+        lastTimeSliderCommitTime = Date.timeIntervalSinceReferenceDate
+        setDisplayDate(
+            date,
+            skipNightRange: true,
+            skipTimeSliderSync: true
+        )
+    }
+
+    private var currentMinUpdateInterval: TimeInterval {
+        isTimeSliderScrubbing ? Self.minScrubbingUpdateInterval : Self.minUpdateInterval
+    }
+
+    private func setDisplayDate(
+        _ date: Date,
+        skipNightRange: Bool = false,
+        skipTimeSliderSync: Bool = false
+    ) {
+        displayDateUpdateMode =
+            (skipNightRange || skipTimeSliderSync) ? .preserveNightRangeAndSlider : .standard
+        displayDate = date
+    }
+
+    private func handleDisplayDateChange(from oldDate: Date, to newDate: Date) {
+        let updateMode = displayDateUpdateMode
+        displayDateUpdateMode = .standard
+
+        let shouldSkipNightRange = updateMode.skipsNightRange || Self.isSameCalendarDay(oldDate, newDate)
+        let shouldSkipTimeSliderSync = updateMode.skipsTimeSliderSync
+
+        if !shouldSkipNightRange {
+            updateNightRange()
+        }
+
+        if !shouldSkipTimeSliderSync {
+            syncTimeSliderWithDisplayDate()
+        }
+
+        update()
     }
 
     /// 夜間オフセット (0〜nightDuration) を実際の時刻 (0〜1439) に変換
@@ -556,6 +672,50 @@ final class StarMapViewModel: ObservableObject {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.hour, .minute], from: date)
         return Double((components.hour ?? 0) * 60 + (components.minute ?? 0))
+    }
+
+    private static func isSameCalendarDay(_ lhs: Date, _ rhs: Date) -> Bool {
+        Calendar.current.isDate(lhs, inSameDayAs: rhs)
+    }
+
+    private func resolvedPresentationDate(
+        for selectedDate: Date,
+        referenceDate: Date,
+        location: CLLocationCoordinate2D
+    ) -> Date? {
+        guard let candidate = Self.date(byApplyingTimeOf: referenceDate, to: selectedDate) else {
+            return nil
+        }
+
+        guard let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
+            date: selectedDate,
+            location: location
+        ) else {
+            return candidate
+        }
+
+        let candidateMinutes = Self.clockMinutes(for: candidate)
+        if Self.isWithinNightRange(
+            candidateMinutes,
+            eveningMinutes: twilight.eveningMinutes,
+            morningMinutes: twilight.morningMinutes
+        ) {
+            return candidate
+        }
+
+        return Self.date(bySettingClockMinutes: twilight.eveningMinutes, on: selectedDate)
+    }
+
+    private static func isWithinNightRange(
+        _ clockMinutes: Double,
+        eveningMinutes: Double,
+        morningMinutes: Double
+    ) -> Bool {
+        if eveningMinutes <= morningMinutes {
+            return clockMinutes >= eveningMinutes && clockMinutes < morningMinutes
+        }
+
+        return clockMinutes >= eveningMinutes || clockMinutes < morningMinutes
     }
 
     private static func date(byApplyingTimeOf referenceDate: Date, to date: Date) -> Date? {

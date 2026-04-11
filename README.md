@@ -129,7 +129,7 @@ python3 Tools/prepare_srtm.py --input-dir ~/srtm_tiles/ \
 
 ### 商用化時の確認事項
 
-- MET Norway の利用規約に変更がないことを確認してください。
+- MET Norway の利用規約に変更がないことを確認してください。今後、Apple Developer Programに参加した際には、Apple Weather Kitに置き換える予定。
 - CC BY 4.0 データソースの帰属表示がアプリ内・配布物（App Store ページ等）に含まれていることを確認してください。
 - Apple Developer Program 規約の最新版を確認してください。
 

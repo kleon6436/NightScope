@@ -157,6 +157,7 @@ struct StarMapCanvasView: View {
 
     private func drawPanoramicProjection(ctx: GraphicsContext,
                                          cx: Double, cy: Double, size: CGSize) {
+        let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
         // 水平視野: ピンチで調整可能 (30°〜150°), デフォルト 90°
         let hFOV = effectivePanoramaFOV()
         let hScale = size.width / hFOV           // pt/degree
@@ -210,24 +211,15 @@ struct StarMapCanvasView: View {
             drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                      isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                      altitude: pos.altitude)
-            if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
+            if !simplifyDuringScrub, pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                 drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
             }
         }
 
         // ---- 星座名ラベル ----
-        drawPanoramicConstellationLabels(ctx: ctx, cx: cx, horizonY: horizonY,
-                                         hScale: hScale, az0: az0)
-
-        // ---- 太陽 ----
-        if viewModel.sunAltitude > -10 {
-            let pt = panoramicPoint(alt: viewModel.sunAltitude, az: viewModel.sunAzimuth,
-                                     cx: cx, horizonY: horizonY, hScale: hScale, az0: az0)
-            if isVisible(x: pt.x, width: size.width) {
-                let opacity = viewModel.sunAltitude > 0 ? 0.9
-                              : max(0, 0.3 + viewModel.sunAltitude / 18)
-                drawSunSymbol(ctx: ctx, at: pt, radius: 12, opacity: opacity)
-            }
+        if !simplifyDuringScrub {
+            drawPanoramicConstellationLabels(ctx: ctx, cx: cx, horizonY: horizonY,
+                                             hScale: hScale, az0: az0)
         }
 
         // ---- 月 ----
@@ -274,15 +266,19 @@ struct StarMapCanvasView: View {
         }
 
         // ---- 天頂ミラーリング（天頂が画面内にあるとき）----
-        let zenithY = horizonY - 90 * hScale
-        if zenithY > -size.height * 0.5 && zenithY < size.height {
-            drawZenithMirror(ctx: ctx, cx: cx, zenithY: zenithY,
-                             horizonY: horizonY, hScale: hScale, az0: az0, size: size)
+        if !simplifyDuringScrub {
+            let zenithY = horizonY - 90 * hScale
+            if zenithY > -size.height * 0.5 && zenithY < size.height {
+                drawZenithMirror(ctx: ctx, cx: cx, zenithY: zenithY,
+                                 horizonY: horizonY, hScale: hScale, az0: az0, size: size)
+            }
         }
 
         // ---- 方位ラベル（地形より前面に）----
-        drawPanoramicCardinalLabels(ctx: ctx, cx: cx, horizonY: horizonY,
-                                     hScale: hScale, az0: az0, width: size.width)
+        if !simplifyDuringScrub {
+            drawPanoramicCardinalLabels(ctx: ctx, cx: cx, horizonY: horizonY,
+                                         hScale: hScale, az0: az0, width: size.width)
+        }
     }
 
     /// 高度・方位角 → パノラマ画面座標
@@ -469,6 +465,7 @@ struct StarMapCanvasView: View {
 
     private func drawGnomonicProjection(ctx: GraphicsContext,
                                         cx: Double, cy: Double, size: CGSize) {
+        let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
         let scale = min(size.width, size.height) / (2 * tan(45 * .pi / 180))
 
         let cAlt = viewModel.viewAltitude * .pi / 180
@@ -522,30 +519,24 @@ struct StarMapCanvasView: View {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                          altitude: pos.altitude)
-                if pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
+                if !simplifyDuringScrub, pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
                     drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
                 }
             }
         }
 
         // 星座名ラベル
-        for label in viewModel.constellationLabels {
-            let alt = label.alt * .pi / 180
-            let az  = label.az  * .pi / 180
-            if let pt = project(alt: alt, az: az) {
-                ctx.draw(
-                    Text(label.name)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
-                    at: pt)
-            }
-        }
-
-        // 太陽
-        if viewModel.sunAltitude > -1 {
-            let alt = viewModel.sunAltitude * .pi / 180
-            if let pt = project(alt: alt, az: viewModel.sunAzimuth * .pi / 180) {
-                drawSunSymbol(ctx: ctx, at: pt, radius: 14)
+        if !simplifyDuringScrub {
+            for label in viewModel.constellationLabels {
+                let alt = label.alt * .pi / 180
+                let az  = label.az  * .pi / 180
+                if let pt = project(alt: alt, az: az) {
+                    ctx.draw(
+                        Text(label.name)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
+                        at: pt)
+                }
             }
         }
 
@@ -705,19 +696,6 @@ struct StarMapCanvasView: View {
             path.addLine(to: CGPoint(x: x, y: bottomY))
             ctx.stroke(path, with: .color(gridColor), style: style)
         }
-    }
-
-    private func drawSunSymbol(ctx: GraphicsContext, at point: CGPoint,
-                                radius: Double, opacity: Double = 0.9) {
-        let rect = CGRect(x: point.x - radius, y: point.y - radius,
-                          width: radius * 2, height: radius * 2)
-        ctx.fill(Circle().path(in: rect),
-                 with: .color(Color.yellow.opacity(opacity)))
-        let glowR = radius * 2.2
-        let glowRect = CGRect(x: point.x - glowR, y: point.y - glowR,
-                              width: glowR * 2, height: glowR * 2)
-        ctx.fill(Circle().path(in: glowRect),
-                 with: .color(Color.yellow.opacity(0.08 * opacity)))
     }
 
     private func drawMoon(ctx: GraphicsContext, at point: CGPoint, phase: Double) {

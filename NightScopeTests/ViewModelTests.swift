@@ -209,7 +209,42 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.timeSliderMinutes, sliderOffset, accuracy: 0.001)
     }
 
-    func test_StarMapViewModel_syncWithSelectedDate_usesCurrentTimeOnSelectedDate() {
+    func test_StarMapViewModel_timeSliderInteraction_commitsFinalDateOnEnd() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let baseDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 20,
+            minute: 0
+        ))!
+        viewModel.displayDate = baseDate
+
+        viewModel.beginTimeSliderInteraction()
+        viewModel.setTimeSliderMinutes(90)
+
+        XCTAssertTrue(viewModel.isTimeSliderScrubbing)
+        XCTAssertEqual(viewModel.timeSliderMinutes, 90, accuracy: 0.001)
+
+        viewModel.endTimeSliderInteraction()
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        let expectedRealMinutes = (viewModel.nightStartMinutes + 90)
+            .truncatingRemainder(dividingBy: 1_440)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 4)
+        XCTAssertEqual(components.day, 10)
+        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
+        XCTAssertFalse(viewModel.isTimeSliderScrubbing)
+    }
+
+    func test_StarMapViewModel_syncWithSelectedDate_snapsDaytimeToSelectedEvening() throws {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)
         let calendar = Calendar.current
@@ -225,6 +260,12 @@ final class ViewModelTests: XCTestCase {
         appController.selectedDate = selectedDate
         viewModel.syncWithSelectedDate(referenceDate: referenceDate)
 
+        let twilight = try XCTUnwrap(
+            MilkyWayCalculator.findCivilTwilightMinutes(
+                date: selectedDate,
+                location: appController.locationController.selectedLocation
+            )
+        )
         let components = calendar.dateComponents(
             [.year, .month, .day, .hour, .minute],
             from: viewModel.displayDate
@@ -232,9 +273,37 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 8)
         XCTAssertEqual(components.day, 12)
-        XCTAssertEqual(components.hour, 6)
+        XCTAssertEqual(components.hour, Int(twilight.eveningMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(twilight.eveningMinutes) % 60)
+        XCTAssertEqual(viewModel.timeSliderMinutes, 0, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_syncWithSelectedDate_keepsCurrentTimeDuringNight() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 21,
+            minute: 7
+        ))!
+
+        appController.selectedDate = selectedDate
+        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 12)
+        XCTAssertEqual(components.hour, 21)
         XCTAssertEqual(components.minute, 7)
-        let realMinutes = 6 * 60 + 7
+        let realMinutes = 21 * 60 + 7
         var expectedOffset = Double(realMinutes) - viewModel.nightStartMinutes
         if expectedOffset < 0 { expectedOffset += 1_440 }
         expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))

@@ -245,15 +245,6 @@ private struct MacStarMapSheet: View {
 
             Spacer()
 
-            if viewModel.sunAltitude > 0 {
-                Label(
-                    String(format: "太陽 %.0f°", viewModel.sunAltitude),
-                    systemImage: "sun.max.fill"
-                )
-                .font(.body)
-                .foregroundStyle(.yellow)
-            }
-
             if viewModel.moonAltitude > 0 {
                 Label(
                     String(format: "月 %.0f°", viewModel.moonAltitude),
@@ -304,7 +295,12 @@ private struct MacStarMapSheet: View {
                     .foregroundStyle(.secondary)
                     .font(.body)
 
-                Slider(value: timeSliderBinding, in: 0...viewModel.nightDurationMinutes, step: 1)
+                Slider(
+                    value: timeSliderBinding,
+                    in: 0...viewModel.nightDurationMinutes,
+                    step: 1,
+                    onEditingChanged: timeSliderEditingChanged
+                )
                     .labelsHidden()
 
                 Text(viewModel.displayTimeString)
@@ -325,5 +321,13 @@ private struct MacStarMapSheet: View {
             get: { viewModel.timeSliderMinutes },
             set: { viewModel.setTimeSliderMinutes($0) }
         )
+    }
+
+    private func timeSliderEditingChanged(_ isEditing: Bool) {
+        if isEditing {
+            viewModel.beginTimeSliderInteraction()
+        } else {
+            viewModel.endTimeSliderInteraction()
+        }
     }
 }
