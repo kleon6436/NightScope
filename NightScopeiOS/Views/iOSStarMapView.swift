@@ -13,16 +13,19 @@ struct iOSStarMapView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
+            ZStack(alignment: .topLeading) {
                 Color.black.ignoresSafeArea()
 
-                StarMapCanvasView(viewModel: viewModel)
+                StarMapCanvasView(
+                    viewModel: viewModel,
+                    showsCardinalOverlay: false
+                )
                     .ignoresSafeArea(edges: .top)
 
+                headerSection
                 bottomControlPanel
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
-            .navigationTitle("星空マップ")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -41,10 +44,25 @@ struct iOSStarMapView: View {
         .onChange(of: viewModel.isGyroMode) { handleGyroChange() }
     }
 
+    private var headerSection: some View {
+        iOSTabHeaderView(
+            title: "星空マップ",
+            titleColor: .white,
+            subtitleColor: .white.opacity(0.75)
+        ) {
+            Text("視野と時刻を調整します")
+                .font(.caption)
+                .lineLimit(2)
+        } trailing: {
+            EmptyView()
+        }
+    }
+
     // MARK: - Bottom Control Panel
 
     private var bottomControlPanel: some View {
         VStack(spacing: Spacing.xs) {
+            cardinalLegend
             dateControlRow
             timeSliderRow
             locationLabel
@@ -58,7 +76,35 @@ struct iOSStarMapView: View {
     }
 
     private var bottomControlBottomPadding: CGFloat {
-        StarMapLayout.cardinalLabelBottomInset + Spacing.lg
+        Spacing.lg
+    }
+
+    private var cardinalLegend: some View {
+        let directions: [(Double, String)] = [
+            (0, StarMapPresentation.azimuthName(for: 0)),
+            (45, StarMapPresentation.azimuthName(for: 45)),
+            (90, StarMapPresentation.azimuthName(for: 90)),
+            (135, StarMapPresentation.azimuthName(for: 135)),
+            (180, StarMapPresentation.azimuthName(for: 180)),
+            (225, StarMapPresentation.azimuthName(for: 225)),
+            (270, StarMapPresentation.azimuthName(for: 270)),
+            (315, StarMapPresentation.azimuthName(for: 315))
+        ]
+
+        return LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs), count: 4),
+            spacing: Spacing.xs
+        ) {
+            ForEach(directions, id: \.0) { _, label in
+                Text(label)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, StarMapLayout.cardinalLabelVerticalPadding)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+            }
+        }
     }
 
     private var dateControlRow: some View {

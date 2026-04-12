@@ -45,9 +45,34 @@ struct iOSForecastView: View {
 
     var body: some View {
         NavigationStack {
-            contentByState
-            .navigationTitle("14日予報")
-            .navigationBarTitleDisplayMode(.large)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                headerSection
+                contentByState
+            }
+            .padding(.vertical, Spacing.sm)
+            .toolbarBackground(.hidden, for: .navigationBar)
+        }
+    }
+
+    private var headerSection: some View {
+        iOSTabHeaderView(
+            title: "14日予報"
+        ) {
+            VStack(alignment: .leading, spacing: Spacing.xs / 2) {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: AppIcons.Navigation.locationPin)
+                        .font(.subheadline)
+                    Text(detailViewModel.locationName.isEmpty ? "場所を選択" : detailViewModel.locationName)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                }
+
+                Text("今後14日間の夜空の見通し")
+                    .font(.subheadline)
+                    .lineLimit(1)
+            }
+        } trailing: {
+            EmptyView()
         }
     }
 

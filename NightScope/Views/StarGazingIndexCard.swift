@@ -47,14 +47,20 @@ struct StarGazingIndexCard: View {
                             ForEach(0..<5) { i in
                                 Image(systemName: i < index.starCount ? AppIcons.Astronomy.starFill : AppIcons.Astronomy.star)
                                     .foregroundStyle(i < index.starCount ? color : Color.secondary.opacity(0.4))
-                                    .font(.body)
+                                    .font(starIconFont)
                             }
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("評価: 星\(index.starCount)つ（5段階）")
                         Text(index.label)
-                            .font(.headline)
+                            .font(indexLabelFont)
                             .foregroundStyle(color)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            #if os(iOS)
+                            .minimumScaleFactor(0.85)
+                            .allowsTightening(true)
+                            #endif
                         Spacer()
                         Image(systemName: AppIcons.Controls.chevronDown)
                             .font(.caption)
@@ -115,6 +121,7 @@ struct StarGazingIndexCard: View {
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Layout.cardPadding)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .contentShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .onTapGesture {
@@ -146,6 +153,22 @@ struct StarGazingIndexCard: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
         }
+    }
+
+    private var starIconFont: Font {
+        #if os(iOS)
+        .caption
+        #else
+        .body
+        #endif
+    }
+
+    private var indexLabelFont: Font {
+        #if os(iOS)
+        .subheadline.weight(.semibold)
+        #else
+        .headline
+        #endif
     }
 }
 

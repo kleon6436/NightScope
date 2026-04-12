@@ -9,6 +9,19 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        #if os(iOS)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            headerSection
+            formContent
+        }
+        .toolbarBackground(.hidden, for: .navigationBar)
+        #else
+        formContent
+            .navigationTitle("設定")
+        #endif
+    }
+
+    private var formContent: some View {
         Form {
             Section("天気表示") {
                 Picker("風速単位", selection: $windSpeedUnit) {
@@ -85,8 +98,24 @@ struct SettingsView: View {
         .frame(width: 420, alignment: .top)
         #endif
         .padding(.vertical, Spacing.sm)
-        .navigationTitle("設定")
     }
+
+    #if os(iOS)
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text("設定")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            Text("表示やデータの設定を変更します。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.top, Spacing.sm)
+    }
+    #endif
 }
 
 private struct DataSourceStatusRow: View {

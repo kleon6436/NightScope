@@ -11,6 +11,7 @@
 		0E941BCFCB628A2CECE6A32C /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F06 /* WeatherService.swift */; };
 		12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */; };
 		BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F02 /* iOSDesignTokens.swift */; };
+		BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F10 /* iOSTabHeaderView.swift */; };
 		29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E51B35725701CA2DB51488 /* iOSMapView.swift */; };
 		2F634825E4145753F51108E9 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
 		477B2E3CB5355CA1BA5757D3 /* ViewingWindowsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F16 /* ViewingWindowsSection.swift */; };
@@ -140,6 +141,7 @@
 		6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NightScope.icon; sourceTree = "<group>"; };
 		6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSForecastView.swift; sourceTree = "<group>"; };
 		BB0000000000000000004F02 /* iOSDesignTokens.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSDesignTokens.swift; sourceTree = "<group>"; };
+		BB0000000000000000004F10 /* iOSTabHeaderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSTabHeaderView.swift; sourceTree = "<group>"; };
 		79E10951ADCBC5CEF800EE18 /* NightScopeiOSApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightScopeiOSApp.swift; sourceTree = "<group>"; };
 		7E945580091B1E2051F32062 /* NightScopeiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightScopeiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		816BFE2E87B5441281342EF9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -406,6 +408,7 @@
 			children = (
 				94893EBD94DD9539C7C86561 /* iOSNightCardRow.swift */,
 				D0E51B35725701CA2DB51488 /* iOSMapView.swift */,
+				BB0000000000000000004F10 /* iOSTabHeaderView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -542,6 +545,7 @@
 				91F8C0F8D6AA500B2E697662 /* iOSTodayView.swift in Sources */,
 				12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */,
 				C3624AC873043476C6CD9CD9 /* iOSLocationView.swift in Sources */,
+				BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */,
 				E60A49CD1BC946E763B3AAC6 /* iOSNightCardRow.swift in Sources */,
 				29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */,
 				726077AD15C19C005AB769DB /* AstroModels.swift in Sources */,

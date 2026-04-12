@@ -6,7 +6,7 @@ struct iOSTodayViewModel {
         rawLocationName.isEmpty ? "場所を選択" : rawLocationName
     }
 
-    func navigationTitle(for selectedDate: Date) -> String {
+    func headerTitle(for selectedDate: Date) -> String {
         selectedDate.formatted(.dateTime.year().month().day().weekday())
     }
 
@@ -17,12 +17,6 @@ struct iOSTodayViewModel {
     func refreshAll(using detailViewModel: DetailViewModel) async {
         await detailViewModel.refreshWeather()
         await detailViewModel.refreshLightPollution()
-    }
-
-    func triggerRefresh(using detailViewModel: DetailViewModel) {
-        Task {
-            await refreshAll(using: detailViewModel)
-        }
     }
 }
 
@@ -55,25 +49,17 @@ struct iOSTodayView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: Spacing.sm) {
-                    locationDateHeader
-                        .padding(.top, Spacing.xs)
-
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    headerSection
                     contentSection
                 }
                 .padding(.horizontal, Spacing.sm)
-                .padding(.bottom, Spacing.sm)
+                .padding(.vertical, Spacing.sm)
             }
             .refreshable {
                 await viewModel.refreshAll(using: detailViewModel)
             }
-            .navigationTitle(viewModel.navigationTitle(for: detailViewModel.selectedDate))
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    toolbarActions
-                }
-            }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .sheet(isPresented: $showCalendar) {
                 NavigationStack {
                     CalendarView(selectedDate: $detailViewModel.selectedDate)
@@ -101,32 +87,28 @@ struct iOSTodayView: View {
         }
     }
 
-    private var toolbarActions: some View {
-        HStack(spacing: Spacing.xs) {
-            Button { showCalendar = true } label: {
-                Image(systemName: "calendar")
+    private var headerSection: some View {
+        iOSTabHeaderView(
+            title: viewModel.headerTitle(for: detailViewModel.selectedDate)
+        ) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: AppIcons.Navigation.locationPin)
+                    .font(.subheadline)
+                Text(viewModel.locationText(detailViewModel.locationName))
+                    .font(.subheadline)
+                    .lineLimit(1)
             }
-            .accessibilityLabel("日付を選択")
-
+        } trailing: {
             Button {
-                viewModel.triggerRefresh(using: detailViewModel)
+                showCalendar = true
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Image(systemName: "calendar")
+                    .font(.headline)
+                    .frame(width: 36, height: 36)
             }
-            .accessibilityLabel("データを更新")
+            .buttonStyle(.glass)
+            .accessibilityLabel("日付を選択")
         }
-    }
-
-    private var locationDateHeader: some View {
-        HStack(spacing: Spacing.xs) {
-            Image(systemName: AppIcons.Navigation.locationPin)
-                .foregroundStyle(.secondary)
-                .font(.subheadline)
-            Text(viewModel.locationText(detailViewModel.locationName))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var loadingPlaceholder: some View {
@@ -134,6 +116,7 @@ struct iOSTodayView: View {
             ForEach(Array(IOSDesignTokens.Today.loadingCardHeights.enumerated()), id: \.offset) { _, height in
                 RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
                     .fill(.quaternary)
+                    .frame(maxWidth: .infinity)
                     .frame(height: height)
             }
         }
@@ -142,33 +125,27 @@ struct iOSTodayView: View {
 
     @ViewBuilder
     private func mainContent(summary: NightSummary) -> some View {
-        // ヒーロー: 星空指数カード（フル幅、目立つ配置）
-        if let index = starGazingIndex {
-            StarGazingIndexCard(
-                index: index,
-                lightPollutionViewModel: lightPollutionViewModel
-            )
-        }
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            if let index = starGazingIndex {
+                StarGazingIndexCard(
+                    index: index,
+                    lightPollutionViewModel: lightPollutionViewModel
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
-        // 2カラムグリッド: 情報カード群
-        let columns = [
-            GridItem(.flexible(), spacing: LayoutiOS.gridSpacing),
-            GridItem(.flexible(), spacing: LayoutiOS.gridSpacing)
-        ]
-        LazyVGrid(columns: columns, spacing: LayoutiOS.gridSpacing) {
             DarkTimeCard(summary: summary, weather: weather)
-                .frame(minHeight: LayoutiOS.gridCardMinHeight)
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
             NightWeatherCard(weather: weather, viewModel: weatherViewModel)
-                .frame(minHeight: LayoutiOS.gridCardMinHeight)
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
             MoonPhaseCard(summary: summary)
-                .frame(minHeight: LayoutiOS.gridCardMinHeight)
-        }
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
-        // 天の川観測ウィンドウ（フル幅）
-        ViewingWindowsSection(summary: summary)
-            .padding(.top, Spacing.xs)
+            ViewingWindowsSection(summary: summary)
+                .padding(.top, Spacing.xs)
+        }
     }
 }
 

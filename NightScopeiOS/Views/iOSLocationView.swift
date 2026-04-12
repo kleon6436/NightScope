@@ -32,6 +32,7 @@ struct iOSLocationView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
     private let viewModel: iOSLocationViewModel
     @State private var showLightPollution = false
+    @FocusState private var isSearchFocused: Bool
 
     private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
 
@@ -57,18 +58,64 @@ struct iOSLocationView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                headerSection
+                searchSection
                 searchResultsList
                 mapArea
                 bottomBar
             }
-            .navigationTitle("場所")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(
-                text: searchTextBinding,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "場所を検索..."
-            )
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.sm)
+            .toolbarBackground(.hidden, for: .navigationBar)
+        }
+    }
+
+    private var headerSection: some View {
+        iOSTabHeaderView(
+            title: "場所",
+            verticalPadding: Spacing.xs,
+            bottomPadding: Spacing.xs / 2,
+            subtitleSpacing: Spacing.xs / 2
+        ) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("検索して観測地点を選択します")
+                    .font(.subheadline)
+                    .lineLimit(1)
+            }
+        } trailing: {
+            Button {
+                viewModel.requestCurrentLocation()
+            } label: {
+                Group {
+                    if sidebarViewModel.isLocating {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "location.fill")
+                            .font(.headline)
+                    }
+                }
+                .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.glass)
+            .disabled(sidebarViewModel.isLocating)
+            .accessibilityLabel("現在地を取得")
+            .accessibilityHint("地図を現在地へ移動します")
+        }
+    }
+
+    private var searchSection: some View {
+        LocationSearchField(
+            searchText: searchTextBinding,
+            isSearching: sidebarViewModel.isSearching,
+            isSearchFocused: $isSearchFocused,
+            onClear: {
+                sidebarViewModel.setSearchTextProgrammatically("")
+            }
+        )
+        .onChange(of: sidebarViewModel.searchFocusTrigger) {
+            isSearchFocused = true
         }
     }
 
@@ -78,31 +125,63 @@ struct iOSLocationView: View {
     private var searchResultsList: some View {
         let results = sidebarViewModel.searchResults
         if !results.isEmpty {
-            List(results, id: \.self) { item in
-                searchResultRow(item)
-            }
-            .listStyle(.plain)
-            .frame(maxHeight: IOSDesignTokens.Location.searchResultsMaxHeight)
+            searchResultsCard(results)
+        } else if !sidebarViewModel.searchState.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !sidebarViewModel.isSearching {
+            ContentUnavailableView.search(text: sidebarViewModel.searchState.text)
+                .padding(.vertical, Spacing.xs)
         }
+    }
+
+    private func searchResultsCard(_ results: [MKMapItem]) -> some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(Array(results.enumerated()), id: \.offset) { index, item in
+                    searchResultRow(item)
+                    if index < results.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+        .frame(maxHeight: IOSDesignTokens.Location.searchResultsMaxHeight)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        )
     }
 
     private func searchResultRow(_ item: MKMapItem) -> some View {
         Button {
             viewModel.selectSearchResult(item)
+            isSearchFocused = false
         } label: {
-            VStack(alignment: .leading, spacing: IOSDesignTokens.Location.searchResultLineSpacing) {
-                Text(item.name ?? "")
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                if let address = item.address,
-                   let subtitle = address.shortAddress ?? address.fullAddress.nilIfEmpty {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                Image(systemName: "mappin.circle.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: IOSDesignTokens.Location.searchResultLineSpacing) {
+                    Text(item.name ?? "")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                    if let address = item.address,
+                       let subtitle = address.shortAddress ?? address.fullAddress.nilIfEmpty {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Map
@@ -126,30 +205,8 @@ struct iOSLocationView: View {
                 centerTrigger: sidebarViewModel.currentLocationCenterTrigger
             )
             .ignoresSafeArea(edges: .horizontal)
-
-            currentLocationButton
         }
-    }
-
-    private var currentLocationButton: some View {
-        Button {
-            viewModel.requestCurrentLocation()
-        } label: {
-            Group {
-                if sidebarViewModel.isLocating {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: "location.fill")
-                        .font(.system(size: Layout.mapIconSize))
-                }
-            }
-            .frame(width: Layout.mapButtonSize, height: Layout.mapButtonSize)
-        }
-        .buttonStyle(.glass)
-        .padding([.trailing, .bottom], Spacing.sm)
-        .disabled(sidebarViewModel.isLocating)
-        .accessibilityLabel("現在地を取得")
-        .accessibilityHint("地図を現在地へ移動します")
+        .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous))
     }
 
     // MARK: - Bottom Bar
@@ -168,7 +225,11 @@ struct iOSLocationView: View {
             infoRow
         }
         .padding(Spacing.sm)
-        .background(.regularMaterial)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        )
     }
 
     private var infoRow: some View {
@@ -215,6 +276,49 @@ struct iOSLocationView: View {
         if shouldUpdateSpan {
             sidebarViewModel.viewport.span = span
         }
+    }
+}
+
+private struct LocationSearchField: View {
+    @Binding var searchText: String
+    let isSearching: Bool
+    let isSearchFocused: FocusState<Bool>.Binding
+    let onClear: () -> Void
+
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            TextField("場所を検索...", text: $searchText)
+                .textFieldStyle(.plain)
+                .focused(isSearchFocused)
+                .accessibilityLabel("場所を検索")
+
+            if isSearching {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.leading, Spacing.xs)
+            } else if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button {
+                    onClear()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("検索語を消去")
+            }
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        )
     }
 }
 
