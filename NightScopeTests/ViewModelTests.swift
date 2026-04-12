@@ -142,14 +142,109 @@ final class ViewModelTests: XCTestCase {
     func test_SidebarViewModel_selectCoordinate_updatesLocationController() {
         let locationController = MockLocationController()
         let lightService = MockLightPollutionService()
-        _ = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
 
         let coord = CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0)
-        locationController.selectCoordinate(coord)
+        vm.selectCoordinate(coord)
 
         XCTAssertEqual(locationController.selectedLocation.latitude, coord.latitude)
         XCTAssertEqual(locationController.selectedLocation.longitude, coord.longitude)
         XCTAssertEqual(locationController.currentLocationCenterTrigger, 1)
+    }
+
+    func test_SidebarViewModel_setLocationInputMode_updatesOverlayStateAndSyncTrigger() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        XCTAssertEqual(vm.locationInputMode, .map)
+        XCTAssertFalse(vm.isShowingLightPollution)
+        XCTAssertEqual(vm.mapViewportSyncTrigger, 0)
+
+        vm.setLocationInputMode(.lightPollutionMap)
+
+        XCTAssertEqual(vm.locationInputMode, .lightPollutionMap)
+        XCTAssertTrue(vm.isShowingLightPollution)
+        XCTAssertEqual(vm.mapViewportSyncTrigger, 1)
+    }
+
+    func test_SidebarViewModel_setLocationInputMode_sameValue_doesNotTriggerViewportSync() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        vm.setLocationInputMode(.map)
+
+        XCTAssertEqual(vm.mapViewportSyncTrigger, 0)
+    }
+
+    func test_SidebarViewModel_selectSearchResult_fillSelectionName_keepsSelectedNameInSearchField() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let item = MKMapItem(
+            location: CLLocation(latitude: 35.3606, longitude: 138.7274),
+            address: nil
+        )
+        item.name = "富士山五合目"
+
+        vm.searchState.text = "富士山"
+        vm.selectSearchResult(item, searchTextBehavior: .fillSelectionName)
+
+        XCTAssertTrue(locationController.selectedMapItem === item)
+        XCTAssertEqual(vm.searchState.text, "富士山五合目")
+    }
+
+    func test_SidebarViewModel_selectSearchResult_clear_emptiesSearchField() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let item = MKMapItem(
+            location: CLLocation(latitude: 35.3606, longitude: 138.7274),
+            address: nil
+        )
+        item.name = "富士山五合目"
+
+        vm.searchState.text = "富士山"
+        vm.selectSearchResult(item, searchTextBehavior: .clear)
+
+        XCTAssertTrue(locationController.selectedMapItem === item)
+        XCTAssertEqual(vm.searchState.text, "")
+    }
+
+    func test_SidebarViewModel_updateViewportIfNeeded_ignoresSmallRegionChanges() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let initialCenter = CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0)
+        let initialSpan = MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+        vm.viewport.center = initialCenter
+        vm.viewport.span = initialSpan
+
+        vm.updateViewportIfNeeded(
+            center: CLLocationCoordinate2D(latitude: 35.00001, longitude: 139.00001),
+            span: MKCoordinateSpan(latitudeDelta: 0.10001, longitudeDelta: 0.10001)
+        )
+
+        XCTAssertEqual(vm.viewport.center.latitude, initialCenter.latitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.center.longitude, initialCenter.longitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.latitudeDelta, initialSpan.latitudeDelta, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.longitudeDelta, initialSpan.longitudeDelta, accuracy: 0.000001)
+    }
+
+    func test_SidebarViewModel_updateViewportIfNeeded_appliesMeaningfulRegionChanges() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let updatedCenter = CLLocationCoordinate2D(latitude: 35.1, longitude: 139.1)
+        let updatedSpan = MKCoordinateSpan(latitudeDelta: 0.3, longitudeDelta: 0.3)
+
+        vm.updateViewportIfNeeded(center: updatedCenter, span: updatedSpan)
+
+        XCTAssertEqual(vm.viewport.center.latitude, updatedCenter.latitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.center.longitude, updatedCenter.longitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.latitudeDelta, updatedSpan.latitudeDelta, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.longitudeDelta, updatedSpan.longitudeDelta, accuracy: 0.000001)
     }
 
     func test_AppRootDependencies_makeDefault_sharesControllerDependencies() {
@@ -158,6 +253,39 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue((dependencies.sidebarViewModel.locationController as AnyObject) === dependencies.appController.locationController)
         XCTAssertTrue(dependencies.detailViewModel.weatherService === dependencies.appController.weatherService)
         XCTAssertTrue(dependencies.detailViewModel.lightPollutionService === dependencies.appController.lightPollutionService)
+    }
+
+    func test_AppRootStore_keepsSharedControllerDependencies() {
+        let dependencies = AppRootDependencies.makeDefault()
+        let store = AppRootStore(dependencies: dependencies)
+
+        XCTAssertTrue((store.sidebarViewModel.locationController as AnyObject) === store.appController.locationController)
+        XCTAssertTrue(store.detailViewModel.weatherService === store.appController.weatherService)
+        XCTAssertTrue(store.detailViewModel.lightPollutionService === store.appController.lightPollutionService)
+    }
+
+    func test_AppRootStore_forwardsDetailViewModelChanges() async {
+        let dependencies = AppRootDependencies.makeDefault()
+        let store = AppRootStore(dependencies: dependencies)
+        let forwardedChange = expectation(description: "AppRootStore forwards detailViewModel changes")
+        forwardedChange.assertForOverFulfill = false
+        var hasFulfilled = false
+        var cancellable: AnyCancellable?
+
+        cancellable = store.objectWillChange.sink {
+            guard !hasFulfilled else { return }
+            hasFulfilled = true
+            forwardedChange.fulfill()
+        }
+
+        store.detailViewModel.selectedDate = Calendar.current.date(
+            byAdding: .day,
+            value: 1,
+            to: store.detailViewModel.selectedDate
+        ) ?? store.detailViewModel.selectedDate
+
+        await fulfillment(of: [forwardedChange], timeout: 1.0)
+        cancellable?.cancel()
     }
 
     // MARK: - DetailViewModel

@@ -26,13 +26,10 @@ struct SidebarView: View {
             .onAppear {
                 viewModel.handleLocationSectionAppear(selectedCoordinate: viewModel.selectedCoordinate)
             }
-            .onChange(of: viewModel.locationInputMode) {
-                viewModel.handleLocationInputModeChanged()
-            }
             .alert(
                 "位置情報エラー",
                 isPresented: locationErrorAlertBinding,
-                presenting: viewModel.locationController.locationError
+                presenting: viewModel.locationError
             ) { _ in
                 Button("OK") {
                     viewModel.clearLocationError()
@@ -72,7 +69,7 @@ struct SidebarView: View {
         SidebarLocationModePicker(
             locationInputMode: Binding(
                 get: { viewModel.locationInputMode },
-                set: { mode in Task { @MainActor in viewModel.locationInputMode = mode } }
+                set: viewModel.setLocationInputMode
             ),
             isLoadingLightPollution: viewModel.lightPollutionService.isLoading,
             bortleClass: viewModel.lightPollutionService.bortleClass
@@ -103,11 +100,7 @@ struct SidebarView: View {
                 highlightedIndex: viewModel.searchState.highlightedIndex,
                 onSelect: confirmSelection
             )
-        } else if SidebarSearchInteraction.shouldShowEmptyState(
-            searchText: viewModel.searchState.text,
-            isSearching: viewModel.isSearching,
-            hasResults: !viewModel.searchResults.isEmpty
-        ) {
+        } else if viewModel.isShowingSearchEmptyState {
             ContentUnavailableView.search(text: viewModel.searchState.text)
                 .padding(.vertical, Spacing.xs)
         }
@@ -116,15 +109,11 @@ struct SidebarView: View {
     private var mapView: some View {
         MapLocationPicker(
             selectedCoordinate: viewModel.selectedCoordinate,
-            onSelect: { coordinate in
-                viewModel.locationController.selectCoordinate(coordinate)
-            },
+            onSelect: viewModel.selectCoordinate,
             syncState: mapSyncState,
             onRegionChange: handleMapRegionChanged,
             showLightPollution: shouldShowLightPollutionOverlay,
-            onCurrentLocation: {
-                viewModel.locationController.requestCurrentLocation()
-            },
+            onCurrentLocation: viewModel.requestCurrentLocation,
             isLocating: viewModel.isLocating,
             centerTrigger: viewModel.currentLocationCenterTrigger,
             viewingDirection: viewingDirection
@@ -141,7 +130,7 @@ struct SidebarView: View {
     }
 
     private var shouldShowLightPollutionOverlay: Bool {
-        viewModel.locationInputMode == .lightPollutionMap
+        viewModel.isShowingLightPollution
     }
 
     private func handleMapRegionChanged(center: CLLocationCoordinate2D, span: MKCoordinateSpan) {
@@ -176,35 +165,28 @@ struct SidebarView: View {
 
     /// 候補を選択して検索状態をリセットする
     private func confirmSelection(_ item: MKMapItem) {
-        viewModel.locationController.select(item)
-        viewModel.setSearchTextProgrammatically(item.name ?? "")
+        viewModel.selectSearchResult(item, searchTextBehavior: .fillSelectionName)
         resetSearchSelectionAndFocus()
     }
 
     private func handleSearchDownArrow() -> KeyPress.Result {
-        Task { @MainActor in
-            viewModel.searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(
-                current: viewModel.searchState.highlightedIndex,
-                totalResults: viewModel.searchResults.count
-            )
-        }
+        viewModel.searchState.highlightedIndex = SidebarSearchInteraction.nextHighlightedIndex(
+            current: viewModel.searchState.highlightedIndex,
+            totalResults: viewModel.searchResults.count
+        )
         return .handled
     }
 
     private func handleSearchUpArrow() -> KeyPress.Result {
-        Task { @MainActor in
-            viewModel.searchState.highlightedIndex = SidebarSearchInteraction.previousHighlightedIndex(
-                current: viewModel.searchState.highlightedIndex
-            )
-        }
+        viewModel.searchState.highlightedIndex = SidebarSearchInteraction.previousHighlightedIndex(
+            current: viewModel.searchState.highlightedIndex
+        )
         return .handled
     }
 
     private func handleSearchEscape() -> KeyPress.Result {
-        Task { @MainActor in
-            viewModel.setSearchTextProgrammatically("")
-            resetSearchSelectionAndFocus()
-        }
+        viewModel.setSearchTextProgrammatically("")
+        resetSearchSelectionAndFocus()
         return .handled
     }
 
@@ -239,7 +221,7 @@ private struct SidebarSearchField: View {
             }
             .onSubmit(onSubmit)
             .onChange(of: searchText) {
-                Task { @MainActor in onSearchTextChanged() }
+                onSearchTextChanged()
             }
             .onKeyPress(.downArrow, action: onDownArrow)
             .onKeyPress(.upArrow, action: onUpArrow)

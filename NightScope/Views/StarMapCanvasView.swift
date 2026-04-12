@@ -106,19 +106,7 @@ struct StarMapCanvasView: View {
     }
 
     private var pinchFOVOverlay: some View {
-        let displayFov = StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
-
-        return VStack {
-            Spacer()
-            Text(String(format: "視野 %.0f°", displayFov))
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.7))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
-                .padding(.bottom, 24)
-        }
+        PinchFOVOverlayView(displayFov: StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale)))
     }
 
     private func handleTap(at location: CGPoint, size: CGSize) {
@@ -158,24 +146,10 @@ struct StarMapCanvasView: View {
     }
 
     private func cardinalOverlay(size: CGSize) -> some View {
-        let placements = cardinalLabelPlacements(size: size)
-
-        return ZStack {
-            ForEach(placements) { placement in
-                Text(placement.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, StarMapLayout.cardinalLabelHorizontalPadding)
-                    .padding(.vertical, StarMapLayout.cardinalLabelVerticalPadding)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
-                    .position(
-                        x: placement.x,
-                        y: Self.cardinalOverlayY(sizeHeight: size.height)
-                    )
-                    .allowsHitTesting(false)
-            }
-        }
+        CardinalOverlayView(
+            placements: cardinalLabelPlacements(size: size),
+            overlayY: Self.cardinalOverlayY(sizeHeight: size.height)
+        )
     }
 
 
@@ -704,23 +678,10 @@ struct StarMapCanvasView: View {
     // MARK: - Gyro Mode Indicator
 
     private var gyroModeIndicator: some View {
-        VStack {
-            HStack {
-                Spacer()
-                Text(String(format: "方位 %.0f° 仰角 %.0f°",
-                            viewModel.viewAzimuth,
-                            viewModel.viewAltitude))
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
-                    .padding(.trailing, Spacing.sm)
-                    .padding(.top, Spacing.sm)
-            }
-            Spacer()
-        }
+        GyroModeIndicatorView(
+            azimuth: viewModel.viewAzimuth,
+            altitude: viewModel.viewAltitude
+        )
     }
 }
 

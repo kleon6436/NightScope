@@ -1,40 +1,17 @@
 import SwiftUI
 import MapKit
 
-@MainActor
-struct iOSLocationViewModel {
-    private let locationController: any LocationProviding
-    private let clearSearchText: (String) -> Void
-
-    init(
-        locationController: some LocationProviding,
-        clearSearchText: @escaping (String) -> Void
-    ) {
-        self.locationController = locationController
-        self.clearSearchText = clearSearchText
-    }
-
-    func selectSearchResult(_ item: MKMapItem) {
-        locationController.select(item)
-        clearSearchText("")
-    }
-
-    func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
-        locationController.selectCoordinate(coordinate)
-    }
-
-    func requestCurrentLocation() {
-        locationController.requestCurrentLocation()
-    }
-}
-
 struct iOSLocationView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
-    private let viewModel: iOSLocationViewModel
-    @State private var showLightPollution = false
     @FocusState private var isSearchFocused: Bool
 
     private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
+    private var showLightPollutionBinding: Binding<Bool> {
+        Binding(
+            get: { sidebarViewModel.isShowingLightPollution },
+            set: { sidebarViewModel.setLocationInputMode($0 ? .lightPollutionMap : .map) }
+        )
+    }
 
     private var searchTextBinding: Binding<String> {
         Binding(
@@ -42,16 +19,6 @@ struct iOSLocationView: View {
             set: { newValue in
                 sidebarViewModel.searchState.text = newValue
                 sidebarViewModel.handleSearchTextChanged()
-            }
-        )
-    }
-
-    init(sidebarViewModel: SidebarViewModel) {
-        self.sidebarViewModel = sidebarViewModel
-        self.viewModel = iOSLocationViewModel(
-            locationController: sidebarViewModel.locationController,
-            clearSearchText: { text in
-                sidebarViewModel.setSearchTextProgrammatically(text)
             }
         )
     }
@@ -85,7 +52,7 @@ struct iOSLocationView: View {
             }
         } trailing: {
             Button {
-                viewModel.requestCurrentLocation()
+                sidebarViewModel.requestCurrentLocation()
             } label: {
                 Group {
                     if sidebarViewModel.isLocating {
@@ -126,8 +93,7 @@ struct iOSLocationView: View {
         let results = sidebarViewModel.searchResults
         if !results.isEmpty {
             searchResultsCard(results)
-        } else if !sidebarViewModel.searchState.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !sidebarViewModel.isSearching {
+        } else if sidebarViewModel.isShowingSearchEmptyState {
             ContentUnavailableView.search(text: sidebarViewModel.searchState.text)
                 .padding(.vertical, Spacing.xs)
         }
@@ -155,7 +121,7 @@ struct iOSLocationView: View {
 
     private func searchResultRow(_ item: MKMapItem) -> some View {
         Button {
-            viewModel.selectSearchResult(item)
+            sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
             isSearchFocused = false
         } label: {
             HStack(alignment: .top, spacing: Spacing.sm) {
@@ -190,18 +156,16 @@ struct iOSLocationView: View {
         ZStack(alignment: .bottomTrailing) {
             iOSMapView(
                 pinCoordinate: sidebarViewModel.selectedCoordinate,
-                onTap: { coord in
-                    viewModel.selectCoordinate(coord)
-                },
+                onTap: sidebarViewModel.selectCoordinate,
                 syncState: MapKitSyncState(
                     trigger: sidebarViewModel.mapViewportSyncTrigger,
                     center: sidebarViewModel.viewport.center,
                     span: sidebarViewModel.viewport.span
                 ),
                 onRegionChange: { center, span in
-                    updateViewportIfNeeded(center: center, span: span)
+                    sidebarViewModel.updateViewportIfNeeded(center: center, span: span)
                 },
-                showLightPollution: showLightPollution,
+                showLightPollution: sidebarViewModel.isShowingLightPollution,
                 centerTrigger: sidebarViewModel.currentLocationCenterTrigger
             )
             .ignoresSafeArea(edges: .horizontal)
@@ -213,14 +177,11 @@ struct iOSLocationView: View {
 
     private var bottomBar: some View {
         VStack(spacing: Spacing.sm) {
-            Picker("地図モード", selection: $showLightPollution) {
+            Picker("地図モード", selection: showLightPollutionBinding) {
                 Text("地図").tag(false)
                 Text("光害").tag(true)
             }
             .pickerStyle(.segmented)
-            .onChange(of: showLightPollution) {
-                sidebarViewModel.handleLocationInputModeChanged()
-            }
 
             infoRow
         }
@@ -242,7 +203,7 @@ struct iOSLocationView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer()
-            if showLightPollution {
+            if sidebarViewModel.isShowingLightPollution {
                 if lightPollutionService.isLoading {
                     ProgressView().controlSize(.mini)
                 } else if let bortle = lightPollutionService.bortleClass {
@@ -255,26 +216,6 @@ struct iOSLocationView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-        }
-    }
-
-    private func updateViewportIfNeeded(center: CLLocationCoordinate2D, span: MKCoordinateSpan) {
-        let currentCenter = sidebarViewModel.viewport.center
-        let currentSpan = sidebarViewModel.viewport.span
-
-        let shouldUpdateCenter =
-            abs(currentCenter.latitude - center.latitude) > IOSDesignTokens.Location.viewportCoordinateEpsilon
-            || abs(currentCenter.longitude - center.longitude) > IOSDesignTokens.Location.viewportCoordinateEpsilon
-
-        let shouldUpdateSpan =
-            abs(currentSpan.latitudeDelta - span.latitudeDelta) > IOSDesignTokens.Location.viewportSpanEpsilon
-            || abs(currentSpan.longitudeDelta - span.longitudeDelta) > IOSDesignTokens.Location.viewportSpanEpsilon
-
-        if shouldUpdateCenter {
-            sidebarViewModel.viewport.center = center
-        }
-        if shouldUpdateSpan {
-            sidebarViewModel.viewport.span = span
         }
     }
 }

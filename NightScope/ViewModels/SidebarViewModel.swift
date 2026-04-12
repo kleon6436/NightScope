@@ -11,6 +11,16 @@ enum LocationInputMode: String, CaseIterable, Identifiable {
 
 @MainActor
 final class SidebarViewModel: ObservableObject {
+    enum SearchTextSelectionBehavior {
+        case fillSelectionName
+        case clear
+    }
+
+    private enum ViewportUpdateThresholds {
+        static let coordinateEpsilon = 0.00005
+        static let spanEpsilon = 0.00005
+    }
+
     @Published var searchState = SidebarSearchState()
     @Published var locationInputMode: LocationInputMode = .map
     @Published var viewport = ViewportBox()
@@ -58,7 +68,9 @@ final class SidebarViewModel: ObservableObject {
         setSearchTextProgrammatically("")
     }
 
-    func handleLocationInputModeChanged() {
+    func setLocationInputMode(_ mode: LocationInputMode) {
+        guard locationInputMode != mode else { return }
+        locationInputMode = mode
         mapViewportSyncTrigger += 1
     }
 
@@ -80,9 +92,56 @@ final class SidebarViewModel: ObservableObject {
         }
     }
 
+    func selectSearchResult(_ item: MKMapItem, searchTextBehavior: SearchTextSelectionBehavior) {
+        locationController.select(item)
+        switch searchTextBehavior {
+        case .fillSelectionName:
+            setSearchTextProgrammatically(item.name ?? "")
+        case .clear:
+            setSearchTextProgrammatically("")
+        }
+    }
+
+    func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
+        locationController.selectCoordinate(coordinate)
+    }
+
+    func requestCurrentLocation() {
+        locationController.requestCurrentLocation()
+    }
+
+    func updateViewportIfNeeded(center: CLLocationCoordinate2D, span: MKCoordinateSpan) {
+        let currentCenter = viewport.center
+        let currentSpan = viewport.span
+
+        let shouldUpdateCenter =
+            abs(currentCenter.latitude - center.latitude) > ViewportUpdateThresholds.coordinateEpsilon
+            || abs(currentCenter.longitude - center.longitude) > ViewportUpdateThresholds.coordinateEpsilon
+
+        let shouldUpdateSpan =
+            abs(currentSpan.latitudeDelta - span.latitudeDelta) > ViewportUpdateThresholds.spanEpsilon
+            || abs(currentSpan.longitudeDelta - span.longitudeDelta) > ViewportUpdateThresholds.spanEpsilon
+
+        if shouldUpdateCenter {
+            viewport.center = center
+        }
+        if shouldUpdateSpan {
+            viewport.span = span
+        }
+    }
+
     var isSearching: Bool { locationController.isSearching }
     var isLocating: Bool { locationController.isLocating }
     var searchResults: [MKMapItem] { locationController.searchResults }
+    var locationError: LocationController.LocationError? { locationController.locationError }
+    var isShowingSearchEmptyState: Bool {
+        SidebarSearchInteraction.shouldShowEmptyState(
+            searchText: searchState.text,
+            isSearching: isSearching,
+            hasResults: !searchResults.isEmpty
+        )
+    }
+    var isShowingLightPollution: Bool { locationInputMode == .lightPollutionMap }
 
     var selectedCoordinate: CLLocationCoordinate2D { locationController.selectedLocation }
     var selectedLocationName: String { locationController.locationName }

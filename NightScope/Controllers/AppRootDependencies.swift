@@ -26,6 +26,39 @@ struct AppRootDependencies {
 }
 
 @MainActor
+final class AppRootStore: ObservableObject {
+    let appController: AppController
+    let sidebarViewModel: SidebarViewModel
+    let detailViewModel: DetailViewModel
+    let starMapViewModel: StarMapViewModel
+    private var cancellables: Set<AnyCancellable> = []
+
+    init(dependencies: AppRootDependencies? = nil) {
+        let dependencies = dependencies ?? .makeDefault()
+        self.appController = dependencies.appController
+        self.sidebarViewModel = dependencies.sidebarViewModel
+        self.detailViewModel = dependencies.detailViewModel
+        self.starMapViewModel = dependencies.starMapViewModel
+        bindChildChanges()
+    }
+
+    private func bindChildChanges() {
+        let childPublishers: [AnyPublisher<Void, Never>] = [
+            sidebarViewModel.objectWillChange.eraseToAnyPublisher(),
+            detailViewModel.objectWillChange.eraseToAnyPublisher(),
+            starMapViewModel.objectWillChange.eraseToAnyPublisher()
+        ]
+
+        Publishers.MergeMany(childPublishers)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+    }
+}
+
+@MainActor
 protocol LocationProviding: AnyObject, ObservableObject {
     var selectedLocation: CLLocationCoordinate2D { get set }
     var locationName: String { get set }

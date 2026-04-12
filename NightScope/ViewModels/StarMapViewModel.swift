@@ -165,7 +165,7 @@ final class StarMapViewModel: ObservableObject {
             trailingTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
                 guard !Task.isCancelled else { return }
-                await MainActor.run { self?._executeUpdate() }
+                self?._executeUpdate()
             }
             return
         }
@@ -186,13 +186,13 @@ final class StarMapViewModel: ObservableObject {
         updateTask = Task { [weak self] in
             guard let self else { return }
 
-            // 重い計算をバックグラウンドスレッドで実行
+            // 重い計算をバックグラウンドスレッドへ分離し、ViewModel 側は orchestration に専念する。
             let snapshot = await Task.detached(priority: .userInitiated) {
-                StarMapViewModel._compute(
-                    lat: context.latitude,
-                    lon: context.longitude,
-                    jd: context.julianDate,
-                    lst: context.localSiderealTime,
+                StarMapComputation.compute(
+                    latitude: context.latitude,
+                    longitude: context.longitude,
+                    julianDate: context.julianDate,
+                    localSiderealTime: context.localSiderealTime,
                     activeMeteorShowers: context.activeMeteorShowers,
                     starDisplayDensity: density
                 )
@@ -239,7 +239,7 @@ final class StarMapViewModel: ObservableObject {
         fetchTerrain(latitude: context.latitude, longitude: context.longitude)
     }
 
-    private func apply(_ snapshot: _Snapshot) {
+    private func apply(_ snapshot: StarMapComputation.Snapshot) {
         latitude = snapshot.lat
         currentLST = snapshot.lst
         starPositions = snapshot.starPositions
@@ -256,160 +256,6 @@ final class StarMapViewModel: ObservableObject {
         milkyWayBandPoints = snapshot.milkyWayBandPoints
     }
 
-    // MARK: - Background Computation
-
-    /// B-V 色指数テーブルをキャッシュ。`StarCatalog.stars` と同じ順序・サイズで、
-    /// 初回アクセス時に 1 度だけ計算される (Swift static property は thread-safe)。
-    private nonisolated static let _cachedStarColors: [Color] = {
-        StarCatalog.stars.map { _starColorForBV($0.colorIndex) }
-    }()
-
-    /// バックグラウンドスレッドで安全に実行できる純粋計算。
-    /// MainActor の状態を一切参照しない nonisolated な static メソッド。
-    private nonisolated static func _compute(
-        lat: Double,
-        lon: Double,
-        jd: Double,
-        lst: Double,
-        activeMeteorShowers: [MeteorShower],
-        starDisplayDensity: StarDisplayDensity
-    ) -> _Snapshot {
-        // lat の sin/cos を 1 度だけ計算して全天体で共有 (Fix 3)
-        let latRad = lat * .pi / 180.0
-        let cosLat = cos(latRad)
-        let sinLat = sin(latRad)
-
-        // 恒星: altAzFast で lat sin/cos を共有、色キャッシュを参照、地平線下をフィルタ (Fix 1, 3, 5)
-        let cachedColors = _cachedStarColors
-        let catalog = StarCatalog.stars
-        var stars = [StarPosition]()
-        stars.reserveCapacity(catalog.count / 2)
-        let starMagnitudeLimit = starDisplayDensity.maxMagnitude
-        for i in catalog.indices {
-            let star = catalog[i]
-            guard star.magnitude <= starMagnitudeLimit else { continue }
-            let (alt, az) = MilkyWayCalculator.altAzFast(ra: star.ra, dec: star.dec,
-                                                          cosLat: cosLat, sinLat: sinLat,
-                                                          lst: lst)
-            guard alt > -3 else { continue }  // 地平線以下はスキップ
-            stars.append(StarPosition(star: star, altitude: alt, azimuth: az,
-                                      precomputedColor: cachedColors[i]))
-        }
-
-        // 太陽
-        let sun = MilkyWayCalculator.sunRaDec(jd: jd)
-        let (sunAlt, _) = MilkyWayCalculator.altAzFast(ra: sun.ra, dec: sun.dec,
-                                                       cosLat: cosLat, sinLat: sinLat,
-                                                       lst: lst)
-
-        // 月
-        let moon = MilkyWayCalculator.moonRaDec(jd: jd)
-        let (moonAlt, moonAz) = MilkyWayCalculator.altAzFast(ra: moon.ra, dec: moon.dec,
-                                                              cosLat: cosLat, sinLat: sinLat,
-                                                              lst: lst)
-
-        // 銀河系中心
-        let (gcAlt, gcAz) = MilkyWayCalculator.altAzFast(ra: MilkyWayCalculator.gcRA,
-                                                          dec: MilkyWayCalculator.gcDec,
-                                                          cosLat: cosLat, sinLat: sinLat,
-                                                          lst: lst)
-
-        // 星座線 (altAzFast で lat sin/cos を共有)
-        let constLines: [ConstellationLineAltAz] = ConstellationData.constellations.flatMap { entry in
-            entry.segments.compactMap { seg -> ConstellationLineAltAz? in
-                let (a1, z1) = MilkyWayCalculator.altAzFast(ra: seg.ra1, dec: seg.dec1,
-                                                             cosLat: cosLat, sinLat: sinLat,
-                                                             lst: lst)
-                let (a2, z2) = MilkyWayCalculator.altAzFast(ra: seg.ra2, dec: seg.dec2,
-                                                             cosLat: cosLat, sinLat: sinLat,
-                                                             lst: lst)
-                guard a1 > -15 || a2 > -15 else { return nil }
-                return ConstellationLineAltAz(startAlt: a1, startAz: z1, endAlt: a2, endAz: z2)
-            }
-        }
-
-        // 星座名ラベル
-        let constLabels: [ConstellationLabelAltAz] = ConstellationData.constellations.compactMap { entry in
-            let (alt, az) = MilkyWayCalculator.altAzFast(ra: entry.centerRA, dec: entry.centerDec,
-                                                          cosLat: cosLat, sinLat: sinLat,
-                                                          lst: lst)
-            guard alt > -5 else { return nil }
-            return ConstellationLabelAltAz(alt: alt, az: az, name: entry.japaneseName)
-        }
-
-        // 惑星
-        let planets = MilkyWayCalculator.planetPositions(jd: jd, latitude: lat, lst: lst)
-
-        // 流星群放射点
-        let meteorRadiants = activeMeteorShowers.map { shower -> (shower: MeteorShower, altitude: Double, azimuth: Double) in
-            let (alt, az) = MilkyWayCalculator.altAzFast(ra: shower.radiantRA, dec: shower.radiantDec,
-                                                          cosLat: cosLat, sinLat: sinLat,
-                                                          lst: lst)
-            return (shower: shower, altitude: alt, azimuth: az)
-        }
-
-        // 天の川バンド (事前計算してキャッシュ)
-        let bandPoints = _computeMilkyWayBandPoints(cosLat: cosLat, sinLat: sinLat, lst: lst)
-
-        return _Snapshot(lat: lat, lst: lst,
-                         starPositions: stars,
-                         sunAltitude: sunAlt,
-                         moonAltitude: moonAlt, moonAzimuth: moonAz, moonPhase: moon.phase,
-                         galacticCenterAltitude: gcAlt, galacticCenterAzimuth: gcAz,
-                         constellationLines: constLines, constellationLabels: constLabels,
-                         planetPositions: planets, meteorShowerRadiants: meteorRadiants,
-                         milkyWayBandPoints: bandPoints)
-    }
-
-    /// 天の川バンドの alt/az/halfH を計算して返す (描画には含まない純データ)。
-    private nonisolated static func _computeMilkyWayBandPoints(
-        cosLat: Double,
-        sinLat: Double,
-        lst: Double
-    ) -> [MilkyWayBandPoint] {
-        var result = [MilkyWayBandPoint]()
-        let step: Double = 5
-        for li in stride(from: 0.0, to: 360.0, by: step) {
-            let eq0 = MilkyWayCalculator.galacticToEquatorial(l: li, b: 0)
-            let (alt0, az0) = MilkyWayCalculator.altAzFast(ra: eq0.ra, dec: eq0.dec,
-                                                            cosLat: cosLat, sinLat: sinLat,
-                                                            lst: lst)
-            guard alt0 > -5 else { continue }
-
-            let bWidth: Double = li > 270 || li < 90 ? 12 : 8
-            let eq1 = MilkyWayCalculator.galacticToEquatorial(l: li, b:  bWidth)
-            let eq2 = MilkyWayCalculator.galacticToEquatorial(l: li, b: -bWidth)
-            let (alt1, _) = MilkyWayCalculator.altAzFast(ra: eq1.ra, dec: eq1.dec,
-                                                          cosLat: cosLat, sinLat: sinLat,
-                                                          lst: lst)
-            let (alt2, _) = MilkyWayCalculator.altAzFast(ra: eq2.ra, dec: eq2.dec,
-                                                          cosLat: cosLat, sinLat: sinLat,
-                                                          lst: lst)
-            let halfHDeg = max(3.0, abs(alt1 - alt2) / 2)
-            result.append(MilkyWayBandPoint(az: az0, alt: alt0, halfH: halfHDeg, li: li))
-        }
-        return result
-    }
-
-    // MARK: - Snapshot (バックグラウンド計算結果)
-
-    private struct _Snapshot: Sendable {
-        let lat: Double
-        let lst: Double
-        let starPositions: [StarPosition]
-        let sunAltitude: Double
-        let moonAltitude: Double
-        let moonAzimuth: Double
-        let moonPhase: Double
-        let galacticCenterAltitude: Double
-        let galacticCenterAzimuth: Double
-        let constellationLines: [ConstellationLineAltAz]
-        let constellationLabels: [ConstellationLabelAltAz]
-        let planetPositions: [PlanetPosition]
-        let meteorShowerRadiants: [(shower: MeteorShower, altitude: Double, azimuth: Double)]
-        let milkyWayBandPoints: [MilkyWayBandPoint]
-    }
-
     private var lastTerrainKey: String = ""
     private var terrainFetchTask: Task<Void, Never>? = nil
 
@@ -419,7 +265,7 @@ final class StarMapViewModel: ObservableObject {
             let profile = await TerrainService.shared.fetchProfile(
                 latitude: latitude, longitude: longitude)
             guard !Task.isCancelled else { return }
-            await MainActor.run { self?.terrainProfile = profile }
+            self?.terrainProfile = profile
         }
     }
 
@@ -493,8 +339,11 @@ final class StarMapViewModel: ObservableObject {
         guard abs(timeSliderMinutes - clampedMinutes) > 0.5 else { return }
         timeSliderMinutes = clampedMinutes
 
-        let realMinutes = nightOffsetToRealMinutes(clampedMinutes)
-        guard let updatedDate = Self.date(bySettingClockMinutes: realMinutes, on: displayDate) else {
+        let realMinutes = StarMapDateLogic.nightOffsetToRealMinutes(
+            clampedMinutes,
+            nightStartMinutes: nightStartMinutes
+        )
+        guard let updatedDate = StarMapDateLogic.date(bySettingClockMinutes: realMinutes, on: displayDate) else {
             return
         }
 
@@ -511,13 +360,20 @@ final class StarMapViewModel: ObservableObject {
     }
 
     var displayTimeString: String {
-        let realMinutes = nightOffsetToRealMinutes(timeSliderMinutes)
+        let realMinutes = StarMapDateLogic.nightOffsetToRealMinutes(
+            timeSliderMinutes,
+            nightStartMinutes: nightStartMinutes
+        )
         return StarMapPresentation.timeString(from: realMinutes)
     }
 
     private func syncTimeSliderWithDisplayDate() {
-        let realMinutes = Self.clockMinutes(for: displayDate)
-        let offset = realMinutesToNightOffset(realMinutes)
+        let realMinutes = StarMapDateLogic.clockMinutes(for: displayDate)
+        let offset = StarMapDateLogic.realMinutesToNightOffset(
+            realMinutes,
+            nightStartMinutes: nightStartMinutes,
+            nightDurationMinutes: nightDurationMinutes
+        )
         guard abs(timeSliderMinutes - offset) > 0.5 else { return }
         timeSliderMinutes = offset
     }
@@ -548,9 +404,7 @@ final class StarMapViewModel: ObservableObject {
         timeSliderCommitTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            await MainActor.run {
-                self?.commitPendingTimeSliderDate()
-            }
+            self?.commitPendingTimeSliderDate()
         }
     }
 
@@ -585,7 +439,7 @@ final class StarMapViewModel: ObservableObject {
         let updateMode = displayDateUpdateMode
         displayDateUpdateMode = .standard
 
-        let shouldSkipNightRange = updateMode.skipsNightRange || Self.isSameCalendarDay(oldDate, newDate)
+        let shouldSkipNightRange = updateMode.skipsNightRange || StarMapDateLogic.isSameCalendarDay(oldDate, newDate)
         let shouldSkipTimeSliderSync = updateMode.skipsTimeSliderSync
 
         if !shouldSkipNightRange {
@@ -599,43 +453,20 @@ final class StarMapViewModel: ObservableObject {
         update()
     }
 
-    /// 夜間オフセット (0〜nightDuration) を実際の時刻 (0〜1439) に変換
-    private func nightOffsetToRealMinutes(_ offset: Double) -> Double {
-        let real = nightStartMinutes + offset
-        return real.truncatingRemainder(dividingBy: 1440)
-    }
-
-    /// 実際の時刻 (0〜1439) を夜間オフセット (0〜nightDuration) に変換
-    private func realMinutesToNightOffset(_ realMinutes: Double) -> Double {
-        var offset = realMinutes - nightStartMinutes
-        if offset < 0 { offset += 1440 }
-        return max(0, min(nightDurationMinutes, offset))
-    }
-
     /// 夜間範囲を現在の日付・場所で再計算
     private func updateNightRange() {
         let location = appController.locationController.selectedLocation
-        if let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
-            date: displayDate,
-            location: location
-        ) {
-            nightStartMinutes = twilight.eveningMinutes
-            var duration = twilight.morningMinutes - twilight.eveningMinutes
-            if duration < 0 { duration += 1440 }
-            nightDurationMinutes = max(60, duration) // 最低1時間
-        }
-        // twilight が nil (白夜/極夜) の場合はデフォルト値のまま
-    }
-
-
-    private static func clockMinutes(for date: Date) -> Double {
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.hour, .minute], from: date)
-        return Double((components.hour ?? 0) * 60 + (components.minute ?? 0))
-    }
-
-    private static func isSameCalendarDay(_ lhs: Date, _ rhs: Date) -> Bool {
-        Calendar.current.isDate(lhs, inSameDayAs: rhs)
+        let fallback = StarMapDateLogic.NightRange(
+            startMinutes: nightStartMinutes,
+            durationMinutes: nightDurationMinutes
+        )
+        let range = StarMapDateLogic.nightRange(
+            for: displayDate,
+            location: location,
+            fallback: fallback
+        )
+        nightStartMinutes = range.startMinutes
+        nightDurationMinutes = range.durationMinutes
     }
 
     private func resolvedPresentationDate(
@@ -643,59 +474,10 @@ final class StarMapViewModel: ObservableObject {
         referenceDate: Date,
         location: CLLocationCoordinate2D
     ) -> Date? {
-        guard let candidate = Self.date(byApplyingTimeOf: referenceDate, to: selectedDate) else {
-            return nil
-        }
-
-        guard let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
-            date: selectedDate,
+        StarMapDateLogic.resolvedPresentationDate(
+            for: selectedDate,
+            referenceDate: referenceDate,
             location: location
-        ) else {
-            return candidate
-        }
-
-        let candidateMinutes = Self.clockMinutes(for: candidate)
-        if Self.isWithinNightRange(
-            candidateMinutes,
-            eveningMinutes: twilight.eveningMinutes,
-            morningMinutes: twilight.morningMinutes
-        ) {
-            return candidate
-        }
-
-        return Self.date(bySettingClockMinutes: twilight.eveningMinutes, on: selectedDate)
-    }
-
-    private static func isWithinNightRange(
-        _ clockMinutes: Double,
-        eveningMinutes: Double,
-        morningMinutes: Double
-    ) -> Bool {
-        if eveningMinutes <= morningMinutes {
-            return clockMinutes >= eveningMinutes && clockMinutes < morningMinutes
-        }
-
-        return clockMinutes >= eveningMinutes || clockMinutes < morningMinutes
-    }
-
-    private static func date(byApplyingTimeOf referenceDate: Date, to date: Date) -> Date? {
-        let calendar = Calendar.current
-        let time = calendar.dateComponents([.hour, .minute], from: referenceDate)
-        return calendar.date(
-            bySettingHour: time.hour ?? 0,
-            minute: time.minute ?? 0,
-            second: 0,
-            of: date
-        )
-    }
-
-    private static func date(bySettingClockMinutes minutes: Double, on date: Date) -> Date? {
-        let normalizedMinutes = ((Int(minutes.rounded()) % 1440) + 1440) % 1440
-        return Calendar.current.date(
-            bySettingHour: normalizedMinutes / 60,
-            minute: normalizedMinutes % 60,
-            second: 0,
-            of: date
         )
     }
 

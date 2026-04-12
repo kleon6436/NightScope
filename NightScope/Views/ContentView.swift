@@ -1,27 +1,28 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var appController: AppController
-    @StateObject private var sidebarViewModel: SidebarViewModel
-    @StateObject private var detailViewModel: DetailViewModel
-    @StateObject private var starMapViewModel: StarMapViewModel
+    @StateObject private var rootStore: AppRootStore
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     @MainActor
     init(dependencies: AppRootDependencies? = nil) {
         let dependencies = dependencies ?? .makeDefault()
-        _appController = StateObject(wrappedValue: dependencies.appController)
-        _sidebarViewModel = StateObject(wrappedValue: dependencies.sidebarViewModel)
-        _detailViewModel = StateObject(wrappedValue: dependencies.detailViewModel)
-        _starMapViewModel = StateObject(wrappedValue: dependencies.starMapViewModel)
+        _rootStore = StateObject(wrappedValue: AppRootStore(dependencies: dependencies))
+    }
+
+    private var selectedDateBinding: Binding<Date> {
+        Binding(
+            get: { rootStore.detailViewModel.selectedDate },
+            set: { rootStore.detailViewModel.selectedDate = $0 }
+        )
     }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(
-                viewModel: sidebarViewModel,
-                selectedDate: $detailViewModel.selectedDate,
-                viewingDirection: starMapViewModel.viewingDirection
+                viewModel: rootStore.sidebarViewModel,
+                selectedDate: selectedDateBinding,
+                viewingDirection: rootStore.starMapViewModel.viewingDirection
             )
             .navigationSplitViewColumnWidth(
                 min: LayoutMacOS.sidebarMinWidth,
@@ -36,7 +37,10 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            DetailView(viewModel: detailViewModel, starMapViewModel: starMapViewModel)
+            DetailView(
+                viewModel: rootStore.detailViewModel,
+                starMapViewModel: rootStore.starMapViewModel
+            )
         }
         .frame(minWidth: LayoutMacOS.windowMinWidth, minHeight: LayoutMacOS.windowMinHeight)
         .toolbar(removing: .sidebarToggle)
@@ -46,17 +50,17 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            appController.onStart()
+            rootStore.appController.onStart()
         }
-        .focusedValue(\.selectedDate, $detailViewModel.selectedDate)
+        .focusedValue(\.selectedDate, selectedDateBinding)
         .focusedValue(\.refreshAction, {
-            appController.refreshExternalDataInBackground()
+            rootStore.appController.refreshExternalDataInBackground()
         })
         .focusedValue(\.focusSearchAction, {
-            appController.locationController.searchFocusTrigger += 1
+            rootStore.appController.locationController.searchFocusTrigger += 1
         })
         .focusedValue(\.currentLocationAction, {
-            appController.locationController.requestCurrentLocation()
+            rootStore.appController.locationController.requestCurrentLocation()
         })
     }
 }
