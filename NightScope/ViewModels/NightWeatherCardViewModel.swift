@@ -20,7 +20,7 @@ final class NightWeatherCardViewModel: ObservableObject {
     // MARK: - Formatting Methods
 
     func weatherLabel(_ weather: DayWeatherSummary) -> String {
-        WeatherPresentation.combinedLabel(for: weather)
+        WeatherPresentation.primaryLabel(for: weather)
     }
 
     func formatCloudCover(_ value: Double) -> String {
@@ -31,14 +31,17 @@ final class NightWeatherCardViewModel: ObservableObject {
         String(format: "降水 %.1f mm", value)
     }
 
+    func formatMetrics(precipitation: Double, cloudCover: Double) -> String {
+        "\(formatPrecipitation(precipitation)) ・ \(formatCloudCover(cloudCover))"
+    }
+
     func formatWindSpeed(_ value: Double) -> String {
         windSpeedUnit.format(value)
     }
 
     func accessibilityDescription(weather: DayWeatherSummary?, isLoading: Bool) -> String {
         if isLoading { return "天気 夜間: 取得中" }
-        guard let w = weather else { return "天気 夜間: データなし" }
-        let label = w.weatherLabel == w.cloudLabel ? w.weatherLabel : "\(w.weatherLabel) \(w.cloudLabel)"
-        return "天気 夜間: \(label)、雲量\(Int(w.avgCloudCover))%、降水\(String(format: "%.1f", w.maxPrecipitation))mm、風速\(Int(w.avgWindSpeed))km/h"
+        guard let w = weather else { return "天気 夜間: 不明、データなし、10日以内のみ" }
+        return "天気 夜間: \(weatherLabel(w))、降水\(String(format: "%.1f", w.maxPrecipitation))mm、雲量\(Int(w.avgCloudCover))%、風速\(Int(w.avgWindSpeed))km/h"
     }
 }

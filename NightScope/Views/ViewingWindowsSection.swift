@@ -3,91 +3,176 @@ import SwiftUI
 struct ViewingWindowsSection: View {
     let summary: NightSummary
 
-    private var viewModel: ViewingWindowsSectionViewModel {
-        ViewingWindowsSectionViewModel(summary: summary)
-    }
+    private let viewModel = ViewingWindowsSectionViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            #if os(macOS)
-            Text("天の川 観測情報")
-                .font(.title3.bold())
-            #endif
-
             if summary.viewingWindows.isEmpty {
-                ContentUnavailableView(
-                    "観測に適した時間帯がありません",
-                    systemImage: AppIcons.Status.warning,
-                    description: Text("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした")
-                )
+                ViewingWindowsEmptyStateCardContent()
+                    .glassCard()
+                    .accessibilityElement(children: .contain)
             } else {
                 ForEach(summary.viewingWindows, id: \.start) { window in
-                    windowRow(window: window)
+                    ViewingWindowCard(window: window, viewModel: viewModel)
                 }
             }
         }
     }
+}
 
-    private func windowRow(window: ViewingWindow) -> some View {
-        #if os(macOS)
-        HStack(spacing: Spacing.sm) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(viewModel.windowTimeText(window))
-                    .font(.title3.bold())
-                HStack(spacing: Spacing.sm) {
-                    Label(viewModel.durationText(window), systemImage: AppIcons.Observation.clock)
-                    Label(viewModel.altitudeText(window), systemImage: AppIcons.Observation.altitudeArrow)
-                    Label(viewModel.peakTimeText(window), systemImage: AppIcons.Astronomy.star)
-                    Label(window.peakDirectionName, systemImage: AppIcons.Observation.azimuthArrow)
-                }
-                .font(.body)
-                .foregroundStyle(.secondary)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: Spacing.xs) {
-                Label(viewModel.moonStatusLabel(for: window), systemImage: summary.isMoonFavorable ? AppIcons.Status.checkmarkFill : AppIcons.Astronomy.moonFill)
-                    .font(.body)
-                    .foregroundStyle(summary.isMoonFavorable ? .green : .orange)
+private struct ViewingWindowCard: View {
+    let window: ViewingWindow
+    let viewModel: ViewingWindowsSectionViewModel
+
+    var body: some View {
+        ViewingWindowCardContent(window: window, viewModel: viewModel)
+            .glassCard()
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(viewModel.accessibilityDescription(for: window))
+    }
+}
+
+struct MilkyWaySummaryCard: View {
+    let summary: NightSummary
+
+    private let viewModel = ViewingWindowsSectionViewModel()
+    private var bestWindow: ViewingWindow? { summary.bestViewingWindow }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            CardHeader(icon: AppIcons.Astronomy.sparkles, iconColor: .indigo, title: "天の川")
+            if let window = bestWindow {
+                ViewingWindowCardContent(window: window, viewModel: viewModel)
+            } else {
+                ViewingWindowsEmptyStateCardContent()
             }
         }
-        .padding(Layout.cardPadding)
-        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
+        .glassCard()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.accessibilityDescription(for: window))
-        #else
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcons.Astronomy.sparkles)
-                    .foregroundStyle(.indigo)
-                    .font(.body)
-                Text("天の川")
+        .accessibilityLabel(bestWindow.map { viewModel.accessibilityDescription(for: $0) } ?? "観測に適した時間帯がありません")
+    }
+}
+
+struct ViewingWindowCardContent: View {
+    let window: ViewingWindow
+    let viewModel: ViewingWindowsSectionViewModel
+
+    var body: some View {
+        HStack(alignment: .center, spacing: Spacing.sm) {
+            DirectionIndicator(azimuth: window.peakAzimuth)
+                .frame(width: CardVisual.width, height: CardVisual.compassSize)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Spacing.xs / 2) {
+                Text(viewModel.timeAndPeakText(window))
+                    .font(.headline.monospacedDigit())
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(viewModel.altitudeText(window))
+                    .font(.body.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(viewModel.directionText(window))
                     .font(.body)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            Text(viewModel.windowTimeText(window))
-                .font(.headline)
-                .foregroundStyle(.primary)
-
-            HStack(spacing: Spacing.sm) {
-                Label(viewModel.durationText(window), systemImage: AppIcons.Observation.clock)
-                Label(viewModel.altitudeText(window), systemImage: AppIcons.Observation.altitudeArrow)
-                Spacer()
-            }
-            HStack(spacing: Spacing.sm) {
-                Label(viewModel.peakTimeText(window), systemImage: AppIcons.Astronomy.star)
-                Label(window.peakDirectionName, systemImage: AppIcons.Observation.azimuthArrow)
-                Spacer()
-            }
-            Label(viewModel.moonStatusLabel(for: window), systemImage: summary.isMoonFavorable ? AppIcons.Status.checkmarkFill : AppIcons.Astronomy.moonFill)
-                .foregroundStyle(summary.isMoonFavorable ? .green : .orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .font(.body)
-        .foregroundStyle(.secondary)
-        .padding(Layout.cardPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.accessibilityDescription(for: window))
-        #endif
+    }
+}
+
+struct ViewingWindowsEmptyStateCardContent: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            CardHeader(icon: AppIcons.Astronomy.sparkles, iconColor: .indigo, title: "天の川")
+            ContentUnavailableView(
+                "観測に適した時間帯がありません",
+                systemImage: AppIcons.Status.warning,
+                description: Text("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした")
+            )
+        }
+    }
+}
+
+// MARK: - Direction Indicator (Compass)
+
+private struct DirectionIndicator: View {
+    let azimuth: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let radius = min(size.width, size.height) / 2 - 2
+            let tickLen: Double = 4
+
+            // Outer ring
+            var ring = Path()
+            ring.addEllipse(in: CGRect(
+                x: center.x - radius, y: center.y - radius,
+                width: radius * 2, height: radius * 2
+            ))
+            ctx.stroke(ring,
+                       with: .color(Color.white.opacity(CardVisual.trackOpacity)),
+                       style: StrokeStyle(lineWidth: 1.5))
+
+            // Cardinal tick marks (N/E/S/W)
+            for deg in stride(from: 0.0, to: 360.0, by: 90.0) {
+                let angle = Angle.degrees(deg - 90)
+                let outerPt = CGPoint(
+                    x: center.x + radius * cos(angle.radians),
+                    y: center.y + radius * sin(angle.radians)
+                )
+                let innerPt = CGPoint(
+                    x: center.x + (radius - tickLen) * cos(angle.radians),
+                    y: center.y + (radius - tickLen) * sin(angle.radians)
+                )
+                var tick = Path()
+                tick.move(to: outerPt)
+                tick.addLine(to: innerPt)
+                let isNorth = deg == 0
+                ctx.stroke(tick,
+                           with: .color(Color.white.opacity(isNorth ? 0.6 : 0.3)),
+                           style: StrokeStyle(lineWidth: isNorth ? 2 : 1, lineCap: .round))
+            }
+
+            // Direction arrow
+            let arrowAngle = Angle.degrees(azimuth - 90)
+            let arrowLen = radius * 0.65
+            let arrowEnd = CGPoint(
+                x: center.x + arrowLen * cos(arrowAngle.radians),
+                y: center.y + arrowLen * sin(arrowAngle.radians)
+            )
+            var arrow = Path()
+            arrow.move(to: center)
+            arrow.addLine(to: arrowEnd)
+            ctx.stroke(arrow,
+                       with: .color(Color.indigo.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+            // Arrowhead
+            let headSize: Double = 5
+            let headAngle1 = Angle.degrees(azimuth - 90 + 150)
+            let headAngle2 = Angle.degrees(azimuth - 90 - 150)
+            let head1 = CGPoint(
+                x: arrowEnd.x + headSize * cos(headAngle1.radians),
+                y: arrowEnd.y + headSize * sin(headAngle1.radians)
+            )
+            let head2 = CGPoint(
+                x: arrowEnd.x + headSize * cos(headAngle2.radians),
+                y: arrowEnd.y + headSize * sin(headAngle2.radians)
+            )
+            var headPath = Path()
+            headPath.move(to: head1)
+            headPath.addLine(to: arrowEnd)
+            headPath.addLine(to: head2)
+            ctx.stroke(headPath,
+                       with: .color(Color.indigo.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+
+            // Center dot
+            var dot = Path()
+            dot.addEllipse(in: CGRect(x: center.x - 2, y: center.y - 2, width: 4, height: 4))
+            ctx.fill(dot, with: .color(Color.white.opacity(0.5)))
+        }
     }
 }

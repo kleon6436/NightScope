@@ -1,5 +1,10 @@
 import SwiftUI
 
+private enum StarGazingIndexCardMetrics {
+    static let visualWidth: CGFloat = 60
+    static let starSpacing: CGFloat = 4
+}
+
 struct StarGazingIndexCard: View {
     let index: StarGazingIndex
     @ObservedObject var lightPollutionViewModel: StarGazingIndexCardViewModel
@@ -8,121 +13,33 @@ struct StarGazingIndexCard: View {
 
     var body: some View {
         let color = index.tier.color
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(color)
-                .frame(width: 4)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack {
+                CardHeader(icon: AppIcons.Astronomy.starFill, iconColor: color, title: "星空指数")
+                Spacer()
+                Image(systemName: AppIcons.Controls.chevronDown)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                    .animation(reduceMotion ? .none : .standard, value: isExpanded)
+                    .accessibilityHidden(true)
+            }
 
-            HStack(spacing: Spacing.sm) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("星空指数")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                    HStack(alignment: .center, spacing: Spacing.xs) {
-                        ScoreArc(score: index.score, color: color)
-                            .frame(width: 52, height: 28)
-                            .accessibilityHidden(true)
-                        HStack(alignment: .firstTextBaseline, spacing: Spacing.xs / 2) {
-                            Text("\(index.score)")
-                                .font(.system(.title2, design: .rounded))
-                                .fontWeight(.bold)
-                                .foregroundStyle(color)
-                                .accessibilityLabel("星空指数 \(index.score)点")
-                            Text("/ 100")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                }
-
-                Divider()
-                    .frame(height: 50)
+            HStack(alignment: .center, spacing: Spacing.md) {
+                scoreVisual(color: color)
+                    .frame(width: StarGazingIndexCardMetrics.visualWidth)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    HStack(spacing: Spacing.xs) {
-                        HStack(spacing: Spacing.xs / 4) {
-                            ForEach(0..<5) { i in
-                                Image(systemName: i < index.starCount ? AppIcons.Astronomy.starFill : AppIcons.Astronomy.star)
-                                    .foregroundStyle(i < index.starCount ? color : Color.secondary.opacity(0.4))
-                                    .font(starIconFont)
-                            }
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("評価: 星\(index.starCount)つ（5段階）")
-                        Text(index.label)
-                            .font(indexLabelFont)
-                            .foregroundStyle(color)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            #if os(iOS)
-                            .minimumScaleFactor(0.85)
-                            .allowsTightening(true)
-                            #endif
-                        Spacer()
-                        Image(systemName: AppIcons.Controls.chevronDown)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                            .animation(reduceMotion ? .none : .standard, value: isExpanded)
-                            .accessibilityHidden(true)
-                    }
-
-                    if isExpanded {
-                        Group {
-                            subScoreRow(label: "星空", score: index.constellationScore, maxScore: StarGazingIndex.maxConstellationScore, color: Color.indigo)
-
-                            if index.hasWeatherData {
-                                subScoreRow(label: "気象", score: index.weatherScore, maxScore: StarGazingIndex.maxWeatherScore, color: .cyan)
-                            } else {
-                                HStack(spacing: Spacing.xs) {
-                                    Text("気象")
-                                        .font(.body)
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 44, alignment: .leading)
-                                    Text("データなし")
-                                        .font(.body)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-
-                            if index.hasLightPollutionData {
-                                subScoreRow(label: "光害", score: index.lightPollutionScore, maxScore: StarGazingIndex.maxLightPollutionScore, color: .orange)
-                            } else {
-                                HStack(spacing: Spacing.xs) {
-                                    Text("光害")
-                                        .font(.body)
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 44, alignment: .leading)
-                                    if lightPollutionViewModel.isLoading {
-                                        ProgressView()
-                                            .controlSize(.mini)
-                                            .accessibilityLabel("光害データを取得中")
-                                    } else if lightPollutionViewModel.fetchFailed {
-                                        Text("取得失敗")
-                                            .font(.body)
-                                            .foregroundStyle(.secondary)
-                                    } else {
-                                        Text("取得中...")
-                                            .font(.body)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
+                StarTierSummary(index: index, color: color)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Layout.cardPadding)
+
+            if isExpanded {
+                expandedContent(color: color)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
+        .glassCard()
         .contentShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .onTapGesture {
             withAnimation(reduceMotion ? .none : .standard) {
@@ -131,9 +48,59 @@ struct StarGazingIndexCard: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel("詳細スコア")
+        .accessibilityLabel("星空指数 \(index.score)点、\(index.label)")
         .accessibilityValue(isExpanded ? "展開中" : "折り畳み中")
         .accessibilityHint(isExpanded ? "タップして折り畳む" : "タップして詳細を表示")
+    }
+
+    // MARK: - Shared Components
+
+    private func scoreVisual(color: Color) -> some View {
+        ScoreArc(score: index.score, color: color)
+            .frame(width: StarGazingIndexCardMetrics.visualWidth, height: CardVisual.arcHeight)
+    }
+
+    @ViewBuilder
+    private func expandedContent(color: Color) -> some View {
+        subScoreRow(label: "星空", score: index.constellationScore, maxScore: StarGazingIndex.maxConstellationScore, color: Color.indigo)
+
+        if index.hasWeatherData {
+            subScoreRow(label: "気象", score: index.weatherScore, maxScore: StarGazingIndex.maxWeatherScore, color: .cyan)
+        } else {
+            HStack(spacing: Spacing.xs) {
+                Text("気象")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, alignment: .leading)
+                Text("データなし")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        if index.hasLightPollutionData {
+            subScoreRow(label: "光害", score: index.lightPollutionScore, maxScore: StarGazingIndex.maxLightPollutionScore, color: .orange)
+        } else {
+            HStack(spacing: Spacing.xs) {
+                Text("光害")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, alignment: .leading)
+                if lightPollutionViewModel.isLoading {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .accessibilityLabel("光害データを取得中")
+                } else if lightPollutionViewModel.fetchFailed {
+                    Text("取得失敗")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("取得中...")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     private func subScoreRow(label: String, score: Int, maxScore: Int, color: Color) -> some View {
@@ -154,25 +121,128 @@ struct StarGazingIndexCard: View {
                 .accessibilityHidden(true)
         }
     }
-
-    private var starIconFont: Font {
-        #if os(iOS)
-        .caption
-        #else
-        .body
-        #endif
-    }
-
-    private var indexLabelFont: Font {
-        #if os(iOS)
-        .subheadline.weight(.semibold)
-        #else
-        .headline
-        #endif
-    }
 }
 
+#if os(macOS)
+struct MacStarGazingIndexCard: View {
+    let index: StarGazingIndex
+    @ObservedObject var lightPollutionViewModel: StarGazingIndexCardViewModel
+
+    var body: some View {
+        let color = index.tier.color
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            CardHeader(icon: AppIcons.Astronomy.starFill, iconColor: color, title: "星空指数")
+
+            HStack(alignment: .center, spacing: Spacing.md) {
+                ScoreArc(score: index.score, color: color)
+                    .frame(
+                        width: StarGazingIndexCardMetrics.visualWidth,
+                        height: CardVisual.arcHeight
+                    )
+                    .accessibilityHidden(true)
+
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: Spacing.sm) {
+                        StarTierSummary(index: index, color: color)
+                        inlineBreakdown
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        StarTierSummary(index: index, color: color)
+                        inlineBreakdown
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .glassCard()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var inlineBreakdown: some View {
+        HStack(spacing: Spacing.xs) {
+            inlineScore(label: "星空", value: "\(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)")
+            inlineScore(label: "気象", value: weatherValue)
+            inlineScore(label: "光害", value: lightPollutionValue)
+        }
+        .font(.body)
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
+        .allowsTightening(true)
+    }
+
+    private var weatherValue: String {
+        guard index.hasWeatherData else {
+            return "データなし"
+        }
+        return "\(index.weatherScore)/\(StarGazingIndex.maxWeatherScore)"
+    }
+
+    private var lightPollutionValue: String {
+        guard !index.hasLightPollutionData else {
+            return "\(index.lightPollutionScore)/\(StarGazingIndex.maxLightPollutionScore)"
+        }
+        if lightPollutionViewModel.isLoading {
+            return "取得中..."
+        }
+        if lightPollutionViewModel.fetchFailed {
+            return "取得失敗"
+        }
+        return "取得中..."
+    }
+
+    private var accessibilityLabel: String {
+        "星空指数 \(index.score)点、\(index.label)。" +
+        "星空 \(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)。" +
+        "気象 \(weatherValue)。" +
+        "光害 \(lightPollutionValue)。"
+    }
+
+    private func inlineScore(label: String, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.primary)
+        }
+        .lineLimit(1)
+    }
+}
+#endif
+
 // MARK: - Score Arc Canvas
+
+private struct StarTierSummary: View {
+    let index: StarGazingIndex
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: StarGazingIndexCardMetrics.starSpacing) {
+                ForEach(0..<5) { i in
+                    Image(systemName: i < index.starCount ? AppIcons.Astronomy.starFill : AppIcons.Astronomy.star)
+                        .foregroundStyle(i < index.starCount ? color : Color.secondary.opacity(0.4))
+                        .font(.subheadline)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("評価: 星\(index.starCount)つ（5段階）")
+
+            Text(index.label)
+                .font(.subheadline.weight(.regular))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .allowsTightening(true)
+                .padding(.horizontal, Spacing.xs)
+                .padding(.vertical, Spacing.xs / 2)
+                .background(color.opacity(0.14), in: Capsule())
+        }
+    }
+}
 
 private struct ScoreArc: View {
     let score: Int
@@ -202,6 +272,13 @@ private struct ScoreArc: View {
             ctx.stroke(prog,
                        with: .color(color.opacity(0.9)),
                        style: StrokeStyle(lineWidth: lineW, lineCap: .round))
+
+            ctx.draw(
+                Text("\(score)/100")
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Color.white.opacity(0.85)),
+                at: CGPoint(x: cx, y: cy - r * 0.35)
+            )
         }
     }
 }

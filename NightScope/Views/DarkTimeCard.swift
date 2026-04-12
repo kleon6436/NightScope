@@ -10,26 +10,33 @@ struct DarkTimeCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcons.Observation.clock)
-                    .foregroundStyle(.green)
-                    .font(.body)
+            CardHeader(icon: AppIcons.Observation.clock, iconColor: .green, title: "観測可能時間")
+            HStack(alignment: .center, spacing: Spacing.sm) {
+                DarkTimeArc(darkHours: summary.totalDarkHours)
+                    .frame(width: CardVisual.width, height: CardVisual.arcHeight)
                     .accessibilityHidden(true)
-                Text("観測可能時間")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-            Text(viewModel.displayText)
-                .font(.headline)
-                .foregroundStyle(viewModel.isUnavailable ? .secondary : .primary)
-            if !viewModel.isUnavailable {
-                Text(String(format: "暗い時間 %.1f時間", summary.totalDarkHours))
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                NightTimelineBar(summary: summary)
-                    .frame(height: 8)
-                    .padding(.top, 2)
-                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(viewModel.displayText)
+                        .font(.headline)
+                        .foregroundStyle(viewModel.isUnavailable ? .secondary : .primary)
+                        .lineLimit(1)
+                    if !viewModel.isUnavailable {
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.xs / 2) {
+                            Text("暗い時間")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.1f時間", summary.totalDarkHours))
+                                .font(.body.monospacedDigit())
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(viewModel.supportingText)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .glassCard()
@@ -38,64 +45,42 @@ struct DarkTimeCard: View {
     }
 }
 
-// MARK: - Night Timeline Bar
+// MARK: - Dark Time Arc Gauge
 
-private struct NightTimelineBar: View {
-    let summary: NightSummary
-
-    private func fraction(for date: Date) -> Double {
-        let cal = Calendar.current
-        let components = cal.dateComponents([.hour, .minute], from: date)
-        var hour = Double(components.hour ?? 0) + Double(components.minute ?? 0) / 60
-        if hour < 18 { hour += 24 }
-        return (hour - 18) / 12.0
-    }
-
-    private var nowMarkerFraction: Double? {
-        let cal = Calendar.current
-        let todayComponents = cal.dateComponents([.year, .month, .day], from: summary.date)
-        guard let dayMidnight = cal.date(from: todayComponents),
-              let dayStart = cal.date(byAdding: .hour, value: 18, to: dayMidnight),
-              let dayEnd   = cal.date(byAdding: .hour, value: 12, to: dayStart)
-        else { return nil }
-        let now = Date()
-        guard now >= dayStart && now <= dayEnd else { return nil }
-        return fraction(for: now)
-    }
+private struct DarkTimeArc: View {
+    let darkHours: Double
 
     var body: some View {
-        let startFrac = summary.eveningDarkStart.map { fraction(for: $0) } ?? 0
-        let endFrac   = summary.morningDarkEnd.map   { fraction(for: $0) } ?? 1
-        let s = min(max(startFrac, 0), 1)
-        let e = min(max(endFrac,   0), 1)
+        Canvas { ctx, size in
+            let cx = size.width / 2, cy = size.height
+            let r = min(size.width, size.height * 2) * 0.44
+            let lineW = CardVisual.strokeWidth
 
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
+            var track = Path()
+            track.addArc(center: CGPoint(x: cx, y: cy),
+                         radius: r, startAngle: .degrees(180), endAngle: .degrees(0),
+                         clockwise: false)
+            ctx.stroke(track,
+                       with: .color(Color.white.opacity(CardVisual.trackOpacity)),
+                       style: StrokeStyle(lineWidth: lineW, lineCap: .round))
 
-            // Track
-            RoundedRectangle(cornerRadius: h / 2)
-                .fill(Color.white.opacity(0.12))
-                .frame(height: h)
+            let fraction = min(max(darkHours / 12.0, 0), 1)
+            let deg = 180.0 * fraction
+            var prog = Path()
+            prog.addArc(center: CGPoint(x: cx, y: cy),
+                        radius: r, startAngle: .degrees(180),
+                        endAngle: .degrees(180 + deg), clockwise: false)
+            let color: Color = darkHours >= 8 ? .green : darkHours >= 5 ? .teal : .orange
+            ctx.stroke(prog,
+                       with: .color(color.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: lineW, lineCap: .round))
 
-            // Dark band
-            if e > s {
-                RoundedRectangle(cornerRadius: h / 2)
-                    .fill(LinearGradient(
-                        colors: [Color.green.opacity(0.7), Color.teal.opacity(0.7)],
-                        startPoint: .leading, endPoint: .trailing))
-                    .frame(width: w * (e - s), height: h)
-                    .offset(x: w * s)
-            }
-
-            // Current time marker
-            if let nowFrac = nowMarkerFraction {
-                Rectangle()
-                    .fill(Color.white.opacity(0.85))
-                    .frame(width: 2, height: h * 1.6)
-                    .offset(x: w * min(max(nowFrac, 0), 1) - 1, y: -h * 0.3)
-            }
+            ctx.draw(
+                Text(String(format: "%.1fh", darkHours))
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.85)),
+                at: CGPoint(x: cx, y: cy - r * 0.35)
+            )
         }
     }
 }
-

@@ -143,7 +143,8 @@ struct iOSTodayView: View {
             MoonPhaseCard(summary: summary)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
-            ViewingWindowsSection(summary: summary)
+            MilkyWaySummaryCard(summary: summary)
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight, alignment: .top)
                 .padding(.top, Spacing.xs)
         }
     }

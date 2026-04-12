@@ -46,12 +46,12 @@ struct ViewingWindow {
         return directions[index]
     }
 
-    func accessibilityDescription(isMoonFavorable: Bool) -> String {
+    func accessibilityDescription() -> String {
         let timeRange = "\(start.nightTimeString())から\(end.nightTimeString())"
-        let duration = String(format: "観測%.1f時間", self.duration / 3600)
         let altitude = String(format: "最大高度%.0f度", peakAltitude)
-        let moon = isMoonFavorable ? "月の条件良好" : "月明かりあり"
-        return "観測窓: \(timeRange)、\(duration)、\(altitude)、\(moon)"
+        let peak = "見頃\(peakTime.nightTimeString())"
+        let direction = "方角\(peakDirectionName)"
+        return "観測窓: \(timeRange)、\(altitude)、\(peak)、\(direction)"
     }
 }
 
@@ -68,6 +68,7 @@ struct NightSummary {
     private var bestWindow: ViewingWindow? {
         viewingWindows.max(by: { $0.peakAltitude < $1.peakAltitude })
     }
+    var bestViewingWindow: ViewingWindow? { bestWindow }
     var bestViewingTime: Date?  { bestWindow?.peakTime }
     var maxAltitude: Double?    { bestWindow?.peakAltitude }
     var bestDirection: String?  { bestWindow?.peakDirectionName }

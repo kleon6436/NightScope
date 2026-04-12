@@ -110,6 +110,8 @@ enum LayoutMacOS {
     static let sidebarIdealWidth: CGFloat = 280
     /// サイドバー最大幅
     static let sidebarMaxWidth: CGFloat = 300
+    /// 要約カード4枚の共通最小幅
+    static let summaryCardMinWidth: CGFloat = 280
 }
 #endif
 
@@ -121,6 +123,23 @@ enum LayoutiOS {
     static let gridSpacing: CGFloat = Spacing.sm
 }
 #endif
+
+// MARK: - Card Visual
+
+enum CardVisual {
+    /// カード左側ビジュアルの統一幅
+    static let width: CGFloat = 52
+    /// 半円ゲージの統一高さ
+    static let arcHeight: CGFloat = 28
+    /// 月相アイコンのフォントサイズ
+    static let moonIconSize: CGFloat = 40
+    /// 方角インジケーターのサイズ（正方形）
+    static let compassSize: CGFloat = 44
+    /// ゲージ共通のストローク幅
+    static let strokeWidth: Double = 5
+    /// ゲージ共通のトラック透過度
+    static let trackOpacity: Double = 0.12
+}
 
 // MARK: - GlassCard ViewModifier
 
@@ -136,6 +155,27 @@ struct GlassCardModifier: ViewModifier {
 extension View {
     func glassCard() -> some View {
         modifier(GlassCardModifier())
+    }
+}
+
+// MARK: - CardHeader
+
+/// 全カード共通のヘッダー（SF Symbol アイコン + カテゴリラベル）
+struct CardHeader: View {
+    let icon: String
+    let iconColor: Color
+    let title: String
+
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: icon)
+                .foregroundStyle(iconColor)
+                .font(.title3)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
@@ -210,10 +250,8 @@ extension StarGazingIndex.Tier {
 // MARK: - Weather Presentation
 
 enum WeatherPresentation {
-    static func combinedLabel(for weather: DayWeatherSummary) -> String {
-        weather.weatherLabel == weather.cloudLabel
-            ? weather.weatherLabel
-            : "\(weather.weatherLabel)（\(weather.cloudLabel)）"
+    static func primaryLabel(for weather: DayWeatherSummary) -> String {
+        weather.weatherLabel
     }
 
     static func color(forWeatherCode code: Int) -> Color {
@@ -259,7 +297,7 @@ struct ForecastCardPresentation {
     }
 
     var weatherDetailText: String? {
-        weather.map { WeatherPresentation.combinedLabel(for: $0) }
+        weather.map { WeatherPresentation.primaryLabel(for: $0) }
     }
 }
 

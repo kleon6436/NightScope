@@ -21,4 +21,8 @@ struct DarkTimeCardViewModel {
     var accessibilityLabel: String {
         "観測可能時間: \(displayText)"
     }
+
+    var supportingText: String {
+        weather == nil ? "天文学的な暗夜時間" : "天候・月明かりを考慮"
+    }
 }

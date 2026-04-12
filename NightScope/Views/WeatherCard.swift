@@ -6,92 +6,71 @@ struct NightWeatherCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcons.Weather.cloud)
-                    .foregroundStyle(.cyan)
-                    .font(.title2)
-                    .accessibilityHidden(true)
-                Text("天気 (夜間)")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let w = weather {
-                HStack(alignment: .center, spacing: Spacing.sm) {
-                    CloudCoverArc(cloudCover: w.avgCloudCover)
-                        .frame(width: 52, height: 28)
-                        .accessibilityLabel("雲量 \(Int(w.avgCloudCover))%")
-
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(viewModel.weatherLabel(w))
-                            .font(.headline)
-                        Text(viewModel.formatPrecipitation(w.maxPrecipitation))
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                        Text(viewModel.formatWindSpeed(w.avgWindSpeed))
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } else {
-                Text("データなし")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                Text("10日以内のみ")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+            CardHeader(icon: AppIcons.Weather.cloud, iconColor: .cyan, title: "天気 (夜間)")
+            HStack(alignment: .center, spacing: Spacing.sm) {
+                weatherVisual
+                weatherTextContent
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .glassCard()
         .accessibilityElement(children: .combine)
         .accessibilityLabel(viewModel.accessibilityDescription(weather: weather, isLoading: false))
     }
-}
 
-// MARK: - Cloud Cover Arc Gauge
+    @ViewBuilder
+    private var weatherVisual: some View {
+        WeatherSymbolVisual(weather: weather)
+            .frame(width: CardVisual.width, height: CardVisual.arcHeight)
+            .accessibilityHidden(true)
+    }
 
-private struct CloudCoverArc: View {
-    let cloudCover: Double  // 0〜100
-
-    var body: some View {
-        Canvas { ctx, size in
-            let w = size.width, h = size.height
-            let cx = w / 2, cy = h
-            let r  = min(w, h * 2) * 0.44
-            let lineW: Double = 5
-
-            // Track arc (180° semicircle, left→right)
-            var trackPath = Path()
-            trackPath.addArc(center: CGPoint(x: cx, y: cy),
-                             radius: r,
-                             startAngle: .degrees(180), endAngle: .degrees(0),
-                             clockwise: false)
-            ctx.stroke(trackPath,
-                       with: .color(Color.white.opacity(0.12)),
-                       style: StrokeStyle(lineWidth: lineW, lineCap: .round))
-
-            // Filled arc
-            let fillDeg = 180.0 * min(max(cloudCover / 100.0, 0), 1)
-            var fillPath = Path()
-            fillPath.addArc(center: CGPoint(x: cx, y: cy),
-                            radius: r,
-                            startAngle: .degrees(180),
-                            endAngle: .degrees(180 + fillDeg),
-                            clockwise: false)
-            let arcColor = cloudCover < 30 ? Color.cyan
-                         : cloudCover < 70 ? Color.blue
-                         : Color.gray
-            ctx.stroke(fillPath,
-                       with: .color(arcColor.opacity(0.85)),
-                       style: StrokeStyle(lineWidth: lineW, lineCap: .round))
-
-            // Percentage label
-            ctx.draw(
-                Text(String(format: "%.0f%%", cloudCover))
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                    .foregroundColor(.white.opacity(0.85)),
-                at: CGPoint(x: cx, y: cy - r * 0.35))
+    @ViewBuilder
+    private var weatherTextContent: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            if let weather {
+                Text(viewModel.weatherLabel(weather))
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(viewModel.formatMetrics(precipitation: weather.maxPrecipitation, cloudCover: weather.avgCloudCover))
+                    .font(.body.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(viewModel.formatWindSpeed(weather.avgWindSpeed))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                Text("不明")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text("データなし")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text("10日以内のみ")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
     }
 }
 
+// MARK: - Weather Symbol Visual
+
+private struct WeatherSymbolVisual: View {
+    let weather: DayWeatherSummary?
+
+    var body: some View {
+        Image(systemName: weather?.weatherIconName ?? "questionmark.circle")
+            .font(.title2)
+            .fontWeight(.semibold)
+            .foregroundStyle(
+                weather.map { WeatherPresentation.color(forWeatherCode: $0.representativeWeatherCode) }
+                ?? .secondary
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}

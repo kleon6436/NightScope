@@ -46,10 +46,10 @@ struct DetailView: View {
     }
 
     private func detailContent(summary: NightSummary) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.lg) {
-                headerSection(summary: summary)
-                ViewingWindowsSection(summary: summary)
+        let weather = viewModel.weatherService.summary(for: viewModel.selectedDate)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                headerSection(summary: summary, weather: weather)
                 UpcomingNightsGrid(viewModel: upcomingGridViewModel)
             }
             .padding(Spacing.md)
@@ -58,9 +58,10 @@ struct DetailView: View {
     }
 
     private var loadingContent: some View {
-        ScrollView {
+        let weather = viewModel.weatherService.summary(for: viewModel.selectedDate)
+        return ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                headerSection(summary: .placeholder)
+                headerSection(summary: .placeholder, weather: weather)
             }
             .padding(Spacing.md)
             .redacted(reason: .placeholder)
@@ -120,7 +121,7 @@ struct DetailView: View {
 
     // MARK: - Header
 
-    private func headerSection(summary: NightSummary) -> some View {
+    private func headerSection(summary: NightSummary, weather: DayWeatherSummary?) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
                 Text(viewModel.locationName)
@@ -146,22 +147,73 @@ struct DetailView: View {
                     .help("星空マップを表示")
                     .accessibilityHint("選択した日付の星空マップを開きます")
                 }
-                StarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
+                MacStarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
             }
 
             GlassEffectContainer {
-                HStack(alignment: .top, spacing: Spacing.xs) {
-                    DarkTimeCard(
+                ViewThatFits(in: .horizontal) {
+                    MacSummaryCardsWide(
                         summary: summary,
-                        weather: viewModel.weatherService.summary(for: viewModel.selectedDate)
+                        weather: weather,
+                        weatherViewModel: nightWeatherCardViewModel
                     )
-                    NightWeatherCard(
-                        weather: viewModel.weatherService.summary(for: viewModel.selectedDate),
-                        viewModel: nightWeatherCardViewModel
+                    MacSummaryCardsWrapped(
+                        summary: summary,
+                        weather: weather,
+                        weatherViewModel: nightWeatherCardViewModel
                     )
-                    MoonPhaseCard(summary: summary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+}
+
+private enum MacSummaryCardLayout {
+    static let minimumWidth: CGFloat = LayoutMacOS.summaryCardMinWidth
+}
+
+private struct MacSummaryCardsWide: View {
+    let summary: NightSummary
+    let weather: DayWeatherSummary?
+    @ObservedObject var weatherViewModel: NightWeatherCardViewModel
+
+    var body: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(minimum: MacSummaryCardLayout.minimumWidth), spacing: Spacing.xs),
+                GridItem(.flexible(minimum: MacSummaryCardLayout.minimumWidth), spacing: Spacing.xs),
+                GridItem(.flexible(minimum: MacSummaryCardLayout.minimumWidth), spacing: Spacing.xs),
+                GridItem(.flexible(minimum: MacSummaryCardLayout.minimumWidth), spacing: Spacing.xs)
+            ],
+            alignment: .leading,
+            spacing: Spacing.xs
+        ) {
+            DarkTimeCard(summary: summary, weather: weather)
+            NightWeatherCard(weather: weather, viewModel: weatherViewModel)
+            MoonPhaseCard(summary: summary)
+            MilkyWaySummaryCard(summary: summary)
+        }
+    }
+}
+
+private struct MacSummaryCardsWrapped: View {
+    let summary: NightSummary
+    let weather: DayWeatherSummary?
+    @ObservedObject var weatherViewModel: NightWeatherCardViewModel
+
+    var body: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.adaptive(minimum: MacSummaryCardLayout.minimumWidth), spacing: Spacing.xs)
+            ],
+            alignment: .leading,
+            spacing: Spacing.xs
+        ) {
+            DarkTimeCard(summary: summary, weather: weather)
+            NightWeatherCard(weather: weather, viewModel: weatherViewModel)
+            MoonPhaseCard(summary: summary)
+            MilkyWaySummaryCard(summary: summary)
         }
     }
 }
