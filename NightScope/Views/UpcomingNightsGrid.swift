@@ -2,12 +2,18 @@ import SwiftUI
 
 struct UpcomingNightsGrid: View {
     @ObservedObject var viewModel: UpcomingNightsGridViewModel
+    private let placeholderCardCount = 4
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 Text("今後2週間の予報")
                     .font(.title3.bold())
+                if viewModel.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("今後2週間の予報を更新中")
+                }
                 Spacer()
                 if !Calendar.current.isDateInToday(viewModel.selectedDate) {
                     Button("今日") { viewModel.setSelectedDate(Date()) }
@@ -19,7 +25,9 @@ struct UpcomingNightsGrid: View {
 
             let displayNights = viewModel.displayNights
 
-            if displayNights.isEmpty {
+            if viewModel.isLoading && displayNights.isEmpty {
+                placeholderGrid
+            } else if displayNights.isEmpty {
                 ContentUnavailableView(
                     "観測に適した夜がありません",
                     systemImage: AppIcons.Astronomy.moonZzz,
@@ -62,14 +70,27 @@ struct UpcomingNightsGrid: View {
             RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
                 .stroke(Color.accentColor, lineWidth: isSelected ? 1.5 : 0)
         )
+        .redacted(reason: viewModel.isLoading ? .placeholder : [])
         .contentShape(Rectangle())
         .onTapGesture {
+            guard !viewModel.isLoading else { return }
             viewModel.setSelectedDate(night.date)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(viewModel.cardAccessibilityLabel(night: night, weather: weather, index: index))
         .accessibilityAddTraits(.isButton)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var placeholderGrid: some View {
+        GlassEffectContainer {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: Spacing.xs)], spacing: Spacing.xs) {
+                ForEach(0..<placeholderCardCount, id: \.self) { offset in
+                    upcomingNightCard(night: viewModel.placeholderNight(at: offset))
+                        .allowsHitTesting(false)
+                }
+            }
+        }
     }
 
     private func cardHeader(night: NightSummary, presentation: ForecastCardPresentation) -> some View {

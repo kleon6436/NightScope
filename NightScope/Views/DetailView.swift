@@ -49,7 +49,12 @@ struct DetailView: View {
         let weather = viewModel.currentWeather
         return ScrollView {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                headerSection(summary: summary, weather: weather, isWeatherLoading: viewModel.isWeatherLoading)
+                headerSection(
+                    summary: summary,
+                    weather: weather,
+                    isWeatherLoading: viewModel.isWeatherLoading,
+                    isSummaryRefreshing: viewModel.isCalculating
+                )
                 UpcomingNightsGrid(viewModel: upcomingGridViewModel)
             }
             .padding(Spacing.md)
@@ -61,7 +66,12 @@ struct DetailView: View {
         let weather = viewModel.currentWeather
         return ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                headerSection(summary: .placeholder, weather: weather, isWeatherLoading: viewModel.isWeatherLoading)
+                headerSection(
+                    summary: .placeholder,
+                    weather: weather,
+                    isWeatherLoading: viewModel.isWeatherLoading,
+                    isSummaryRefreshing: true
+                )
             }
             .padding(Spacing.md)
             .redacted(reason: .placeholder)
@@ -121,7 +131,12 @@ struct DetailView: View {
 
     // MARK: - Header
 
-    private func headerSection(summary: NightSummary, weather: DayWeatherSummary?, isWeatherLoading: Bool) -> some View {
+    private func headerSection(
+        summary: NightSummary,
+        weather: DayWeatherSummary?,
+        isWeatherLoading: Bool,
+        isSummaryRefreshing: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
                 Text(viewModel.locationName)
@@ -129,6 +144,11 @@ struct DetailView: View {
                 Text(summary.date, style: .date)
                     .font(.title3)
                     .foregroundStyle(.secondary)
+                if isSummaryRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("右側の情報を更新中")
+                }
                 Spacer()
             }
 
@@ -144,10 +164,12 @@ struct DetailView: View {
                         Label("星空マップ", systemImage: AppIcons.Astronomy.sparkles)
                     }
                     .buttonStyle(.glass)
+                    .disabled(isSummaryRefreshing)
                     .help("星空マップを表示")
                     .accessibilityHint("選択した日付の星空マップを開きます")
                 }
                 MacStarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
+                    .redacted(reason: isSummaryRefreshing ? .placeholder : [])
             }
 
             GlassEffectContainer {
@@ -166,6 +188,7 @@ struct DetailView: View {
                     )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .redacted(reason: isSummaryRefreshing ? .placeholder : [])
             }
         }
     }

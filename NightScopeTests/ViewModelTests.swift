@@ -268,6 +268,16 @@ final class ViewModelTests: XCTestCase {
         XCTAssertTrue(vm.isWeatherLoading)
     }
 
+    func test_DetailViewModel_isUpcomingLoading_reflectsController() {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let vm = DetailViewModel(appController: appController)
+
+        XCTAssertFalse(vm.isUpcomingLoading)
+        appController.isUpcomingLoading = true
+        XCTAssertTrue(vm.isUpcomingLoading)
+    }
+
     // MARK: - NightWeatherCardViewModel
 
     func test_NightWeatherCardViewModel_formatCloudCover() {

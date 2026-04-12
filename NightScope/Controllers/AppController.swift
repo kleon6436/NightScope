@@ -16,6 +16,7 @@ final class AppController: ObservableObject {
     @Published var starGazingIndex: StarGazingIndex?
     @Published var upcomingIndexes: [Date: StarGazingIndex] = [:]
     @Published var isCalculating = false
+    @Published var isUpcomingLoading = false
 
     // MARK: - Private State
     private let calculationService: NightCalculating
@@ -79,9 +80,7 @@ final class AppController: ObservableObject {
     // MARK: - Calculation
     func recalculate() {
         calculationTask?.cancel()
-        if nightSummary == nil {
-            isCalculating = true
-        }
+        isCalculating = true
         let date = selectedDate
         let location = selectedCoordinate
         calculationTask = Task {
@@ -95,6 +94,7 @@ final class AppController: ObservableObject {
 
     func recalculateUpcoming() {
         upcomingTask?.cancel()
+        isUpcomingLoading = true
         let today = Date()
         let location = selectedCoordinate
         upcomingTask = Task {
@@ -102,6 +102,7 @@ final class AppController: ObservableObject {
             guard !Task.isCancelled else { return }
             upcomingNights = upcoming
             recomputeUpcomingIndexes()
+            isUpcomingLoading = false
         }
     }
 
@@ -133,11 +134,8 @@ final class AppController: ObservableObject {
     }
 
     func prepareForLocationChange() {
-        nightSummary = nil
-        upcomingNights = []
-        starGazingIndex = nil
-        upcomingIndexes = [:]
         isCalculating = true
+        isUpcomingLoading = true
 
         let coordinate = selectedCoordinate
         weatherService.prepareForLocationChange(

@@ -15,6 +15,7 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var hasLightPollutionError: Bool = false
     @Published private(set) var currentWeather: DayWeatherSummary?
     @Published private(set) var isWeatherLoading: Bool = false
+    @Published private(set) var isUpcomingLoading: Bool = false
 
     private let appController: AppController
     private var cancellables = Set<AnyCancellable>()
@@ -66,6 +67,9 @@ final class DetailViewModel: ObservableObject {
 
         appController.$isCalculating
             .assign(to: &$isCalculating)
+
+        appController.$isUpcomingLoading
+            .assign(to: &$isUpcomingLoading)
 
         appController.locationController.$locationName
             .assign(to: &$locationName)

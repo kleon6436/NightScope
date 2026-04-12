@@ -1,9 +1,11 @@
 import SwiftUI
 import Combine
+import CoreLocation
 
 @MainActor
 final class UpcomingNightsGridViewModel: ObservableObject {
     @Published private(set) var displayNights: [NightSummary] = []
+    @Published private(set) var isLoading = false
 
     private let detailViewModel: DetailViewModel
     private var cancellables = Set<AnyCancellable>()
@@ -30,6 +32,9 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         detailViewModel.weatherService.$weatherByDate
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
+
+        detailViewModel.$isUpcomingLoading
+            .assign(to: &$isLoading)
     }
 
     // MARK: - Public Properties
@@ -74,5 +79,17 @@ final class UpcomingNightsGridViewModel: ObservableObject {
 
     func weatherIconColor(code: Int) -> Color {
         WeatherPresentation.color(forWeatherCode: code)
+    }
+
+    func placeholderNight(at offset: Int) -> NightSummary {
+        let baseDate = Calendar.current.startOfDay(for: selectedDate)
+        let date = Calendar.current.date(byAdding: .day, value: offset, to: baseDate) ?? baseDate
+        return NightSummary(
+            date: date,
+            location: CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503),
+            events: [],
+            viewingWindows: [],
+            moonPhaseAtMidnight: 0
+        )
     }
 }
