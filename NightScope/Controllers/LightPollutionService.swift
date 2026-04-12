@@ -261,6 +261,12 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         static let cacheRadiusDegrees = 0.05
     }
 
+    struct FetchResult {
+        let bortleClass: Double?
+        let fetchFailed: Bool
+        let lastFetchedCoordinate: (lat: Double, lon: Double)?
+    }
+
     @Published var bortleClass: Double?
     var bortleClassPublisher: Published<Double?>.Publisher { $bortleClass }
     @Published var isLoading = false
@@ -282,34 +288,50 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     }
 
     func prepareForLocationChange() {
-        bortleClass = nil
         isLoading = false
         fetchFailed = false
-        lastFetchedCoordinate = nil
     }
 
     func fetch(latitude: Double, longitude: Double) async {
+        isLoading = true
+        fetchFailed = false
+        let result = await fetchSnapshot(latitude: latitude, longitude: longitude)
+        applyFetchResult(result)
+    }
+
+    func fetchSnapshot(latitude: Double, longitude: Double) async -> FetchResult {
         // 同じ座標（0.05度以内 ≈ 5km）では再取得しない（光害は静的データ）
         if let last = lastFetchedCoordinate,
            abs(last.lat - latitude) <= Constants.cacheRadiusDegrees,
            abs(last.lon - longitude) <= Constants.cacheRadiusDegrees {
-            return
+            return FetchResult(
+                bortleClass: bortleClass,
+                fetchFailed: fetchFailed,
+                lastFetchedCoordinate: lastFetchedCoordinate
+            )
         }
-
-        isLoading = true
-        fetchFailed = false
-        defer { isLoading = false }
 
         do {
             let bortle = try await fetchBortle(latitude: latitude, longitude: longitude)
-            bortleClass = bortle
-            lastFetchedCoordinate = (latitude, longitude)
-            fetchFailed = false
+            return FetchResult(
+                bortleClass: bortle,
+                fetchFailed: false,
+                lastFetchedCoordinate: (latitude, longitude)
+            )
         } catch {
-            bortleClass = nil
-            fetchFailed = true
-            lastFetchedCoordinate = nil
+            return FetchResult(
+                bortleClass: nil,
+                fetchFailed: true,
+                lastFetchedCoordinate: nil
+            )
         }
+    }
+
+    func applyFetchResult(_ result: FetchResult) {
+        bortleClass = result.bortleClass
+        fetchFailed = result.fetchFailed
+        lastFetchedCoordinate = result.lastFetchedCoordinate
+        isLoading = false
     }
 
     func fetchBortle(latitude: Double, longitude: Double) async throws -> Double {

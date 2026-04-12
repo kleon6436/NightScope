@@ -4,6 +4,15 @@ import CoreLocation
 
 @MainActor
 final class AppController: ObservableObject {
+    private struct LocationRefreshPayload {
+        let nightSummary: NightSummary
+        let upcomingNights: [NightSummary]
+        let weatherResult: WeatherService.FetchResult
+        let lightPollutionResult: LightPollutionService.FetchResult
+        let starGazingIndex: StarGazingIndex
+        let upcomingIndexes: [Date: StarGazingIndex]
+    }
+
     // MARK: - Dependencies
     let locationController: LocationController
     let weatherService: WeatherService
@@ -24,6 +33,7 @@ final class AppController: ObservableObject {
     private var upcomingTask: Task<Void, Never>?
     private var locationTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
+    private var isApplyingLocationRefresh = false
 
     // MARK: - Init
     init(locationController: LocationController? = nil,
@@ -108,24 +118,20 @@ final class AppController: ObservableObject {
 
     func recomputeStarGazingIndex() {
         guard let summary = nightSummary else { return }
-        let weather = weatherService.summary(for: selectedDate)
-        let bortle = lightPollutionService.bortleClass
-        starGazingIndex = StarGazingIndex.compute(
+        starGazingIndex = makeStarGazingIndex(
             nightSummary: summary,
-            weather: weather,
-            bortleClass: bortle
+            weatherByDate: weatherService.weatherByDate,
+            bortleClass: lightPollutionService.bortleClass,
+            selectedDate: selectedDate
         )
     }
 
     func recomputeUpcomingIndexes() {
-        let bortle = lightPollutionService.bortleClass
-        var indexes: [Date: StarGazingIndex] = [:]
-        for night in upcomingNights {
-            let weather = weatherService.summary(for: night.date)
-            let idx = StarGazingIndex.compute(nightSummary: night, weather: weather, bortleClass: bortle)
-            indexes[Calendar.current.startOfDay(for: night.date)] = idx
-        }
-        upcomingIndexes = indexes
+        upcomingIndexes = makeUpcomingIndexes(
+            upcomingNights: upcomingNights,
+            weatherByDate: weatherService.weatherByDate,
+            bortleClass: lightPollutionService.bortleClass
+        )
     }
 
     // MARK: - Private
@@ -136,7 +142,6 @@ final class AppController: ObservableObject {
     func prepareForLocationChange() {
         isCalculating = true
         isUpcomingLoading = true
-
         let coordinate = selectedCoordinate
         weatherService.prepareForLocationChange(
             latitude: coordinate.latitude,
@@ -157,10 +162,47 @@ final class AppController: ObservableObject {
 
     private func handleLocationChanged() async {
         prepareForLocationChange()
-        recalculate()
-        recalculateUpcoming()
+        let coordinate = selectedCoordinate
+        let selectedDate = self.selectedDate
+
+        async let summaryTask = calculationService.calculateNightSummary(date: selectedDate, location: coordinate)
+        async let upcomingTask = calculationService.calculateUpcomingNights(from: Date(), location: coordinate, days: 14)
+        async let weatherTask = weatherService.fetchWeatherSnapshot(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
+        )
+        async let lightPollutionTask = lightPollutionService.fetchSnapshot(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
+        )
+
+        let summary = await summaryTask
+        let upcoming = await upcomingTask
+        let weatherResult = await weatherTask
+        let lightPollutionResult = await lightPollutionTask
         guard !Task.isCancelled else { return }
-        await refreshExternalData()
+        let starGazingIndex = makeStarGazingIndex(
+            nightSummary: summary,
+            weatherByDate: weatherResult.weatherByDate,
+            bortleClass: lightPollutionResult.bortleClass,
+            selectedDate: selectedDate
+        )
+        let upcomingIndexes = makeUpcomingIndexes(
+            upcomingNights: upcoming,
+            weatherByDate: weatherResult.weatherByDate,
+            bortleClass: lightPollutionResult.bortleClass
+        )
+
+        applyLocationRefresh(
+            LocationRefreshPayload(
+                nightSummary: summary,
+                upcomingNights: upcoming,
+                weatherResult: weatherResult,
+                lightPollutionResult: lightPollutionResult,
+                starGazingIndex: starGazingIndex,
+                upcomingIndexes: upcomingIndexes
+            )
+        )
     }
 
     private func scheduleLocationChangeHandling() {
@@ -183,7 +225,8 @@ final class AppController: ObservableObject {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.recomputeAllIndexes()
+                guard let self, !self.isApplyingLocationRefresh else { return }
+                self.recomputeAllIndexes()
             }
             .store(in: &cancellables)
 
@@ -191,8 +234,50 @@ final class AppController: ObservableObject {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.recomputeAllIndexes()
+                guard let self, !self.isApplyingLocationRefresh else { return }
+                self.recomputeAllIndexes()
             }
             .store(in: &cancellables)
+    }
+
+    private func applyLocationRefresh(_ payload: LocationRefreshPayload) {
+        isApplyingLocationRefresh = true
+        weatherService.applyFetchResult(payload.weatherResult)
+        lightPollutionService.applyFetchResult(payload.lightPollutionResult)
+        nightSummary = payload.nightSummary
+        upcomingNights = payload.upcomingNights
+        starGazingIndex = payload.starGazingIndex
+        upcomingIndexes = payload.upcomingIndexes
+        isApplyingLocationRefresh = false
+        isCalculating = false
+        isUpcomingLoading = false
+    }
+
+    private func makeStarGazingIndex(
+        nightSummary: NightSummary,
+        weatherByDate: [String: DayWeatherSummary],
+        bortleClass: Double?,
+        selectedDate: Date
+    ) -> StarGazingIndex {
+        let weather = weatherByDate[weatherService.dateKey(selectedDate)]
+        return StarGazingIndex.compute(
+            nightSummary: nightSummary,
+            weather: weather,
+            bortleClass: bortleClass
+        )
+    }
+
+    private func makeUpcomingIndexes(
+        upcomingNights: [NightSummary],
+        weatherByDate: [String: DayWeatherSummary],
+        bortleClass: Double?
+    ) -> [Date: StarGazingIndex] {
+        var indexes: [Date: StarGazingIndex] = [:]
+        for night in upcomingNights {
+            let weather = weatherByDate[weatherService.dateKey(night.date)]
+            let idx = StarGazingIndex.compute(nightSummary: night, weather: weather, bortleClass: bortleClass)
+            indexes[Calendar.current.startOfDay(for: night.date)] = idx
+        }
+        return indexes
     }
 }

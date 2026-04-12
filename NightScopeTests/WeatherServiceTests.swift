@@ -378,7 +378,7 @@ final class WeatherServiceTests: XCTestCase {
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 75, accuracy: 0.001)
     }
 
-    func test_prepareForLocationChange_clearsDisplayedWeather() {
+    func test_prepareForLocationChange_preservesDisplayedWeatherUntilRefreshCompletes() {
         service.weatherByDate = [
             "2024-06-15": DayWeatherSummary(
                 date: Date(),
@@ -407,7 +407,7 @@ final class WeatherServiceTests: XCTestCase {
 
         service.prepareForLocationChange(latitude: 34.6937, longitude: 135.5023)
 
-        XCTAssertTrue(service.weatherByDate.isEmpty)
+        XCTAssertFalse(service.weatherByDate.isEmpty)
         XCTAssertNil(service.errorMessage)
         XCTAssertFalse(service.isLoading)
     }

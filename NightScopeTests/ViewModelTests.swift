@@ -195,7 +195,7 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(upcomingCallCount, 0)
     }
 
-    func test_DetailViewModel_selectedDate_newValue_triggersRecalculation() async {
+    func test_DetailViewModel_selectedDate_newValue_triggersSummaryRecalculationOnly() async {
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
         let vm = DetailViewModel(appController: appController)
@@ -205,8 +205,7 @@ final class ViewModelTests: XCTestCase {
 
         for _ in 0..<30 {
             let nightCalls = await mockCalculationService.getNightSummaryCallCount()
-            let upcomingCalls = await mockCalculationService.getUpcomingCallCount()
-            if nightCalls > 0 && upcomingCalls > 0 {
+            if nightCalls > 0 {
                 break
             }
             try? await Task.sleep(nanoseconds: 10_000_000)
@@ -215,7 +214,7 @@ final class ViewModelTests: XCTestCase {
         let nightCallCount = await mockCalculationService.getNightSummaryCallCount()
         let upcomingCallCount = await mockCalculationService.getUpcomingCallCount()
         XCTAssertGreaterThanOrEqual(nightCallCount, 1)
-        XCTAssertGreaterThanOrEqual(upcomingCallCount, 1)
+        XCTAssertEqual(upcomingCallCount, 0)
     }
 
     func test_DetailViewModel_hasLightPollutionError_reflectsService() async {

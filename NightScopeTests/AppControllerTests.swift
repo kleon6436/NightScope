@@ -161,7 +161,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(appController.upcomingIndexes[dayKey]?.hasWeatherData, true)
     }
 
-    func test_prepareForLocationChange_preservesDisplayedStateAndStartsReloading() {
+    func test_prepareForLocationChange_preservesDisplayedStateUntilAtomicRefreshCompletes() {
         let baseDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
         let night = makeNightSummary(date: baseDate)
@@ -195,8 +195,8 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(appController.upcomingNights.count, 2)
         XCTAssertNotNil(appController.starGazingIndex)
         XCTAssertEqual(appController.upcomingIndexes.count, 1)
-        XCTAssertTrue(appController.weatherService.weatherByDate.isEmpty)
-        XCTAssertNil(appController.lightPollutionService.bortleClass)
+        XCTAssertEqual(appController.weatherService.weatherByDate.count, 1)
+        XCTAssertEqual(appController.lightPollutionService.bortleClass, 4)
         XCTAssertTrue(appController.isCalculating)
         XCTAssertTrue(appController.isUpcomingLoading)
     }

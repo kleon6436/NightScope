@@ -46,8 +46,8 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     // MARK: - Public Methods
 
     func setSelectedDate(_ date: Date) {
-        // DetailViewModel.$selectedDate の sink が appController.selectedDate の更新と
-        // recalculate/recalculateUpcoming の呼び出しまで担うため、ここでは 1 行のみ
+        // DetailViewModel.$selectedDate の sink が appController.selectedDate 更新と
+        // 当日詳細の再計算を担うため、ここでは選択日だけを更新する
         detailViewModel.selectedDate = date
     }
 

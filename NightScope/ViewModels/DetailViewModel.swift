@@ -61,7 +61,6 @@ final class DetailViewModel: ObservableObject {
                 guard self.appController.selectedDate != date else { return }
                 self.appController.selectedDate = date
                 self.appController.recalculate()
-                self.appController.recalculateUpcoming()
             }
             .store(in: &cancellables)
 

@@ -70,7 +70,6 @@ struct UpcomingNightsGrid: View {
             RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
                 .stroke(Color.accentColor, lineWidth: isSelected ? 1.5 : 0)
         )
-        .redacted(reason: viewModel.isLoading ? .placeholder : [])
         .contentShape(Rectangle())
         .onTapGesture {
             guard !viewModel.isLoading else { return }
