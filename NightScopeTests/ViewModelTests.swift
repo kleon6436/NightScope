@@ -240,6 +240,34 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(vm.weatherErrorMessage, "テストエラー")
     }
 
+    func test_DetailViewModel_currentWeather_tracksWeatherUpdatesForSelectedDate() async {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let targetDate = Calendar.current.startOfDay(for: Date())
+        let weather = DayWeatherSummary(date: targetDate, nighttimeHours: [makeHourlyWeather(cloudCover: 22)])
+
+        appController.selectedDate = targetDate
+        appController.weatherService.weatherByDate = [
+            appController.weatherService.dateKey(targetDate): weather
+        ]
+        let vm = DetailViewModel(appController: appController)
+
+        for _ in 0..<30 where vm.currentWeather == nil {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(vm.currentWeather?.avgCloudCover ?? -1, 22, accuracy: 0.001)
+    }
+
+    func test_DetailViewModel_isWeatherLoading_reflectsService() {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let vm = DetailViewModel(appController: appController)
+
+        XCTAssertFalse(vm.isWeatherLoading)
+        appController.weatherService.isLoading = true
+        XCTAssertTrue(vm.isWeatherLoading)
+    }
+
     // MARK: - NightWeatherCardViewModel
 
     func test_NightWeatherCardViewModel_formatCloudCover() {

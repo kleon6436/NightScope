@@ -46,10 +46,10 @@ struct DetailView: View {
     }
 
     private func detailContent(summary: NightSummary) -> some View {
-        let weather = viewModel.weatherService.summary(for: viewModel.selectedDate)
+        let weather = viewModel.currentWeather
         return ScrollView {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                headerSection(summary: summary, weather: weather)
+                headerSection(summary: summary, weather: weather, isWeatherLoading: viewModel.isWeatherLoading)
                 UpcomingNightsGrid(viewModel: upcomingGridViewModel)
             }
             .padding(Spacing.md)
@@ -58,10 +58,10 @@ struct DetailView: View {
     }
 
     private var loadingContent: some View {
-        let weather = viewModel.weatherService.summary(for: viewModel.selectedDate)
+        let weather = viewModel.currentWeather
         return ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                headerSection(summary: .placeholder, weather: weather)
+                headerSection(summary: .placeholder, weather: weather, isWeatherLoading: viewModel.isWeatherLoading)
             }
             .padding(Spacing.md)
             .redacted(reason: .placeholder)
@@ -121,7 +121,7 @@ struct DetailView: View {
 
     // MARK: - Header
 
-    private func headerSection(summary: NightSummary, weather: DayWeatherSummary?) -> some View {
+    private func headerSection(summary: NightSummary, weather: DayWeatherSummary?, isWeatherLoading: Bool) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
                 Text(viewModel.locationName)
@@ -155,11 +155,13 @@ struct DetailView: View {
                     MacSummaryCardsWide(
                         summary: summary,
                         weather: weather,
+                        isWeatherLoading: isWeatherLoading,
                         weatherViewModel: nightWeatherCardViewModel
                     )
                     MacSummaryCardsWrapped(
                         summary: summary,
                         weather: weather,
+                        isWeatherLoading: isWeatherLoading,
                         weatherViewModel: nightWeatherCardViewModel
                     )
                 }
@@ -176,6 +178,7 @@ private enum MacSummaryCardLayout {
 private struct MacSummaryCardsWide: View {
     let summary: NightSummary
     let weather: DayWeatherSummary?
+    let isWeatherLoading: Bool
     @ObservedObject var weatherViewModel: NightWeatherCardViewModel
 
     var body: some View {
@@ -190,7 +193,7 @@ private struct MacSummaryCardsWide: View {
             spacing: Spacing.xs
         ) {
             DarkTimeCard(summary: summary, weather: weather)
-            NightWeatherCard(weather: weather, viewModel: weatherViewModel)
+            NightWeatherCard(weather: weather, isLoading: isWeatherLoading, viewModel: weatherViewModel)
             MoonPhaseCard(summary: summary)
             MilkyWaySummaryCard(summary: summary)
         }
@@ -200,6 +203,7 @@ private struct MacSummaryCardsWide: View {
 private struct MacSummaryCardsWrapped: View {
     let summary: NightSummary
     let weather: DayWeatherSummary?
+    let isWeatherLoading: Bool
     @ObservedObject var weatherViewModel: NightWeatherCardViewModel
 
     var body: some View {
@@ -211,7 +215,7 @@ private struct MacSummaryCardsWrapped: View {
             spacing: Spacing.xs
         ) {
             DarkTimeCard(summary: summary, weather: weather)
-            NightWeatherCard(weather: weather, viewModel: weatherViewModel)
+            NightWeatherCard(weather: weather, isLoading: isWeatherLoading, viewModel: weatherViewModel)
             MoonPhaseCard(summary: summary)
             MilkyWaySummaryCard(summary: summary)
         }

@@ -12,7 +12,8 @@ final class WeatherService: ObservableObject, WeatherProviding {
     private let urlSession: URLSession
     private let requestFactory: MetNorwayRequestFactory
     private let forecastParser: MetNorwayForecastParser
-    private var lastModifiedDate: Date?
+    private var lastModifiedDatesByLocation: [String: Date] = [:]
+    private var activeLocationKey: String?
 
     init(
         urlSession: URLSession = .shared,
@@ -25,9 +26,13 @@ final class WeatherService: ObservableObject, WeatherProviding {
     }
 
     func fetchWeather(latitude: Double, longitude: Double) async {
+        let locationKey = Self.locationKey(latitude: latitude, longitude: longitude)
+        if activeLocationKey != locationKey {
+            prepareForLocationChange(latitude: latitude, longitude: longitude)
+        }
         currentTask?.cancel()
         currentTask = Task {
-            await performFetch(latitude: latitude, longitude: longitude)
+            await performFetch(latitude: latitude, longitude: longitude, locationKey: locationKey)
         }
         await currentTask?.value
     }
@@ -36,7 +41,15 @@ final class WeatherService: ObservableObject, WeatherProviding {
         weatherByDate[forecastParser.dateKey(date)]
     }
 
-    private func performFetch(latitude: Double, longitude: Double) async {
+    func prepareForLocationChange(latitude: Double, longitude: Double) {
+        currentTask?.cancel()
+        activeLocationKey = Self.locationKey(latitude: latitude, longitude: longitude)
+        weatherByDate = [:]
+        errorMessage = nil
+        isLoading = false
+    }
+
+    private func performFetch(latitude: Double, longitude: Double, locationKey: String) async {
         isLoading = true
         errorMessage = nil
 
@@ -44,7 +57,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
             let request = try requestFactory.makeRequest(
                 latitude: latitude,
                 longitude: longitude,
-                lastModifiedDate: lastModifiedDate
+                lastModifiedDate: lastModifiedDatesByLocation[locationKey]
             )
             let (data, response) = try await urlSession.data(for: request)
             if Task.isCancelled { return }
@@ -63,7 +76,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
             }
 
             if let lastModifiedHeader = http.value(forHTTPHeaderField: "Last-Modified") {
-                lastModifiedDate = MetNorwayFormatting.httpDateFormatter.date(from: lastModifiedHeader)
+                lastModifiedDatesByLocation[locationKey] = MetNorwayFormatting.httpDateFormatter.date(from: lastModifiedHeader)
             }
 
             let apiResponse: MetNorwayResponse
@@ -105,5 +118,9 @@ final class WeatherService: ObservableObject, WeatherProviding {
 
     static func symbolCodeToWMO(_ symbolCode: String?) -> Int {
         MetNorwayForecastParser.symbolCodeToWMO(symbolCode)
+    }
+
+    private static func locationKey(latitude: Double, longitude: Double) -> String {
+        String(format: "%.4f,%.4f", latitude, longitude)
     }
 }

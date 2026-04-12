@@ -160,6 +160,45 @@ final class AppControllerTests: XCTestCase {
 
         XCTAssertEqual(appController.upcomingIndexes[dayKey]?.hasWeatherData, true)
     }
+
+    func test_prepareForLocationChange_clearsLocationDependentState() {
+        let baseDate = Calendar.current.startOfDay(for: Date())
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
+        let night = makeNightSummary(date: baseDate)
+        let nextNight = makeNightSummary(date: nextDate)
+        let weatherSummary = makeWeatherSummary(date: baseDate)
+
+        let appController = AppController(calculationService: MockNightCalculationService())
+        appController.nightSummary = night
+        appController.upcomingNights = [night, nextNight]
+        appController.starGazingIndex = StarGazingIndex.compute(
+            nightSummary: night,
+            weather: weatherSummary,
+            bortleClass: 4
+        )
+        appController.upcomingIndexes = [
+            Calendar.current.startOfDay(for: baseDate): StarGazingIndex.compute(
+                nightSummary: night,
+                weather: weatherSummary,
+                bortleClass: 4
+            )
+        ]
+        appController.weatherService.weatherByDate = [
+            appController.weatherService.dateKey(baseDate): weatherSummary
+        ]
+        appController.lightPollutionService.bortleClass = 4
+        appController.isCalculating = false
+
+        appController.prepareForLocationChange()
+
+        XCTAssertNil(appController.nightSummary)
+        XCTAssertTrue(appController.upcomingNights.isEmpty)
+        XCTAssertNil(appController.starGazingIndex)
+        XCTAssertTrue(appController.upcomingIndexes.isEmpty)
+        XCTAssertTrue(appController.weatherService.weatherByDate.isEmpty)
+        XCTAssertNil(appController.lightPollutionService.bortleClass)
+        XCTAssertTrue(appController.isCalculating)
+    }
 }
 
 actor MockNightCalculationService: NightCalculating {

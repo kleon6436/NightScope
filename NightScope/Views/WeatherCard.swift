@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NightWeatherCard: View {
     let weather: DayWeatherSummary?
+    let isLoading: Bool
     @ObservedObject var viewModel: NightWeatherCardViewModel
 
     var body: some View {
@@ -15,12 +16,12 @@ struct NightWeatherCard: View {
         }
         .glassCard()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.accessibilityDescription(weather: weather, isLoading: false))
+        .accessibilityLabel(viewModel.accessibilityDescription(weather: weather, isLoading: isLoading))
     }
 
     @ViewBuilder
     private var weatherVisual: some View {
-        WeatherSymbolVisual(weather: weather)
+        WeatherSymbolVisual(weather: weather, isLoading: isLoading)
             .frame(width: CardVisual.width, height: CardVisual.arcHeight)
             .accessibilityHidden(true)
     }
@@ -37,6 +38,19 @@ struct NightWeatherCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Text(viewModel.formatWindSpeed(weather.avgWindSpeed))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else if isLoading {
+                Text("取得中…")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text("最新データを取得しています")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text("しばらくお待ちください")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -62,15 +76,23 @@ struct NightWeatherCard: View {
 
 private struct WeatherSymbolVisual: View {
     let weather: DayWeatherSummary?
+    let isLoading: Bool
 
     var body: some View {
-        Image(systemName: weather?.weatherIconName ?? "questionmark.circle")
-            .font(.title2)
-            .fontWeight(.semibold)
-            .foregroundStyle(
-                weather.map { WeatherPresentation.color(forWeatherCode: $0.representativeWeatherCode) }
-                ?? .secondary
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Group {
+            if isLoading && weather == nil {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: weather?.weatherIconName ?? "questionmark.circle")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(
+                        weather.map { WeatherPresentation.color(forWeatherCode: $0.representativeWeatherCode) }
+                        ?? .secondary
+                    )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

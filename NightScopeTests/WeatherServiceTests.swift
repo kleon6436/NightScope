@@ -342,6 +342,76 @@ final class WeatherServiceTests: XCTestCase {
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover, firstCloudCover)
     }
 
+    func test_fetchWeather_differentLocation_doesNotReuseIfModifiedSince() async throws {
+        let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
+        var requestCount = 0
+        let session = makeMockSession { request in
+            requestCount += 1
+            let url = try XCTUnwrap(request.url)
+
+            if requestCount == 1 {
+                XCTAssertNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Last-Modified": "Wed, 01 Jan 2025 00:00:00 GMT"]
+                )!
+                return (response, self.makePayload(times: [t21], cloud: 15))
+            }
+
+            XCTAssertNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Last-Modified": "Thu, 02 Jan 2025 00:00:00 GMT"]
+            )!
+            return (response, self.makePayload(times: [t21], cloud: 75))
+        }
+
+        let service = WeatherService(urlSession: session)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        await service.fetchWeather(latitude: 34.6937, longitude: 135.5023)
+
+        XCTAssertEqual(requestCount, 2)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 75, accuracy: 0.001)
+    }
+
+    func test_prepareForLocationChange_clearsDisplayedWeather() {
+        service.weatherByDate = [
+            "2024-06-15": DayWeatherSummary(
+                date: Date(),
+                nighttimeHours: [
+                    HourlyWeather(
+                        date: Date(),
+                        temperatureCelsius: 12,
+                        cloudCoverPercent: 40,
+                        precipitationMM: 0,
+                        windSpeedKmh: 5,
+                        humidityPercent: 40,
+                        dewpointCelsius: 5,
+                        weatherCode: 0,
+                        visibilityMeters: nil,
+                        windGustsKmh: nil,
+                        cloudCoverLowPercent: nil,
+                        cloudCoverMidPercent: nil,
+                        cloudCoverHighPercent: nil,
+                        windSpeedKmh500hpa: nil
+                    )
+                ]
+            )
+        ]
+        service.errorMessage = "stale"
+        service.isLoading = true
+
+        service.prepareForLocationChange(latitude: 34.6937, longitude: 135.5023)
+
+        XCTAssertTrue(service.weatherByDate.isEmpty)
+        XCTAssertNil(service.errorMessage)
+        XCTAssertFalse(service.isLoading)
+    }
+
     // MARK: - symbolCodeToWMO
 
     func test_symbolCodeToWMO_clearsky() {
@@ -392,7 +462,7 @@ final class WeatherServiceTests: XCTestCase {
         return URLSession(configuration: configuration)
     }
 
-    private func makePayload(times: [String]) -> Data {
+    private func makePayload(times: [String], cloud: Double = 0) -> Data {
         let entries = times.map { time in
             """
             {
@@ -401,7 +471,7 @@ final class WeatherServiceTests: XCTestCase {
                 "instant": {
                   "details": {
                     "air_temperature": 12,
-                    "cloud_area_fraction": 0,
+                    "cloud_area_fraction": \(cloud),
                     "wind_speed": 1.5,
                     "relative_humidity": 40,
                     "dew_point_temperature": 5

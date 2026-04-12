@@ -13,6 +13,8 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var hasWeatherError: Bool = false
     @Published private(set) var weatherErrorMessage: String? = nil
     @Published private(set) var hasLightPollutionError: Bool = false
+    @Published private(set) var currentWeather: DayWeatherSummary?
+    @Published private(set) var isWeatherLoading: Bool = false
 
     private let appController: AppController
     private var cancellables = Set<AnyCancellable>()
@@ -40,6 +42,16 @@ final class DetailViewModel: ObservableObject {
             .removeDuplicates()
             .assign(to: &$selectedDate)
 
+        Publishers.CombineLatest(
+            appController.$selectedDate.removeDuplicates(),
+            appController.weatherService.$weatherByDate
+        )
+        .sink { [weak self] date, _ in
+            guard let self else { return }
+            self.currentWeather = self.appController.weatherService.summary(for: date)
+        }
+        .store(in: &cancellables)
+
         $selectedDate
             .dropFirst()
             .removeDuplicates()
@@ -64,6 +76,9 @@ final class DetailViewModel: ObservableObject {
                 self?.hasWeatherError = errorMessage != nil
             }
             .store(in: &cancellables)
+
+        appController.weatherService.$isLoading
+            .assign(to: &$isWeatherLoading)
 
         appController.lightPollutionService.$fetchFailed
             .assign(to: &$hasLightPollutionError)

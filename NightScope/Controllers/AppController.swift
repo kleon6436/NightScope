@@ -132,6 +132,21 @@ final class AppController: ObservableObject {
         locationController.selectedLocation
     }
 
+    func prepareForLocationChange() {
+        nightSummary = nil
+        upcomingNights = []
+        starGazingIndex = nil
+        upcomingIndexes = [:]
+        isCalculating = true
+
+        let coordinate = selectedCoordinate
+        weatherService.prepareForLocationChange(
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
+        )
+        lightPollutionService.prepareForLocationChange()
+    }
+
     private func refreshExternalData() async {
         await refreshWeather()
         await refreshLightPollution()
@@ -143,6 +158,7 @@ final class AppController: ObservableObject {
     }
 
     private func handleLocationChanged() async {
+        prepareForLocationChange()
         recalculate()
         recalculateUpcoming()
         guard !Task.isCancelled else { return }

@@ -281,6 +281,13 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         self.scaleConverter = scaleConverter
     }
 
+    func prepareForLocationChange() {
+        bortleClass = nil
+        isLoading = false
+        fetchFailed = false
+        lastFetchedCoordinate = nil
+    }
+
     func fetch(latitude: Double, longitude: Double) async {
         // 同じ座標（0.05度以内 ≈ 5km）では再取得しない（光害は静的データ）
         if let last = lastFetchedCoordinate,

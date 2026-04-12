@@ -38,9 +38,7 @@ struct iOSTodayView: View {
 
     private var nightSummary: NightSummary? { detailViewModel.nightSummary }
     private var starGazingIndex: StarGazingIndex? { detailViewModel.starGazingIndex }
-    private var weather: DayWeatherSummary? {
-        detailViewModel.weatherService.summary(for: detailViewModel.selectedDate)
-    }
+    private var weather: DayWeatherSummary? { detailViewModel.currentWeather }
 
     private var isInitialLoading: Bool {
         viewModel.isInitialLoading(isCalculating: detailViewModel.isCalculating, summary: nightSummary)
@@ -137,7 +135,7 @@ struct iOSTodayView: View {
             DarkTimeCard(summary: summary, weather: weather)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
-            NightWeatherCard(weather: weather, viewModel: weatherViewModel)
+            NightWeatherCard(weather: weather, isLoading: detailViewModel.isWeatherLoading, viewModel: weatherViewModel)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
             MoonPhaseCard(summary: summary)
