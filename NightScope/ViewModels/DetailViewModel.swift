@@ -13,6 +13,7 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var hasWeatherError: Bool = false
     @Published private(set) var weatherErrorMessage: String? = nil
     @Published private(set) var hasLightPollutionError: Bool = false
+    @Published private(set) var isLightPollutionLoading: Bool = false
     @Published private(set) var currentWeather: DayWeatherSummary?
     @Published private(set) var isWeatherLoading: Bool = false
     @Published private(set) var isUpcomingLoading: Bool = false
@@ -85,14 +86,31 @@ final class DetailViewModel: ObservableObject {
 
         appController.lightPollutionService.$fetchFailed
             .assign(to: &$hasLightPollutionError)
+
+        appController.lightPollutionService.$isLoading
+            .assign(to: &$isLightPollutionLoading)
     }
 
-    var weatherService: WeatherService {
-        appController.weatherService
+    var lightPollutionLoadingPublisher: AnyPublisher<Bool, Never> {
+        $isLightPollutionLoading
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
 
-    var lightPollutionService: LightPollutionService {
-        appController.lightPollutionService
+    var lightPollutionFailurePublisher: AnyPublisher<Bool, Never> {
+        $hasLightPollutionError
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
+    var weatherUpdatesPublisher: AnyPublisher<Void, Never> {
+        appController.weatherService.$weatherByDate
+            .map { _ in () }
+            .eraseToAnyPublisher()
+    }
+
+    func weatherSummary(for date: Date) -> DayWeatherSummary? {
+        appController.weatherService.summary(for: date)
     }
 
     func refreshWeather() async {

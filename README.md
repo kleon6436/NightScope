@@ -35,7 +35,7 @@ NightScope は、星空観測向けの macOS / iOS アプリです。
 
 ### iOS (Simulator) ビルド
 
-- `xcodebuild -quiet -project NightScope.xcodeproj -scheme NightScopeiOS -destination 'generic/platform=iOS Simulator' build`
+- `xcodebuild -quiet -project NightScope.xcodeproj -scheme NightScopeiOS -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build`
 
 ## プロジェクト構成（抜粋）
 

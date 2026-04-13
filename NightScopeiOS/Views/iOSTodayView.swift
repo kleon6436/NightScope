@@ -31,7 +31,10 @@ struct iOSTodayView: View {
         self.detailViewModel = detailViewModel
         _lightPollutionViewModel = StateObject(
             wrappedValue: StarGazingIndexCardViewModel(
-                lightPollutionService: detailViewModel.lightPollutionService
+                isLoading: detailViewModel.isLightPollutionLoading,
+                fetchFailed: detailViewModel.hasLightPollutionError,
+                isLoadingPublisher: detailViewModel.lightPollutionLoadingPublisher,
+                fetchFailedPublisher: detailViewModel.lightPollutionFailurePublisher
             )
         )
     }
