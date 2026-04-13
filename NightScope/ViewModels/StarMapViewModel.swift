@@ -74,7 +74,7 @@ final class StarMapViewModel: ObservableObject {
     private var lastTimeSliderCommitTime: TimeInterval = 0
     private var pendingTimeSliderDate: Date?
     private var timeSliderCommitTask: Task<Void, Never>?
-    private var displayDateUpdateMode: StarMapTimelinePolicy.DisplayDateUpdateMode = .standard
+    private var displayDateUpdateMode: DisplayDateUpdateMode = .standard
     private var starDisplayDensity: StarDisplayDensity
 
     // MARK: - Init
@@ -121,6 +121,13 @@ final class StarMapViewModel: ObservableObject {
     private var trailingTask: Task<Void, Never>?
     /// 前回の計算開始タイムスタンプ (全 update() 呼び出しで共通スロットルに使用)
     private var lastPositionUpdateTime: TimeInterval = 0
+    /// 通常時の計算更新インターバル: 30fps
+    private static let minUpdateInterval: TimeInterval = 1.0 / 30
+    /// スライダー編集中の計算更新インターバル: 20fps
+    private static let minScrubbingUpdateInterval: TimeInterval = 1.0 / 20
+    /// スライダー編集中の日時コミット間隔: 20fps
+    private static let timeSliderCommitInterval: TimeInterval = 1.0 / 20
+
     private struct UpdateContext {
         let latitude: Double
         let longitude: Double
@@ -133,15 +140,28 @@ final class StarMapViewModel: ObservableObject {
         }
     }
 
+    private enum DisplayDateUpdateMode {
+        case standard
+        case preserveNightRangeAndSlider
+
+        var skipsNightRange: Bool {
+            self == .preserveNightRangeAndSlider
+        }
+
+        var skipsTimeSliderSync: Bool {
+            self == .preserveNightRangeAndSlider
+        }
+    }
+
     func update() {
         let now = Date.timeIntervalSinceReferenceDate
-        if let remaining = StarMapUpdatePolicy.trailingDelay(
-            now: now,
-            lastUpdateTime: lastPositionUpdateTime,
-            isScrubbing: isTimeSliderScrubbing
-        ) {
+        let elapsed = now - lastPositionUpdateTime
+        let minUpdateInterval = currentMinUpdateInterval
+
+        if elapsed < minUpdateInterval {
             // 前回から時間が短い → trailing-edge debounce でインターバル後に最終値を計算
             trailingTask?.cancel()
+            let remaining = minUpdateInterval - elapsed
             trailingTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
                 guard !Task.isCancelled else { return }
@@ -315,21 +335,17 @@ final class StarMapViewModel: ObservableObject {
     }
 
     func setTimeSliderMinutes(_ minutes: Double) {
-        let clampedMinutes = StarMapTimelinePolicy.clampedSliderMinutes(
-            minutes,
-            nightDurationMinutes: nightDurationMinutes
-        )
-        guard StarMapTimelinePolicy.shouldApplySliderChange(
-            currentMinutes: timeSliderMinutes,
-            newMinutes: clampedMinutes
-        ) else { return }
+        let clampedMinutes = max(0, min(nightDurationMinutes, minutes.rounded()))
+        guard abs(timeSliderMinutes - clampedMinutes) > 0.5 else { return }
         timeSliderMinutes = clampedMinutes
 
-        guard let updatedDate = StarMapTimelinePolicy.displayDate(
-            for: clampedMinutes,
-            nightStartMinutes: nightStartMinutes,
-            baseDate: displayDate
-        ) else { return }
+        let realMinutes = StarMapDateLogic.nightOffsetToRealMinutes(
+            clampedMinutes,
+            nightStartMinutes: nightStartMinutes
+        )
+        guard let updatedDate = StarMapDateLogic.date(bySettingClockMinutes: realMinutes, on: displayDate) else {
+            return
+        }
 
         if isTimeSliderScrubbing {
             pendingTimeSliderDate = updatedDate
@@ -352,15 +368,13 @@ final class StarMapViewModel: ObservableObject {
     }
 
     private func syncTimeSliderWithDisplayDate() {
-        let offset = StarMapTimelinePolicy.sliderOffset(
-            for: displayDate,
+        let realMinutes = StarMapDateLogic.clockMinutes(for: displayDate)
+        let offset = StarMapDateLogic.realMinutesToNightOffset(
+            realMinutes,
             nightStartMinutes: nightStartMinutes,
             nightDurationMinutes: nightDurationMinutes
         )
-        guard StarMapTimelinePolicy.shouldApplySliderChange(
-            currentMinutes: timeSliderMinutes,
-            newMinutes: offset
-        ) else { return }
+        guard abs(timeSliderMinutes - offset) > 0.5 else { return }
         timeSliderMinutes = offset
     }
 
@@ -379,15 +393,14 @@ final class StarMapViewModel: ObservableObject {
 
     private func schedulePendingTimeSliderDateCommit() {
         let now = Date.timeIntervalSinceReferenceDate
-        guard let remaining = StarMapUpdatePolicy.commitDelay(
-            now: now,
-            lastCommitTime: lastTimeSliderCommitTime
-        ) else {
+        let elapsed = now - lastTimeSliderCommitTime
+        if elapsed >= Self.timeSliderCommitInterval {
             commitPendingTimeSliderDate()
             return
         }
 
         timeSliderCommitTask?.cancel()
+        let remaining = Self.timeSliderCommitInterval - elapsed
         timeSliderCommitTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
             guard !Task.isCancelled else { return }
@@ -408,15 +421,17 @@ final class StarMapViewModel: ObservableObject {
         )
     }
 
+    private var currentMinUpdateInterval: TimeInterval {
+        isTimeSliderScrubbing ? Self.minScrubbingUpdateInterval : Self.minUpdateInterval
+    }
+
     private func setDisplayDate(
         _ date: Date,
         skipNightRange: Bool = false,
         skipTimeSliderSync: Bool = false
     ) {
-        displayDateUpdateMode = StarMapTimelinePolicy.updateMode(
-            skipNightRange: skipNightRange,
-            skipTimeSliderSync: skipTimeSliderSync
-        )
+        displayDateUpdateMode =
+            (skipNightRange || skipTimeSliderSync) ? .preserveNightRangeAndSlider : .standard
         displayDate = date
     }
 
@@ -424,15 +439,14 @@ final class StarMapViewModel: ObservableObject {
         let updateMode = displayDateUpdateMode
         displayDateUpdateMode = .standard
 
-        if StarMapTimelinePolicy.shouldUpdateNightRange(
-            from: oldDate,
-            to: newDate,
-            updateMode: updateMode
-        ) {
+        let shouldSkipNightRange = updateMode.skipsNightRange || StarMapDateLogic.isSameCalendarDay(oldDate, newDate)
+        let shouldSkipTimeSliderSync = updateMode.skipsTimeSliderSync
+
+        if !shouldSkipNightRange {
             updateNightRange()
         }
 
-        if StarMapTimelinePolicy.shouldSyncTimeSlider(updateMode: updateMode) {
+        if !shouldSkipTimeSliderSync {
             syncTimeSliderWithDisplayDate()
         }
 

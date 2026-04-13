@@ -245,13 +245,39 @@ struct StarGazingIndex {
         let lightPollution = computeLightPollutionScore(bortleClass: bortleClass)
         let hasLP = bortleClass != nil
 
-        guard let weather else {
+        if let weather = weather {
+            let weatherPts = computeWeatherScore(weather: weather)
+            // 合計: 星座(0-30) + 気象(0-40) + 光害(0-30) = 0-100
+            let rawTotal = min(100, constellation + weatherPts + lightPollution)
+            // 天文薄明（isDark）の時間帯のみを対象に観測不可割合を計算してキャップを設定
+            // 根拠: weatherAwareRangeText は isDark なイベントのみを評価する。
+            //       全13時間（18:00-06:59）を使うと夕方や明け方の悪天候が
+            //       暗い時間帯の評価を歪め「観測可能時間あり＆観測困難」の矛盾が生じる。
+            //       isDark な時間帯に対応する天候のみを評価することで整合性を保つ。
+            let cappedTotal = applyBadWeatherCap(
+                to: rawTotal,
+                nonWeatherBase: constellation + lightPollution,
+                weatherScore: weatherPts,
+                nightSummary: nightSummary,
+                weather: weather
+            )
+
             return makeIndex(
-                score: scaledScoreWithoutWeather(
-                    constellationScore: constellation,
-                    lightPollutionScore: lightPollution,
-                    hasLightPollutionData: hasLP
-                ),
+                score: cappedTotal,
+                milkyWayScore: mw,
+                constellationScore: constellation,
+                weatherScore: weatherPts,
+                lightPollutionScore: lightPollution,
+                hasWeatherData: true,
+                hasLightPollutionData: hasLP
+            )
+        } else {
+            // 気象データなし: 星座(0-30) + 光害(0-30) を 60点満点として換算
+            let maxBase = hasLP ? 60 : 30
+            let base = constellation + lightPollution
+            let scaled = min(100, Int(Double(base) / Double(maxBase) * 100.0))
+            return makeIndex(
+                score: scaled,
                 milkyWayScore: mw,
                 constellationScore: constellation,
                 weatherScore: 0,
@@ -260,32 +286,6 @@ struct StarGazingIndex {
                 hasLightPollutionData: hasLP
             )
         }
-
-        let weatherPts = computeWeatherScore(weather: weather)
-        // 合計: 星座(0-30) + 気象(0-40) + 光害(0-30) = 0-100
-        let rawTotal = min(100, constellation + weatherPts + lightPollution)
-        // 天文薄明（isDark）の時間帯のみを対象に観測不可割合を計算してキャップを設定
-        // 根拠: weatherAwareRangeText は isDark なイベントのみを評価する。
-        //       全13時間（18:00-06:59）を使うと夕方や明け方の悪天候が
-        //       暗い時間帯の評価を歪め「観測可能時間あり＆観測困難」の矛盾が生じる。
-        //       isDark な時間帯に対応する天候のみを評価することで整合性を保つ。
-        let cappedTotal = applyBadWeatherCap(
-            to: rawTotal,
-            nonWeatherBase: constellation + lightPollution,
-            weatherScore: weatherPts,
-            nightSummary: nightSummary,
-            weather: weather
-        )
-
-        return makeIndex(
-            score: cappedTotal,
-            milkyWayScore: mw,
-            constellationScore: constellation,
-            weatherScore: weatherPts,
-            lightPollutionScore: lightPollution,
-            hasWeatherData: true,
-            hasLightPollutionData: hasLP
-        )
     }
 
     private static func makeIndex(
@@ -306,17 +306,6 @@ struct StarGazingIndex {
             hasWeatherData: hasWeatherData,
             hasLightPollutionData: hasLightPollutionData
         )
-    }
-
-    private static func scaledScoreWithoutWeather(
-        constellationScore: Int,
-        lightPollutionScore: Int,
-        hasLightPollutionData: Bool
-    ) -> Int {
-        // 気象データなし: 星座(0-30) + 光害(0-30) を 60点満点として換算
-        let maxBase = hasLightPollutionData ? 60 : 30
-        let base = constellationScore + lightPollutionScore
-        return min(100, Int(Double(base) / Double(maxBase) * 100.0))
     }
 
     // MARK: - Milky Way Score (0–25) — 表示専用

@@ -5,6 +5,7 @@ struct iOSLocationView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
 
+    private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
     private var showLightPollutionBinding: Binding<Bool> {
         Binding(
             get: { sidebarViewModel.isShowingLightPollution },
@@ -203,13 +204,13 @@ struct iOSLocationView: View {
                 .lineLimit(1)
             Spacer()
             if sidebarViewModel.isShowingLightPollution {
-                if sidebarViewModel.isLightPollutionLoading {
+                if lightPollutionService.isLoading {
                     ProgressView().controlSize(.mini)
-                } else if let bortle = sidebarViewModel.bortleClass {
+                } else if let bortle = lightPollutionService.bortleClass {
                     Text("ボルトル\(Int(bortle.rounded()))級")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else if sidebarViewModel.lightPollutionFetchFailed {
+                } else if lightPollutionService.fetchFailed {
                     Text("取得失敗")
                         .font(.caption)
                         .foregroundStyle(.secondary)

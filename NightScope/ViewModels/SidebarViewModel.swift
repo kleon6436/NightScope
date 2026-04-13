@@ -27,7 +27,7 @@ final class SidebarViewModel: ObservableObject {
     @Published var mapViewportSyncTrigger = 0
 
     let locationController: any LocationProviding
-    private let lightPollutionService: any LightPollutionProviding
+    let lightPollutionService: any LightPollutionProviding
     private var cancellables = Set<AnyCancellable>()
 
     init(locationController: some LocationProviding, lightPollutionService: some LightPollutionProviding) {
@@ -142,9 +142,6 @@ final class SidebarViewModel: ObservableObject {
         )
     }
     var isShowingLightPollution: Bool { locationInputMode == .lightPollutionMap }
-    var isLightPollutionLoading: Bool { lightPollutionService.isLoading }
-    var lightPollutionFetchFailed: Bool { lightPollutionService.fetchFailed }
-    var bortleClass: Double? { lightPollutionService.bortleClass }
 
     var selectedCoordinate: CLLocationCoordinate2D { locationController.selectedLocation }
     var selectedLocationName: String { locationController.locationName }

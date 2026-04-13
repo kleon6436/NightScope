@@ -79,38 +79,6 @@ enum StarMapPalette {
     static let canvasBackground = Color(red: 0.02, green: 0.04, blue: 0.12)
     static let groundFill = Color(red: 0.06, green: 0.04, blue: 0.02)
     static let meteorAccent = Color(red: 0.4, green: 1.0, blue: 0.7)
-    static let constellationLine = Color(red: 0.4, green: 0.6, blue: 0.9)
-    static let constellationLabel = Color(red: 0.6, green: 0.8, blue: 1.0)
-    static let horizonGround = Color(red: 0.08, green: 0.12, blue: 0.06)
-    static let horizonLine = Color(red: 0.3, green: 0.5, blue: 0.3)
-    static let galacticCenterGlow = Color(red: 0.6, green: 0.4, blue: 1.0)
-    static let galacticCenterCore = Color(red: 0.8, green: 0.6, blue: 1.0)
-    static let terrainRidge = Color(red: 0.2, green: 0.35, blue: 0.15)
-
-    static func milkyWaySlabColor(normalizedCenter: Double) -> Color {
-        Color(
-            red: 0.50 + 0.20 * normalizedCenter,
-            green: 0.55,
-            blue: 0.85 - 0.25 * normalizedCenter
-        )
-    }
-
-    static func planet(named name: String) -> Color {
-        switch name {
-        case "水星":
-            return Color(red: 0.75, green: 0.72, blue: 0.68)
-        case "金星":
-            return Color(red: 1.00, green: 0.95, blue: 0.80)
-        case "火星":
-            return Color(red: 1.00, green: 0.45, blue: 0.25)
-        case "木星":
-            return Color(red: 1.00, green: 0.90, blue: 0.70)
-        case "土星":
-            return Color(red: 0.95, green: 0.85, blue: 0.60)
-        default:
-            return .white
-        }
-    }
 }
 
 enum StarMapPresentation {

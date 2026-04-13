@@ -143,13 +143,8 @@ final class AppControllerTests: XCTestCase {
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
 
-        appController.debugSetDisplayedState(
-            nightSummary: nil,
-            upcomingNights: [night],
-            starGazingIndex: nil,
-            upcomingIndexes: [:]
-        )
-        appController.debugRecomputeUpcomingIndexes()
+        appController.upcomingNights = [night]
+        appController.recomputeUpcomingIndexes()
 
         let dayKey = Calendar.current.startOfDay(for: night.date)
         XCTAssertEqual(appController.upcomingIndexes[dayKey]?.hasWeatherData, false)
@@ -174,31 +169,27 @@ final class AppControllerTests: XCTestCase {
         let weatherSummary = makeWeatherSummary(date: baseDate)
 
         let appController = AppController(calculationService: MockNightCalculationService())
-        let starGazingIndex = StarGazingIndex.compute(
+        appController.nightSummary = night
+        appController.upcomingNights = [night, nextNight]
+        appController.starGazingIndex = StarGazingIndex.compute(
             nightSummary: night,
             weather: weatherSummary,
             bortleClass: 4
         )
-        let upcomingIndexes = [
+        appController.upcomingIndexes = [
             Calendar.current.startOfDay(for: baseDate): StarGazingIndex.compute(
                 nightSummary: night,
                 weather: weatherSummary,
                 bortleClass: 4
             )
         ]
-        appController.debugSetDisplayedState(
-            nightSummary: night,
-            upcomingNights: [night, nextNight],
-            starGazingIndex: starGazingIndex,
-            upcomingIndexes: upcomingIndexes
-        )
         appController.weatherService.weatherByDate = [
             appController.weatherService.dateKey(baseDate): weatherSummary
         ]
         appController.lightPollutionService.bortleClass = 4
-        appController.debugSetLoadingState(isCalculating: false, isUpcomingLoading: false)
+        appController.isCalculating = false
 
-        appController.debugPrepareForLocationChange()
+        appController.prepareForLocationChange()
 
         XCTAssertEqual(appController.nightSummary?.date, night.date)
         XCTAssertEqual(appController.upcomingNights.count, 2)

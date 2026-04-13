@@ -20,12 +20,12 @@ final class AppController: ObservableObject {
 
     // MARK: - Published State
     @Published var selectedDate: Date = Date()
-    @Published private(set) var nightSummary: NightSummary?
-    @Published private(set) var upcomingNights: [NightSummary] = []
-    @Published private(set) var starGazingIndex: StarGazingIndex?
-    @Published private(set) var upcomingIndexes: [Date: StarGazingIndex] = [:]
-    @Published private(set) var isCalculating = false
-    @Published private(set) var isUpcomingLoading = false
+    @Published var nightSummary: NightSummary?
+    @Published var upcomingNights: [NightSummary] = []
+    @Published var starGazingIndex: StarGazingIndex?
+    @Published var upcomingIndexes: [Date: StarGazingIndex] = [:]
+    @Published var isCalculating = false
+    @Published var isUpcomingLoading = false
 
     // MARK: - Private State
     private let calculationService: NightCalculating
@@ -116,7 +116,7 @@ final class AppController: ObservableObject {
         }
     }
 
-    private func recomputeStarGazingIndex() {
+    func recomputeStarGazingIndex() {
         guard let summary = nightSummary else { return }
         starGazingIndex = makeStarGazingIndex(
             nightSummary: summary,
@@ -126,7 +126,7 @@ final class AppController: ObservableObject {
         )
     }
 
-    private func recomputeUpcomingIndexes() {
+    func recomputeUpcomingIndexes() {
         upcomingIndexes = makeUpcomingIndexes(
             upcomingNights: upcomingNights,
             weatherByDate: weatherService.weatherByDate,
@@ -139,7 +139,7 @@ final class AppController: ObservableObject {
         locationController.selectedLocation
     }
 
-    private func prepareForLocationChange() {
+    func prepareForLocationChange() {
         isCalculating = true
         isUpcomingLoading = true
         let coordinate = selectedCoordinate
@@ -281,36 +281,3 @@ final class AppController: ObservableObject {
         return indexes
     }
 }
-
-#if DEBUG
-extension AppController {
-    func debugSetDisplayedState(
-        nightSummary: NightSummary?,
-        upcomingNights: [NightSummary],
-        starGazingIndex: StarGazingIndex?,
-        upcomingIndexes: [Date: StarGazingIndex]
-    ) {
-        self.nightSummary = nightSummary
-        self.upcomingNights = upcomingNights
-        self.starGazingIndex = starGazingIndex
-        self.upcomingIndexes = upcomingIndexes
-    }
-
-    func debugSetLoadingState(isCalculating: Bool? = nil, isUpcomingLoading: Bool? = nil) {
-        if let isCalculating {
-            self.isCalculating = isCalculating
-        }
-        if let isUpcomingLoading {
-            self.isUpcomingLoading = isUpcomingLoading
-        }
-    }
-
-    func debugRecomputeUpcomingIndexes() {
-        recomputeUpcomingIndexes()
-    }
-
-    func debugPrepareForLocationChange() {
-        prepareForLocationChange()
-    }
-}
-#endif

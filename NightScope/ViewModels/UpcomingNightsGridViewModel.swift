@@ -29,7 +29,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
-        detailViewModel.weatherUpdatesPublisher
+        detailViewModel.weatherService.$weatherByDate
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
@@ -52,7 +52,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     }
 
     func weatherSummary(for date: Date) -> DayWeatherSummary? {
-        detailViewModel.weatherSummary(for: date)
+        detailViewModel.weatherService.summary(for: date)
     }
 
     func starGazingIndex(for date: Date) -> StarGazingIndex? {

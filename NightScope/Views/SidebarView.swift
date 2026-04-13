@@ -71,8 +71,8 @@ struct SidebarView: View {
                 get: { viewModel.locationInputMode },
                 set: viewModel.setLocationInputMode
             ),
-            isLoadingLightPollution: viewModel.isLightPollutionLoading,
-            bortleClass: viewModel.bortleClass
+            isLoadingLightPollution: viewModel.lightPollutionService.isLoading,
+            bortleClass: viewModel.lightPollutionService.bortleClass
         )
     }
 

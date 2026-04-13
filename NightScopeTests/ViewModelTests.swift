@@ -62,33 +62,206 @@ final class ViewModelTests: XCTestCase {
         )
     }
 
+    // MARK: - Shared Mocks
+
+    final class MockLocationController: LocationProviding {
+        var selectedLocation = CLLocationCoordinate2D(latitude: 0, longitude: 0)
+        @Published var locationName = ""
+        @Published var locationUpdateID = UUID()
+        var locationUpdateIDPublisher: Published<UUID>.Publisher { $locationUpdateID }
+        var locationNamePublisher: Published<String>.Publisher { $locationName }
+        var anyChangePublisher: AnyPublisher<Void, Never> {
+            objectWillChange.map { _ in () }.eraseToAnyPublisher()
+        }
+        var searchResults: [MKMapItem] = []
+        var isSearching = false
+        var isLocating = false
+        var locationError: LocationController.LocationError?
+        var searchFocusTrigger = 0
+        var currentLocationCenterTrigger = 0
+
+        private(set) var requestCurrentLocationCalled = false
+        private(set) var searchQuery: String?
+        private(set) var selectedMapItem: MKMapItem?
+        private(set) var selectedCoordinateCalls: [CLLocationCoordinate2D] = []
+
+        func requestCurrentLocation() {
+            requestCurrentLocationCalled = true
+        }
+
+        func search(query: String) {
+            searchQuery = query
+            isSearching = true
+        }
+
+        func select(_ mapItem: MKMapItem) {
+            selectedMapItem = mapItem
+            selectedLocation = mapItem.location.coordinate
+            currentLocationCenterTrigger += 1
+        }
+
+        func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
+            selectedCoordinateCalls.append(coordinate)
+            selectedLocation = coordinate
+            currentLocationCenterTrigger += 1
+        }
+    }
+
+    final class MockLightPollutionService: LightPollutionProviding {
+        @Published var bortleClass: Double? = nil
+        var bortleClassPublisher: Published<Double?>.Publisher { $bortleClass }
+        @Published var isLoading = false
+        var isLoadingPublisher: Published<Bool>.Publisher { $isLoading }
+        @Published var fetchFailed = false
+
+        func fetch(latitude: Double, longitude: Double) async {
+            isLoading = true
+            try? await Task.sleep(nanoseconds: 1_000_000)
+            isLoading = false
+        }
+
+        func fetchBortle(latitude: Double, longitude: Double) async throws -> Double {
+            4.0
+        }
+    }
+
+    // MARK: - SidebarViewModel
+
+    func test_SidebarViewModel_handleSearchTextChanged_triggersSearch() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        vm.searchState.text = "Tokyo"
+        vm.handleSearchTextChanged()
+
+        XCTAssertEqual(locationController.searchQuery, "Tokyo")
+        XCTAssertTrue(locationController.isSearching)
+    }
+
+    func test_SidebarViewModel_selectCoordinate_updatesLocationController() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        let coord = CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0)
+        vm.selectCoordinate(coord)
+
+        XCTAssertEqual(locationController.selectedLocation.latitude, coord.latitude)
+        XCTAssertEqual(locationController.selectedLocation.longitude, coord.longitude)
+        XCTAssertEqual(locationController.currentLocationCenterTrigger, 1)
+    }
+
+    func test_SidebarViewModel_setLocationInputMode_updatesOverlayStateAndSyncTrigger() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        XCTAssertEqual(vm.locationInputMode, .map)
+        XCTAssertFalse(vm.isShowingLightPollution)
+        XCTAssertEqual(vm.mapViewportSyncTrigger, 0)
+
+        vm.setLocationInputMode(.lightPollutionMap)
+
+        XCTAssertEqual(vm.locationInputMode, .lightPollutionMap)
+        XCTAssertTrue(vm.isShowingLightPollution)
+        XCTAssertEqual(vm.mapViewportSyncTrigger, 1)
+    }
+
+    func test_SidebarViewModel_setLocationInputMode_sameValue_doesNotTriggerViewportSync() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        vm.setLocationInputMode(.map)
+
+        XCTAssertEqual(vm.mapViewportSyncTrigger, 0)
+    }
+
+    func test_SidebarViewModel_selectSearchResult_fillSelectionName_keepsSelectedNameInSearchField() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let item = MKMapItem(
+            location: CLLocation(latitude: 35.3606, longitude: 138.7274),
+            address: nil
+        )
+        item.name = "富士山五合目"
+
+        vm.searchState.text = "富士山"
+        vm.selectSearchResult(item, searchTextBehavior: .fillSelectionName)
+
+        XCTAssertTrue(locationController.selectedMapItem === item)
+        XCTAssertEqual(vm.searchState.text, "富士山五合目")
+    }
+
+    func test_SidebarViewModel_selectSearchResult_clear_emptiesSearchField() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let item = MKMapItem(
+            location: CLLocation(latitude: 35.3606, longitude: 138.7274),
+            address: nil
+        )
+        item.name = "富士山五合目"
+
+        vm.searchState.text = "富士山"
+        vm.selectSearchResult(item, searchTextBehavior: .clear)
+
+        XCTAssertTrue(locationController.selectedMapItem === item)
+        XCTAssertEqual(vm.searchState.text, "")
+    }
+
+    func test_SidebarViewModel_updateViewportIfNeeded_ignoresSmallRegionChanges() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let initialCenter = CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0)
+        let initialSpan = MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+        vm.viewport.center = initialCenter
+        vm.viewport.span = initialSpan
+
+        vm.updateViewportIfNeeded(
+            center: CLLocationCoordinate2D(latitude: 35.00001, longitude: 139.00001),
+            span: MKCoordinateSpan(latitudeDelta: 0.10001, longitudeDelta: 0.10001)
+        )
+
+        XCTAssertEqual(vm.viewport.center.latitude, initialCenter.latitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.center.longitude, initialCenter.longitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.latitudeDelta, initialSpan.latitudeDelta, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.longitudeDelta, initialSpan.longitudeDelta, accuracy: 0.000001)
+    }
+
+    func test_SidebarViewModel_updateViewportIfNeeded_appliesMeaningfulRegionChanges() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        let updatedCenter = CLLocationCoordinate2D(latitude: 35.1, longitude: 139.1)
+        let updatedSpan = MKCoordinateSpan(latitudeDelta: 0.3, longitudeDelta: 0.3)
+
+        vm.updateViewportIfNeeded(center: updatedCenter, span: updatedSpan)
+
+        XCTAssertEqual(vm.viewport.center.latitude, updatedCenter.latitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.center.longitude, updatedCenter.longitude, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.latitudeDelta, updatedSpan.latitudeDelta, accuracy: 0.000001)
+        XCTAssertEqual(vm.viewport.span.longitudeDelta, updatedSpan.longitudeDelta, accuracy: 0.000001)
+    }
+
     func test_AppRootDependencies_makeDefault_sharesControllerDependencies() {
         let dependencies = AppRootDependencies.makeDefault()
-        let date = dependencies.detailViewModel.selectedDate
-        let weather = DayWeatherSummary(date: date, nighttimeHours: [makeHourlyWeather(cloudCover: 18)])
-        dependencies.appController.weatherService.weatherByDate = [
-            dependencies.appController.weatherService.dateKey(date): weather
-        ]
-        dependencies.appController.lightPollutionService.isLoading = true
 
         XCTAssertTrue((dependencies.sidebarViewModel.locationController as AnyObject) === dependencies.appController.locationController)
-        XCTAssertEqual(dependencies.detailViewModel.weatherSummary(for: date)?.avgCloudCover ?? -1, 18, accuracy: 0.001)
-        XCTAssertTrue(dependencies.detailViewModel.isLightPollutionLoading)
+        XCTAssertTrue(dependencies.detailViewModel.weatherService === dependencies.appController.weatherService)
+        XCTAssertTrue(dependencies.detailViewModel.lightPollutionService === dependencies.appController.lightPollutionService)
     }
 
     func test_AppRootStore_keepsSharedControllerDependencies() {
         let dependencies = AppRootDependencies.makeDefault()
         let store = AppRootStore(dependencies: dependencies)
-        let date = store.detailViewModel.selectedDate
-        let weather = DayWeatherSummary(date: date, nighttimeHours: [makeHourlyWeather(cloudCover: 24)])
-        store.appController.weatherService.weatherByDate = [
-            store.appController.weatherService.dateKey(date): weather
-        ]
-        store.appController.lightPollutionService.isLoading = true
 
         XCTAssertTrue((store.sidebarViewModel.locationController as AnyObject) === store.appController.locationController)
-        XCTAssertEqual(store.detailViewModel.weatherSummary(for: date)?.avgCloudCover ?? -1, 24, accuracy: 0.001)
-        XCTAssertTrue(store.detailViewModel.isLightPollutionLoading)
+        XCTAssertTrue(store.detailViewModel.weatherService === store.appController.weatherService)
+        XCTAssertTrue(store.detailViewModel.lightPollutionService === store.appController.lightPollutionService)
     }
 
     func test_AppRootStore_forwardsDetailViewModelChanges() async {
@@ -228,7 +401,7 @@ final class ViewModelTests: XCTestCase {
         let vm = DetailViewModel(appController: appController)
 
         XCTAssertFalse(vm.isUpcomingLoading)
-        appController.debugSetLoadingState(isUpcomingLoading: true)
+        appController.isUpcomingLoading = true
         XCTAssertTrue(vm.isUpcomingLoading)
     }
 

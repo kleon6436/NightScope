@@ -233,8 +233,17 @@ enum MilkyWayCalculator {
                 if windowStart == nil { windowStart = event.date }
                 windowSamples.append(event)
             } else if let start = windowStart {
-                if let window = makeViewingWindow(start: start, samples: windowSamples) {
-                    windows.append(window)
+                if !windowSamples.isEmpty,
+                   let bestAlt = windowSamples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude }),
+                   let bestViewing = windowSamples.max(by: { viewingScore($0) < viewingScore($1) }),
+                   let lastSample = windowSamples.last {
+                    windows.append(ViewingWindow(
+                        start: start,
+                        end: lastSample.date,
+                        peakTime: bestViewing.date,
+                        peakAltitude: bestAlt.galacticCenterAltitude,
+                        peakAzimuth: bestViewing.galacticCenterAzimuth
+                    ))
                 }
                 windowStart = nil
                 windowSamples = []
@@ -242,28 +251,20 @@ enum MilkyWayCalculator {
         }
 
         if let start = windowStart,
-           let window = makeViewingWindow(start: start, samples: windowSamples) {
-            windows.append(window)
+           !windowSamples.isEmpty,
+           let bestAlt = windowSamples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude }),
+           let bestViewing = windowSamples.max(by: { viewingScore($0) < viewingScore($1) }),
+           let lastSample = windowSamples.last {
+            windows.append(ViewingWindow(
+                start: start,
+                end: lastSample.date,
+                peakTime: bestViewing.date,
+                peakAltitude: bestAlt.galacticCenterAltitude,
+                peakAzimuth: bestViewing.galacticCenterAzimuth
+            ))
         }
 
         return mergeNearbyWindows(windows)
-    }
-
-    private static func makeViewingWindow(start: Date, samples: [AstroEvent]) -> ViewingWindow? {
-        guard !samples.isEmpty,
-              let bestAlt = samples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude }),
-              let bestViewing = samples.max(by: { viewingScore($0) < viewingScore($1) }),
-              let lastSample = samples.last else {
-            return nil
-        }
-
-        return ViewingWindow(
-            start: start,
-            end: lastSample.date,
-            peakTime: bestViewing.date,
-            peakAltitude: bestAlt.galacticCenterAltitude,
-            peakAzimuth: bestViewing.galacticCenterAzimuth
-        )
     }
 
     // 近接ウィンドウをマージ (ギャップ ≤ 30分を統合)

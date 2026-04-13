@@ -12,14 +12,7 @@ struct DetailView: View {
     init(viewModel: DetailViewModel, starMapViewModel: StarMapViewModel) {
         self.viewModel = viewModel
         self.starMapViewModel = starMapViewModel
-        _starGazingIndexCardViewModel = StateObject(
-            wrappedValue: StarGazingIndexCardViewModel(
-                isLoading: viewModel.isLightPollutionLoading,
-                fetchFailed: viewModel.hasLightPollutionError,
-                isLoadingPublisher: viewModel.lightPollutionLoadingPublisher,
-                fetchFailedPublisher: viewModel.lightPollutionFailurePublisher
-            )
-        )
+        _starGazingIndexCardViewModel = StateObject(wrappedValue: StarGazingIndexCardViewModel(lightPollutionService: viewModel.lightPollutionService))
         _nightWeatherCardViewModel = StateObject(wrappedValue: NightWeatherCardViewModel())
         _upcomingGridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: viewModel))
     }
@@ -258,9 +251,9 @@ private struct MacStarMapSheet: View {
         VStack(spacing: 0) {
             headerSection
 
-            StarMapCanvasView(viewModel: viewModel, onStarSelected: { star in
+            StarMapCanvasView(viewModel: viewModel) { star in
                 selectedStar = star
-            })
+            }
             .frame(minWidth: StarMapLayout.canvasMinWidth, minHeight: StarMapLayout.canvasMinHeight)
             .popover(item: $selectedStar) { star in
                 StarInfoMacView(starPosition: star)
