@@ -216,7 +216,7 @@ struct SidebarView: View {
     // MARK: - Date Section
 
     private var dateSection: some View {
-        SidebarDateSection(selectedDate: $selectedDate)
+        SidebarDateSection(selectedDate: $selectedDate, timeZone: viewModel.selectedTimeZone)
     }
 }
 
@@ -338,25 +338,13 @@ private struct SidebarSelectedLocationSummaryView: View {
     let coordinate: CLLocationCoordinate2D
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcons.Navigation.locationPinPlain)
-                    .foregroundStyle(Color.accentColor)
-                    .font(.body)
-                    .accessibilityHidden(true)
-                Text(locationName)
-                    .font(.headline)
-            }
-            Text(String(format: "%.4f°, %.4f°", coordinate.latitude, coordinate.longitude))
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel(String(format: "緯度%.4f度、経度%.4f度", coordinate.latitude, coordinate.longitude))
-        }
+        SelectedLocationSummaryContent(locationName: locationName, coordinate: coordinate)
     }
 }
 
 private struct SidebarDateSection: View {
     @Binding var selectedDate: Date
+    let timeZone: TimeZone
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -365,7 +353,7 @@ private struct SidebarDateSection: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
 
-            CalendarView(selectedDate: $selectedDate)
+            CalendarView(selectedDate: $selectedDate, timeZone: timeZone)
                 .padding(.horizontal, -Layout.sidebarHorizontalPadding)
         }
     }
@@ -407,16 +395,7 @@ private struct SidebarSearchResultsList: View {
 
     private func searchResultRow(item: MKMapItem, index: Int) -> some View {
         Button { onSelect(item) } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(item.name ?? "Unknown")
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                if let address = item.address {
-                    Text(address.shortAddress ?? address.fullAddress)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            LocationSearchResultContent(item: item)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.xs)
             .padding(.vertical, Spacing.xs / 2)

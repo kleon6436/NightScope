@@ -53,6 +53,7 @@ struct ContentView: View {
             rootStore.appController.onStart()
         }
         .focusedValue(\.selectedDate, selectedDateBinding)
+        .focusedValue(\.observationTimeZone, rootStore.detailViewModel.selectedTimeZone)
         .focusedValue(\.refreshAction, {
             rootStore.appController.refreshExternalDataInBackground()
         })

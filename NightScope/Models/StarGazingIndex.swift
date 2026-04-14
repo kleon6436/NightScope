@@ -586,7 +586,7 @@ struct StarGazingIndex {
         nightSummary: NightSummary,
         weather: DayWeatherSummary
     ) -> [HourlyWeather] {
-        let calendar = Calendar.current
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: nightSummary.timeZone)
         let darkHourSet = Set(nightSummary.events
             .filter { $0.isDark }
             .map { calendar.component(.hour, from: $0.date) })

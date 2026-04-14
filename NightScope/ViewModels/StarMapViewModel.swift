@@ -3,6 +3,58 @@ import CoreLocation
 import Combine
 import SwiftUI
 
+@MainActor
+struct StarMapSettingsDependency {
+    let currentDensity: () -> StarDisplayDensity
+    let changes: AnyPublisher<StarDisplayDensity, Never>
+
+    static let live = StarMapSettingsDependency(
+        currentDensity: {
+            StarDisplayDensity.load()
+        },
+        changes: NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .map { _ in StarDisplayDensity.load() }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    )
+}
+
+struct StarMapTerrainDependency: Sendable {
+    let fetchProfile: @Sendable (_ latitude: Double, _ longitude: Double) async -> TerrainProfile?
+
+    static let live = StarMapTerrainDependency(
+        fetchProfile: { latitude, longitude in
+            await TerrainService.shared.fetchProfile(latitude: latitude, longitude: longitude)
+        }
+    )
+}
+
+struct StarMapComputationDependency: Sendable {
+    let computeSnapshot: @Sendable (
+        _ latitude: Double,
+        _ longitude: Double,
+        _ julianDate: Double,
+        _ localSiderealTime: Double,
+        _ activeMeteorShowers: [MeteorShower],
+        _ density: StarDisplayDensity
+    ) async -> StarMapComputation.Snapshot
+
+    static let live = StarMapComputationDependency(
+        computeSnapshot: { latitude, longitude, julianDate, localSiderealTime, activeMeteorShowers, density in
+            await Task.detached(priority: .userInitiated) {
+                StarMapComputation.compute(
+                    latitude: latitude,
+                    longitude: longitude,
+                    julianDate: julianDate,
+                    localSiderealTime: localSiderealTime,
+                    activeMeteorShowers: activeMeteorShowers,
+                    starDisplayDensity: density
+                )
+            }.value
+        }
+    )
+}
+
 // MARK: - ViewModel
 
 @MainActor
@@ -69,6 +121,9 @@ final class StarMapViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let appController: AppController
+    private let settingsDependency: StarMapSettingsDependency
+    private let terrainDependency: StarMapTerrainDependency
+    private let computationDependency: StarMapComputationDependency
     private var cancellables: Set<AnyCancellable> = []
     private var shouldApplyInitialPose = true
     private var lastTimeSliderCommitTime: TimeInterval = 0
@@ -79,9 +134,17 @@ final class StarMapViewModel: ObservableObject {
 
     // MARK: - Init
 
-    init(appController: AppController) {
+    init(
+        appController: AppController,
+        settingsDependency: StarMapSettingsDependency? = nil,
+        terrainDependency: StarMapTerrainDependency? = nil,
+        computationDependency: StarMapComputationDependency? = nil
+    ) {
         self.appController = appController
-        self.starDisplayDensity = StarDisplayDensity.load()
+        self.settingsDependency = settingsDependency ?? .live
+        self.terrainDependency = terrainDependency ?? .live
+        self.computationDependency = computationDependency ?? .live
+        self.starDisplayDensity = self.settingsDependency.currentDensity()
         // 場所が変わったら再計算
         appController.locationController.selectedLocationPublisher
             .dropFirst()
@@ -91,10 +154,10 @@ final class StarMapViewModel: ObservableObject {
                 self?.update()
             }
             .store(in: &cancellables)
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+        self.settingsDependency.changes
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.reloadStarDisplayDensityFromDefaults()
+            .sink { [weak self] density in
+                self?.applyStarDisplayDensity(density)
             }
             .store(in: &cancellables)
         updateNightRange()
@@ -187,17 +250,14 @@ final class StarMapViewModel: ObservableObject {
         updateTask = Task { [weak self] in
             guard let self else { return }
 
-            // 重い計算をバックグラウンドスレッドへ分離し、ViewModel 側は orchestration に専念する。
-            let snapshot = await Task.detached(priority: .userInitiated) {
-                StarMapComputation.compute(
-                    latitude: context.latitude,
-                    longitude: context.longitude,
-                    julianDate: context.julianDate,
-                    localSiderealTime: context.localSiderealTime,
-                    activeMeteorShowers: context.activeMeteorShowers,
-                    starDisplayDensity: density
-                )
-            }.value
+            let snapshot = await computationDependency.computeSnapshot(
+                context.latitude,
+                context.longitude,
+                context.julianDate,
+                context.localSiderealTime,
+                context.activeMeteorShowers,
+                density
+            )
 
             guard !Task.isCancelled else { return }
             apply(snapshot)
@@ -217,18 +277,18 @@ final class StarMapViewModel: ObservableObject {
                 jd: julianDate,
                 longitude: location.longitude
             ),
-            activeMeteorShowers: MeteorShowerCatalog.active(on: date)
+            activeMeteorShowers: MeteorShowerCatalog.active(
+                on: date,
+                timeZone: appController.locationController.selectedTimeZone
+            )
         )
     }
 
     func setStarDisplayDensity(_ density: StarDisplayDensity) {
-        guard density != starDisplayDensity else { return }
-        starDisplayDensity = density
-        update()
+        applyStarDisplayDensity(density)
     }
 
-    private func reloadStarDisplayDensityFromDefaults() {
-        let density = StarDisplayDensity.load()
+    private func applyStarDisplayDensity(_ density: StarDisplayDensity) {
         guard density != starDisplayDensity else { return }
         starDisplayDensity = density
         update()
@@ -263,10 +323,10 @@ final class StarMapViewModel: ObservableObject {
     private func fetchTerrain(latitude: Double, longitude: Double) {
         terrainFetchTask?.cancel()
         terrainFetchTask = Task { [weak self] in
-            let profile = await TerrainService.shared.fetchProfile(
-                latitude: latitude, longitude: longitude)
+            guard let self else { return }
+            let profile = await terrainDependency.fetchProfile(latitude, longitude)
             guard !Task.isCancelled else { return }
-            self?.terrainProfile = profile
+            terrainProfile = profile
         }
     }
 
@@ -274,12 +334,18 @@ final class StarMapViewModel: ObservableObject {
 
     /// 現在の表示日時でアクティブな流星群
     var activeMeteorShowers: [MeteorShower] {
-        MeteorShowerCatalog.active(on: displayDate)
+        MeteorShowerCatalog.active(
+            on: displayDate,
+            timeZone: appController.locationController.selectedTimeZone
+        )
     }
 
     /// 次の流星群とピークまでの日数
     var nextMeteorShower: (shower: MeteorShower, daysUntilPeak: Int)? {
-        MeteorShowerCatalog.next(after: displayDate)
+        MeteorShowerCatalog.next(
+            after: displayDate,
+            timeZone: appController.locationController.selectedTimeZone
+        )
     }
 
     /// 太陽が地平線下 (夜間) か

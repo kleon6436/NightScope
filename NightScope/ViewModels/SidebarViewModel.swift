@@ -40,6 +40,7 @@ final class SidebarViewModel: ObservableObject {
     @Published private(set) var lightPollutionBortleClass: Double?
     @Published private(set) var isLightPollutionLoading: Bool
     @Published private(set) var hasLightPollutionFetchFailed: Bool
+    @Published private(set) var selectedTimeZone: TimeZone
 
     let locationController: any LocationProviding
     let lightPollutionService: any LightPollutionProviding
@@ -60,6 +61,7 @@ final class SidebarViewModel: ObservableObject {
         self.lightPollutionBortleClass = lightPollutionService.bortleClass
         self.isLightPollutionLoading = lightPollutionService.isLoading
         self.hasLightPollutionFetchFailed = lightPollutionService.fetchFailed
+        self.selectedTimeZone = locationController.selectedTimeZone
 
         locationController.searchResultsPublisher
             .receive(on: DispatchQueue.main)
@@ -96,6 +98,11 @@ final class SidebarViewModel: ObservableObject {
             .sink { [weak self] in self?.currentLocationCenterTrigger = $0 }
             .store(in: &cancellables)
 
+        locationController.selectedTimeZonePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.selectedTimeZone = $0 }
+            .store(in: &cancellables)
+
         locationController.selectedLocationPublisher
             .receive(on: DispatchQueue.main)
             .dropFirst()
@@ -130,9 +137,8 @@ final class SidebarViewModel: ObservableObject {
     }
 
     func updateSearchText(_ searchText: String) {
-        if self.searchText != searchText {
-            self.searchText = searchText
-        }
+        guard self.searchText != searchText else { return }
+        self.searchText = searchText
         isShowingCommittedSelection = false
         locationController.search(query: searchText)
     }

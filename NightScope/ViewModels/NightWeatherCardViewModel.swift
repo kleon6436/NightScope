@@ -49,6 +49,6 @@ final class NightWeatherCardViewModel: ObservableObject {
     func accessibilityDescription(weather: DayWeatherSummary?, isLoading: Bool) -> String {
         if isLoading { return "天気 夜間: 取得中" }
         guard let w = weather else { return "天気 夜間: 不明、データなし、10日以内のみ" }
-        return "天気 夜間: \(weatherLabel(w))、降水\(String(format: "%.1f", w.maxPrecipitation))mm、雲量\(Int(w.avgCloudCover))%、風速\(Int(w.avgWindSpeed))km/h"
+        return "天気 夜間: \(weatherLabel(w))、降水\(String(format: "%.1f", w.maxPrecipitation))mm、雲量\(Int(w.avgCloudCover))%、\(formatWindSpeed(w.avgWindSpeed))"
     }
 }

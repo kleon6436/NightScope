@@ -152,8 +152,8 @@ struct BortleGridData {
     /// 指定座標の人工輝度 (mcd/m²) をバイリニア補間で返す。
     func brightness(latitude: Double, longitude: Double) -> Double {
         // rasterio from_bounds はセル中心グリッドを生成するため 0.5 セル分引く
-        let latF = (latitude + 90.0) / 180.0 * Double(latCells) - 0.5
-        let lonF = (longitude + 180.0) / 360.0 * Double(lonCells) - 0.5
+        let latF = ((latitude + 90.0) / 180.0 * Double(latCells) - 0.5).clamped(to: 0...Double(latCells - 1))
+        let lonF = ((longitude + 180.0) / 360.0 * Double(lonCells) - 0.5).clamped(to: 0...Double(lonCells - 1))
 
         let lat0 = Int(latF.rounded(.down)).clamped(to: 0..<latCells)
         let lon0 = Int(lonF.rounded(.down)).clamped(to: 0..<lonCells)
@@ -207,6 +207,12 @@ struct BortleGridData {
 private extension Int {
     func clamped(to range: Range<Int>) -> Int {
         Swift.max(range.lowerBound, Swift.min(self, range.upperBound - 1))
+    }
+}
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        Swift.max(range.lowerBound, Swift.min(self, range.upperBound))
     }
 }
 

@@ -15,7 +15,7 @@ struct UpcomingNightsGrid: View {
                         .accessibilityLabel("今後2週間の予報を更新中")
                 }
                 Spacer()
-                if !Calendar.current.isDateInToday(viewModel.selectedDate) {
+                if !viewModel.isSelectedDateToday() {
                     Button("今日") { viewModel.setSelectedDate(Date()) }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -47,8 +47,8 @@ struct UpcomingNightsGrid: View {
 
     private func upcomingNightCard(night: NightSummary) -> some View {
         let weather = viewModel.weatherSummary(for: night.date)
-        let presentation = ForecastCardPresentation(night: night, weather: weather)
-        let isSelected = Calendar.current.isDate(night.date, inSameDayAs: viewModel.selectedDate)
+        let presentation = ForecastCardPresentation(night: night, weather: weather, timeZone: viewModel.selectedTimeZone)
+        let isSelected = viewModel.isDateSelected(night.date)
         let index = viewModel.starGazingIndex(for: night.date)
 
         return VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -199,7 +199,7 @@ struct UpcomingNightsGrid: View {
                     Image(systemName: AppIcons.Astronomy.star)
                         .frame(width: Layout.gridIconWidth, alignment: .center)
                         .accessibilityHidden(true)
-                    Text(night.bestViewingTime.map { "見頃 \($0.nightTimeString())" } ?? "見頃 —")
+                    Text(night.bestViewingTime.map { "見頃 \($0.nightTimeString(timeZone: night.timeZone))" } ?? "見頃 —")
                         .font(.body)
                         .lineLimit(1)
                 }

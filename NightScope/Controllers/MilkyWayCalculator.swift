@@ -354,7 +354,8 @@ enum MilkyWayCalculator {
             location: location,
             events: events,
             viewingWindows: windows,
-            moonPhaseAtMidnight: moonAtMidnight.phase
+            moonPhaseAtMidnight: moonAtMidnight.phase,
+            timeZoneIdentifier: timeZone.identifier
         )
     }
 

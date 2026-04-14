@@ -37,24 +37,22 @@ struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
             return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
         }
 
-        let timeZoneIdentifier = item.placemark.timeZone?.identifier
-
         if let repr = item.addressRepresentations,
            let city = repr.cityWithContext,
            !city.isEmpty {
-            return ResolvedLocationDetails(name: city, timeZoneIdentifier: timeZoneIdentifier)
+            return ResolvedLocationDetails(name: city, timeZoneIdentifier: nil)
         }
 
         if let address = item.address {
             let text = address.shortAddress ?? address.fullAddress
             if !text.isEmpty {
-                return ResolvedLocationDetails(name: text, timeZoneIdentifier: timeZoneIdentifier)
+                return ResolvedLocationDetails(name: text, timeZoneIdentifier: nil)
             }
         }
 
         return ResolvedLocationDetails(
             name: item.name ?? "現在地",
-            timeZoneIdentifier: timeZoneIdentifier
+            timeZoneIdentifier: nil
         )
     }
 }

@@ -27,8 +27,8 @@ enum MeteorShowerCatalog {
     ]
 
     // 指定日時付近でアクティブな流星群を返す（最大3件）
-    static func active(on date: Date) -> [MeteorShower] {
-        let cal = Calendar.current
+    static func active(on date: Date, timeZone: TimeZone = .current) -> [MeteorShower] {
+        let cal = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let month = cal.component(.month, from: date)
         let day   = cal.component(.day,   from: date)
 
@@ -41,8 +41,8 @@ enum MeteorShowerCatalog {
     }
 
     // 次の流星群（極大日が最も近い）
-    static func next(after date: Date) -> (shower: MeteorShower, daysUntilPeak: Int)? {
-        let cal   = Calendar.current
+    static func next(after date: Date, timeZone: TimeZone = .current) -> (shower: MeteorShower, daysUntilPeak: Int)? {
+        let cal   = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let month = cal.component(.month, from: date)
         let day   = cal.component(.day,   from: date)
         let doy   = dayOfYear(month: month, day: day)

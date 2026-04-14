@@ -24,7 +24,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
     private var lastModifiedDatesByLocation: [String: Date] = [:]
     private var weatherByDateByLocation: [String: [String: DayWeatherSummary]] = [:]
     private var activeLocationKey: String?
-    private var activeTimeZoneIdentifier = ObservationTimeZone.current.identifier
+    private var activeTimeZoneIdentifier = TimeZone.current.identifier
 
     init(
         urlSession: URLSession = .shared,
@@ -184,7 +184,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
     func parse(
         response: MetNorwayResponse,
         location: CLLocationCoordinate2D,
-        timeZone: TimeZone = ObservationTimeZone.current
+        timeZone: TimeZone = .current
     ) -> [String: DayWeatherSummary] {
         forecastParser.parse(response: response, location: location, timeZone: timeZone)
     }

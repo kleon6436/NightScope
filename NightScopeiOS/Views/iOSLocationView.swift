@@ -135,26 +135,14 @@ struct iOSLocationView: View {
             sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
             isSearchFocused = false
         } label: {
-            HStack(alignment: .top, spacing: Spacing.sm) {
-                Image(systemName: "mappin.circle.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18)
-
-                VStack(alignment: .leading, spacing: IOSDesignTokens.Location.searchResultLineSpacing) {
-                    Text(item.name ?? "")
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    if let address = item.address,
-                       let subtitle = address.shortAddress ?? address.fullAddress.nilIfEmpty {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            LocationSearchResultContent(
+                item: item,
+                titleFont: .body,
+                subtitleFont: .caption,
+                lineSpacing: IOSDesignTokens.Location.searchResultLineSpacing,
+                titleFallback: "",
+                iconWidth: 18
+            )
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
         }
@@ -206,13 +194,15 @@ struct iOSLocationView: View {
 
     private var infoRow: some View {
         HStack(spacing: Spacing.xs) {
-            Image(systemName: AppIcons.Navigation.locationPin)
-                .foregroundStyle(.secondary)
-                .font(.caption)
-            Text(sidebarViewModel.selectedLocationName.isEmpty ? "場所が選択されていません" : sidebarViewModel.selectedLocationName)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+            SelectedLocationSummaryContent(
+                locationName: sidebarViewModel.selectedLocationName.isEmpty ? "場所が選択されていません" : sidebarViewModel.selectedLocationName,
+                coordinate: sidebarViewModel.selectedCoordinate,
+                titleFont: .caption,
+                coordinateFont: .caption,
+                showsAccentIcon: false
+            )
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
             Spacer()
             if showLightPollution {
                 if sidebarViewModel.isLightPollutionLoading {

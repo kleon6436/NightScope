@@ -8,7 +8,7 @@ struct iOSNightCardRow: View {
     let isSelected: Bool
 
     private var presentation: ForecastCardPresentation {
-        ForecastCardPresentation(night: night, weather: weather)
+        ForecastCardPresentation(night: night, weather: weather, timeZone: night.timeZone)
     }
 
     var body: some View {

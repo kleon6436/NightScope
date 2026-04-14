@@ -113,7 +113,7 @@ struct iOSForecastView: View {
             index: index,
             weather: weather,
             rangeText: rangeText,
-            isSelected: Calendar.current.isDate(night.date, inSameDayAs: gridViewModel.selectedDate)
+            isSelected: gridViewModel.isDateSelected(night.date)
         )
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)

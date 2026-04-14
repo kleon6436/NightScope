@@ -44,6 +44,7 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var currentWeather: DayWeatherSummary?
     @Published private(set) var isWeatherLoading: Bool = false
     @Published private(set) var isUpcomingLoading: Bool = false
+    @Published private(set) var selectedTimeZone: TimeZone
 
     private let appController: AppController
     private var cancellables = Set<AnyCancellable>()
@@ -51,28 +52,30 @@ final class DetailViewModel: ObservableObject {
     init(appController: AppController) {
         self.appController = appController
         self.selectedDate = appController.selectedDate
+        self.selectedTimeZone = appController.locationController.selectedTimeZone
         bind()
     }
 
     private func bind() {
-        appController.$nightSummary
-            .assign(to: &$nightSummary)
-
-        appController.$starGazingIndex
-            .assign(to: &$starGazingIndex)
-
-        appController.$upcomingNights
-            .assign(to: &$upcomingNights)
-
-        appController.$upcomingIndexes
-            .assign(to: &$upcomingIndexes)
-
-        appController.$selectedDate
-            .removeDuplicates()
-            .assign(to: &$selectedDate)
+        appController.$observationState
+            .sink { [weak self] state in
+                guard let self else { return }
+                self.nightSummary = state.nightSummary
+                self.starGazingIndex = state.starGazingIndex
+                self.upcomingNights = state.upcomingNights
+                self.upcomingIndexes = state.upcomingIndexes
+                self.isCalculating = state.isCalculating
+                self.isUpcomingLoading = state.isUpcomingLoading
+                if self.selectedDate != state.selectedDate {
+                    self.selectedDate = state.selectedDate
+                }
+            }
+            .store(in: &cancellables)
 
         Publishers.CombineLatest(
-            appController.$selectedDate.removeDuplicates(),
+            appController.$observationState
+                .map(\.selectedDate)
+                .removeDuplicates(),
             appController.weatherService.$weatherByDate
         )
         .sink { [weak self] date, _ in
@@ -92,14 +95,11 @@ final class DetailViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        appController.$isCalculating
-            .assign(to: &$isCalculating)
-
-        appController.$isUpcomingLoading
-            .assign(to: &$isUpcomingLoading)
-
         appController.locationController.$locationName
             .assign(to: &$locationName)
+
+        appController.locationController.selectedTimeZonePublisher
+            .assign(to: &$selectedTimeZone)
 
         appController.weatherService.$errorMessage
             .sink { [weak self] errorMessage in

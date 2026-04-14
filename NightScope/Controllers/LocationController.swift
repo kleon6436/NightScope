@@ -21,7 +21,6 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     @Published private(set) var selectedTimeZoneIdentifier = TimeZone.current.identifier {
         didSet {
             storage.timeZoneIdentifier = selectedTimeZoneIdentifier
-            ObservationTimeZone.update(selectedTimeZone)
         }
     }
     /// 場所が変わるたびに更新される ID（View 側での onChange 検知用）
@@ -120,8 +119,6 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         if let timeZoneIdentifier = storage.timeZoneIdentifier,
            TimeZone(identifier: timeZoneIdentifier) != nil {
             selectedTimeZoneIdentifier = timeZoneIdentifier
-        } else {
-            ObservationTimeZone.update(selectedTimeZone)
         }
     }
 
@@ -253,11 +250,29 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             guard self.selectedLocation.latitude == coordinate.latitude,
                   self.selectedLocation.longitude == coordinate.longitude else { return }
             self.locationName = details.name.isEmpty ? (fallbackName ?? "現在地") : details.name
-            if let timeZoneIdentifier = details.timeZoneIdentifier,
-               TimeZone(identifier: timeZoneIdentifier) != nil {
-                self.selectedTimeZoneIdentifier = timeZoneIdentifier
-            }
+            self.selectedTimeZoneIdentifier = resolvedTimeZoneIdentifier(
+                for: coordinate,
+                preferredIdentifier: details.timeZoneIdentifier
+            )
         }
+    }
+
+    private func resolvedTimeZoneIdentifier(
+        for coordinate: CLLocationCoordinate2D,
+        preferredIdentifier: String?
+    ) -> String {
+        if let preferredIdentifier,
+           TimeZone(identifier: preferredIdentifier) != nil {
+            return preferredIdentifier
+        }
+
+        return approximateTimeZone(for: coordinate).identifier
+    }
+
+    private func approximateTimeZone(for coordinate: CLLocationCoordinate2D) -> TimeZone {
+        let halfHourOffset = Int((coordinate.longitude / 15.0 * 2.0).rounded())
+        let secondsFromGMT = min(max(halfHourOffset * 1_800, -12 * 3_600), 14 * 3_600)
+        return TimeZone(secondsFromGMT: secondsFromGMT) ?? .current
     }
 
 }

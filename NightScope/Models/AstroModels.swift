@@ -46,10 +46,10 @@ struct ViewingWindow {
         return directions[index]
     }
 
-    func accessibilityDescription() -> String {
-        let timeRange = "\(start.nightTimeString())から\(end.nightTimeString())"
+    func accessibilityDescription(timeZone: TimeZone = .current) -> String {
+        let timeRange = "\(start.nightTimeString(timeZone: timeZone))から\(end.nightTimeString(timeZone: timeZone))"
         let altitude = String(format: "最大高度%.0f度", peakAltitude)
-        let peak = "見頃\(peakTime.nightTimeString())"
+        let peak = "見頃\(peakTime.nightTimeString(timeZone: timeZone))"
         let direction = "方角\(peakDirectionName)"
         return "観測窓: \(timeRange)、\(altitude)、\(peak)、\(direction)"
     }
@@ -64,6 +64,27 @@ struct NightSummary {
     let events: [AstroEvent]
     let viewingWindows: [ViewingWindow]
     let moonPhaseAtMidnight: Double
+    let timeZoneIdentifier: String
+
+    init(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        events: [AstroEvent],
+        viewingWindows: [ViewingWindow],
+        moonPhaseAtMidnight: Double,
+        timeZoneIdentifier: String = TimeZone.current.identifier
+    ) {
+        self.date = date
+        self.location = location
+        self.events = events
+        self.viewingWindows = viewingWindows
+        self.moonPhaseAtMidnight = moonPhaseAtMidnight
+        self.timeZoneIdentifier = timeZoneIdentifier
+    }
+
+    var timeZone: TimeZone {
+        TimeZone(identifier: timeZoneIdentifier) ?? .current
+    }
 
     private var bestWindow: ViewingWindow? {
         viewingWindows.max(by: { $0.peakAltitude < $1.peakAltitude })
@@ -126,13 +147,13 @@ struct NightSummary {
 
     /// 夕方側の暗い時間の開始（12時以降の最初の isDark イベント）
     var eveningDarkStart: Date? {
-        let cal = Calendar.current
+        let cal = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         return darkEvents.first { cal.component(.hour, from: $0.date) >= 12 }?.date
     }
 
     /// 早朝側の暗い時間の終了（12時前の最後の isDark イベントの次の区間）
     var morningDarkEnd: Date? {
-        let cal = Calendar.current
+        let cal = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         return darkEvents.last { cal.component(.hour, from: $0.date) < 12 }.map {
             $0.date.addingTimeInterval(15 * 60)
         }
@@ -143,7 +164,7 @@ struct NightSummary {
     /// - Returns: (start, end) または nil（観測可能な時間帯なし）
     func weatherAwareObservableWindow(nighttimeHours: [HourlyWeather]) -> (start: Date, end: Date)? {
         guard !nighttimeHours.isEmpty else { return nil }
-        let calendar = Calendar.current
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let weatherByHour = makeWeatherByHour(nighttimeHours: nighttimeHours, calendar: calendar)
         let clearDarkEvents = filteredDarkEvents(
             weatherByHour: weatherByHour,
@@ -164,11 +185,11 @@ struct NightSummary {
     func weatherAwareRangeText(nighttimeHours: [HourlyWeather]) -> String? {
         guard !nighttimeHours.isEmpty else { return nil }
         if let w = weatherAwareObservableWindow(nighttimeHours: nighttimeHours) {
-            return "\(w.start.nightTimeString()) 〜 \(w.end.nightTimeString())"
+            return "\(w.start.nightTimeString(timeZone: timeZone)) 〜 \(w.end.nightTimeString(timeZone: timeZone))"
         }
         // 観測可能ウィンドウなし — 原因を判定して適切なメッセージを返す
         // 天気フィルタのみ（月フィルタなし）で暗いイベントが存在すれば月が原因
-        let calendar = Calendar.current
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let weatherByHour = makeWeatherByHour(nighttimeHours: nighttimeHours, calendar: calendar)
         let hasWeatherClearDarkHour = !filteredDarkEvents(
             weatherByHour: weatherByHour,
@@ -282,11 +303,11 @@ struct NightSummary {
     /// 暗い観測時間帯の範囲文字列（例: "21:00 〜 03:30"）
     var darkRangeText: String {
         if let eStart = eveningDarkStart, let mEnd = morningDarkEnd {
-            return "\(eStart.nightTimeString()) 〜 \(mEnd.nightTimeString())"
+            return "\(eStart.nightTimeString(timeZone: timeZone)) 〜 \(mEnd.nightTimeString(timeZone: timeZone))"
         } else if let eStart = eveningDarkStart {
-            return "\(eStart.nightTimeString()) 〜 翌朝"
+            return "\(eStart.nightTimeString(timeZone: timeZone)) 〜 翌朝"
         } else if let mEnd = morningDarkEnd {
-            return "深夜 〜 \(mEnd.nightTimeString())"
+            return "深夜 〜 \(mEnd.nightTimeString(timeZone: timeZone))"
         } else {
             return ""
         }

@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 // MARK: - Spacing
 
@@ -48,6 +49,101 @@ enum Layout {
     static let upcomingCardHeight: CGFloat = 170
     /// グリッドのアイコン列幅
     static let gridIconWidth: CGFloat = 14
+}
+
+struct LocationSearchResultContent: View {
+    let item: MKMapItem
+    let iconSystemName: String
+    let titleFont: Font
+    let subtitleFont: Font
+    let lineSpacing: CGFloat
+    let titleFallback: String
+    let iconWidth: CGFloat?
+
+    init(
+        item: MKMapItem,
+        iconSystemName: String = "mappin.circle.fill",
+        titleFont: Font = .body,
+        subtitleFont: Font = .body,
+        lineSpacing: CGFloat = 0,
+        titleFallback: String = "Unknown",
+        iconWidth: CGFloat? = nil
+    ) {
+        self.item = item
+        self.iconSystemName = iconSystemName
+        self.titleFont = titleFont
+        self.subtitleFont = subtitleFont
+        self.lineSpacing = lineSpacing
+        self.titleFallback = titleFallback
+        self.iconWidth = iconWidth
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Image(systemName: iconSystemName)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: iconWidth)
+
+            VStack(alignment: .leading, spacing: lineSpacing) {
+                Text(item.name ?? titleFallback)
+                    .font(titleFont)
+                    .foregroundStyle(.primary)
+
+                if let address = item.address,
+                   let subtitle = address.shortAddress ?? address.fullAddress.nilIfEmpty {
+                    Text(subtitle)
+                        .font(subtitleFont)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct SelectedLocationSummaryContent: View {
+    let locationName: String
+    let coordinate: CLLocationCoordinate2D
+    let titleFont: Font
+    let coordinateFont: Font
+    let showsAccentIcon: Bool
+
+    init(
+        locationName: String,
+        coordinate: CLLocationCoordinate2D,
+        titleFont: Font = .headline,
+        coordinateFont: Font = .body,
+        showsAccentIcon: Bool = true
+    ) {
+        self.locationName = locationName
+        self.coordinate = coordinate
+        self.titleFont = titleFont
+        self.coordinateFont = coordinateFont
+        self.showsAccentIcon = showsAccentIcon
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.xs) {
+                if showsAccentIcon {
+                    Image(systemName: AppIcons.Navigation.locationPinPlain)
+                        .foregroundStyle(Color.accentColor)
+                        .font(.body)
+                        .accessibilityHidden(true)
+                }
+
+                Text(locationName)
+                    .font(titleFont)
+            }
+
+            Text(String(format: "%.4f°, %.4f°", coordinate.latitude, coordinate.longitude))
+                .font(coordinateFont)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(String(format: "緯度%.4f度、経度%.4f度", coordinate.latitude, coordinate.longitude))
+        }
+    }
 }
 
 // MARK: - Star Map Presentation
@@ -189,21 +285,22 @@ extension Animation {
 // MARK: - Time Formatting
 
 private enum FormatterFactory {
-    static func observationTimeZone(dateFormat: String) -> DateFormatter {
+    static func observationTimeZone(dateFormat: String, timeZone: TimeZone) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = dateFormat
-        formatter.timeZone = ObservationTimeZone.current
+        formatter.timeZone = timeZone
         return formatter
     }
 
     static func observationTimeZone(
         dateStyle: DateFormatter.Style,
-        timeStyle: DateFormatter.Style
+        timeStyle: DateFormatter.Style,
+        timeZone: TimeZone
     ) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = dateStyle
         formatter.timeStyle = timeStyle
-        formatter.timeZone = ObservationTimeZone.current
+        formatter.timeZone = timeZone
         return formatter
     }
 
@@ -216,16 +313,21 @@ private enum FormatterFactory {
 }
 
 enum DateFormatters {
-    static func nightTimeString(from date: Date) -> String {
-        FormatterFactory.observationTimeZone(dateFormat: "HH:mm").string(from: date)
+    static func nightTimeString(from date: Date, timeZone: TimeZone = .current) -> String {
+        FormatterFactory.observationTimeZone(dateFormat: "HH:mm", timeZone: timeZone).string(from: date)
     }
 
-    static func monthTitleString(from date: Date) -> String {
-        FormatterFactory.observationTimeZone(dateFormat: "yyyy年M月").string(from: date)
+    static func monthTitleString(from date: Date, timeZone: TimeZone = .current) -> String {
+        FormatterFactory.observationTimeZone(dateFormat: "yyyy年M月", timeZone: timeZone).string(from: date)
     }
 
-    static func fullDateString(from date: Date) -> String {
-        FormatterFactory.observationTimeZone(dateStyle: .full, timeStyle: .none).string(from: date)
+    static func fullDateString(from date: Date, timeZone: TimeZone = .current) -> String {
+        FormatterFactory.observationTimeZone(
+            dateStyle: .full,
+            timeStyle: .none,
+            timeZone: timeZone
+        )
+        .string(from: date)
     }
 }
 
@@ -235,8 +337,8 @@ extension String {
 
 extension Date {
     /// HH:mm 形式の時刻文字列を返す
-    func nightTimeString() -> String {
-        DateFormatters.nightTimeString(from: self)
+    func nightTimeString(timeZone: TimeZone = .current) -> String {
+        DateFormatters.nightTimeString(from: self, timeZone: timeZone)
     }
 }
 
@@ -281,6 +383,7 @@ enum WeatherPresentation {
 struct ForecastCardPresentation {
     let night: NightSummary
     let weather: DayWeatherSummary?
+    let timeZone: TimeZone
 
     private static let shortDateFormatter = FormatterFactory.localizedDate(
         localeIdentifier: "ja_JP",
@@ -292,8 +395,8 @@ struct ForecastCardPresentation {
     }
 
     var relativeNightLabel: String? {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(night.date) { return "今夜" }
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        if ObservationTimeZone.isDateInToday(night.date, timeZone: timeZone) { return "今夜" }
         if calendar.isDateInTomorrow(night.date) { return "明夜" }
         return nil
     }
@@ -366,6 +469,7 @@ enum AppIcons {
 
 extension FocusedValues {
     @Entry var selectedDate: Binding<Date>? = nil
+    @Entry var observationTimeZone: TimeZone? = nil
     @Entry var refreshAction: (() -> Void)? = nil
     @Entry var focusSearchAction: (() -> Void)? = nil
     @Entry var currentLocationAction: (() -> Void)? = nil

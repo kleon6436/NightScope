@@ -2,15 +2,19 @@ import SwiftUI
 
 struct CalendarView: View {
     @Binding var selectedDate: Date
+    let timeZone: TimeZone
     @State private var displayMonth: Date
 
-    init(selectedDate: Binding<Date>) {
+    init(selectedDate: Binding<Date>, timeZone: TimeZone = .current) {
         _selectedDate = selectedDate
+        self.timeZone = timeZone
         _displayMonth = State(initialValue: selectedDate.wrappedValue)
     }
 
-    private let calendar = Calendar.current
     private let weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"]
+    private var calendar: Calendar {
+        ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+    }
 
     var body: some View {
         VStack(spacing: Spacing.xs) {
@@ -62,8 +66,9 @@ struct CalendarView: View {
                     if let day = day {
                         CalendarDayCell(
                             date: day,
+                            timeZone: timeZone,
                             isSelected: calendar.isDate(day, inSameDayAs: selectedDate),
-                            isToday: calendar.isDateInToday(day),
+                            isToday: ObservationTimeZone.isDateInToday(day, timeZone: timeZone),
                             onTap: { selectedDate = day }
                         )
                     } else {
@@ -99,7 +104,7 @@ struct CalendarView: View {
     }
 
     private var monthTitle: String {
-        DateFormatters.monthTitleString(from: displayMonth)
+        DateFormatters.monthTitleString(from: displayMonth, timeZone: timeZone)
     }
 
     private func shiftMonth(by value: Int) {
@@ -109,15 +114,18 @@ struct CalendarView: View {
 
 struct CalendarDayCell: View {
     let date: Date
+    let timeZone: TimeZone
     let isSelected: Bool
     let isToday: Bool
     let onTap: () -> Void
 
-    private let calendar = Calendar.current
+    private var calendar: Calendar {
+        ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+    }
     private var dayNumber: Int { calendar.component(.day, from: date) }
 
     private var accessibilityDateLabel: String {
-        var label = DateFormatters.fullDateString(from: date)
+        var label = DateFormatters.fullDateString(from: date, timeZone: timeZone)
         if isSelected { label += "、選択中" }
         if isToday { label += "、今日" }
         return label

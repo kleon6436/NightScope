@@ -68,6 +68,33 @@ final class LightPollutionServiceTests: XCTestCase {
         XCTAssertFalse(snapshot.fetchFailed)
     }
 
+    func test_brightness_clampsAtPolarAndDateLineEdges() {
+        var data = Data()
+        data.append(contentsOf: [0x42, 0x4F, 0x52, 0x54])
+
+        var version = Int32(1).littleEndian
+        data.append(contentsOf: withUnsafeBytes(of: &version) { Array($0) })
+
+        var latCells = Int32(2).littleEndian
+        data.append(contentsOf: withUnsafeBytes(of: &latCells) { Array($0) })
+
+        var lonCells = Int32(2).littleEndian
+        data.append(contentsOf: withUnsafeBytes(of: &lonCells) { Array($0) })
+
+        for brightness in [Float(1), Float(2), Float(3), Float(4)] {
+            var value = brightness.bitPattern.littleEndian
+            data.append(contentsOf: withUnsafeBytes(of: &value) { Array($0) })
+        }
+
+        guard let grid = BortleGridData(data: data) else {
+            XCTFail("グリッドを生成できませんでした")
+            return
+        }
+
+        XCTAssertEqual(grid.brightness(latitude: -90, longitude: -180), 1, accuracy: 0.0001)
+        XCTAssertEqual(grid.brightness(latitude: 90, longitude: 180), 4, accuracy: 0.0001)
+    }
+
     func test_renderedTile_returnsImageAndData() {
         guard let grid = makeSingleCellGrid(brightness: 0.172) else {
             XCTFail("グリッドを生成できませんでした")

@@ -5,9 +5,14 @@ import AppKit
 
 struct NightScopeCommands: Commands {
     @FocusedBinding(\.selectedDate) private var selectedDate: Date?
+    @FocusedValue(\.observationTimeZone) private var observationTimeZone: TimeZone?
     @FocusedValue(\.refreshAction) private var refreshAction: (() -> Void)?
     @FocusedValue(\.focusSearchAction) private var focusSearchAction: (() -> Void)?
     @FocusedValue(\.currentLocationAction) private var currentLocationAction: (() -> Void)?
+
+    private var observationCalendar: Calendar {
+        ObservationTimeZone.gregorianCalendar(timeZone: observationTimeZone ?? .current)
+    }
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
@@ -19,7 +24,7 @@ struct NightScopeCommands: Commands {
         CommandGroup(after: .sidebar) {
             Button("前日") {
                 if let date = selectedDate {
-                    selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: date)
+                    selectedDate = observationCalendar.date(byAdding: .day, value: -1, to: date)
                 }
             }
             .keyboardShortcut(.leftArrow, modifiers: .command)
@@ -27,7 +32,7 @@ struct NightScopeCommands: Commands {
 
             Button("翌日") {
                 if let date = selectedDate {
-                    selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: date)
+                    selectedDate = observationCalendar.date(byAdding: .day, value: 1, to: date)
                 }
             }
             .keyboardShortcut(.rightArrow, modifiers: .command)
@@ -37,7 +42,7 @@ struct NightScopeCommands: Commands {
 
             Button("前の月") {
                 if let date = selectedDate {
-                    selectedDate = Calendar.current.date(byAdding: .month, value: -1, to: date)
+                    selectedDate = observationCalendar.date(byAdding: .month, value: -1, to: date)
                 }
             }
             .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
@@ -45,7 +50,7 @@ struct NightScopeCommands: Commands {
 
             Button("次の月") {
                 if let date = selectedDate {
-                    selectedDate = Calendar.current.date(byAdding: .month, value: 1, to: date)
+                    selectedDate = observationCalendar.date(byAdding: .month, value: 1, to: date)
                 }
             }
             .keyboardShortcut(.rightArrow, modifiers: [.command, .option])

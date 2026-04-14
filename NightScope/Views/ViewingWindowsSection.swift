@@ -13,7 +13,7 @@ struct ViewingWindowsSection: View {
                     .accessibilityElement(children: .contain)
             } else {
                 ForEach(summary.viewingWindows, id: \.start) { window in
-                    ViewingWindowCard(window: window, viewModel: viewModel)
+                    ViewingWindowCard(window: window, timeZone: summary.timeZone, viewModel: viewModel)
                 }
             }
         }
@@ -22,13 +22,14 @@ struct ViewingWindowsSection: View {
 
 private struct ViewingWindowCard: View {
     let window: ViewingWindow
+    let timeZone: TimeZone
     let viewModel: ViewingWindowsSectionViewModel
 
     var body: some View {
-        ViewingWindowCardContent(window: window, viewModel: viewModel)
+        ViewingWindowCardContent(window: window, timeZone: timeZone, viewModel: viewModel)
             .glassCard()
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(viewModel.accessibilityDescription(for: window))
+            .accessibilityLabel(viewModel.accessibilityDescription(for: window, timeZone: timeZone))
     }
 }
 
@@ -42,19 +43,23 @@ struct MilkyWaySummaryCard: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             CardHeader(icon: AppIcons.Astronomy.sparkles, iconColor: .indigo, title: "天の川")
             if let window = bestWindow {
-                ViewingWindowCardContent(window: window, viewModel: viewModel)
+                ViewingWindowCardContent(window: window, timeZone: summary.timeZone, viewModel: viewModel)
             } else {
                 ViewingWindowsEmptyStateCardContent()
             }
         }
         .glassCard()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(bestWindow.map { viewModel.accessibilityDescription(for: $0) } ?? "観測に適した時間帯がありません")
+        .accessibilityLabel(
+            bestWindow.map { viewModel.accessibilityDescription(for: $0, timeZone: summary.timeZone) }
+                ?? "観測に適した時間帯がありません"
+        )
     }
 }
 
 struct ViewingWindowCardContent: View {
     let window: ViewingWindow
+    let timeZone: TimeZone
     let viewModel: ViewingWindowsSectionViewModel
 
     var body: some View {
@@ -63,7 +68,7 @@ struct ViewingWindowCardContent: View {
                 .frame(width: CardVisual.width, height: CardVisual.compassSize)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xs / 2) {
-                Text(viewModel.timeAndPeakText(window))
+                Text(viewModel.timeAndPeakText(window, timeZone: timeZone))
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(.primary)
                     .lineLimit(1)

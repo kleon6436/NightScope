@@ -188,6 +188,7 @@ final class NightWeatherCardViewModelTests: XCTestCase {
         XCTAssertTrue(desc.hasPrefix("天気 夜間: "))
         XCTAssertTrue(desc.contains("雲量20%"))
         XCTAssertTrue(desc.contains("降水0.0mm"))
+        XCTAssertTrue(desc.contains("風速 10 km/h"))
     }
 }
 
@@ -250,14 +251,14 @@ final class ViewingWindowsSectionViewModelTests: XCTestCase {
         let summary = makeNightSummary(withWindow: true)
         let vm = ViewingWindowsSectionViewModel()
         let window = summary.viewingWindows[0]
-        XCTAssertTrue(vm.windowTimeText(window).contains("〜"))
+        XCTAssertTrue(vm.windowTimeText(window, timeZone: summary.timeZone).contains("〜"))
     }
 
     func test_timeAndPeakText_includesPeakTime() {
         let summary = makeNightSummary(withWindow: true)
         let vm = ViewingWindowsSectionViewModel()
         let window = summary.viewingWindows[0]
-        let text = vm.timeAndPeakText(window)
+        let text = vm.timeAndPeakText(window, timeZone: summary.timeZone)
 
         XCTAssertTrue(text.contains("〜"))
         XCTAssertTrue(text.contains("見頃"))
@@ -276,7 +277,7 @@ final class ViewingWindowsSectionViewModelTests: XCTestCase {
         let summary = makeNightSummary(withWindow: true)
         let vm = ViewingWindowsSectionViewModel()
         let window = summary.viewingWindows[0]
-        let description = vm.accessibilityDescription(for: window)
+        let description = vm.accessibilityDescription(for: window, timeZone: summary.timeZone)
         XCTAssertTrue(description.contains("観測窓:"))
         XCTAssertTrue(description.contains("最大高度32度"))
         XCTAssertTrue(description.contains("見頃"))

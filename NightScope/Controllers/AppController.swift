@@ -4,6 +4,16 @@ import CoreLocation
 
 @MainActor
 final class AppController: ObservableObject {
+    struct ObservationState {
+        var selectedDate = Date()
+        var nightSummary: NightSummary?
+        var upcomingNights: [NightSummary] = []
+        var starGazingIndex: StarGazingIndex?
+        var upcomingIndexes: [Date: StarGazingIndex] = [:]
+        var isCalculating = false
+        var isUpcomingLoading = false
+    }
+
     private struct LocationRefreshPayload {
         let nightSummary: NightSummary
         let upcomingNights: [NightSummary]
@@ -19,13 +29,28 @@ final class AppController: ObservableObject {
     let lightPollutionService: LightPollutionService
 
     // MARK: - Published State
-    @Published var selectedDate: Date = Date()
-    @Published var nightSummary: NightSummary?
-    @Published var upcomingNights: [NightSummary] = []
-    @Published var starGazingIndex: StarGazingIndex?
-    @Published var upcomingIndexes: [Date: StarGazingIndex] = [:]
-    @Published var isCalculating = false
-    @Published var isUpcomingLoading = false
+    @Published var selectedDate: Date = Date() {
+        didSet { publishObservationState() }
+    }
+    @Published var nightSummary: NightSummary? {
+        didSet { publishObservationState() }
+    }
+    @Published var upcomingNights: [NightSummary] = [] {
+        didSet { publishObservationState() }
+    }
+    @Published var starGazingIndex: StarGazingIndex? {
+        didSet { publishObservationState() }
+    }
+    @Published var upcomingIndexes: [Date: StarGazingIndex] = [:] {
+        didSet { publishObservationState() }
+    }
+    @Published var isCalculating = false {
+        didSet { publishObservationState() }
+    }
+    @Published var isUpcomingLoading = false {
+        didSet { publishObservationState() }
+    }
+    @Published private(set) var observationState = ObservationState()
 
     // MARK: - Private State
     private let calculationService: NightCalculating
@@ -45,6 +70,7 @@ final class AppController: ObservableObject {
         self.weatherService = weatherService ?? WeatherService()
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
         self.calculationService = calculationService ?? NightCalculationService()
+        publishObservationState()
         setupObservers()
         // 星カタログ（JSON 693KB）と色テーブルをバックグラウンドでプリウォーム。
         // StarMapViewModel が初回 _compute を実行する前に準備を完了させる。
@@ -180,6 +206,18 @@ final class AppController: ObservableObject {
     private func refreshExternalData() async {
         await refreshWeather()
         await refreshLightPollution()
+    }
+
+    private func publishObservationState() {
+        observationState = ObservationState(
+            selectedDate: selectedDate,
+            nightSummary: nightSummary,
+            upcomingNights: upcomingNights,
+            starGazingIndex: starGazingIndex,
+            upcomingIndexes: upcomingIndexes,
+            isCalculating: isCalculating,
+            isUpcomingLoading: isUpcomingLoading
+        )
     }
 
     private func recomputeAllIndexes() {
