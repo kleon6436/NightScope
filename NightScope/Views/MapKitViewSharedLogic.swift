@@ -163,3 +163,92 @@ enum MapKitViewSharedLogic {
 
 /// サイドバーマップで視野方向を示す扇形ポリゴンオーバーレイ。
 final class ViewingDirectionOverlay: MKPolygon {}
+
+@MainActor
+final class MapKitCoordinatorState {
+    private var lastSyncTrigger: Int
+    private var lastCenterTrigger: Int
+    private var pendingIgnoredRegionChanges = 0
+    private var latestProgrammaticRegionGeneration = 0
+
+    init(syncTrigger: Int, centerTrigger: Int) {
+        self.lastSyncTrigger = syncTrigger
+        self.lastCenterTrigger = centerTrigger
+    }
+
+    func syncedRegion(
+        existing: MKPointAnnotation?,
+        coordinate: CLLocationCoordinate2D,
+        syncState: MapKitSyncState
+    ) -> MKCoordinateRegion? {
+        MapKitViewSharedLogic.applyViewportSyncIfNeeded(
+            existing: existing,
+            coordinate: coordinate,
+            syncState: syncState,
+            lastSyncTrigger: &lastSyncTrigger
+        )
+    }
+
+    func centeredRegion(
+        coordinate: CLLocationCoordinate2D,
+        centerTrigger: Int
+    ) -> MKCoordinateRegion? {
+        MapKitViewSharedLogic.centerOnCurrentLocationIfNeeded(
+            coordinate: coordinate,
+            centerTrigger: centerTrigger,
+            lastCenterTrigger: &lastCenterTrigger
+        )
+    }
+
+    func scheduleRegionChange(on mapView: MKMapView, region: MKCoordinateRegion, animated: Bool) {
+        pendingIgnoredRegionChanges += 1
+        latestProgrammaticRegionGeneration += 1
+        let scheduledGeneration = latestProgrammaticRegionGeneration
+
+        DispatchQueue.main.async { [weak self, weak mapView] in
+            guard let self, let mapView else { return }
+            guard scheduledGeneration == self.latestProgrammaticRegionGeneration else {
+                self.pendingIgnoredRegionChanges = max(0, self.pendingIgnoredRegionChanges - 1)
+                return
+            }
+            mapView.setRegion(region, animated: animated)
+        }
+    }
+
+    func handleRegionDidChange(
+        mapView: MKMapView,
+        onRegionChange: @escaping (CLLocationCoordinate2D, MKCoordinateSpan) -> Void
+    ) {
+        if MapKitViewSharedLogic.consumePendingRegionChangeIgnore(&pendingIgnoredRegionChanges) {
+            return
+        }
+        let region = mapView.region
+        let capturedGeneration = latestProgrammaticRegionGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard capturedGeneration == self.latestProgrammaticRegionGeneration else { return }
+            onRegionChange(region.center, region.span)
+        }
+    }
+
+    func renderer(for overlay: MKOverlay, overlayAlpha: CGFloat) -> MKOverlayRenderer {
+        if let tileOverlay = overlay as? LightPollutionTileOverlay {
+            let renderer = MKTileOverlayRenderer(tileOverlay: tileOverlay)
+            renderer.alpha = overlayAlpha
+            return renderer
+        }
+        if overlay is ViewingDirectionOverlay {
+            let renderer = MKPolygonRenderer(overlay: overlay)
+            #if os(macOS)
+            renderer.fillColor = NSColor.white.withAlphaComponent(0.15)
+            renderer.strokeColor = NSColor.white.withAlphaComponent(0.5)
+            #else
+            renderer.fillColor = UIColor.white.withAlphaComponent(0.15)
+            renderer.strokeColor = UIColor.white.withAlphaComponent(0.5)
+            #endif
+            renderer.lineWidth = 1.0
+            return renderer
+        }
+        return MKOverlayRenderer(overlay: overlay)
+    }
+}

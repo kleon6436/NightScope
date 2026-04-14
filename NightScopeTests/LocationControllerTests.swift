@@ -34,6 +34,7 @@ final class LocationControllerTests: XCTestCase {
         var latitude: Double?
         var longitude: Double?
         var name: String?
+        var timeZoneIdentifier: String?
     }
 
     enum MockLocationSearchError: Error {
@@ -66,9 +67,9 @@ final class LocationControllerTests: XCTestCase {
             self.resolvedName = resolvedName
         }
 
-        func resolveName(for coordinate: CLLocationCoordinate2D) async -> String {
+        func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
             lastCoordinate = coordinate
-            return resolvedName
+            return ResolvedLocationDetails(name: resolvedName, timeZoneIdentifier: nil)
         }
 
         func getLastCoordinate() -> CLLocationCoordinate2D? {
@@ -86,14 +87,15 @@ final class LocationControllerTests: XCTestCase {
             self.delaysInNanoseconds = delaysInNanoseconds
         }
 
-        func resolveName(for coordinate: CLLocationCoordinate2D) async -> String {
+        func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
             let index = callCount
             callCount += 1
             let delay = index < delaysInNanoseconds.count ? delaysInNanoseconds[index] : 0
             if delay > 0 {
                 try? await Task.sleep(nanoseconds: delay)
             }
-            return index < resolvedNames.count ? resolvedNames[index] : "現在地"
+            let name = index < resolvedNames.count ? resolvedNames[index] : "現在地"
+            return ResolvedLocationDetails(name: name, timeZoneIdentifier: nil)
         }
 
         func getCallCount() -> Int {

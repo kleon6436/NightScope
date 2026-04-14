@@ -6,12 +6,18 @@ import CoreLocation
 final class UpcomingNightsGridViewModel: ObservableObject {
     @Published private(set) var displayNights: [NightSummary] = []
     @Published private(set) var isLoading = false
+    @Published private(set) var selectedDate: Date
+    @Published private(set) var upcomingIndexes: [Date: StarGazingIndex]
+    @Published private(set) var weatherByDate: [String: DayWeatherSummary]
 
     private let detailViewModel: DetailViewModel
     private var cancellables = Set<AnyCancellable>()
 
     init(detailViewModel: DetailViewModel) {
         self.detailViewModel = detailViewModel
+        self.selectedDate = detailViewModel.selectedDate
+        self.upcomingIndexes = detailViewModel.upcomingIndexes
+        self.weatherByDate = detailViewModel.weatherService.weatherByDate
         setupBindings()
     }
 
@@ -22,26 +28,19 @@ final class UpcomingNightsGridViewModel: ObservableObject {
             .store(in: &cancellables)
 
         detailViewModel.$selectedDate
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
+            .assign(to: &$selectedDate)
 
         detailViewModel.$upcomingIndexes
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
+            .assign(to: &$upcomingIndexes)
 
         detailViewModel.weatherService.$weatherByDate
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
+            .assign(to: &$weatherByDate)
 
         detailViewModel.$isUpcomingLoading
             .assign(to: &$isLoading)
     }
 
     // MARK: - Public Properties
-
-    var selectedDate: Date {
-        detailViewModel.selectedDate
-    }
 
     // MARK: - Public Methods
 
@@ -52,12 +51,13 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     }
 
     func weatherSummary(for date: Date) -> DayWeatherSummary? {
-        detailViewModel.weatherService.summary(for: date)
+        let key = detailViewModel.weatherService.dateKey(date)
+        return weatherByDate[key]
     }
 
     func starGazingIndex(for date: Date) -> StarGazingIndex? {
         let startOfDay = Calendar.current.startOfDay(for: date)
-        return detailViewModel.upcomingIndexes[startOfDay]
+        return upcomingIndexes[startOfDay]
     }
 
     func observableRangeText(night: NightSummary, weather: DayWeatherSummary?) -> String {
@@ -70,7 +70,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
 
     func cardAccessibilityLabel(night: NightSummary, weather: DayWeatherSummary?, index: StarGazingIndex?) -> String {
         var parts: [String] = []
-        parts.append(DateFormatters.fullDate.string(from: night.date))
+        parts.append(DateFormatters.fullDateString(from: night.date))
         if let idx = index { parts.append("星空指数\(idx.score)") }
         if let w = weather { parts.append("天気\(w.weatherLabel)") }
         parts.append("月: \(night.moonPhaseName)")

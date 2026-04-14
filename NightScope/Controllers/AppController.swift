@@ -69,7 +69,8 @@ final class AppController: ObservableObject {
         let coordinate = selectedCoordinate
         await weatherService.fetchWeather(
             latitude: coordinate.latitude,
-            longitude: coordinate.longitude
+            longitude: coordinate.longitude,
+            timeZone: selectedTimeZone
         )
     }
 
@@ -93,8 +94,13 @@ final class AppController: ObservableObject {
         isCalculating = true
         let date = selectedDate
         let location = selectedCoordinate
+        let timeZone = selectedTimeZone
         calculationTask = Task {
-            let summary = await calculationService.calculateNightSummary(date: date, location: location)
+            let summary = await calculationService.calculateNightSummary(
+                date: date,
+                location: location,
+                timeZone: timeZone
+            )
             guard !Task.isCancelled else { return }
             nightSummary = summary
             isCalculating = false
@@ -107,8 +113,14 @@ final class AppController: ObservableObject {
         isUpcomingLoading = true
         let today = Date()
         let location = selectedCoordinate
+        let timeZone = selectedTimeZone
         upcomingTask = Task {
-            let upcoming = await calculationService.calculateUpcomingNights(from: today, location: location, days: 14)
+            let upcoming = await calculationService.calculateUpcomingNights(
+                from: today,
+                location: location,
+                timeZone: timeZone,
+                days: 14
+            )
             guard !Task.isCancelled else { return }
             upcomingNights = upcoming
             recomputeUpcomingIndexes()
@@ -139,14 +151,23 @@ final class AppController: ObservableObject {
         locationController.selectedLocation
     }
 
+    private var selectedTimeZone: TimeZone {
+        locationController.selectedTimeZone
+    }
+
     func prepareForLocationChange() {
         cancelActiveCalculationTasks()
         isCalculating = true
         isUpcomingLoading = true
+        nightSummary = nil
+        upcomingNights = []
+        starGazingIndex = nil
+        upcomingIndexes = [:]
         let coordinate = selectedCoordinate
         weatherService.prepareForLocationChange(
             latitude: coordinate.latitude,
-            longitude: coordinate.longitude
+            longitude: coordinate.longitude,
+            timeZone: selectedTimeZone
         )
         lightPollutionService.prepareForLocationChange()
     }
@@ -165,12 +186,23 @@ final class AppController: ObservableObject {
         prepareForLocationChange()
         let coordinate = selectedCoordinate
         let selectedDate = self.selectedDate
+        let timeZone = selectedTimeZone
 
-        async let summaryTask = calculationService.calculateNightSummary(date: selectedDate, location: coordinate)
-        async let upcomingTask = calculationService.calculateUpcomingNights(from: Date(), location: coordinate, days: 14)
+        async let summaryTask = calculationService.calculateNightSummary(
+            date: selectedDate,
+            location: coordinate,
+            timeZone: timeZone
+        )
+        async let upcomingTask = calculationService.calculateUpcomingNights(
+            from: Date(),
+            location: coordinate,
+            timeZone: timeZone,
+            days: 14
+        )
         async let weatherTask = weatherService.fetchWeatherSnapshot(
             latitude: coordinate.latitude,
-            longitude: coordinate.longitude
+            longitude: coordinate.longitude,
+            timeZone: timeZone
         )
         async let lightPollutionTask = lightPollutionService.fetchSnapshot(
             latitude: coordinate.latitude,
@@ -267,7 +299,7 @@ final class AppController: ObservableObject {
         bortleClass: Double?,
         selectedDate: Date
     ) -> StarGazingIndex {
-        let weather = weatherByDate[weatherService.dateKey(selectedDate)]
+        let weather = weatherService.summary(for: selectedDate)
         return StarGazingIndex.compute(
             nightSummary: nightSummary,
             weather: weather,
@@ -282,7 +314,7 @@ final class AppController: ObservableObject {
     ) -> [Date: StarGazingIndex] {
         var indexes: [Date: StarGazingIndex] = [:]
         for night in upcomingNights {
-            let weather = weatherByDate[weatherService.dateKey(night.date)]
+            let weather = weatherService.summary(for: night.date)
             let idx = StarGazingIndex.compute(nightSummary: night, weather: weather, bortleClass: bortleClass)
             indexes[Calendar.current.startOfDay(for: night.date)] = idx
         }

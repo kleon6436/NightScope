@@ -22,6 +22,7 @@ protocol LightPollutionProviding: AnyObject, ObservableObject {
     var isLoading: Bool { get }
     var isLoadingPublisher: Published<Bool>.Publisher { get }
     var fetchFailed: Bool { get }
+    var fetchFailedPublisher: Published<Bool>.Publisher { get }
 
     func fetch(latitude: Double, longitude: Double) async
     func fetchBortle(latitude: Double, longitude: Double) async throws -> Double
@@ -272,6 +273,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     @Published var isLoading = false
     var isLoadingPublisher: Published<Bool>.Publisher { $isLoading }
     @Published var fetchFailed = false
+    var fetchFailedPublisher: Published<Bool>.Publisher { $fetchFailed }
 
     private var lastFetchedCoordinate: (lat: Double, lon: Double)?
 
@@ -290,6 +292,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     func prepareForLocationChange() {
         isLoading = false
         fetchFailed = false
+        bortleClass = nil
     }
 
     func fetch(latitude: Double, longitude: Double) async {

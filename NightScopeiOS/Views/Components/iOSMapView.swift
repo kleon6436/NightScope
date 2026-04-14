@@ -40,24 +40,22 @@ struct iOSMapView: UIViewRepresentable {
             return
         }
 
-        if let syncRegion = MapKitViewSharedLogic.applyViewportSyncIfNeeded(
+        if let syncRegion = context.coordinator.state.syncedRegion(
             existing: existing,
             coordinate: newCoord,
-            syncState: syncState,
-            lastSyncTrigger: &context.coordinator.lastSyncTrigger
+            syncState: syncState
         ) {
             MapKitViewSharedLogic.upsertPinAnnotation(on: uiView, existing: existing, coordinate: newCoord)
-            context.coordinator.scheduleRegionChange(on: uiView, region: syncRegion, animated: false)
+            context.coordinator.state.scheduleRegionChange(on: uiView, region: syncRegion, animated: false)
             return
         }
 
         MapKitViewSharedLogic.upsertPinAnnotation(on: uiView, existing: existing, coordinate: newCoord)
-        if let centeredRegion = MapKitViewSharedLogic.centerOnCurrentLocationIfNeeded(
+        if let centeredRegion = context.coordinator.state.centeredRegion(
             coordinate: newCoord,
-            centerTrigger: centerTrigger,
-            lastCenterTrigger: &context.coordinator.lastCenterTrigger
+            centerTrigger: centerTrigger
         ) {
-            context.coordinator.scheduleRegionChange(on: uiView, region: centeredRegion, animated: true)
+            context.coordinator.state.scheduleRegionChange(on: uiView, region: centeredRegion, animated: true)
         }
     }
 
@@ -65,30 +63,14 @@ struct iOSMapView: UIViewRepresentable {
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: iOSMapView
-        var lastSyncTrigger: Int
-        var lastCenterTrigger: Int
-        var pendingIgnoredRegionChanges = 0
-        var latestProgrammaticRegionGeneration = 0
+        let state: MapKitCoordinatorState
 
         init(_ parent: iOSMapView) {
             self.parent = parent
-            self.lastSyncTrigger = parent.syncState.trigger
-            self.lastCenterTrigger = parent.centerTrigger
-        }
-
-        func scheduleRegionChange(on mapView: MKMapView, region: MKCoordinateRegion, animated: Bool) {
-            pendingIgnoredRegionChanges += 1
-            latestProgrammaticRegionGeneration += 1
-            let scheduledGeneration = latestProgrammaticRegionGeneration
-
-            DispatchQueue.main.async { [weak self, weak mapView] in
-                guard let self, let mapView else { return }
-                guard scheduledGeneration == self.latestProgrammaticRegionGeneration else {
-                    self.pendingIgnoredRegionChanges = max(0, self.pendingIgnoredRegionChanges - 1)
-                    return
-                }
-                mapView.setRegion(region, animated: animated)
-            }
+            self.state = MapKitCoordinatorState(
+                syncTrigger: parent.syncState.trigger,
+                centerTrigger: parent.centerTrigger
+            )
         }
 
         @objc func handleTap(_ gr: UITapGestureRecognizer) {
@@ -99,25 +81,11 @@ struct iOSMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            if MapKitViewSharedLogic.consumePendingRegionChangeIgnore(&pendingIgnoredRegionChanges) {
-                return
-            }
-            let region = mapView.region
-            let capturedGeneration = latestProgrammaticRegionGeneration
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                guard capturedGeneration == self.latestProgrammaticRegionGeneration else { return }
-                self.parent.onRegionChange(region.center, region.span)
-            }
+            state.handleRegionDidChange(mapView: mapView, onRegionChange: parent.onRegionChange)
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let tileOverlay = overlay as? LightPollutionTileOverlay {
-                let renderer = MKTileOverlayRenderer(tileOverlay: tileOverlay)
-                renderer.alpha = parent.overlayAlpha
-                return renderer
-            }
-            return MKOverlayRenderer(overlay: overlay)
+            state.renderer(for: overlay, overlayAlpha: parent.overlayAlpha)
         }
     }
 }

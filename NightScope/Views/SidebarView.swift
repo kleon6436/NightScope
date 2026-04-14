@@ -70,7 +70,7 @@ struct SidebarView: View {
 
     private var locationErrorAlertBinding: Binding<Bool> {
         Binding(
-            get: { viewModel.locationController.locationError != nil },
+            get: { viewModel.locationError != nil },
             set: { isPresented in
                 if !isPresented {
                     viewModel.clearLocationError()
@@ -85,8 +85,8 @@ struct SidebarView: View {
                 get: { locationInputMode },
                 set: { locationInputMode = $0 }
             ),
-            isLoadingLightPollution: viewModel.lightPollutionService.isLoading,
-            bortleClass: viewModel.lightPollutionService.bortleClass
+            isLoadingLightPollution: viewModel.isLightPollutionLoading,
+            bortleClass: viewModel.lightPollutionBortleClass
         )
         .onChange(of: locationInputMode) {
             mapViewportSyncTrigger += 1

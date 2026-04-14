@@ -380,7 +380,7 @@ private struct MacStarMapSheet: View {
                     .labelsHidden()
 
                 Text(viewModel.displayTimeString)
-                    .font(.system(size: 13, design: .monospaced))
+                    .font(.footnote.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
             }

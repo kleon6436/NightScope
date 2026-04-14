@@ -18,12 +18,40 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             storage.longitude = selectedLocation.longitude
         }
     }
+    @Published private(set) var selectedTimeZoneIdentifier = TimeZone.current.identifier {
+        didSet {
+            storage.timeZoneIdentifier = selectedTimeZoneIdentifier
+            ObservationTimeZone.update(selectedTimeZone)
+        }
+    }
     /// 場所が変わるたびに更新される ID（View 側での onChange 検知用）
     @Published private(set) var locationUpdateID: UUID = UUID()
-    var locationUpdateIDPublisher: Published<UUID>.Publisher { $locationUpdateID }
-    var locationNamePublisher: Published<String>.Publisher { $locationName }
-    var anyChangePublisher: AnyPublisher<Void, Never> {
-        objectWillChange.map { _ in () }.eraseToAnyPublisher()
+    var selectedLocationPublisher: AnyPublisher<CLLocationCoordinate2D, Never> {
+        $selectedLocation.eraseToAnyPublisher()
+    }
+    var locationNamePublisher: AnyPublisher<String, Never> {
+        $locationName.eraseToAnyPublisher()
+    }
+    var searchResultsPublisher: AnyPublisher<[MKMapItem], Never> {
+        $searchResults.eraseToAnyPublisher()
+    }
+    var isSearchingPublisher: AnyPublisher<Bool, Never> {
+        $isSearching.eraseToAnyPublisher()
+    }
+    var isLocatingPublisher: AnyPublisher<Bool, Never> {
+        $isLocating.eraseToAnyPublisher()
+    }
+    var locationErrorPublisher: AnyPublisher<LocationError?, Never> {
+        $locationError.eraseToAnyPublisher()
+    }
+    var searchFocusTriggerPublisher: AnyPublisher<Int, Never> {
+        $searchFocusTrigger.eraseToAnyPublisher()
+    }
+    var currentLocationCenterTriggerPublisher: AnyPublisher<Int, Never> {
+        $currentLocationCenterTrigger.eraseToAnyPublisher()
+    }
+    var selectedTimeZone: TimeZone {
+        TimeZone(identifier: selectedTimeZoneIdentifier) ?? .current
     }
 
     @Published var locationName: String = "東京" {
@@ -83,6 +111,12 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
         if let name = storage.name {
             locationName = name
+        }
+        if let timeZoneIdentifier = storage.timeZoneIdentifier,
+           TimeZone(identifier: timeZoneIdentifier) != nil {
+            selectedTimeZoneIdentifier = timeZoneIdentifier
+        } else {
+            ObservationTimeZone.update(selectedTimeZone)
         }
     }
 
@@ -164,8 +198,9 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     func select(_ mapItem: MKMapItem) {
         if isLocating { stopLocating() }
         selectedLocation = mapItem.location.coordinate
+        applySelectedTimeZone(mapItem.placemark.timeZone)
         currentLocationCenterTrigger += 1
-        resolveLocationName(for: mapItem.location.coordinate)
+        resolveLocationDetails(for: mapItem.location.coordinate)
     }
 
     /// マップタップなど座標から場所を選択する（センタリングしない）
@@ -173,7 +208,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         if isLocating { stopLocating() }
         clearSearch()
         selectedLocation = coordinate
-        resolveLocationName(for: coordinate)
+        resolveLocationDetails(for: coordinate)
     }
 
     // MARK: - Private Helpers
@@ -202,16 +237,25 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         locationTimeoutTask = nil
     }
 
-    private func resolveLocationName(for coordinate: CLLocationCoordinate2D) {
+    private func resolveLocationDetails(for coordinate: CLLocationCoordinate2D) {
         locationNameTask?.cancel()
         locationNameTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            let resolvedName = await self.locationNameResolver.resolveName(for: coordinate)
+            let details = await self.locationNameResolver.resolveDetails(for: coordinate)
             guard !Task.isCancelled else { return }
             guard self.selectedLocation.latitude == coordinate.latitude,
                   self.selectedLocation.longitude == coordinate.longitude else { return }
-            self.locationName = resolvedName
+            self.locationName = details.name
+            if let timeZoneIdentifier = details.timeZoneIdentifier,
+               TimeZone(identifier: timeZoneIdentifier) != nil {
+                self.selectedTimeZoneIdentifier = timeZoneIdentifier
+            }
         }
+    }
+
+    private func applySelectedTimeZone(_ timeZone: TimeZone?) {
+        guard let timeZone else { return }
+        selectedTimeZoneIdentifier = timeZone.identifier
     }
 
 }

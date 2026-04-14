@@ -32,6 +32,17 @@ struct iOSLocationView: View {
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.sm)
             .toolbarBackground(.hidden, for: .navigationBar)
+            .alert(
+                "位置情報エラー",
+                isPresented: locationErrorAlertBinding,
+                presenting: sidebarViewModel.locationError
+            ) { _ in
+                Button("OK") {
+                    sidebarViewModel.clearLocationError()
+                }
+            } message: { error in
+                Text(error.localizedDescription)
+            }
         }
         .onChange(of: locationInputMode) {
             mapViewportSyncTrigger += 1
@@ -63,7 +74,7 @@ struct iOSLocationView: View {
                             .font(.headline)
                     }
                 }
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
             }
             .buttonStyle(.glass)
             .disabled(sidebarViewModel.isLocating)
@@ -204,19 +215,30 @@ struct iOSLocationView: View {
                 .lineLimit(1)
             Spacer()
             if showLightPollution {
-                if lightPollutionService.isLoading {
+                if sidebarViewModel.isLightPollutionLoading {
                     ProgressView().controlSize(.mini)
-                } else if let bortle = lightPollutionService.bortleClass {
+                } else if let bortle = sidebarViewModel.lightPollutionBortleClass {
                     Text("ボルトル\(Int(bortle.rounded()))級")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else if lightPollutionService.fetchFailed {
+                } else if sidebarViewModel.hasLightPollutionFetchFailed {
                     Text("取得失敗")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
         }
+    }
+
+    private var locationErrorAlertBinding: Binding<Bool> {
+        Binding(
+            get: { sidebarViewModel.locationError != nil },
+            set: { isPresented in
+                if !isPresented {
+                    sidebarViewModel.clearLocationError()
+                }
+            }
+        )
     }
 
     private func clearSearchInteraction() {

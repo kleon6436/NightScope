@@ -275,7 +275,8 @@ final class StarMapViewModelTests: XCTestCase {
         let twilight = try XCTUnwrap(
             MilkyWayCalculator.findCivilTwilightMinutes(
                 date: selectedDate,
-                location: appController.locationController.selectedLocation
+                location: appController.locationController.selectedLocation,
+                timeZone: appController.locationController.selectedTimeZone
             )
         )
         let components = calendar.dateComponents(

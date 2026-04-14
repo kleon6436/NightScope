@@ -10,13 +10,13 @@
 		00162992377780D5DE3995BD /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
 		0E941BCFCB628A2CECE6A32C /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F06 /* WeatherService.swift */; };
 		12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */; };
-		BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F02 /* iOSDesignTokens.swift */; };
-		BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F10 /* iOSTabHeaderView.swift */; };
 		29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E51B35725701CA2DB51488 /* iOSMapView.swift */; };
 		2F634825E4145753F51108E9 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
 		477B2E3CB5355CA1BA5757D3 /* ViewingWindowsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F16 /* ViewingWindowsSection.swift */; };
 		54A5C1BEDE1E30CC826A7F87 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18B76F2F791309007949F3 /* SettingsView.swift */; };
 		6444E5ACCDE32CC8CFC28AF6 /* MapTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */; };
+		6C1674E82F8E7B7500AF040A /* ObservationTimeZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1674E72F8E7B7500AF040A /* ObservationTimeZone.swift */; };
+		6C1674E92F8E7B7500AF040A /* ObservationTimeZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1674E72F8E7B7500AF040A /* ObservationTimeZone.swift */; };
 		6C18B7702F791309007949F3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18B76F2F791309007949F3 /* SettingsView.swift */; };
 		6CD4ED0F2F83B99000ECC17B /* MapTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */; };
 		6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */; };
@@ -30,7 +30,6 @@
 		7E100000000000000000IC01 /* NightScope.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */; };
 		824FD5CAFE4F9BD597800662 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 816BFE2E87B5441281342EF9 /* Assets.xcassets */; };
 		8386FEB6D2C20C41B5B5B4F8 /* AppController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F04 /* AppController.swift */; };
-		AA0000000000000000002B26 /* AppRootDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F26 /* AppRootDependencies.swift */; };
 		8A2E00716A7CF7F2FBDBA8C9 /* StarGazingIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F03 /* StarGazingIndex.swift */; };
 		91F8C0F8D6AA500B2E697662 /* iOSTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C88010FC1657FBB75579A3E /* iOSTodayView.swift */; };
 		983D7E6CD2271870DD1E8E6D /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
@@ -43,9 +42,7 @@
 		AA0000000000000000002B03 /* StarGazingIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F03 /* StarGazingIndex.swift */; };
 		AA0000000000000000002B04 /* AppController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F04 /* AppController.swift */; };
 		AA0000000000000000002B05 /* LocationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F05 /* LocationController.swift */; };
-		AA0000000000000000002B29 /* LocationControllerSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F28 /* LocationControllerSupport.swift */; };
 		AA0000000000000000002B06 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F06 /* WeatherService.swift */; };
-		AA0000000000000000002B27 /* WeatherServiceSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F27 /* WeatherServiceSupport.swift */; };
 		AA0000000000000000002B07 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F07 /* ContentView.swift */; };
 		AA0000000000000000002B08 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F08 /* SidebarView.swift */; };
 		AA0000000000000000002B09 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F09 /* DetailView.swift */; };
@@ -62,8 +59,9 @@
 		AA0000000000000000002B20 /* DarkTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F20 /* DarkTimeCard.swift */; };
 		AA0000000000000000002B21 /* TerrainProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F21 /* TerrainProfile.swift */; };
 		AA0000000000000000002B22 /* TerrainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F22 /* TerrainService.swift */; };
-		CC0000000000000000B12101 /* TerrainProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F21 /* TerrainProfile.swift */; };
-		CC0000000000000000B12102 /* TerrainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F22 /* TerrainService.swift */; };
+		AA0000000000000000002B26 /* AppRootDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F26 /* AppRootDependencies.swift */; };
+		AA0000000000000000002B27 /* WeatherServiceSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F27 /* WeatherServiceSupport.swift */; };
+		AA0000000000000000002B29 /* LocationControllerSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F28 /* LocationControllerSupport.swift */; };
 		AA0000000000000000003B01 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
 		AA0000000000000000003B02 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F02 /* SidebarViewModel.swift */; };
 		AA0000000000000000003B03 /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
@@ -71,9 +69,6 @@
 		AA0000000000000000003B05 /* NightWeatherCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */; };
 		AA0000000000000000003B06 /* DarkTimeCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */; };
 		AA0000000000000000003B07 /* ViewingWindowsSectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */; };
-		BB0000000000000000002B30 /* StarMapDateLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0B /* StarMapDateLogic.swift */; };
-		BB0000000000000000002B31 /* StarMapComputation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0C /* StarMapComputation.swift */; };
-		BB0000000000000000002B32 /* StarMapCanvasOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */; };
 		AA0000000000000000003B09 /* AppRootDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F26 /* AppRootDependencies.swift */; };
 		AA0000000000000000003B10 /* WeatherServiceSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F27 /* WeatherServiceSupport.swift */; };
 		AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */; };
@@ -81,16 +76,52 @@
 		AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF03 /* WeatherServiceTests.swift */; };
 		AA000000000000000000TB04 /* AppControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF04 /* AppControllerTests.swift */; };
 		AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF05 /* AstroModelsTests.swift */; };
-		AA000000000000000000TB06 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF06 /* ViewModelTests.swift */; };
+		AA000000000000000000TB06 /* ViewModelTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF06 /* ViewModelTestSupport.swift */; };
 		AA000000000000000000TB07 /* StarMapViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF07 /* StarMapViewModelTests.swift */; };
 		AA000000000000000000TB08 /* LocationControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF08 /* LocationControllerTests.swift */; };
+		AA000000000000000000TB10 /* SidebarViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF10 /* SidebarViewModelTests.swift */; };
+		AA000000000000000000TB11 /* MapKitSharedLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */; };
+		AA000000000000000000TB12 /* DetailPresentationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */; };
+		AA000000000000000000TB13 /* UpcomingNightsGridViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */; };
 		B66ECDD7AD401F013891BF8E /* StarGazingIndexCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */; };
+		BB0000000000000000002B21 /* StarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F21 /* StarCatalog.swift */; };
+		BB0000000000000000002B22 /* StarMapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F22 /* StarMapCanvasView.swift */; };
+		BB0000000000000000002B23 /* ConstellationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F23 /* ConstellationData.swift */; };
+		BB0000000000000000002B24 /* StarInfoMacView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F24 /* StarInfoMacView.swift */; };
+		BB0000000000000000002B25 /* MeteorShowerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F25 /* MeteorShowerData.swift */; };
+		BB0000000000000000002B28 /* StarMapPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F09 /* StarMapPresentation.swift */; };
+		BB0000000000000000002B2A /* StarDisplayDensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0A /* StarDisplayDensity.swift */; };
+		BB0000000000000000002B30 /* StarMapDateLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0B /* StarMapDateLogic.swift */; };
+		BB0000000000000000002B31 /* StarMapComputation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0C /* StarMapComputation.swift */; };
+		BB0000000000000000002B32 /* StarMapCanvasOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */; };
+		BB0000000000000000003B01 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
+		BB0000000000000000003B02 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
+		BB0000000000000000003B03 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
+		BB0000000000000000003B04 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
+		BB0000000000000000003B05 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
+		BB0000000000000000003B06 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
+		BB0000000000000000003B08 /* StarMapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F08 /* StarMapViewModel.swift */; };
+		BB0000000000000000005B01 /* StarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F21 /* StarCatalog.swift */; };
+		BB0000000000000000005B02 /* StarMapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F08 /* StarMapViewModel.swift */; };
+		BB0000000000000000005B03 /* StarMapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F22 /* StarMapCanvasView.swift */; };
+		BB0000000000000000005B04 /* iOSStarMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F01 /* iOSStarMapView.swift */; };
+		BB0000000000000000005B05 /* ConstellationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F23 /* ConstellationData.swift */; };
+		BB0000000000000000005B06 /* MeteorShowerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F25 /* MeteorShowerData.swift */; };
+		BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F02 /* iOSDesignTokens.swift */; };
+		BB0000000000000000005B08 /* StarMapPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F09 /* StarMapPresentation.swift */; };
+		BB0000000000000000005B09 /* StarDisplayDensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0A /* StarDisplayDensity.swift */; };
+		BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F10 /* iOSTabHeaderView.swift */; };
+		BB0000000000000000005B11 /* StarMapDateLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0B /* StarMapDateLogic.swift */; };
+		BB0000000000000000005B12 /* StarMapComputation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0C /* StarMapComputation.swift */; };
+		BB0000000000000000005B13 /* StarMapCanvasOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */; };
 		BD26966CB632FA724659667D /* LightPollutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F12 /* LightPollutionService.swift */; };
 		C3624AC873043476C6CD9CD9 /* iOSLocationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4FF1AF217AF56546E11BB3 /* iOSLocationView.swift */; };
 		C71CDD3E6ABE68E1AA626B3E /* LocationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F05 /* LocationController.swift */; };
 		C71CDD3E6ABE68E1AA626B3F /* LocationControllerSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F28 /* LocationControllerSupport.swift */; };
 		C7BB20F2680E654BD13CB866 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0968461A07DC0ABA1D12D91B /* Foundation.framework */; };
 		CAE750591596DC8A81611119 /* iOSRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E874E471E7767792A4000D47 /* iOSRootView.swift */; };
+		CC0000000000000000B12101 /* TerrainProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F21 /* TerrainProfile.swift */; };
+		CC0000000000000000B12102 /* TerrainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F22 /* TerrainService.swift */; };
 		D75EF08B6B443B5D2CE817E5 /* NightScopeiOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E10951ADCBC5CEF800EE18 /* NightScopeiOSApp.swift */; };
 		DDDBBCFA5705F923909101C5 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
 		E28982699FDE76BC460B3CE0 /* WeatherCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F15 /* WeatherCard.swift */; };
@@ -98,34 +129,9 @@
 		E60A49CD1BC946E763B3AAC6 /* iOSNightCardRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94893EBD94DD9539C7C86561 /* iOSNightCardRow.swift */; };
 		F1A2B3C4D5E6F708192A3B01 /* MapKitViewSharedLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B4C /* MapKitViewSharedLogic.swift */; };
 		F1A2B3C4D5E6F708192A3B02 /* MapKitViewSharedLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B4C /* MapKitViewSharedLogic.swift */; };
-		BB0000000000000000002B21 /* StarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F21 /* StarCatalog.swift */; };
-		BB0000000000000000002B2A /* StarDisplayDensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0A /* StarDisplayDensity.swift */; };
-		BB0000000000000000003B08 /* StarMapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F08 /* StarMapViewModel.swift */; };
-		BB0000000000000000002B28 /* StarMapPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F09 /* StarMapPresentation.swift */; };
-		BB0000000000000000002B22 /* StarMapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F22 /* StarMapCanvasView.swift */; };
-		BB0000000000000000002B23 /* ConstellationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F23 /* ConstellationData.swift */; };
-		BB0000000000000000002B25 /* MeteorShowerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F25 /* MeteorShowerData.swift */; };
-		BB0000000000000000002B24 /* StarInfoMacView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F24 /* StarInfoMacView.swift */; };
-		BB0000000000000000005B01 /* StarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F21 /* StarCatalog.swift */; };
-		BB0000000000000000005B09 /* StarDisplayDensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0A /* StarDisplayDensity.swift */; };
-		BB0000000000000000005B02 /* StarMapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F08 /* StarMapViewModel.swift */; };
-		BB0000000000000000005B08 /* StarMapPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F09 /* StarMapPresentation.swift */; };
-		BB0000000000000000005B03 /* StarMapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F22 /* StarMapCanvasView.swift */; };
-		BB0000000000000000005B11 /* StarMapDateLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0B /* StarMapDateLogic.swift */; };
-		BB0000000000000000005B12 /* StarMapComputation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0C /* StarMapComputation.swift */; };
-		BB0000000000000000005B13 /* StarMapCanvasOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */; };
-		BB0000000000000000005B04 /* iOSStarMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F01 /* iOSStarMapView.swift */; };
-		BB0000000000000000005B05 /* ConstellationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F23 /* ConstellationData.swift */; };
-		BB0000000000000000005B06 /* MeteorShowerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F25 /* MeteorShowerData.swift */; };
 		F6CD4B6B293C9471C424C02A /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
 		FC01B28AAAA3D24EA5E24686 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
 		FCBBDF3EB1CA5D5B3BE17896 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
-		BB0000000000000000003B01 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
-		BB0000000000000000003B02 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
-		BB0000000000000000003B03 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
-		BB0000000000000000003B04 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
-		BB0000000000000000003B05 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
-		BB0000000000000000003B06 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -142,12 +148,11 @@
 		0968461A07DC0ABA1D12D91B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		2C4FF1AF217AF56546E11BB3 /* iOSLocationView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSLocationView.swift; sourceTree = "<group>"; };
 		3C88010FC1657FBB75579A3E /* iOSTodayView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSTodayView.swift; sourceTree = "<group>"; };
+		6C1674E72F8E7B7500AF040A /* ObservationTimeZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservationTimeZone.swift; sourceTree = "<group>"; };
 		6C18B76F2F791309007949F3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapTileOverlay.swift; sourceTree = "<group>"; };
 		6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NightScope.icon; sourceTree = "<group>"; };
 		6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSForecastView.swift; sourceTree = "<group>"; };
-		BB0000000000000000004F02 /* iOSDesignTokens.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSDesignTokens.swift; sourceTree = "<group>"; };
-		BB0000000000000000004F10 /* iOSTabHeaderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSTabHeaderView.swift; sourceTree = "<group>"; };
 		79E10951ADCBC5CEF800EE18 /* NightScopeiOSApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightScopeiOSApp.swift; sourceTree = "<group>"; };
 		7E945580091B1E2051F32062 /* NightScopeiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightScopeiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		816BFE2E87B5441281342EF9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -162,11 +167,8 @@
 		AA0000000000000000002F02 /* WeatherModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherModels.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F03 /* StarGazingIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndex.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F04 /* AppController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppController.swift; sourceTree = "<group>"; };
-		AA0000000000000000002F26 /* AppRootDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRootDependencies.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F05 /* LocationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationController.swift; sourceTree = "<group>"; };
-		AA0000000000000000002F28 /* LocationControllerSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationControllerSupport.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F06 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
-		AA0000000000000000002F27 /* WeatherServiceSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceSupport.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F07 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F08 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F09 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
@@ -183,6 +185,9 @@
 		AA0000000000000000002F20 /* DarkTimeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTimeCard.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F21 /* TerrainProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerrainProfile.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F22 /* TerrainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerrainService.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F26 /* AppRootDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRootDependencies.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F27 /* WeatherServiceSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceSupport.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F28 /* LocationControllerSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationControllerSupport.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F01 /* DetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F02 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModel.swift; sourceTree = "<group>"; };
@@ -190,33 +195,39 @@
 		AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightWeatherCardViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkTimeCardViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingWindowsSectionViewModel.swift; sourceTree = "<group>"; };
-		BB0000000000000000003F0A /* StarDisplayDensity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarDisplayDensity.swift; sourceTree = "<group>"; };
-		BB0000000000000000003F0B /* StarMapDateLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapDateLogic.swift; sourceTree = "<group>"; };
-		BB0000000000000000003F0C /* StarMapComputation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapComputation.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF04 /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF05 /* AstroModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModelsTests.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF06 /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF06 /* ViewModelTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTestSupport.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF07 /* StarMapViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapViewModelTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF08 /* LocationControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationControllerTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF10 /* SidebarViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModelTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitSharedLogicTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPresentationViewModelTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModelTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0000000000000000002F21 /* StarCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarCatalog.swift; sourceTree = "<group>"; };
+		BB0000000000000000002F22 /* StarMapCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasView.swift; sourceTree = "<group>"; };
+		BB0000000000000000002F23 /* ConstellationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConstellationData.swift; sourceTree = "<group>"; };
+		BB0000000000000000002F24 /* StarInfoMacView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarInfoMacView.swift; sourceTree = "<group>"; };
+		BB0000000000000000002F25 /* MeteorShowerData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeteorShowerData.swift; sourceTree = "<group>"; };
+		BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasOverlays.swift; sourceTree = "<group>"; };
+		BB0000000000000000003F01 /* stars_fill.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stars_fill.json; sourceTree = "<group>"; };
+		BB0000000000000000003F02 /* bortle_map.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = bortle_map.bin; sourceTree = "<group>"; };
+		BB0000000000000000003F03 /* srtm_elevation.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = srtm_elevation.bin; sourceTree = "<group>"; };
+		BB0000000000000000003F08 /* StarMapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapViewModel.swift; sourceTree = "<group>"; };
+		BB0000000000000000003F09 /* StarMapPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapPresentation.swift; sourceTree = "<group>"; };
+		BB0000000000000000003F0A /* StarDisplayDensity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarDisplayDensity.swift; sourceTree = "<group>"; };
+		BB0000000000000000003F0B /* StarMapDateLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapDateLogic.swift; sourceTree = "<group>"; };
+		BB0000000000000000003F0C /* StarMapComputation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapComputation.swift; sourceTree = "<group>"; };
+		BB0000000000000000004F01 /* iOSStarMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSStarMapView.swift; sourceTree = "<group>"; };
+		BB0000000000000000004F02 /* iOSDesignTokens.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSDesignTokens.swift; sourceTree = "<group>"; };
+		BB0000000000000000004F10 /* iOSTabHeaderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSTabHeaderView.swift; sourceTree = "<group>"; };
 		D0E51B35725701CA2DB51488 /* iOSMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSMapView.swift; sourceTree = "<group>"; };
 		E874E471E7767792A4000D47 /* iOSRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSRootView.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F708192A3B4C /* MapKitViewSharedLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitViewSharedLogic.swift; sourceTree = "<group>"; };
-		BB0000000000000000002F21 /* StarCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarCatalog.swift; sourceTree = "<group>"; };
-		BB0000000000000000002F23 /* ConstellationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConstellationData.swift; sourceTree = "<group>"; };
-		BB0000000000000000002F25 /* MeteorShowerData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeteorShowerData.swift; sourceTree = "<group>"; };
-		BB0000000000000000003F08 /* StarMapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapViewModel.swift; sourceTree = "<group>"; };
-		BB0000000000000000003F09 /* StarMapPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapPresentation.swift; sourceTree = "<group>"; };
-		BB0000000000000000002F22 /* StarMapCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasView.swift; sourceTree = "<group>"; };
-		BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasOverlays.swift; sourceTree = "<group>"; };
-		BB0000000000000000002F24 /* StarInfoMacView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarInfoMacView.swift; sourceTree = "<group>"; };
-		BB0000000000000000004F01 /* iOSStarMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSStarMapView.swift; sourceTree = "<group>"; };
-		BB0000000000000000003F01 /* stars_fill.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stars_fill.json; sourceTree = "<group>"; };
-		BB0000000000000000003F02 /* bortle_map.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = bortle_map.bin; sourceTree = "<group>"; };
-		BB0000000000000000003F03 /* srtm_elevation.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = srtm_elevation.bin; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -317,6 +328,7 @@
 		AA000000000000000000GR04 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				6C1674E72F8E7B7500AF040A /* ObservationTimeZone.swift */,
 				AA0000000000000000002F01 /* AstroModels.swift */,
 				AA0000000000000000002F02 /* WeatherModels.swift */,
 				AA0000000000000000002F03 /* StarGazingIndex.swift */,
@@ -382,9 +394,13 @@
 				AA000000000000000000TF03 /* WeatherServiceTests.swift */,
 				AA000000000000000000TF04 /* AppControllerTests.swift */,
 				AA000000000000000000TF05 /* AstroModelsTests.swift */,
-				AA000000000000000000TF06 /* ViewModelTests.swift */,
+				AA000000000000000000TF06 /* ViewModelTestSupport.swift */,
 				AA000000000000000000TF07 /* StarMapViewModelTests.swift */,
 				AA000000000000000000TF08 /* LocationControllerTests.swift */,
+				AA000000000000000000TF10 /* SidebarViewModelTests.swift */,
+				AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */,
+				AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */,
+				AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */,
 			);
 			path = NightScopeTests;
 			sourceTree = "<group>";
@@ -563,6 +579,7 @@
 				726077AD15C19C005AB769DB /* AstroModels.swift in Sources */,
 				7BA722D255FEC71D78109ED2 /* WeatherModels.swift in Sources */,
 				8A2E00716A7CF7F2FBDBA8C9 /* StarGazingIndex.swift in Sources */,
+				6C1674E92F8E7B7500AF040A /* ObservationTimeZone.swift in Sources */,
 				8386FEB6D2C20C41B5B5B4F8 /* AppController.swift in Sources */,
 				AA0000000000000000003B09 /* AppRootDependencies.swift in Sources */,
 				AA0000000000000000003B10 /* WeatherServiceSupport.swift in Sources */,
@@ -610,6 +627,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6C1674E82F8E7B7500AF040A /* ObservationTimeZone.swift in Sources */,
 				AA0000000000000000001B01 /* NightScopeApp.swift in Sources */,
 				6C18B7702F791309007949F3 /* SettingsView.swift in Sources */,
 				AA0000000000000000001B03 /* MilkyWayCalculator.swift in Sources */,
@@ -670,9 +688,13 @@
 				AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */,
 				AA000000000000000000TB04 /* AppControllerTests.swift in Sources */,
 				AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */,
-				AA000000000000000000TB06 /* ViewModelTests.swift in Sources */,
+				AA000000000000000000TB06 /* ViewModelTestSupport.swift in Sources */,
 				AA000000000000000000TB07 /* StarMapViewModelTests.swift in Sources */,
 				AA000000000000000000TB08 /* LocationControllerTests.swift in Sources */,
+				AA000000000000000000TB10 /* SidebarViewModelTests.swift in Sources */,
+				AA000000000000000000TB11 /* MapKitSharedLogicTests.swift in Sources */,
+				AA000000000000000000TB12 /* DetailPresentationViewModelTests.swift in Sources */,
+				AA000000000000000000TB13 /* UpcomingNightsGridViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

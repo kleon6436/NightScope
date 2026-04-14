@@ -12,7 +12,7 @@ struct ContentView: View {
 
     private var selectedDateBinding: Binding<Date> {
         Binding(
-            get: { rootStore.detailViewModel.selectedDate },
+            get: { rootStore.selectedDate },
             set: { rootStore.detailViewModel.selectedDate = $0 }
         )
     }

@@ -15,33 +15,47 @@ struct MKLocationSearchService: LocationSearchServicing {
     }
 }
 
+struct ResolvedLocationDetails: Sendable, Equatable {
+    let name: String
+    let timeZoneIdentifier: String?
+}
+
 protocol LocationNameResolving: Sendable {
-    func resolveName(for coordinate: CLLocationCoordinate2D) async -> String
+    func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails
 }
 
 struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
-    func resolveName(for coordinate: CLLocationCoordinate2D) async -> String {
+    func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        guard let request = MKReverseGeocodingRequest(location: location) else { return "現在地" }
+        guard let request = MKReverseGeocodingRequest(location: location) else {
+            return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
+        }
 
         request.preferredLocale = Locale(identifier: "ja_JP")
         let mapItems = try? await request.mapItems
-        guard let item = mapItems?.first else { return "現在地" }
+        guard let item = mapItems?.first else {
+            return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
+        }
+
+        let timeZoneIdentifier = item.placemark.timeZone?.identifier
 
         if let repr = item.addressRepresentations,
            let city = repr.cityWithContext,
            !city.isEmpty {
-            return city
+            return ResolvedLocationDetails(name: city, timeZoneIdentifier: timeZoneIdentifier)
         }
 
         if let address = item.address {
             let text = address.shortAddress ?? address.fullAddress
             if !text.isEmpty {
-                return text
+                return ResolvedLocationDetails(name: text, timeZoneIdentifier: timeZoneIdentifier)
             }
         }
 
-        return item.name ?? "現在地"
+        return ResolvedLocationDetails(
+            name: item.name ?? "現在地",
+            timeZoneIdentifier: timeZoneIdentifier
+        )
     }
 }
 
@@ -49,6 +63,7 @@ protocol LocationStorage: AnyObject {
     var latitude: Double? { get set }
     var longitude: Double? { get set }
     var name: String? { get set }
+    var timeZoneIdentifier: String? { get set }
 }
 
 final class UserDefaultsLocationStorage: LocationStorage {
@@ -93,6 +108,17 @@ final class UserDefaultsLocationStorage: LocationStorage {
                 userDefaults.set(value, forKey: "location.name")
             } else {
                 userDefaults.removeObject(forKey: "location.name")
+            }
+        }
+    }
+
+    var timeZoneIdentifier: String? {
+        get { userDefaults.string(forKey: "location.timeZoneIdentifier") }
+        set {
+            if let value = newValue {
+                userDefaults.set(value, forKey: "location.timeZoneIdentifier")
+            } else {
+                userDefaults.removeObject(forKey: "location.timeZoneIdentifier")
             }
         }
     }

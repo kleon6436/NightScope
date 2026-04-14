@@ -4,6 +4,22 @@ import CoreLocation
 
 @MainActor
 final class AppControllerTests: XCTestCase {
+    final class CalculationInvocationRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var invokedDates: [Date] = []
+
+        func record(_ date: Date) {
+            lock.lock()
+            invokedDates.append(date)
+            lock.unlock()
+        }
+
+        var count: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return invokedDates.count
+        }
+    }
 
     func test_init_usesLaunchDateAndIgnoresPersistedSelectedDate() {
         let key = "selectedDate"
@@ -161,7 +177,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(appController.upcomingIndexes[dayKey]?.hasWeatherData, true)
     }
 
-    func test_prepareForLocationChange_preservesDisplayedStateUntilAtomicRefreshCompletes() {
+    func test_prepareForLocationChange_clearsDisplayedStateBeforeRefreshCompletes() {
         let baseDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
         let night = makeNightSummary(date: baseDate)
@@ -191,12 +207,12 @@ final class AppControllerTests: XCTestCase {
 
         appController.prepareForLocationChange()
 
-        XCTAssertEqual(appController.nightSummary?.date, night.date)
-        XCTAssertEqual(appController.upcomingNights.count, 2)
-        XCTAssertNotNil(appController.starGazingIndex)
-        XCTAssertEqual(appController.upcomingIndexes.count, 1)
-        XCTAssertEqual(appController.weatherService.weatherByDate.count, 1)
-        XCTAssertEqual(appController.lightPollutionService.bortleClass, 4)
+        XCTAssertNil(appController.nightSummary)
+        XCTAssertTrue(appController.upcomingNights.isEmpty)
+        XCTAssertNil(appController.starGazingIndex)
+        XCTAssertTrue(appController.upcomingIndexes.isEmpty)
+        XCTAssertTrue(appController.weatherService.weatherByDate.isEmpty)
+        XCTAssertNil(appController.lightPollutionService.bortleClass)
         XCTAssertTrue(appController.isCalculating)
         XCTAssertTrue(appController.isUpcomingLoading)
     }
@@ -229,6 +245,39 @@ final class AppControllerTests: XCTestCase {
         XCTAssertTrue(appController.isCalculating)
         XCTAssertTrue(appController.isUpcomingLoading)
     }
+
+    func test_NightCalculationService_calculateUpcomingNights_stopsAfterCancellation() async {
+        let recorder = CalculationInvocationRecorder()
+        let service = NightCalculationService { date, location, _ in
+            recorder.record(date)
+            Thread.sleep(forTimeInterval: 0.05)
+            return NightSummary(
+                date: date,
+                location: location,
+                events: [],
+                viewingWindows: [],
+                moonPhaseAtMidnight: 0
+            )
+        }
+        let location = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+        let baseDate = Calendar.current.startOfDay(for: Date())
+
+        let task = Task {
+            await service.calculateUpcomingNights(
+                from: baseDate,
+                location: location,
+                timeZone: .current,
+                days: 20
+            )
+        }
+
+        try? await Task.sleep(nanoseconds: 120_000_000)
+        task.cancel()
+        let summaries = await task.value
+
+        XCTAssertLessThan(summaries.count, 20)
+        XCTAssertEqual(recorder.count, summaries.count)
+    }
 }
 
 actor MockNightCalculationService: NightCalculating {
@@ -245,7 +294,11 @@ actor MockNightCalculationService: NightCalculating {
         upcomingResponses.append((summaries, delayMilliseconds * 1_000_000))
     }
 
-    func calculateNightSummary(date: Date, location: CLLocationCoordinate2D) async -> NightSummary {
+    func calculateNightSummary(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) async -> NightSummary {
         nightSummaryCallCount += 1
         guard !nightSummaryResponses.isEmpty else {
             return .placeholder
@@ -257,7 +310,12 @@ actor MockNightCalculationService: NightCalculating {
         return response.summary
     }
 
-    func calculateUpcomingNights(from date: Date, location: CLLocationCoordinate2D, days: Int) async -> [NightSummary] {
+    func calculateUpcomingNights(
+        from date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone,
+        days: Int
+    ) async -> [NightSummary] {
         upcomingCallCount += 1
         guard !upcomingResponses.isEmpty else {
             return []

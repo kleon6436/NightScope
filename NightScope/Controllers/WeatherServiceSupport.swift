@@ -32,7 +32,7 @@ protocol WeatherProviding: AnyObject, ObservableObject {
     var isLoading: Bool { get }
     var errorMessage: String? { get }
 
-    func fetchWeather(latitude: Double, longitude: Double) async
+    func fetchWeather(latitude: Double, longitude: Double, timeZone: TimeZone) async
     func summary(for date: Date) -> DayWeatherSummary?
 }
 
@@ -87,13 +87,13 @@ struct MetNorwayResponse: Decodable {
 }
 
 enum MetNorwayFormatting {
-    static let dateKeyFormatter: DateFormatter = {
+    static func dateKeyFormatter(timeZone: TimeZone) -> DateFormatter {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
+        f.timeZone = timeZone
         return f
-    }()
+    }
 
     nonisolated(unsafe) static let isoDateFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -139,49 +139,19 @@ struct MetNorwayRequestFactory {
     }
 }
 
-struct MetNorwayForecastParser {
-    func parse(response: MetNorwayResponse) -> [String: DayWeatherSummary] {
-        var hoursByDate: [String: [HourlyWeather]] = [:]
-        let calendar = Calendar(identifier: .gregorian)
-
-        for timeseries in response.properties.timeseries {
-            guard let date = MetNorwayFormatting.isoDateFormatter.date(from: timeseries.time) else {
-                continue
-            }
-
-            let details = timeseries.data.instant.details
-            let temperature = details.air_temperature ?? 0
-            let precipitation = timeseries.data.next_1_hours?.details.precipitation_amount
-                ?? timeseries.data.next_6_hours?.details?.precipitation_amount
-                ?? 0
-            let symbolCode = timeseries.data.next_1_hours?.summary.symbol_code
-                ?? timeseries.data.next_6_hours?.summary?.symbol_code
-
-            let hourlyWeather = HourlyWeather(
-                date: date,
-                temperatureCelsius: temperature,
-                cloudCoverPercent: details.cloud_area_fraction ?? 0,
-                precipitationMM: precipitation,
-                windSpeedKmh: (details.wind_speed ?? 0) * 3.6,
-                humidityPercent: details.relative_humidity ?? 0,
-                dewpointCelsius: details.dew_point_temperature ?? temperature,
-                weatherCode: Self.symbolCodeToWMO(symbolCode),
-                visibilityMeters: nil,
-                windGustsKmh: details.wind_speed_of_gust.map { $0 * 3.6 },
-                cloudCoverLowPercent: details.cloud_area_fraction_low,
-                cloudCoverMidPercent: details.cloud_area_fraction_medium,
-                cloudCoverHighPercent: details.cloud_area_fraction_high,
-                windSpeedKmh500hpa: nil
-            )
-
-            if let key = nightDateKey(for: date, calendar: calendar) {
-                hoursByDate[key, default: []].append(hourlyWeather)
-            }
-        }
+struct MetNorwayForecastParser: Sendable {
+    func parse(
+        response: MetNorwayResponse,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> [String: DayWeatherSummary] {
+        let hours = response.properties.timeseries.compactMap { hourlyWeather(from: $0) }
+        let hoursByDate = groupNightHours(hours, location: location, timeZone: timeZone)
+        let formatter = MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone)
 
         var summaries: [String: DayWeatherSummary] = [:]
         for (key, hours) in hoursByDate {
-            guard let date = MetNorwayFormatting.dateKeyFormatter.date(from: key) else {
+            guard let date = formatter.date(from: key) else {
                 continue
             }
             summaries[key] = DayWeatherSummary(
@@ -192,25 +162,78 @@ struct MetNorwayForecastParser {
         return summaries
     }
 
-    func dateKey(_ date: Date) -> String {
-        MetNorwayFormatting.dateKeyFormatter.string(from: date)
+    func dateKey(_ date: Date, timeZone: TimeZone) -> String {
+        MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone).string(from: date)
     }
 
-    private func nightDateKey(for date: Date, calendar: Calendar) -> String? {
-        var localCalendar = calendar
-        localCalendar.timeZone = .current
-        let hour = localCalendar.component(.hour, from: date)
-
-        if hour >= 18 {
-            return dateKey(date)
+    private func hourlyWeather(from timeseries: MetNorwayResponse.Properties.Timeseries) -> HourlyWeather? {
+        guard let date = MetNorwayFormatting.isoDateFormatter.date(from: timeseries.time) else {
+            return nil
         }
 
-        if hour <= 6,
-           let previousDate = localCalendar.date(byAdding: .day, value: -1, to: date) {
-            return dateKey(previousDate)
+        let details = timeseries.data.instant.details
+        let temperature = details.air_temperature ?? 0
+        let precipitation = timeseries.data.next_1_hours?.details.precipitation_amount
+            ?? timeseries.data.next_6_hours?.details?.precipitation_amount
+            ?? 0
+        let symbolCode = timeseries.data.next_1_hours?.summary.symbol_code
+            ?? timeseries.data.next_6_hours?.summary?.symbol_code
+
+        return HourlyWeather(
+            date: date,
+            temperatureCelsius: temperature,
+            cloudCoverPercent: details.cloud_area_fraction ?? 0,
+            precipitationMM: precipitation,
+            windSpeedKmh: (details.wind_speed ?? 0) * 3.6,
+            humidityPercent: details.relative_humidity ?? 0,
+            dewpointCelsius: details.dew_point_temperature ?? temperature,
+            weatherCode: Self.symbolCodeToWMO(symbolCode),
+            visibilityMeters: nil,
+            windGustsKmh: details.wind_speed_of_gust.map { $0 * 3.6 },
+            cloudCoverLowPercent: details.cloud_area_fraction_low,
+            cloudCoverMidPercent: details.cloud_area_fraction_medium,
+            cloudCoverHighPercent: details.cloud_area_fraction_high,
+            windSpeedKmh500hpa: nil
+        )
+    }
+
+    private func groupNightHours(
+        _ hours: [HourlyWeather],
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> [String: [HourlyWeather]] {
+        guard let earliestHour = hours.min(by: { $0.date < $1.date }),
+              let latestHour = hours.max(by: { $0.date < $1.date }) else {
+            return [:]
         }
 
-        return nil
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let formatter = MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone)
+        let startDay = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: earliestHour.date))
+            ?? calendar.startOfDay(for: earliestHour.date)
+        let endDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: latestHour.date))
+            ?? calendar.startOfDay(for: latestHour.date)
+
+        var intervals: [(key: String, interval: DateInterval)] = []
+        var currentDay = startDay
+        while currentDay <= endDay {
+            if let interval = MilkyWayCalculator.nightInterval(
+                for: currentDay,
+                location: location,
+                timeZone: timeZone
+            ) {
+                intervals.append((formatter.string(from: currentDay), interval))
+            }
+            currentDay = calendar.date(byAdding: .day, value: 1, to: currentDay) ?? endDay.addingTimeInterval(1)
+        }
+
+        var result: [String: [HourlyWeather]] = [:]
+        for hour in hours.sorted(by: { $0.date < $1.date }) {
+            if let matchingInterval = intervals.first(where: { $0.interval.contains(hour.date) }) {
+                result[matchingInterval.key, default: []].append(hour)
+            }
+        }
+        return result
     }
 
     static func symbolCodeToWMO(_ symbolCode: String?) -> Int {

@@ -1,17 +1,20 @@
 import XCTest
+import CoreLocation
 @testable import NightScope
 
 @MainActor
 final class WeatherServiceTests: XCTestCase {
 
     private let service = WeatherService()
+    private let tokyoLocation = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+    private let tokyoTimeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
 
     // MARK: - Helpers
 
     /// デバイスのローカルタイムゾーンで指定ローカル時刻に対応する UTC ISO8601 文字列を生成。
     /// MET Norway API はすべてのタイムスタンプを UTC ("Z" サフィックス) で返す。
     private func makeTimeString(year: Int, month: Int, day: Int, hour: Int, minute: Int = 0) -> String {
-        let tz = TimeZone.current
+        let tz = tokyoTimeZone
         var comps = DateComponents()
         comps.timeZone = tz
         comps.year = year; comps.month = month; comps.day = day
@@ -103,7 +106,7 @@ final class WeatherServiceTests: XCTestCase {
     func test_parse_eveningHour_assignedToCurrentDay() {
         // hour=21 (≥20) → 当日夜のキーに入る
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
-        let result = service.parse(response: makeResponse(times: [t21]))
+        let result = service.parse(response: makeResponse(times: [t21]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertEqual(result.count, 1)
         XCTAssertNotNil(result["2024-06-15"], "hour=21 は当日キー '2024-06-15' に入るはず")
         XCTAssertEqual(result["2024-06-15"]?.nighttimeHours.count, 1)
@@ -112,53 +115,47 @@ final class WeatherServiceTests: XCTestCase {
     func test_parse_earlyMorningHour_assignedToPreviousDay() {
         // hour=02 (≤6) → 前日夜のキーに入る (翌02h → 前日の夜)
         let t02 = makeTimeString(year: 2024, month: 6, day: 16, hour: 2)
-        let result = service.parse(response: makeResponse(times: [t02]))
+        let result = service.parse(response: makeResponse(times: [t02]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertEqual(result.count, 1)
         XCTAssertNotNil(result["2024-06-15"], "hour=02 は前日キー '2024-06-15' に入るはず")
     }
 
-    func test_parse_hour4_includedAsEarlyMorning() {
-        // hour=4 は ≤6 に含まれる → 前日キーに入る
+    func test_parse_hour4_excludedWhenOutsideRealNightInterval() {
         let t04 = makeTimeString(year: 2024, month: 6, day: 16, hour: 4)
-        let result = service.parse(response: makeResponse(times: [t04]))
-        XCTAssertEqual(result.count, 1)
-        XCTAssertNotNil(result["2024-06-15"], "hour=4 は前日キーに入るはず")
+        let result = service.parse(response: makeResponse(times: [t04]), location: tokyoLocation, timeZone: tokyoTimeZone)
+        XCTAssertTrue(result.isEmpty, "hour=4 は実際の夜区間外なら除外されるはず")
     }
 
-    func test_parse_hour5_includedAsEarlyMorning() {
-        // hour=5 は ≤6 に含まれる → 天文薄明として前日キーに入る
+    func test_parse_hour5_excludedWhenOutsideRealNightInterval() {
         let t05 = makeTimeString(year: 2024, month: 6, day: 16, hour: 5)
-        let result = service.parse(response: makeResponse(times: [t05]))
-        XCTAssertEqual(result.count, 1)
-        XCTAssertNotNil(result["2024-06-15"], "hour=5 は天文薄明として前日キー '2024-06-15' に入るはず")
+        let result = service.parse(response: makeResponse(times: [t05]), location: tokyoLocation, timeZone: tokyoTimeZone)
+        XCTAssertTrue(result.isEmpty, "hour=5 は実際の夜区間外なら除外されるはず")
     }
 
-    func test_parse_hour6_includedAsEarlyMorning() {
-        // hour=6 は ≤6 の上限 → 天文薄明として前日キーに入る
+    func test_parse_hour6_excludedWhenOutsideRealNightInterval() {
         let t06 = makeTimeString(year: 2024, month: 6, day: 16, hour: 6)
-        let result = service.parse(response: makeResponse(times: [t06]))
-        XCTAssertEqual(result.count, 1)
-        XCTAssertNotNil(result["2024-06-15"], "hour=6 は天文薄明として前日キー '2024-06-15' に入るはず")
+        let result = service.parse(response: makeResponse(times: [t06]), location: tokyoLocation, timeZone: tokyoTimeZone)
+        XCTAssertTrue(result.isEmpty, "hour=6 は実際の夜区間外なら除外されるはず")
     }
 
     func test_parse_hour7_excluded() {
         // hour=7 はどちらの範囲にも含まれない → 除外
         let t07 = makeTimeString(year: 2024, month: 6, day: 15, hour: 7)
-        let result = service.parse(response: makeResponse(times: [t07]))
+        let result = service.parse(response: makeResponse(times: [t07]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertTrue(result.isEmpty, "hour=7 は夜間範囲外なので除外されるはず")
     }
 
     func test_parse_middayHour_excluded() {
         // hour=12 は昼間 → 除外
         let t12 = makeTimeString(year: 2024, month: 6, day: 15, hour: 12)
-        let result = service.parse(response: makeResponse(times: [t12]))
+        let result = service.parse(response: makeResponse(times: [t12]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertTrue(result.isEmpty, "hour=12 は除外されるはず")
     }
 
     func test_parse_hour20_includedAsEvening() {
         // hour=20 は ≥18 の範囲内 → 当日キーに入る
         let t20 = makeTimeString(year: 2024, month: 6, day: 15, hour: 20)
-        let result = service.parse(response: makeResponse(times: [t20]))
+        let result = service.parse(response: makeResponse(times: [t20]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertNotNil(result["2024-06-15"], "hour=20 は当日キーに入るはず")
     }
 
@@ -168,7 +165,7 @@ final class WeatherServiceTests: XCTestCase {
         // evening (21h) と early morning (翌02h) が同じキーにまとまる
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
         let t02 = makeTimeString(year: 2024, month: 6, day: 16, hour: 2)
-        let result = service.parse(response: makeResponse(times: [t21, t02]))
+        let result = service.parse(response: makeResponse(times: [t21, t02]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result["2024-06-15"]?.nighttimeHours.count, 2)
     }
@@ -177,7 +174,7 @@ final class WeatherServiceTests: XCTestCase {
         // 2夜分のデータが別キーに分かれる
         let t21a = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
         let t21b = makeTimeString(year: 2024, month: 6, day: 16, hour: 21)
-        let result = service.parse(response: makeResponse(times: [t21a, t21b]))
+        let result = service.parse(response: makeResponse(times: [t21a, t21b]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertEqual(result.count, 2)
         XCTAssertNotNil(result["2024-06-15"])
         XCTAssertNotNil(result["2024-06-16"])
@@ -208,7 +205,7 @@ final class WeatherServiceTests: XCTestCase {
                 MetNorwayResponse.Properties.Timeseries(time: t21, data: data)
             ])
         )
-        let result = service.parse(response: response)
+        let result = service.parse(response: response, location: tokyoLocation, timeZone: tokyoTimeZone)
         guard let hw = result["2024-06-15"]?.nighttimeHours.first else {
             return XCTFail("パース結果が空")
         }
@@ -245,7 +242,7 @@ final class WeatherServiceTests: XCTestCase {
                 MetNorwayResponse.Properties.Timeseries(time: t21, data: data)
             ])
         )
-        let result = service.parse(response: response)
+        let result = service.parse(response: response, location: tokyoLocation, timeZone: tokyoTimeZone)
         let hw = result["2024-06-15"]?.nighttimeHours.first
         XCTAssertEqual(hw?.dewpointCelsius, 15.0, "dewpoint nil のとき temperature (15.0) にフォールバックするはず")
     }
@@ -256,7 +253,11 @@ final class WeatherServiceTests: XCTestCase {
         // 20% と 40% の2時間 → avgCloudCover = 30%
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
         let t22 = makeTimeString(year: 2024, month: 6, day: 15, hour: 22)
-        let result = service.parse(response: makeResponse(times: [t21, t22], clouds: [20.0, 40.0]))
+        let result = service.parse(
+            response: makeResponse(times: [t21, t22], clouds: [20.0, 40.0]),
+            location: tokyoLocation,
+            timeZone: tokyoTimeZone
+        )
         XCTAssertEqual(result["2024-06-15"]?.avgCloudCover ?? -1, 30.0, accuracy: 0.001)
     }
 
@@ -264,7 +265,7 @@ final class WeatherServiceTests: XCTestCase {
         // 逆順で渡しても nighttimeHours は date 昇順で返る
         let t22 = makeTimeString(year: 2024, month: 6, day: 15, hour: 22)
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
-        let result = service.parse(response: makeResponse(times: [t22, t21]))
+        let result = service.parse(response: makeResponse(times: [t22, t21]), location: tokyoLocation, timeZone: tokyoTimeZone)
         let hours = result["2024-06-15"]?.nighttimeHours
         XCTAssertEqual(hours?.count, 2)
         if let h = hours, h.count == 2 {
@@ -298,7 +299,7 @@ final class WeatherServiceTests: XCTestCase {
         }
 
         let service = WeatherService(urlSession: session)
-        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503, timeZone: tokyoTimeZone)
 
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.nighttimeHours.count, 1)
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 0, accuracy: 0.001)
@@ -333,10 +334,10 @@ final class WeatherServiceTests: XCTestCase {
         }
 
         let service = WeatherService(urlSession: session)
-        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503, timeZone: tokyoTimeZone)
         let firstCloudCover = service.weatherByDate["2024-06-15"]?.avgCloudCover
 
-        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503, timeZone: tokyoTimeZone)
 
         XCTAssertEqual(requestCount, 2)
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover, firstCloudCover)
@@ -371,8 +372,8 @@ final class WeatherServiceTests: XCTestCase {
         }
 
         let service = WeatherService(urlSession: session)
-        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
-        await service.fetchWeather(latitude: 34.6937, longitude: 135.5023)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503, timeZone: tokyoTimeZone)
+        await service.fetchWeather(latitude: 34.6937, longitude: 135.5023, timeZone: tokyoTimeZone)
 
         XCTAssertEqual(requestCount, 2)
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 75, accuracy: 0.001)
@@ -423,19 +424,19 @@ final class WeatherServiceTests: XCTestCase {
         }
 
         let service = WeatherService(urlSession: session)
-        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503, timeZone: tokyoTimeZone)
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 15, accuracy: 0.001)
 
-        await service.fetchWeather(latitude: 34.6937, longitude: 135.5023)
+        await service.fetchWeather(latitude: 34.6937, longitude: 135.5023, timeZone: tokyoTimeZone)
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 75, accuracy: 0.001)
 
-        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503, timeZone: tokyoTimeZone)
 
         XCTAssertEqual(requestCount, 3)
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 15, accuracy: 0.001)
     }
 
-    func test_prepareForLocationChange_preservesDisplayedWeatherUntilRefreshCompletes() {
+    func test_prepareForLocationChange_clearsDisplayedWeatherUntilRefreshCompletes() {
         service.weatherByDate = [
             "2024-06-15": DayWeatherSummary(
                 date: Date(),
@@ -462,9 +463,9 @@ final class WeatherServiceTests: XCTestCase {
         service.errorMessage = "stale"
         service.isLoading = true
 
-        service.prepareForLocationChange(latitude: 34.6937, longitude: 135.5023)
+        service.prepareForLocationChange(latitude: 34.6937, longitude: 135.5023, timeZone: tokyoTimeZone)
 
-        XCTAssertFalse(service.weatherByDate.isEmpty)
+        XCTAssertTrue(service.weatherByDate.isEmpty)
         XCTAssertNil(service.errorMessage)
         XCTAssertFalse(service.isLoading)
     }

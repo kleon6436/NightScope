@@ -151,7 +151,7 @@ struct iOSStarMapView: View {
                 .tint(.accentColor)
 
             Text(viewModel.displayTimeString)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.footnote.monospacedDigit())
                 .foregroundStyle(.white)
                 .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
         }

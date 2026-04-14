@@ -275,7 +275,7 @@ private struct ScoreArc: View {
 
             ctx.draw(
                 Text("\(score)/100")
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .font(.caption2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(Color.white.opacity(0.85)),
                 at: CGPoint(x: cx, y: cy - r * 0.35)
             )

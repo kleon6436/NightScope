@@ -110,18 +110,21 @@ enum MilkyWayCalculator {
     /// 指定日・場所の市民薄明 (太陽高度 -6°) の開始/終了時刻を分単位で返す。
     /// 正午 (12:00) を起点に探索し、日没側 → 翌朝側の順に見つける。
     /// 白夜・極夜などで夜がない場合は nil を返す。
-    static func findCivilTwilightMinutes(date: Date, location: CLLocationCoordinate2D)
-        -> (eveningMinutes: Double, morningMinutes: Double)? {
-        let cal = Calendar.current
-        let startOfDay = cal.startOfDay(for: date)
+    static func findCivilTwilight(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> (evening: Date, morning: Date)? {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let startOfDay = calendar.startOfDay(for: date)
         let latRad = location.latitude * .pi / 180.0
         let cosLat = cos(latRad)
         let sinLat = sin(latRad)
         let threshold = -6.0  // 市民薄明
 
         // 正午 (720分) から翌日正午 (2160分) まで1分刻みで太陽高度を評価
-        var eveningMinutes: Double?
-        var morningMinutes: Double?
+        var eveningDate: Date?
+        var morningDate: Date?
         var prevAlt: Double?
 
         for m in 720...2160 {
@@ -133,24 +136,60 @@ enum MilkyWayCalculator {
                                          cosLat: cosLat, sinLat: sinLat, lst: lst)
 
             if let prev = prevAlt {
-                if eveningMinutes == nil && prev >= threshold && sunAlt < threshold {
+                if eveningDate == nil && prev >= threshold && sunAlt < threshold {
                     // 太陽が閾値を下回った (夕方の薄明終了)
-                    eveningMinutes = Double(m)
-                } else if eveningMinutes != nil && morningMinutes == nil && prev < threshold && sunAlt >= threshold {
+                    eveningDate = sampleDate
+                } else if eveningDate != nil && morningDate == nil && prev < threshold && sunAlt >= threshold {
                     // 太陽が閾値を上回った (朝方の薄明開始)
-                    morningMinutes = Double(m)
+                    morningDate = sampleDate
                     break
                 }
             }
             prevAlt = sunAlt
         }
 
-        guard let evening = eveningMinutes, let morning = morningMinutes else {
+        guard let evening = eveningDate, let morning = morningDate else {
             return nil  // 白夜または極夜
         }
-        // 1440 を超えた分は翌日扱い→ mod 1440 で 0:00〜23:59 に変換
-        return (eveningMinutes: evening.truncatingRemainder(dividingBy: 1440),
-                morningMinutes: morning.truncatingRemainder(dividingBy: 1440))
+        return (evening: evening, morning: morning)
+    }
+
+    static func findCivilTwilightMinutes(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> (eveningMinutes: Double, morningMinutes: Double)? {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let twilight = findCivilTwilight(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        ) else {
+            return nil
+        }
+
+        let eveningMinutes = twilight.evening.timeIntervalSince(startOfDay) / 60
+        let morningMinutes = twilight.morning.timeIntervalSince(startOfDay) / 60
+        return (
+            eveningMinutes: eveningMinutes.truncatingRemainder(dividingBy: 1_440),
+            morningMinutes: morningMinutes.truncatingRemainder(dividingBy: 1_440)
+        )
+    }
+
+    static func nightInterval(
+        for date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> DateInterval? {
+        guard let twilight = findCivilTwilight(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        ) else {
+            return nil
+        }
+        return DateInterval(start: twilight.evening, end: twilight.morning)
     }
 
     // 月の赤経・赤緯・位相 (簡易計算)
@@ -184,10 +223,14 @@ enum MilkyWayCalculator {
     }
 
     // 指定した日付・場所で15分おきにイベントを計算
-    static func calculateEvents(date: Date, location: CLLocationCoordinate2D) -> [AstroEvent] {
+    static func calculateEvents(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> [AstroEvent] {
         var events: [AstroEvent] = []
-        let cal = Calendar(identifier: .gregorian)
-        let startOfDay = cal.startOfDay(for: date)
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let startOfDay = calendar.startOfDay(for: date)
 
         for minutes in stride(from: 0, to: 24 * 60, by: Constants.sampleIntervalMinutes) {
             let sampleDate = startOfDay.addingTimeInterval(Double(minutes) * 60)
@@ -293,12 +336,17 @@ enum MilkyWayCalculator {
     }
 
     // 指定した日付のナイトサマリーを計算
-    static func calculateNightSummary(date: Date, location: CLLocationCoordinate2D) -> NightSummary {
-        let events = calculateEvents(date: date, location: location)
+    static func calculateNightSummary(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> NightSummary {
+        let events = calculateEvents(date: date, location: location, timeZone: timeZone)
         let windows = findViewingWindows(events: events)
 
         // 深夜0時の月の位相
-        let midnight = Calendar(identifier: .gregorian).startOfDay(for: date).addingTimeInterval(Constants.secondsPerDay)
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let midnight = calendar.startOfDay(for: date).addingTimeInterval(Constants.secondsPerDay)
         let moonAtMidnight = moonRaDec(jd: julianDate(from: midnight))
 
         return NightSummary(
@@ -311,10 +359,16 @@ enum MilkyWayCalculator {
     }
 
     // 今後N日間の各夜のサマリーを計算
-    static func calculateUpcomingNights(from startDate: Date, location: CLLocationCoordinate2D, days: Int = 14) -> [NightSummary] {
-        (0..<days).map { offset in
-            let date = startDate.addingTimeInterval(Double(offset) * Constants.secondsPerDay)
-            return calculateNightSummary(date: date, location: location)
+    static func calculateUpcomingNights(
+        from startDate: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone,
+        days: Int = 14
+    ) -> [NightSummary] {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        return (0..<days).map { offset in
+            let date = calendar.date(byAdding: .day, value: offset, to: startDate) ?? startDate
+            return calculateNightSummary(date: date, location: location, timeZone: timeZone)
         }
     }
 

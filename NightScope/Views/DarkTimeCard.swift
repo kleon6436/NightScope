@@ -77,7 +77,7 @@ private struct DarkTimeArc: View {
 
             ctx.draw(
                 Text(String(format: "%.1fh", darkHours))
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .font(.caption2.weight(.semibold).monospacedDigit())
                     .foregroundColor(.white.opacity(0.85)),
                 at: CGPoint(x: cx, y: cy - r * 0.35)
             )

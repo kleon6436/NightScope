@@ -4,17 +4,24 @@ import Combine
 @MainActor
 final class NightWeatherCardViewModel: ObservableObject {
     @AppStorage("windSpeedUnit") private var windSpeedUnitRaw: String = WindSpeedUnit.kmh.rawValue
+    @Published private(set) var windSpeedUnit: WindSpeedUnit
     private var cancellables = Set<AnyCancellable>()
 
     init() {
+        let storedValue = UserDefaults.standard.string(forKey: "windSpeedUnit") ?? WindSpeedUnit.kmh.rawValue
+        self.windSpeedUnit = WindSpeedUnit(rawValue: storedValue) ?? .kmh
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .sink { [weak self] _ in
+                self?.syncWindSpeedUnit()
+            }
             .store(in: &cancellables)
     }
 
-    private var windSpeedUnit: WindSpeedUnit {
-        WindSpeedUnit(rawValue: windSpeedUnitRaw) ?? .kmh
+    private func syncWindSpeedUnit() {
+        let updatedUnit = WindSpeedUnit(rawValue: windSpeedUnitRaw) ?? .kmh
+        guard updatedUnit != windSpeedUnit else { return }
+        windSpeedUnit = updatedUnit
     }
 
     // MARK: - Formatting Methods

@@ -189,18 +189,21 @@ extension Animation {
 // MARK: - Time Formatting
 
 private enum FormatterFactory {
-    static func currentTimeZone(dateFormat: String) -> DateFormatter {
+    static func observationTimeZone(dateFormat: String) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = dateFormat
-        formatter.timeZone = .current
+        formatter.timeZone = ObservationTimeZone.current
         return formatter
     }
 
-    static func currentTimeZone(dateStyle: DateFormatter.Style, timeStyle: DateFormatter.Style) -> DateFormatter {
+    static func observationTimeZone(
+        dateStyle: DateFormatter.Style,
+        timeStyle: DateFormatter.Style
+    ) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = dateStyle
         formatter.timeStyle = timeStyle
-        formatter.timeZone = .current
+        formatter.timeZone = ObservationTimeZone.current
         return formatter
     }
 
@@ -213,14 +216,17 @@ private enum FormatterFactory {
 }
 
 enum DateFormatters {
-    /// HH:mm 形式の夜間時刻フォーマッタ
-    static let nightTime = FormatterFactory.currentTimeZone(dateFormat: "HH:mm")
+    static func nightTimeString(from date: Date) -> String {
+        FormatterFactory.observationTimeZone(dateFormat: "HH:mm").string(from: date)
+    }
 
-    /// カレンダー見出し（yyyy年M月）
-    static let monthTitle = FormatterFactory.currentTimeZone(dateFormat: "yyyy年M月")
+    static func monthTitleString(from date: Date) -> String {
+        FormatterFactory.observationTimeZone(dateFormat: "yyyy年M月").string(from: date)
+    }
 
-    /// アクセシビリティ用の完全日付
-    static let fullDate = FormatterFactory.currentTimeZone(dateStyle: .full, timeStyle: .none)
+    static func fullDateString(from date: Date) -> String {
+        FormatterFactory.observationTimeZone(dateStyle: .full, timeStyle: .none).string(from: date)
+    }
 }
 
 extension String {
@@ -230,7 +236,7 @@ extension String {
 extension Date {
     /// HH:mm 形式の時刻文字列を返す
     func nightTimeString() -> String {
-        DateFormatters.nightTime.string(from: self)
+        DateFormatters.nightTimeString(from: self)
     }
 }
 

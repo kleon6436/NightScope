@@ -83,9 +83,10 @@ final class StarMapViewModel: ObservableObject {
         self.appController = appController
         self.starDisplayDensity = StarDisplayDensity.load()
         // 場所が変わったら再計算
-        appController.locationController.anyChangePublisher
+        appController.locationController.selectedLocationPublisher
+            .dropFirst()
             .receive(on: RunLoop.main)
-            .sink { [weak self] in
+            .sink { [weak self] _ in
                 self?.updateNightRange()
                 self?.update()
             }
@@ -325,10 +326,12 @@ final class StarMapViewModel: ObservableObject {
     func syncWithSelectedDate(referenceDate: Date = Date()) {
         let selected = appController.selectedDate
         let location = appController.locationController.selectedLocation
+        let timeZone = appController.locationController.selectedTimeZone
         if let date = resolvedPresentationDate(
             for: selected,
             referenceDate: referenceDate,
-            location: location
+            location: location,
+            timeZone: timeZone
         ) {
             displayDate = date
         }
@@ -343,7 +346,11 @@ final class StarMapViewModel: ObservableObject {
             clampedMinutes,
             nightStartMinutes: nightStartMinutes
         )
-        guard let updatedDate = StarMapDateLogic.date(bySettingClockMinutes: realMinutes, on: displayDate) else {
+        guard let updatedDate = StarMapDateLogic.date(
+            bySettingClockMinutes: realMinutes,
+            on: displayDate,
+            timeZone: appController.locationController.selectedTimeZone
+        ) else {
             return
         }
 
@@ -368,7 +375,10 @@ final class StarMapViewModel: ObservableObject {
     }
 
     private func syncTimeSliderWithDisplayDate() {
-        let realMinutes = StarMapDateLogic.clockMinutes(for: displayDate)
+        let realMinutes = StarMapDateLogic.clockMinutes(
+            for: displayDate,
+            timeZone: appController.locationController.selectedTimeZone
+        )
         let offset = StarMapDateLogic.realMinutesToNightOffset(
             realMinutes,
             nightStartMinutes: nightStartMinutes,
@@ -439,7 +449,9 @@ final class StarMapViewModel: ObservableObject {
         let updateMode = displayDateUpdateMode
         displayDateUpdateMode = .standard
 
-        let shouldSkipNightRange = updateMode.skipsNightRange || StarMapDateLogic.isSameCalendarDay(oldDate, newDate)
+        let selectedTimeZone = appController.locationController.selectedTimeZone
+        let shouldSkipNightRange =
+            updateMode.skipsNightRange || StarMapDateLogic.isSameCalendarDay(oldDate, newDate, timeZone: selectedTimeZone)
         let shouldSkipTimeSliderSync = updateMode.skipsTimeSliderSync
 
         if !shouldSkipNightRange {
@@ -463,6 +475,7 @@ final class StarMapViewModel: ObservableObject {
         let range = StarMapDateLogic.nightRange(
             for: displayDate,
             location: location,
+            timeZone: appController.locationController.selectedTimeZone,
             fallback: fallback
         )
         nightStartMinutes = range.startMinutes
@@ -472,12 +485,14 @@ final class StarMapViewModel: ObservableObject {
     private func resolvedPresentationDate(
         for selectedDate: Date,
         referenceDate: Date,
-        location: CLLocationCoordinate2D
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
     ) -> Date? {
         StarMapDateLogic.resolvedPresentationDate(
             for: selectedDate,
             referenceDate: referenceDate,
-            location: location
+            location: location,
+            timeZone: timeZone
         )
     }
 

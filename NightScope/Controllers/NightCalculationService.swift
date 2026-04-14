@@ -2,24 +2,67 @@ import Foundation
 import CoreLocation
 
 protocol NightCalculating: Sendable {
-    func calculateNightSummary(date: Date, location: CLLocationCoordinate2D) async -> NightSummary
-    func calculateUpcomingNights(from date: Date, location: CLLocationCoordinate2D, days: Int) async -> [NightSummary]
+    func calculateNightSummary(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) async -> NightSummary
+    func calculateUpcomingNights(
+        from date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone,
+        days: Int
+    ) async -> [NightSummary]
 }
 
 /// 天文計算をバックグラウンドで実行するサービス。
 /// MilkyWayCalculator の static 呼び出しをラップし、
 /// AppController がメインスレッドをブロックせずに await できるようにする。
 final class NightCalculationService: NightCalculating, @unchecked Sendable {
+    private let summaryCalculator: @Sendable (Date, CLLocationCoordinate2D, TimeZone) -> NightSummary
 
-    func calculateNightSummary(date: Date, location: CLLocationCoordinate2D) async -> NightSummary {
-        await Task.detached(priority: .userInitiated) {
-            MilkyWayCalculator.calculateNightSummary(date: date, location: location)
-        }.value
+    init(
+        summaryCalculator: @escaping @Sendable (Date, CLLocationCoordinate2D, TimeZone) -> NightSummary = {
+            MilkyWayCalculator.calculateNightSummary(date: $0, location: $1, timeZone: $2)
+        }
+    ) {
+        self.summaryCalculator = summaryCalculator
     }
 
-    func calculateUpcomingNights(from date: Date, location: CLLocationCoordinate2D, days: Int = 14) async -> [NightSummary] {
-        await Task.detached(priority: .background) {
-            MilkyWayCalculator.calculateUpcomingNights(from: date, location: location, days: days)
-        }.value
+    func calculateNightSummary(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) async -> NightSummary {
+        await withTaskGroup(of: NightSummary.self) { group in
+            group.addTask(priority: .userInitiated) { [summaryCalculator] in
+                summaryCalculator(date, location, timeZone)
+            }
+            return await group.next() ?? .placeholder
+        }
+    }
+
+    func calculateUpcomingNights(
+        from date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone,
+        days: Int = 14
+    ) async -> [NightSummary] {
+        await withTaskGroup(of: [NightSummary].self) { group in
+            group.addTask(priority: .background) { [summaryCalculator] in
+                var summaries: [NightSummary] = []
+                summaries.reserveCapacity(days)
+                let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+
+                for offset in 0..<days {
+                    guard !Task.isCancelled else { break }
+                    let targetDate = calendar.date(byAdding: .day, value: offset, to: date) ?? date
+                    summaries.append(summaryCalculator(targetDate, location, timeZone))
+                }
+
+                return summaries
+            }
+            return await group.next() ?? []
+        }
     }
 }

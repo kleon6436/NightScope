@@ -102,7 +102,7 @@ struct iOSTodayView: View {
             } label: {
                 Image(systemName: "calendar")
                     .font(.headline)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.glass)
             .accessibilityLabel("日付を選択")

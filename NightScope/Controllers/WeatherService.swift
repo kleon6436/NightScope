@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CoreLocation
 
 @MainActor
 final class WeatherService: ObservableObject, WeatherProviding {
@@ -8,6 +9,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
         let errorMessage: String?
         let lastModifiedDate: Date?
         let locationKey: String
+        let timeZoneIdentifier: String
     }
 
     @Published var weatherByDate: [String: DayWeatherSummary] = [:]
@@ -22,6 +24,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
     private var lastModifiedDatesByLocation: [String: Date] = [:]
     private var weatherByDateByLocation: [String: [String: DayWeatherSummary]] = [:]
     private var activeLocationKey: String?
+    private var activeTimeZoneIdentifier = ObservationTimeZone.current.identifier
 
     init(
         urlSession: URLSession = .shared,
@@ -33,11 +36,11 @@ final class WeatherService: ObservableObject, WeatherProviding {
         self.forecastParser = forecastParser
     }
 
-    func fetchWeather(latitude: Double, longitude: Double) async {
-        let locationKey = Self.locationKey(latitude: latitude, longitude: longitude)
+    func fetchWeather(latitude: Double, longitude: Double, timeZone: TimeZone) async {
+        let locationKey = Self.locationKey(latitude: latitude, longitude: longitude, timeZone: timeZone)
         let fallbackWeatherByDate = cachedWeatherByDate(for: locationKey)
         if activeLocationKey != locationKey {
-            prepareForLocationChange(latitude: latitude, longitude: longitude)
+            prepareForLocationChange(latitude: latitude, longitude: longitude, timeZone: timeZone)
         }
         currentTask?.cancel()
         isLoading = true
@@ -47,7 +50,8 @@ final class WeatherService: ObservableObject, WeatherProviding {
                 latitude: latitude,
                 longitude: longitude,
                 locationKey: locationKey,
-                fallbackWeatherByDate: fallbackWeatherByDate
+                fallbackWeatherByDate: fallbackWeatherByDate,
+                timeZone: timeZone
             )
             guard !Task.isCancelled else { return }
             applyFetchResult(result)
@@ -55,18 +59,20 @@ final class WeatherService: ObservableObject, WeatherProviding {
         await currentTask?.value
     }
 
-    func fetchWeatherSnapshot(latitude: Double, longitude: Double) async -> FetchResult {
-        let locationKey = Self.locationKey(latitude: latitude, longitude: longitude)
+    func fetchWeatherSnapshot(latitude: Double, longitude: Double, timeZone: TimeZone) async -> FetchResult {
+        let locationKey = Self.locationKey(latitude: latitude, longitude: longitude, timeZone: timeZone)
         return await loadWeather(
             latitude: latitude,
             longitude: longitude,
             locationKey: locationKey,
-            fallbackWeatherByDate: weatherByDateByLocation[locationKey] ?? [:]
+            fallbackWeatherByDate: weatherByDateByLocation[locationKey] ?? [:],
+            timeZone: timeZone
         )
     }
 
     func applyFetchResult(_ result: FetchResult) {
         activeLocationKey = result.locationKey
+        activeTimeZoneIdentifier = result.timeZoneIdentifier
         weatherByDateByLocation[result.locationKey] = result.weatherByDate
         weatherByDate = result.weatherByDate
         errorMessage = result.errorMessage
@@ -77,12 +83,14 @@ final class WeatherService: ObservableObject, WeatherProviding {
     }
 
     func summary(for date: Date) -> DayWeatherSummary? {
-        weatherByDate[forecastParser.dateKey(date)]
+        weatherByDate[forecastParser.dateKey(date, timeZone: activeTimeZone)]
     }
 
-    func prepareForLocationChange(latitude: Double, longitude: Double) {
+    func prepareForLocationChange(latitude: Double, longitude: Double, timeZone: TimeZone) {
         currentTask?.cancel()
-        activeLocationKey = Self.locationKey(latitude: latitude, longitude: longitude)
+        activeLocationKey = Self.locationKey(latitude: latitude, longitude: longitude, timeZone: timeZone)
+        activeTimeZoneIdentifier = timeZone.identifier
+        weatherByDate = weatherByDateByLocation[activeLocationKey ?? ""] ?? [:]
         errorMessage = nil
         isLoading = false
     }
@@ -91,7 +99,8 @@ final class WeatherService: ObservableObject, WeatherProviding {
         latitude: Double,
         longitude: Double,
         locationKey: String,
-        fallbackWeatherByDate: [String: DayWeatherSummary]
+        fallbackWeatherByDate: [String: DayWeatherSummary],
+        timeZone: TimeZone
     ) async -> FetchResult {
         do {
             let request = try requestFactory.makeRequest(
@@ -105,7 +114,8 @@ final class WeatherService: ObservableObject, WeatherProviding {
                     weatherByDate: fallbackWeatherByDate,
                     errorMessage: nil,
                     lastModifiedDate: lastModifiedDatesByLocation[locationKey],
-                    locationKey: locationKey
+                    locationKey: locationKey,
+                    timeZoneIdentifier: timeZone.identifier
                 )
             }
 
@@ -118,7 +128,8 @@ final class WeatherService: ObservableObject, WeatherProviding {
                     weatherByDate: fallbackWeatherByDate,
                     errorMessage: nil,
                     lastModifiedDate: lastModifiedDatesByLocation[locationKey],
-                    locationKey: locationKey
+                    locationKey: locationKey,
+                    timeZoneIdentifier: timeZone.identifier
                 )
             }
 
@@ -133,44 +144,57 @@ final class WeatherService: ObservableObject, WeatherProviding {
                 lastModifiedDate = nil
             }
 
-            let apiResponse: MetNorwayResponse
             do {
-                apiResponse = try JSONDecoder().decode(MetNorwayResponse.self, from: data)
+                let weatherByDate = try await Self.decodeForecast(
+                    data: data,
+                    forecastParser: forecastParser,
+                    location: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                    timeZone: timeZone
+                )
+                return FetchResult(
+                    weatherByDate: weatherByDate,
+                    errorMessage: nil,
+                    lastModifiedDate: lastModifiedDate,
+                    locationKey: locationKey,
+                    timeZoneIdentifier: timeZone.identifier
+                )
             } catch {
                 throw WeatherServiceError.decodingError(underlying: error)
             }
-
-            return FetchResult(
-                weatherByDate: forecastParser.parse(response: apiResponse),
-                errorMessage: nil,
-                lastModifiedDate: lastModifiedDate,
-                locationKey: locationKey
-            )
         } catch {
             let serviceError = (error as? WeatherServiceError) ?? .networkError(underlying: error)
             return FetchResult(
                 weatherByDate: fallbackWeatherByDate,
                 errorMessage: serviceError.localizedDescription,
                 lastModifiedDate: lastModifiedDatesByLocation[locationKey],
-                locationKey: locationKey
+                locationKey: locationKey,
+                timeZoneIdentifier: timeZone.identifier
             )
         }
     }
 
-    func parse(response: MetNorwayResponse) -> [String: DayWeatherSummary] {
-        forecastParser.parse(response: response)
+    func parse(
+        response: MetNorwayResponse,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone = ObservationTimeZone.current
+    ) -> [String: DayWeatherSummary] {
+        forecastParser.parse(response: response, location: location, timeZone: timeZone)
     }
 
     func dateKey(_ date: Date) -> String {
-        forecastParser.dateKey(date)
+        forecastParser.dateKey(date, timeZone: activeTimeZone)
     }
 
     static func symbolCodeToWMO(_ symbolCode: String?) -> Int {
         MetNorwayForecastParser.symbolCodeToWMO(symbolCode)
     }
 
-    private static func locationKey(latitude: Double, longitude: Double) -> String {
-        String(format: "%.4f,%.4f", latitude, longitude)
+    private var activeTimeZone: TimeZone {
+        TimeZone(identifier: activeTimeZoneIdentifier) ?? .current
+    }
+
+    private static func locationKey(latitude: Double, longitude: Double, timeZone: TimeZone) -> String {
+        String(format: "%.4f,%.4f|%@", latitude, longitude, timeZone.identifier)
     }
 
     private func cachedWeatherByDate(for locationKey: String) -> [String: DayWeatherSummary] {
@@ -181,5 +205,17 @@ final class WeatherService: ObservableObject, WeatherProviding {
             return weatherByDate
         }
         return [:]
+    }
+
+    private nonisolated static func decodeForecast(
+        data: Data,
+        forecastParser: MetNorwayForecastParser,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) async throws -> [String: DayWeatherSummary] {
+        try await Task.detached(priority: .userInitiated) {
+            let apiResponse = try JSONDecoder().decode(MetNorwayResponse.self, from: data)
+            return forecastParser.parse(response: apiResponse, location: location, timeZone: timeZone)
+        }.value
     }
 }

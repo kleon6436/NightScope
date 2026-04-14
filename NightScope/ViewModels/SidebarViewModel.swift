@@ -29,6 +29,17 @@ final class SidebarViewModel: ObservableObject {
     @Published var viewport = ViewportBox()
     @Published var searchText = ""
     @Published private(set) var isShowingCommittedSelection = false
+    @Published private(set) var isSearching: Bool
+    @Published private(set) var isLocating: Bool
+    @Published private(set) var searchResults: [MKMapItem]
+    @Published private(set) var locationError: LocationController.LocationError?
+    @Published private(set) var selectedCoordinate: CLLocationCoordinate2D
+    @Published private(set) var selectedLocationName: String
+    @Published private(set) var searchFocusTrigger: Int
+    @Published private(set) var currentLocationCenterTrigger: Int
+    @Published private(set) var lightPollutionBortleClass: Double?
+    @Published private(set) var isLightPollutionLoading: Bool
+    @Published private(set) var hasLightPollutionFetchFailed: Bool
 
     let locationController: any LocationProviding
     let lightPollutionService: any LightPollutionProviding
@@ -38,29 +49,75 @@ final class SidebarViewModel: ObservableObject {
     init(locationController: some LocationProviding, lightPollutionService: some LightPollutionProviding) {
         self.locationController = locationController
         self.lightPollutionService = lightPollutionService
+        self.isSearching = locationController.isSearching
+        self.isLocating = locationController.isLocating
+        self.searchResults = locationController.searchResults
+        self.locationError = locationController.locationError
+        self.selectedCoordinate = locationController.selectedLocation
+        self.selectedLocationName = locationController.locationName
+        self.searchFocusTrigger = locationController.searchFocusTrigger
+        self.currentLocationCenterTrigger = locationController.currentLocationCenterTrigger
+        self.lightPollutionBortleClass = lightPollutionService.bortleClass
+        self.isLightPollutionLoading = lightPollutionService.isLoading
+        self.hasLightPollutionFetchFailed = lightPollutionService.fetchFailed
 
-        // locationController の変化を SidebarViewModel に伝播（View 更新サイクル外で実行）
-        locationController.anyChangePublisher
+        locationController.searchResultsPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .sink { [weak self] in self?.searchResults = $0 }
             .store(in: &cancellables)
 
-        // lightPollutionService の変化（bortleClass / isLoading）を SidebarView に伝播
+        locationController.isSearchingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.isSearching = $0 }
+            .store(in: &cancellables)
+
+        locationController.isLocatingPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.isLocating = $0 }
+            .store(in: &cancellables)
+
+        locationController.locationErrorPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.locationError = $0 }
+            .store(in: &cancellables)
+
+        locationController.locationNamePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.selectedLocationName = $0 }
+            .store(in: &cancellables)
+
+        locationController.searchFocusTriggerPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.searchFocusTrigger = $0 }
+            .store(in: &cancellables)
+
+        locationController.currentLocationCenterTriggerPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.currentLocationCenterTrigger = $0 }
+            .store(in: &cancellables)
+
+        locationController.selectedLocationPublisher
+            .receive(on: DispatchQueue.main)
+            .dropFirst()
+            .sink { [weak self] coordinate in
+                self?.selectedCoordinate = coordinate
+                self?.applyPendingLocationUpdateBehavior()
+            }
+            .store(in: &cancellables)
+
         lightPollutionService.bortleClassPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .sink { [weak self] in self?.lightPollutionBortleClass = $0 }
             .store(in: &cancellables)
 
         lightPollutionService.isLoadingPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .sink { [weak self] in self?.isLightPollutionLoading = $0 }
             .store(in: &cancellables)
 
-        locationController.locationUpdateIDPublisher
-            .dropFirst()
-            .sink { [weak self] _ in
-                self?.applyPendingLocationUpdateBehavior()
-            }
+        lightPollutionService.fetchFailedPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.hasLightPollutionFetchFailed = $0 }
             .store(in: &cancellables)
     }
 
@@ -131,10 +188,6 @@ final class SidebarViewModel: ObservableObject {
         }
     }
 
-    var isSearching: Bool { locationController.isSearching }
-    var isLocating: Bool { locationController.isLocating }
-    var searchResults: [MKMapItem] { locationController.searchResults }
-    var locationError: LocationController.LocationError? { locationController.locationError }
     func shouldShowSearchEmptyState(
         for searchText: String? = nil,
         isShowingCommittedSelection: Bool? = nil
@@ -146,12 +199,6 @@ final class SidebarViewModel: ObservableObject {
             isShowingCommittedSelection: isShowingCommittedSelection ?? self.isShowingCommittedSelection
         )
     }
-
-    var selectedCoordinate: CLLocationCoordinate2D { locationController.selectedLocation }
-    var selectedLocationName: String { locationController.locationName }
-
-    var searchFocusTrigger: Int { locationController.searchFocusTrigger }
-    var currentLocationCenterTrigger: Int { locationController.currentLocationCenterTrigger }
 
     private func applyPendingLocationUpdateBehavior() {
         let behavior = pendingLocationUpdateBehavior ?? .clearSearch

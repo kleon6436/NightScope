@@ -19,6 +19,7 @@ struct CalendarView: View {
                 Button { shiftMonth(by: -1) } label: {
                     Image(systemName: AppIcons.Controls.chevronLeft)
                         .font(.body.bold())
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
@@ -34,6 +35,7 @@ struct CalendarView: View {
                 Button { shiftMonth(by: 1) } label: {
                     Image(systemName: AppIcons.Controls.chevronRight)
                         .font(.body.bold())
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
@@ -65,7 +67,7 @@ struct CalendarView: View {
                             onTap: { selectedDate = day }
                         )
                     } else {
-                        Color.clear.frame(maxWidth: .infinity, minHeight: 32)
+                        Color.clear.frame(maxWidth: .infinity, minHeight: 44)
                     }
                 }
             }
@@ -97,7 +99,7 @@ struct CalendarView: View {
     }
 
     private var monthTitle: String {
-        DateFormatters.monthTitle.string(from: displayMonth)
+        DateFormatters.monthTitleString(from: displayMonth)
     }
 
     private func shiftMonth(by value: Int) {
@@ -115,31 +117,32 @@ struct CalendarDayCell: View {
     private var dayNumber: Int { calendar.component(.day, from: date) }
 
     private var accessibilityDateLabel: String {
-        var label = DateFormatters.fullDate.string(from: date)
+        var label = DateFormatters.fullDateString(from: date)
         if isSelected { label += "、選択中" }
         if isToday { label += "、今日" }
         return label
     }
 
     var body: some View {
-        Text("\(dayNumber)")
-            .font(.body)
-            .frame(maxWidth: .infinity, minHeight: 32)
-            .foregroundStyle(isSelected ? Color.white : isToday ? Color.accentColor : Color.primary)
-            .background(
-                Circle()
-                    .fill(
-                        isSelected ? Color.accentColor :
-                        isToday    ? Color.accentColor.opacity(0.15) :
-                                     Color.clear
-                    )
-                    .padding(1)
-            )
-            .contentShape(Rectangle())
-            .onTapGesture { onTap() }
-            .accessibilityLabel(accessibilityDateLabel)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAddTraits(isSelected ? .isSelected : [])
+        Button(action: onTap) {
+            Text("\(dayNumber)")
+                .font(.body)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .foregroundStyle(isSelected ? Color.white : isToday ? Color.accentColor : Color.primary)
+                .background(
+                    Circle()
+                        .fill(
+                            isSelected ? Color.accentColor :
+                            isToday    ? Color.accentColor.opacity(0.15) :
+                                         Color.clear
+                        )
+                        .padding(1)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityDateLabel)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
