@@ -140,6 +140,7 @@ final class AppController: ObservableObject {
     }
 
     func prepareForLocationChange() {
+        cancelActiveCalculationTasks()
         isCalculating = true
         isUpcomingLoading = true
         let coordinate = selectedCoordinate
@@ -251,6 +252,13 @@ final class AppController: ObservableObject {
         isApplyingLocationRefresh = false
         isCalculating = false
         isUpcomingLoading = false
+    }
+
+    private func cancelActiveCalculationTasks() {
+        calculationTask?.cancel()
+        calculationTask = nil
+        upcomingTask?.cancel()
+        upcomingTask = nil
     }
 
     private func makeStarGazingIndex(

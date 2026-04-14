@@ -20,6 +20,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
     private let requestFactory: MetNorwayRequestFactory
     private let forecastParser: MetNorwayForecastParser
     private var lastModifiedDatesByLocation: [String: Date] = [:]
+    private var weatherByDateByLocation: [String: [String: DayWeatherSummary]] = [:]
     private var activeLocationKey: String?
 
     init(
@@ -34,6 +35,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
 
     func fetchWeather(latitude: Double, longitude: Double) async {
         let locationKey = Self.locationKey(latitude: latitude, longitude: longitude)
+        let fallbackWeatherByDate = cachedWeatherByDate(for: locationKey)
         if activeLocationKey != locationKey {
             prepareForLocationChange(latitude: latitude, longitude: longitude)
         }
@@ -45,7 +47,7 @@ final class WeatherService: ObservableObject, WeatherProviding {
                 latitude: latitude,
                 longitude: longitude,
                 locationKey: locationKey,
-                fallbackWeatherByDate: weatherByDate
+                fallbackWeatherByDate: fallbackWeatherByDate
             )
             guard !Task.isCancelled else { return }
             applyFetchResult(result)
@@ -59,12 +61,13 @@ final class WeatherService: ObservableObject, WeatherProviding {
             latitude: latitude,
             longitude: longitude,
             locationKey: locationKey,
-            fallbackWeatherByDate: [:]
+            fallbackWeatherByDate: weatherByDateByLocation[locationKey] ?? [:]
         )
     }
 
     func applyFetchResult(_ result: FetchResult) {
         activeLocationKey = result.locationKey
+        weatherByDateByLocation[result.locationKey] = result.weatherByDate
         weatherByDate = result.weatherByDate
         errorMessage = result.errorMessage
         if let lastModifiedDate = result.lastModifiedDate {
@@ -145,22 +148,9 @@ final class WeatherService: ObservableObject, WeatherProviding {
             )
         } catch {
             let serviceError = (error as? WeatherServiceError) ?? .networkError(underlying: error)
-            let errorMessage: String
-            switch serviceError {
-            case .invalidURL:
-                errorMessage = serviceError.localizedDescription
-            case .invalidResponse(let code):
-                errorMessage = "天気APIのステータスコードが不正です: \(code)"
-            case .invalidData:
-                errorMessage = serviceError.localizedDescription
-            case .decodingError:
-                errorMessage = serviceError.localizedDescription
-            case .networkError:
-                errorMessage = serviceError.localizedDescription
-            }
             return FetchResult(
                 weatherByDate: fallbackWeatherByDate,
-                errorMessage: errorMessage,
+                errorMessage: serviceError.localizedDescription,
                 lastModifiedDate: lastModifiedDatesByLocation[locationKey],
                 locationKey: locationKey
             )
@@ -181,5 +171,15 @@ final class WeatherService: ObservableObject, WeatherProviding {
 
     private static func locationKey(latitude: Double, longitude: Double) -> String {
         String(format: "%.4f,%.4f", latitude, longitude)
+    }
+
+    private func cachedWeatherByDate(for locationKey: String) -> [String: DayWeatherSummary] {
+        if let cached = weatherByDateByLocation[locationKey] {
+            return cached
+        }
+        if activeLocationKey == locationKey {
+            return weatherByDate
+        }
+        return [:]
     }
 }

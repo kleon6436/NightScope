@@ -378,6 +378,63 @@ final class WeatherServiceTests: XCTestCase {
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 75, accuracy: 0.001)
     }
 
+    func test_fetchWeather_returningToPreviousLocation_304_restoresCachedWeatherForThatLocation() async throws {
+        let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
+        var requestCount = 0
+        let session = makeMockSession { request in
+            requestCount += 1
+            let url = try XCTUnwrap(request.url)
+
+            switch requestCount {
+            case 1:
+                XCTAssertTrue(url.absoluteString.contains("lat=35.6762"))
+                XCTAssertNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Last-Modified": "Wed, 01 Jan 2025 00:00:00 GMT"]
+                )!
+                return (response, self.makePayload(times: [t21], cloud: 15))
+            case 2:
+                XCTAssertTrue(url.absoluteString.contains("lat=34.6937"))
+                XCTAssertNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Last-Modified": "Thu, 02 Jan 2025 00:00:00 GMT"]
+                )!
+                return (response, self.makePayload(times: [t21], cloud: 75))
+            case 3:
+                XCTAssertTrue(url.absoluteString.contains("lat=35.6762"))
+                XCTAssertNotNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 304,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                return (response, Data())
+            default:
+                XCTFail("想定外のリクエスト回数: \(requestCount)")
+                throw URLError(.badServerResponse)
+            }
+        }
+
+        let service = WeatherService(urlSession: session)
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 15, accuracy: 0.001)
+
+        await service.fetchWeather(latitude: 34.6937, longitude: 135.5023)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 75, accuracy: 0.001)
+
+        await service.fetchWeather(latitude: 35.6762, longitude: 139.6503)
+
+        XCTAssertEqual(requestCount, 3)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 15, accuracy: 0.001)
+    }
+
     func test_prepareForLocationChange_preservesDisplayedWeatherUntilRefreshCompletes() {
         service.weatherByDate = [
             "2024-06-15": DayWeatherSummary(

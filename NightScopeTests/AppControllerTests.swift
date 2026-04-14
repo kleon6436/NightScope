@@ -200,6 +200,35 @@ final class AppControllerTests: XCTestCase {
         XCTAssertTrue(appController.isCalculating)
         XCTAssertTrue(appController.isUpcomingLoading)
     }
+
+    func test_prepareForLocationChange_cancelsInFlightCalculations() async {
+        let baseDate = Calendar.current.startOfDay(for: Date())
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
+
+        let mockCalculationService = MockNightCalculationService()
+        await mockCalculationService.enqueueNightSummary(
+            makeNightSummary(date: baseDate),
+            delayMilliseconds: 250
+        )
+        await mockCalculationService.enqueueUpcomingNights(
+            [makeNightSummary(date: baseDate), makeNightSummary(date: nextDate)],
+            delayMilliseconds: 250
+        )
+
+        let appController = AppController(calculationService: mockCalculationService)
+        appController.recalculate()
+        appController.recalculateUpcoming()
+
+        appController.prepareForLocationChange()
+
+        try? await Task.sleep(nanoseconds: 350_000_000)
+
+        XCTAssertNil(appController.nightSummary)
+        XCTAssertTrue(appController.upcomingNights.isEmpty)
+        XCTAssertTrue(appController.upcomingIndexes.isEmpty)
+        XCTAssertTrue(appController.isCalculating)
+        XCTAssertTrue(appController.isUpcomingLoading)
+    }
 }
 
 actor MockNightCalculationService: NightCalculating {
