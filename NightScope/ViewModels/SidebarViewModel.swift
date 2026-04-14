@@ -16,19 +16,24 @@ final class SidebarViewModel: ObservableObject {
         case clear
     }
 
+    private enum PendingLocationUpdateBehavior {
+        case preserveCommittedSelection(String)
+        case clearSearch
+    }
+
     private enum ViewportUpdateThresholds {
         static let coordinateEpsilon = 0.00005
         static let spanEpsilon = 0.00005
     }
 
-    @Published var searchState = SidebarSearchState()
-    @Published var locationInputMode: LocationInputMode = .map
     @Published var viewport = ViewportBox()
-    @Published var mapViewportSyncTrigger = 0
+    @Published var searchText = ""
+    @Published private(set) var isShowingCommittedSelection = false
 
     let locationController: any LocationProviding
     let lightPollutionService: any LightPollutionProviding
     private var cancellables = Set<AnyCancellable>()
+    private var pendingLocationUpdateBehavior: PendingLocationUpdateBehavior?
 
     init(locationController: some LocationProviding, lightPollutionService: some LightPollutionProviding) {
         self.locationController = locationController
@@ -51,12 +56,11 @@ final class SidebarViewModel: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
-        // locationUpdateID の変化を Combine で検知し、検索状態をクリア
-        // View の onChange で処理するとビュー更新コミットフェーズ中に @Published を変更してしまうため
         locationController.locationUpdateIDPublisher
             .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.handleLocationUpdateIDChanged() }
+            .sink { [weak self] _ in
+                self?.applyPendingLocationUpdateBehavior()
+            }
             .store(in: &cancellables)
     }
 
@@ -64,49 +68,46 @@ final class SidebarViewModel: ObservableObject {
         viewport.center = selectedCoordinate
     }
 
-    func handleLocationUpdateIDChanged() {
-        setSearchTextProgrammatically("")
-    }
-
-    func setLocationInputMode(_ mode: LocationInputMode) {
-        guard locationInputMode != mode else { return }
-        locationInputMode = mode
-        mapViewportSyncTrigger += 1
-    }
-
     func clearLocationError() {
         locationController.locationError = nil
     }
 
-    func handleSearchTextChanged() {
-        searchState.clearHighlight()
-        if searchState.consumeSearchSuppression() {
-            return
+    func updateSearchText(_ searchText: String) {
+        if self.searchText != searchText {
+            self.searchText = searchText
         }
-        locationController.search(query: searchState.text)
-    }
-
-    func setSearchTextProgrammatically(_ text: String) {
-        if searchState.setProgrammaticText(text) {
-            locationController.searchResults = []
-        }
+        isShowingCommittedSelection = false
+        locationController.search(query: searchText)
     }
 
     func selectSearchResult(_ item: MKMapItem, searchTextBehavior: SearchTextSelectionBehavior) {
+        let locationName = item.name ?? ""
+        pendingLocationUpdateBehavior = pendingBehavior(
+            for: searchTextBehavior,
+            selectedLocationName: locationName
+        )
+        applySearchSelectionPresentation(
+            for: searchTextBehavior,
+            selectedLocationName: locationName
+        )
+        locationController.clearSearch()
         locationController.select(item)
-        switch searchTextBehavior {
-        case .fillSelectionName:
-            setSearchTextProgrammatically(item.name ?? "")
-        case .clear:
-            setSearchTextProgrammatically("")
-        }
+    }
+
+    func clearSearch() {
+        pendingLocationUpdateBehavior = nil
+        resetSearchPresentation()
+        locationController.clearSearch()
     }
 
     func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
+        pendingLocationUpdateBehavior = .clearSearch
+        resetSearchPresentation()
         locationController.selectCoordinate(coordinate)
     }
 
     func requestCurrentLocation() {
+        pendingLocationUpdateBehavior = .clearSearch
         locationController.requestCurrentLocation()
     }
 
@@ -134,43 +135,65 @@ final class SidebarViewModel: ObservableObject {
     var isLocating: Bool { locationController.isLocating }
     var searchResults: [MKMapItem] { locationController.searchResults }
     var locationError: LocationController.LocationError? { locationController.locationError }
-    var isShowingSearchEmptyState: Bool {
+    func shouldShowSearchEmptyState(
+        for searchText: String? = nil,
+        isShowingCommittedSelection: Bool? = nil
+    ) -> Bool {
         SidebarSearchInteraction.shouldShowEmptyState(
-            searchText: searchState.text,
+            searchText: searchText ?? self.searchText,
             isSearching: isSearching,
-            hasResults: !searchResults.isEmpty
+            hasResults: !searchResults.isEmpty,
+            isShowingCommittedSelection: isShowingCommittedSelection ?? self.isShowingCommittedSelection
         )
     }
-    var isShowingLightPollution: Bool { locationInputMode == .lightPollutionMap }
 
     var selectedCoordinate: CLLocationCoordinate2D { locationController.selectedLocation }
     var selectedLocationName: String { locationController.locationName }
 
     var searchFocusTrigger: Int { locationController.searchFocusTrigger }
     var currentLocationCenterTrigger: Int { locationController.currentLocationCenterTrigger }
-}
 
-struct SidebarSearchState {
-    var text: String = ""
-    var highlightedIndex: Int = SidebarSearchInteraction.noSelectionIndex
-    var shouldSuppressNextSearch = false
+    private func applyPendingLocationUpdateBehavior() {
+        let behavior = pendingLocationUpdateBehavior ?? .clearSearch
+        pendingLocationUpdateBehavior = nil
 
-    @discardableResult
-    mutating func setProgrammaticText(_ newText: String) -> Bool {
-        guard newText != text else { return false }
-        shouldSuppressNextSearch = true
-        text = newText
-        return true
+        switch behavior {
+        case .preserveCommittedSelection(let selectedLocationName):
+            searchText = selectedLocationName
+            isShowingCommittedSelection = true
+        case .clearSearch:
+            resetSearchPresentation()
+        }
     }
 
-    mutating func clearHighlight() {
-        highlightedIndex = SidebarSearchInteraction.noSelectionIndex
+    private func pendingBehavior(
+        for searchTextBehavior: SearchTextSelectionBehavior,
+        selectedLocationName: String
+    ) -> PendingLocationUpdateBehavior {
+        switch searchTextBehavior {
+        case .fillSelectionName:
+            return .preserveCommittedSelection(selectedLocationName)
+        case .clear:
+            return .clearSearch
+        }
     }
 
-    mutating func consumeSearchSuppression() -> Bool {
-        guard shouldSuppressNextSearch else { return false }
-        shouldSuppressNextSearch = false
-        return true
+    private func applySearchSelectionPresentation(
+        for searchTextBehavior: SearchTextSelectionBehavior,
+        selectedLocationName: String
+    ) {
+        switch searchTextBehavior {
+        case .fillSelectionName:
+            searchText = selectedLocationName
+            isShowingCommittedSelection = true
+        case .clear:
+            resetSearchPresentation()
+        }
+    }
+
+    private func resetSearchPresentation() {
+        searchText = ""
+        isShowingCommittedSelection = false
     }
 }
 
@@ -195,7 +218,15 @@ enum SidebarSearchInteraction {
         max(current - 1, noSelectionIndex)
     }
 
-    static func shouldShowEmptyState(searchText: String, isSearching: Bool, hasResults: Bool) -> Bool {
-        !hasResults && !isSearching && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    static func shouldShowEmptyState(
+        searchText: String,
+        isSearching: Bool,
+        hasResults: Bool,
+        isShowingCommittedSelection: Bool
+    ) -> Bool {
+        !isShowingCommittedSelection
+            && !hasResults
+            && !isSearching
+            && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

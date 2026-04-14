@@ -22,7 +22,7 @@ struct ContentView: View {
             SidebarView(
                 viewModel: rootStore.sidebarViewModel,
                 selectedDate: selectedDateBinding,
-                viewingDirection: rootStore.starMapViewModel.viewingDirection
+                starMapViewModel: rootStore.starMapViewModel
             )
             .navigationSplitViewColumnWidth(
                 min: LayoutMacOS.sidebarMinWidth,

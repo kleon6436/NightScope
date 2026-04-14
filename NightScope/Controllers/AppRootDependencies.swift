@@ -31,7 +31,6 @@ final class AppRootStore: ObservableObject {
     let sidebarViewModel: SidebarViewModel
     let detailViewModel: DetailViewModel
     let starMapViewModel: StarMapViewModel
-    private var cancellables: Set<AnyCancellable> = []
 
     init(dependencies: AppRootDependencies? = nil) {
         let dependencies = dependencies ?? .makeDefault()
@@ -39,22 +38,6 @@ final class AppRootStore: ObservableObject {
         self.sidebarViewModel = dependencies.sidebarViewModel
         self.detailViewModel = dependencies.detailViewModel
         self.starMapViewModel = dependencies.starMapViewModel
-        bindChildChanges()
-    }
-
-    private func bindChildChanges() {
-        let childPublishers: [AnyPublisher<Void, Never>] = [
-            sidebarViewModel.objectWillChange.eraseToAnyPublisher(),
-            detailViewModel.objectWillChange.eraseToAnyPublisher(),
-            starMapViewModel.objectWillChange.eraseToAnyPublisher()
-        ]
-
-        Publishers.MergeMany(childPublishers)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
     }
 }
 
@@ -75,6 +58,7 @@ protocol LocationProviding: AnyObject, ObservableObject {
 
     func requestCurrentLocation()
     func search(query: String)
+    func clearSearch()
     func select(_ mapItem: MKMapItem)
     func selectCoordinate(_ coordinate: CLLocationCoordinate2D)
 }

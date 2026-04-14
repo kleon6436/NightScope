@@ -68,42 +68,45 @@ enum MapKitViewSharedLogic {
     }
 
     static func applyViewportSyncIfNeeded(
-        on mapView: MKMapView,
         existing: MKPointAnnotation?,
         coordinate: CLLocationCoordinate2D,
         syncState: MapKitSyncState,
         lastSyncTrigger: inout Int
-    ) -> Bool {
+    ) -> MKCoordinateRegion? {
         guard lastSyncTrigger != syncState.trigger else {
-            return false
+            return nil
         }
 
         lastSyncTrigger = syncState.trigger
-        upsertPinAnnotation(on: mapView, existing: existing, coordinate: coordinate)
-        let region = MKCoordinateRegion(center: syncState.center, span: syncState.span)
-        mapView.setRegion(region, animated: false)
-        return true
+        return MKCoordinateRegion(center: syncState.center, span: syncState.span)
     }
 
     static func centerOnCurrentLocationIfNeeded(
-        on mapView: MKMapView,
         coordinate: CLLocationCoordinate2D,
         centerTrigger: Int,
         lastCenterTrigger: inout Int
-    ) {
+    ) -> MKCoordinateRegion? {
         guard lastCenterTrigger != centerTrigger else {
-            return
+            return nil
         }
 
         lastCenterTrigger = centerTrigger
-        let region = MKCoordinateRegion(
+        return MKCoordinateRegion(
             center: coordinate,
             span: MKCoordinateSpan(
                 latitudeDelta: Config.currentLocationLatitudeDelta,
                 longitudeDelta: Config.currentLocationLongitudeDelta
             )
         )
-        mapView.setRegion(region, animated: true)
+    }
+
+    static func consumePendingRegionChangeIgnore(_ pendingIgnoredRegionChanges: inout Int) -> Bool {
+        guard pendingIgnoredRegionChanges > 0 else {
+            return false
+        }
+
+        pendingIgnoredRegionChanges -= 1
+        return true
     }
 
     private static func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {

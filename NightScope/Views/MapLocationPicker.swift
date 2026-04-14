@@ -74,23 +74,25 @@ struct MapKitViewRepresentable: NSViewRepresentable {
             return
         }
 
-        if MapKitViewSharedLogic.applyViewportSyncIfNeeded(
-            on: nsView,
+        if let syncRegion = MapKitViewSharedLogic.applyViewportSyncIfNeeded(
             existing: existing,
             coordinate: newCoord,
             syncState: syncState,
             lastSyncTrigger: &context.coordinator.lastSyncTrigger
         ) {
+            MapKitViewSharedLogic.upsertPinAnnotation(on: nsView, existing: existing, coordinate: newCoord)
+            context.coordinator.scheduleRegionChange(on: nsView, region: syncRegion, animated: false)
             return
         }
 
         MapKitViewSharedLogic.upsertPinAnnotation(on: nsView, existing: existing, coordinate: newCoord)
-        MapKitViewSharedLogic.centerOnCurrentLocationIfNeeded(
-            on: nsView,
+        if let centeredRegion = MapKitViewSharedLogic.centerOnCurrentLocationIfNeeded(
             coordinate: newCoord,
             centerTrigger: centerTrigger,
             lastCenterTrigger: &context.coordinator.lastCenterTrigger
-        )
+        ) {
+            context.coordinator.scheduleRegionChange(on: nsView, region: centeredRegion, animated: true)
+        }
         MapKitViewSharedLogic.updateViewingDirectionOverlay(
             on: nsView, pinCoordinate: pinCoordinate, viewingDirection: viewingDirection)
     }
@@ -101,11 +103,28 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         var parent: MapKitViewRepresentable
         var lastSyncTrigger: Int
         var lastCenterTrigger: Int
+        var pendingIgnoredRegionChanges = 0
+        var latestProgrammaticRegionGeneration = 0
 
         init(_ parent: MapKitViewRepresentable) {
             self.parent = parent
             self.lastSyncTrigger = parent.syncState.trigger
             self.lastCenterTrigger = parent.centerTrigger
+        }
+
+        func scheduleRegionChange(on mapView: MKMapView, region: MKCoordinateRegion, animated: Bool) {
+            pendingIgnoredRegionChanges += 1
+            latestProgrammaticRegionGeneration += 1
+            let scheduledGeneration = latestProgrammaticRegionGeneration
+
+            DispatchQueue.main.async { [weak self, weak mapView] in
+                guard let self, let mapView else { return }
+                guard scheduledGeneration == self.latestProgrammaticRegionGeneration else {
+                    self.pendingIgnoredRegionChanges = max(0, self.pendingIgnoredRegionChanges - 1)
+                    return
+                }
+                mapView.setRegion(region, animated: animated)
+            }
         }
 
         @objc func handleTap(_ gr: NSClickGestureRecognizer) {
@@ -116,7 +135,16 @@ struct MapKitViewRepresentable: NSViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            parent.onRegionChange(mapView.region.center, mapView.region.span)
+            if MapKitViewSharedLogic.consumePendingRegionChangeIgnore(&pendingIgnoredRegionChanges) {
+                return
+            }
+            let region = mapView.region
+            let capturedGeneration = latestProgrammaticRegionGeneration
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard capturedGeneration == self.latestProgrammaticRegionGeneration else { return }
+                self.parent.onRegionChange(region.center, region.span)
+            }
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {

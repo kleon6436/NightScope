@@ -125,23 +125,21 @@ enum IOSPreviewFactory {
             locationController.isLocating = true
             locationController.locationName = ""
             locationController.searchResults = []
-            sidebarViewModel.searchState.text = ""
 
         case .empty:
             locationController.isLocating = false
             locationController.locationName = ""
             locationController.searchResults = []
-            sidebarViewModel.searchState.text = ""
 
         case .content:
             locationController.isLocating = false
             locationController.selectedLocation = previewCoordinate
             locationController.locationName = "富士山五合目"
+            sidebarViewModel.searchText = "富士山"
             locationController.searchResults = [
                 makeMapItem(name: "富士山五合目", latitude: 35.3606, longitude: 138.7274),
                 makeMapItem(name: "河口湖", latitude: 35.4983, longitude: 138.7681)
             ]
-            sidebarViewModel.searchState.text = "富士山"
             lightPollutionService.bortleClass = 3
         }
 

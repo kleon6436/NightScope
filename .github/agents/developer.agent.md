@@ -1,7 +1,7 @@
 ---
 name: developer
 description: '設計と受け入れ条件に基づいて実装・修正・設定変更を行い、成果物を安全に仕上げる。'
-model: GPT-5.4 mini (copilot)
+model: Claude Sonnet 4.6 (copilot)
 ---
 
 # Developer Agent

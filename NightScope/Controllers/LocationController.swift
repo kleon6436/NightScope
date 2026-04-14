@@ -153,9 +153,16 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
     }
 
+    func clearSearch() {
+        searchTask?.cancel()
+        latestSearchQuery = ""
+        searchResults = []
+        isSearching = false
+    }
+
     /// 検索候補から場所を確定する（マップをセンタリングする）
     func select(_ mapItem: MKMapItem) {
-        clearSearch()
+        if isLocating { stopLocating() }
         selectedLocation = mapItem.location.coordinate
         currentLocationCenterTrigger += 1
         resolveLocationName(for: mapItem.location.coordinate)
@@ -170,13 +177,6 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     }
 
     // MARK: - Private Helpers
-
-    private func clearSearch() {
-        searchTask?.cancel()
-        latestSearchQuery = ""
-        searchResults = []
-        isSearching = false
-    }
 
     private func stopLocating() {
         cancelLocationTimeout()

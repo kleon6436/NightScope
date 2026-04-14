@@ -1,26 +1,23 @@
 import SwiftUI
 import MapKit
+import Combine
 
 struct iOSLocationView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
+    @State private var locationInputMode: LocationInputMode = .map
+    @State private var mapViewportSyncTrigger = 0
 
     private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
     private var showLightPollutionBinding: Binding<Bool> {
         Binding(
-            get: { sidebarViewModel.isShowingLightPollution },
-            set: { sidebarViewModel.setLocationInputMode($0 ? .lightPollutionMap : .map) }
+            get: { locationInputMode == .lightPollutionMap },
+            set: { locationInputMode = $0 ? .lightPollutionMap : .map }
         )
     }
 
-    private var searchTextBinding: Binding<String> {
-        Binding(
-            get: { sidebarViewModel.searchState.text },
-            set: { newValue in
-                sidebarViewModel.searchState.text = newValue
-                sidebarViewModel.handleSearchTextChanged()
-            }
-        )
+    private var showLightPollution: Bool {
+        locationInputMode == .lightPollutionMap
     }
 
     var body: some View {
@@ -35,6 +32,9 @@ struct iOSLocationView: View {
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.sm)
             .toolbarBackground(.hidden, for: .navigationBar)
+        }
+        .onChange(of: locationInputMode) {
+            mapViewportSyncTrigger += 1
         }
     }
 
@@ -78,7 +78,7 @@ struct iOSLocationView: View {
             isSearching: sidebarViewModel.isSearching,
             isSearchFocused: $isSearchFocused,
             onClear: {
-                sidebarViewModel.setSearchTextProgrammatically("")
+                clearSearchInteraction()
             }
         )
         .onChange(of: sidebarViewModel.searchFocusTrigger) {
@@ -93,8 +93,8 @@ struct iOSLocationView: View {
         let results = sidebarViewModel.searchResults
         if !results.isEmpty {
             searchResultsCard(results)
-        } else if sidebarViewModel.isShowingSearchEmptyState {
-            ContentUnavailableView.search(text: sidebarViewModel.searchState.text)
+        } else if sidebarViewModel.shouldShowSearchEmptyState() {
+            ContentUnavailableView.search(text: sidebarViewModel.searchText)
                 .padding(.vertical, Spacing.xs)
         }
     }
@@ -158,14 +158,14 @@ struct iOSLocationView: View {
                 pinCoordinate: sidebarViewModel.selectedCoordinate,
                 onTap: sidebarViewModel.selectCoordinate,
                 syncState: MapKitSyncState(
-                    trigger: sidebarViewModel.mapViewportSyncTrigger,
+                    trigger: mapViewportSyncTrigger,
                     center: sidebarViewModel.viewport.center,
                     span: sidebarViewModel.viewport.span
                 ),
                 onRegionChange: { center, span in
                     sidebarViewModel.updateViewportIfNeeded(center: center, span: span)
                 },
-                showLightPollution: sidebarViewModel.isShowingLightPollution,
+                showLightPollution: showLightPollution,
                 centerTrigger: sidebarViewModel.currentLocationCenterTrigger
             )
             .ignoresSafeArea(edges: .horizontal)
@@ -203,7 +203,7 @@ struct iOSLocationView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer()
-            if sidebarViewModel.isShowingLightPollution {
+            if showLightPollution {
                 if lightPollutionService.isLoading {
                     ProgressView().controlSize(.mini)
                 } else if let bortle = lightPollutionService.bortleClass {
@@ -217,6 +217,10 @@ struct iOSLocationView: View {
                 }
             }
         }
+    }
+
+    private func clearSearchInteraction() {
+        sidebarViewModel.clearSearch()
     }
 }
 
@@ -273,4 +277,13 @@ private struct LocationSearchField: View {
 
 #Preview("Location - Content") {
     iOSLocationView(sidebarViewModel: IOSPreviewFactory.sidebarViewModel(for: .content))
+}
+
+private extension iOSLocationView {
+    var searchTextBinding: Binding<String> {
+        Binding(
+            get: { sidebarViewModel.searchText },
+            set: { sidebarViewModel.updateSearchText($0) }
+        )
+    }
 }

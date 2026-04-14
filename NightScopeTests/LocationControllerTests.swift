@@ -271,7 +271,7 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(queries, ["tokyo"])
     }
 
-    func test_LocationController_select_updatesCenterTriggerAndResolvedName() async {
+    func test_LocationController_select_updatesCenterTriggerAndResolvedName_andStopsLocating() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))
         let resolver = MockLocationNameResolver(resolvedName: "新宿区")
@@ -283,6 +283,7 @@ final class LocationControllerTests: XCTestCase {
 
         sut.searchResults = [item]
         sut.isSearching = true
+        sut.isLocating = true
         sut.select(item)
 
         await waitUntil {
@@ -292,8 +293,9 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.selectedLocation.latitude, coordinate.latitude, accuracy: 0.000001)
         XCTAssertEqual(sut.selectedLocation.longitude, coordinate.longitude, accuracy: 0.000001)
         XCTAssertEqual(sut.currentLocationCenterTrigger, baseTrigger + 1)
-        XCTAssertFalse(sut.isSearching)
-        XCTAssertTrue(sut.searchResults.isEmpty)
+        XCTAssertTrue(sut.isSearching)
+        XCTAssertEqual(sut.searchResults.count, 1)
+        XCTAssertFalse(sut.isLocating)
         guard let resolvedLatitude = await resolver.getLastCoordinate()?.latitude else {
             return XCTFail("resolver に座標が渡されていません")
         }
