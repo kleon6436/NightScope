@@ -1,6 +1,34 @@
 import SwiftUI
 import Combine
 
+enum LoadableContentState: Equatable {
+    case loading
+    case empty
+    case content
+}
+
+struct DetailContentStateResolver {
+    func forecastState(hasDisplayNights: Bool, isUpcomingLoading: Bool) -> LoadableContentState {
+        if isUpcomingLoading {
+            return .loading
+        }
+        if !hasDisplayNights {
+            return .empty
+        }
+        return .content
+    }
+
+    func todayState(isCalculating: Bool, summary: NightSummary?) -> LoadableContentState {
+        if isCalculating && summary == nil {
+            return .loading
+        }
+        if summary == nil {
+            return .empty
+        }
+        return .content
+    }
+}
+
 @MainActor
 final class DetailViewModel: ObservableObject {
     @Published private(set) var nightSummary: NightSummary?

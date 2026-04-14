@@ -34,6 +34,7 @@ final class AppController: ObservableObject {
     private var locationTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
     private var isApplyingLocationRefresh = false
+    private var hasStarted = false
 
     // MARK: - Init
     init(locationController: LocationController? = nil,
@@ -60,6 +61,8 @@ final class AppController: ObservableObject {
 
     // MARK: - Public Methods
     func onStart() {
+        guard !hasStarted else { return }
+        hasStarted = true
         recalculate()
         recalculateUpcoming()
         refreshExternalDataInBackground()
@@ -134,7 +137,8 @@ final class AppController: ObservableObject {
             nightSummary: summary,
             weatherByDate: weatherService.weatherByDate,
             bortleClass: lightPollutionService.bortleClass,
-            selectedDate: selectedDate
+            selectedDate: selectedDate,
+            timeZone: selectedTimeZone
         )
     }
 
@@ -142,7 +146,8 @@ final class AppController: ObservableObject {
         upcomingIndexes = makeUpcomingIndexes(
             upcomingNights: upcomingNights,
             weatherByDate: weatherService.weatherByDate,
-            bortleClass: lightPollutionService.bortleClass
+            bortleClass: lightPollutionService.bortleClass,
+            timeZone: selectedTimeZone
         )
     }
 
@@ -218,12 +223,14 @@ final class AppController: ObservableObject {
             nightSummary: summary,
             weatherByDate: weatherResult.weatherByDate,
             bortleClass: lightPollutionResult.bortleClass,
-            selectedDate: selectedDate
+            selectedDate: selectedDate,
+            timeZone: timeZone
         )
         let upcomingIndexes = makeUpcomingIndexes(
             upcomingNights: upcoming,
             weatherByDate: weatherResult.weatherByDate,
-            bortleClass: lightPollutionResult.bortleClass
+            bortleClass: lightPollutionResult.bortleClass,
+            timeZone: timeZone
         )
 
         applyLocationRefresh(
@@ -249,6 +256,14 @@ final class AppController: ObservableObject {
     private func setupObservers() {
         locationController.$locationUpdateID
             .dropFirst()
+            .sink { [weak self] _ in
+                self?.scheduleLocationChangeHandling()
+            }
+            .store(in: &cancellables)
+
+        locationController.selectedTimeZonePublisher
+            .dropFirst()
+            .removeDuplicates { $0.identifier == $1.identifier }
             .sink { [weak self] _ in
                 self?.scheduleLocationChangeHandling()
             }
@@ -293,13 +308,18 @@ final class AppController: ObservableObject {
         upcomingTask = nil
     }
 
-    private func makeStarGazingIndex(
+    func makeStarGazingIndex(
         nightSummary: NightSummary,
         weatherByDate: [String: DayWeatherSummary],
         bortleClass: Double?,
-        selectedDate: Date
+        selectedDate: Date,
+        timeZone: TimeZone
     ) -> StarGazingIndex {
-        let weather = weatherService.summary(for: selectedDate)
+        let weather = weatherService.summary(
+            for: selectedDate,
+            from: weatherByDate,
+            timeZone: timeZone
+        )
         return StarGazingIndex.compute(
             nightSummary: nightSummary,
             weather: weather,
@@ -307,16 +327,22 @@ final class AppController: ObservableObject {
         )
     }
 
-    private func makeUpcomingIndexes(
+    func makeUpcomingIndexes(
         upcomingNights: [NightSummary],
         weatherByDate: [String: DayWeatherSummary],
-        bortleClass: Double?
+        bortleClass: Double?,
+        timeZone: TimeZone
     ) -> [Date: StarGazingIndex] {
         var indexes: [Date: StarGazingIndex] = [:]
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         for night in upcomingNights {
-            let weather = weatherService.summary(for: night.date)
+            let weather = weatherService.summary(
+                for: night.date,
+                from: weatherByDate,
+                timeZone: timeZone
+            )
             let idx = StarGazingIndex.compute(nightSummary: night, weather: weather, bortleClass: bortleClass)
-            indexes[Calendar.current.startOfDay(for: night.date)] = idx
+            indexes[calendar.startOfDay(for: night.date)] = idx
         }
         return indexes
     }

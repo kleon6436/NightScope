@@ -82,14 +82,13 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             result(Self.transparentTileData(), nil)
             return
         }
-        let tileService = self.tileService
-        // @unchecked Sendable ラッパーなしで completion を渡すため nonisolated クロージャを使用
-        let resultBox = ResultBox(result)
+        nonisolated(unsafe) let tileService = self.tileService
+        nonisolated(unsafe) let resultHandler = result
         Self.renderQueue.addOperation {
             let data = Self.renderTile(path: path, grid: grid, size: OverlayConfig.tilePixelSize)
             let tileData = data ?? Self.transparentTileData()
             tileService.storeTileData(tileData, for: path)
-            resultBox.call(tileData, nil)
+            resultHandler(tileData, nil)
         }
     }
 

@@ -54,6 +54,20 @@ final class LightPollutionServiceTests: XCTestCase {
         XCTAssertEqual(bortle1, bortle2, "同じ座標では値が変わらないはず")
     }
 
+    func test_prepareForLocationChange_preservesNearbyCachedFetchResult() async {
+        let grid = makeSingleCellGrid(brightness: 0.172)
+        let service = LightPollutionService(gridData: grid)
+
+        await service.fetch(latitude: 35.0, longitude: 139.0)
+        let cachedBortle = service.bortleClass
+
+        service.prepareForLocationChange()
+        let snapshot = await service.fetchSnapshot(latitude: 35.01, longitude: 139.01)
+
+        XCTAssertEqual(snapshot.bortleClass, cachedBortle)
+        XCTAssertFalse(snapshot.fetchFailed)
+    }
+
     func test_renderedTile_returnsImageAndData() {
         guard let grid = makeSingleCellGrid(brightness: 0.172) else {
             XCTFail("グリッドを生成できませんでした")

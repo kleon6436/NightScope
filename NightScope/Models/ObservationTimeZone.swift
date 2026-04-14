@@ -1,31 +1,15 @@
 import Foundation
+import os
 
 enum ObservationTimeZone {
-    private final class Storage: @unchecked Sendable {
-        private let lock = NSLock()
-        private var timeZone = TimeZone.current
-
-        func current() -> TimeZone {
-            lock.lock()
-            defer { lock.unlock() }
-            return timeZone
-        }
-
-        func update(_ timeZone: TimeZone) {
-            lock.lock()
-            self.timeZone = timeZone
-            lock.unlock()
-        }
-    }
-
-    private static let storage = Storage()
+    private static let storage = OSAllocatedUnfairLock(initialState: TimeZone.current)
 
     static var current: TimeZone {
-        storage.current()
+        storage.withLock { $0 }
     }
 
     static func update(_ timeZone: TimeZone) {
-        storage.update(timeZone)
+        storage.withLock { $0 = timeZone }
     }
 
     static func gregorianCalendar(timeZone: TimeZone = ObservationTimeZone.current) -> Calendar {

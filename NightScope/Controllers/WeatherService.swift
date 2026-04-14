@@ -83,7 +83,15 @@ final class WeatherService: ObservableObject, WeatherProviding {
     }
 
     func summary(for date: Date) -> DayWeatherSummary? {
-        weatherByDate[forecastParser.dateKey(date, timeZone: activeTimeZone)]
+        summary(for: date, from: weatherByDate, timeZone: activeTimeZone)
+    }
+
+    func summary(
+        for date: Date,
+        from weatherByDate: [String: DayWeatherSummary],
+        timeZone: TimeZone
+    ) -> DayWeatherSummary? {
+        weatherByDate[forecastParser.dateKey(date, timeZone: timeZone)]
     }
 
     func prepareForLocationChange(latitude: Double, longitude: Double, timeZone: TimeZone) {
@@ -183,6 +191,10 @@ final class WeatherService: ObservableObject, WeatherProviding {
 
     func dateKey(_ date: Date) -> String {
         forecastParser.dateKey(date, timeZone: activeTimeZone)
+    }
+
+    func dateKey(_ date: Date, timeZone: TimeZone) -> String {
+        forecastParser.dateKey(date, timeZone: timeZone)
     }
 
     static func symbolCodeToWMO(_ symbolCode: String?) -> Int {

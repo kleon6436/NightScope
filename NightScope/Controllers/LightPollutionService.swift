@@ -210,25 +210,15 @@ private extension Int {
     }
 }
 
-// MARK: - ResultBox
-
-/// completion handler（非 Sendable な関数型）を @unchecked Sendable でラップする。
-/// バックグラウンドキューから安全に呼び出すために使用する。
-final class ResultBox: @unchecked Sendable {
-    private let handler: (Data?, Error?) -> Void
-    init(_ handler: @escaping (Data?, Error?) -> Void) { self.handler = handler }
-    func call(_ data: Data?, _ error: Error?) { handler(data, error) }
-}
-
 // MARK: - Tile Service
 
 /// 光害タイルの PNG データをメモリキャッシュで管理するサービス層。
-final class LightPollutionTileService: @unchecked Sendable {
+final class LightPollutionTileService {
     private enum TileConfig {
         static let memoryCacheCostLimit = 50 * 1024 * 1024
     }
 
-    static let shared = LightPollutionTileService()
+    nonisolated(unsafe) static let shared = LightPollutionTileService()
 
     private let memoryCache: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()
@@ -276,6 +266,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     var fetchFailedPublisher: Published<Bool>.Publisher { $fetchFailed }
 
     private var lastFetchedCoordinate: (lat: Double, lon: Double)?
+    private var lastFetchResult: FetchResult?
 
     /// バンドルデータ（アプリ起動時に一度だけロード）
     private let gridData: BortleGridData?
@@ -305,13 +296,10 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     func fetchSnapshot(latitude: Double, longitude: Double) async -> FetchResult {
         // 同じ座標（0.05度以内 ≈ 5km）では再取得しない（光害は静的データ）
         if let last = lastFetchedCoordinate,
+           let lastFetchResult,
            abs(last.lat - latitude) <= Constants.cacheRadiusDegrees,
            abs(last.lon - longitude) <= Constants.cacheRadiusDegrees {
-            return FetchResult(
-                bortleClass: bortleClass,
-                fetchFailed: fetchFailed,
-                lastFetchedCoordinate: lastFetchedCoordinate
-            )
+            return lastFetchResult
         }
 
         do {
@@ -334,6 +322,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         bortleClass = result.bortleClass
         fetchFailed = result.fetchFailed
         lastFetchedCoordinate = result.lastFetchedCoordinate
+        lastFetchResult = result
         isLoading = false
     }
 

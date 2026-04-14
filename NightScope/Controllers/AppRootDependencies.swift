@@ -67,6 +67,7 @@ protocol LocationProviding: AnyObject, ObservableObject {
     var locationErrorPublisher: AnyPublisher<LocationController.LocationError?, Never> { get }
     var searchFocusTriggerPublisher: AnyPublisher<Int, Never> { get }
     var currentLocationCenterTriggerPublisher: AnyPublisher<Int, Never> { get }
+    var selectedTimeZonePublisher: AnyPublisher<TimeZone, Never> { get }
 
     func requestCurrentLocation()
     func search(query: String)

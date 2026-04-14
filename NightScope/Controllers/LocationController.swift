@@ -50,6 +50,11 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     var currentLocationCenterTriggerPublisher: AnyPublisher<Int, Never> {
         $currentLocationCenterTrigger.eraseToAnyPublisher()
     }
+    var selectedTimeZonePublisher: AnyPublisher<TimeZone, Never> {
+        $selectedTimeZoneIdentifier
+            .map { TimeZone(identifier: $0) ?? .current }
+            .eraseToAnyPublisher()
+    }
     var selectedTimeZone: TimeZone {
         TimeZone(identifier: selectedTimeZoneIdentifier) ?? .current
     }
@@ -198,9 +203,11 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     func select(_ mapItem: MKMapItem) {
         if isLocating { stopLocating() }
         selectedLocation = mapItem.location.coordinate
-        applySelectedTimeZone(mapItem.placemark.timeZone)
+        if let name = mapItem.name, !name.isEmpty {
+            locationName = name
+        }
         currentLocationCenterTrigger += 1
-        resolveLocationDetails(for: mapItem.location.coordinate)
+        resolveLocationDetails(for: mapItem.location.coordinate, fallbackName: mapItem.name)
     }
 
     /// マップタップなど座標から場所を選択する（センタリングしない）
@@ -208,7 +215,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         if isLocating { stopLocating() }
         clearSearch()
         selectedLocation = coordinate
-        resolveLocationDetails(for: coordinate)
+        resolveLocationDetails(for: coordinate, fallbackName: nil)
     }
 
     // MARK: - Private Helpers
@@ -237,7 +244,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         locationTimeoutTask = nil
     }
 
-    private func resolveLocationDetails(for coordinate: CLLocationCoordinate2D) {
+    private func resolveLocationDetails(for coordinate: CLLocationCoordinate2D, fallbackName: String?) {
         locationNameTask?.cancel()
         locationNameTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -245,17 +252,12 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             guard !Task.isCancelled else { return }
             guard self.selectedLocation.latitude == coordinate.latitude,
                   self.selectedLocation.longitude == coordinate.longitude else { return }
-            self.locationName = details.name
+            self.locationName = details.name.isEmpty ? (fallbackName ?? "現在地") : details.name
             if let timeZoneIdentifier = details.timeZoneIdentifier,
                TimeZone(identifier: timeZoneIdentifier) != nil {
                 self.selectedTimeZoneIdentifier = timeZoneIdentifier
             }
         }
-    }
-
-    private func applySelectedTimeZone(_ timeZone: TimeZone?) {
-        guard let timeZone else { return }
-        selectedTimeZoneIdentifier = timeZone.identifier
     }
 
 }
@@ -264,7 +266,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
 extension LocationController: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.first else { return }
+        guard let location = locations.last else { return }
         manager.stopUpdatingLocation()
         Task { @MainActor in
             self.selectCoordinate(location.coordinate)

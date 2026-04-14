@@ -177,6 +177,73 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(appController.upcomingIndexes[dayKey]?.hasWeatherData, true)
     }
 
+    func test_makeStarGazingIndex_usesProvidedWeatherSnapshotAndTimeZone() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let losAngeles = TimeZone(identifier: "America/Los_Angeles")!
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let selectedDate = utcCalendar.date(from: DateComponents(
+            year: 2024,
+            month: 3,
+            day: 10,
+            hour: 7,
+            minute: 30
+        ))!
+        let night = makeNightSummary(date: selectedDate)
+        let weather = makeWeatherSummary(date: selectedDate)
+        let snapshot = [
+            appController.weatherService.dateKey(selectedDate, timeZone: losAngeles): weather
+        ]
+
+        appController.weatherService.weatherByDate = [:]
+
+        let index = appController.makeStarGazingIndex(
+            nightSummary: night,
+            weatherByDate: snapshot,
+            bortleClass: 4,
+            selectedDate: selectedDate,
+            timeZone: losAngeles
+        )
+
+        XCTAssertTrue(index.hasWeatherData)
+        XCTAssertGreaterThan(index.score, 0)
+        XCTAssertNil(appController.weatherService.summary(for: selectedDate, from: snapshot, timeZone: tokyo))
+    }
+
+    func test_makeUpcomingIndexes_usesProvidedWeatherSnapshotAndTimeZone() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let losAngeles = TimeZone(identifier: "America/Los_Angeles")!
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let baseDate = utcCalendar.date(from: DateComponents(
+            year: 2024,
+            month: 3,
+            day: 10,
+            hour: 7,
+            minute: 30
+        ))!
+        let nextDate = baseDate.addingTimeInterval(86_400)
+        let firstNight = makeNightSummary(date: baseDate)
+        let secondNight = makeNightSummary(date: nextDate)
+        let firstWeather = makeWeatherSummary(date: baseDate)
+        let secondWeather = makeWeatherSummary(date: nextDate)
+        let snapshot = [
+            appController.weatherService.dateKey(baseDate, timeZone: losAngeles): firstWeather,
+            appController.weatherService.dateKey(nextDate, timeZone: losAngeles): secondWeather
+        ]
+
+        let indexes = appController.makeUpcomingIndexes(
+            upcomingNights: [firstNight, secondNight],
+            weatherByDate: snapshot,
+            bortleClass: 4,
+            timeZone: losAngeles
+        )
+
+        XCTAssertEqual(indexes.count, 2)
+        XCTAssertTrue(indexes.values.allSatisfy(\.hasWeatherData))
+    }
+
     func test_prepareForLocationChange_clearsDisplayedStateBeforeRefreshCompletes() {
         let baseDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate

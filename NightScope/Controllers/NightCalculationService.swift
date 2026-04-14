@@ -18,7 +18,7 @@ protocol NightCalculating: Sendable {
 /// 天文計算をバックグラウンドで実行するサービス。
 /// MilkyWayCalculator の static 呼び出しをラップし、
 /// AppController がメインスレッドをブロックせずに await できるようにする。
-final class NightCalculationService: NightCalculating, @unchecked Sendable {
+final class NightCalculationService: NightCalculating, Sendable {
     private let summaryCalculator: @Sendable (Date, CLLocationCoordinate2D, TimeZone) -> NightSummary
 
     init(

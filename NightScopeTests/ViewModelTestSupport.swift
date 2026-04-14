@@ -79,8 +79,8 @@ final class MockLocationController: LocationProviding {
     @Published var locationError: LocationController.LocationError?
     @Published var searchFocusTrigger = 0
     @Published var currentLocationCenterTrigger = 0
+    @Published var selectedTimeZone: TimeZone = .current
 
-    var selectedTimeZone: TimeZone = .current
     private(set) var locationUpdateID = UUID()
 
     private(set) var requestCurrentLocationCalled = false
@@ -118,6 +118,10 @@ final class MockLocationController: LocationProviding {
 
     var currentLocationCenterTriggerPublisher: AnyPublisher<Int, Never> {
         $currentLocationCenterTrigger.eraseToAnyPublisher()
+    }
+
+    var selectedTimeZonePublisher: AnyPublisher<TimeZone, Never> {
+        $selectedTimeZone.eraseToAnyPublisher()
     }
 
     func requestCurrentLocation() {

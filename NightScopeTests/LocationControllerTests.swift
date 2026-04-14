@@ -61,15 +61,17 @@ final class LocationControllerTests: XCTestCase {
 
     actor MockLocationNameResolver: LocationNameResolving {
         let resolvedName: String
+        let timeZoneIdentifier: String?
         private var lastCoordinate: CLLocationCoordinate2D?
 
-        init(resolvedName: String) {
+        init(resolvedName: String, timeZoneIdentifier: String? = nil) {
             self.resolvedName = resolvedName
+            self.timeZoneIdentifier = timeZoneIdentifier
         }
 
         func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
             lastCoordinate = coordinate
-            return ResolvedLocationDetails(name: resolvedName, timeZoneIdentifier: nil)
+            return ResolvedLocationDetails(name: resolvedName, timeZoneIdentifier: timeZoneIdentifier)
         }
 
         func getLastCoordinate() -> CLLocationCoordinate2D? {
@@ -329,6 +331,45 @@ final class LocationControllerTests: XCTestCase {
         }
         XCTAssertEqual(storedLatitude, coordinate.latitude, accuracy: 0.000001)
         XCTAssertEqual(storedLongitude, coordinate.longitude, accuracy: 0.000001)
+    }
+
+    func test_LocationController_selectCoordinate_updatesResolvedTimeZone() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(
+            resolvedName: "ロサンゼルス",
+            timeZoneIdentifier: "America/Los_Angeles"
+        )
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "ロサンゼルス"
+                && sut.selectedTimeZone.identifier == "America/Los_Angeles"
+        }
+
+        XCTAssertEqual(storage.timeZoneIdentifier, "America/Los_Angeles")
+    }
+
+    func test_LocationController_didUpdateLocations_usesLatestLocation() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "現在地")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let older = CLLocation(latitude: 35.6580, longitude: 139.7016)
+        let latest = CLLocation(latitude: 35.6762, longitude: 139.6503)
+
+        sut.locationManager(CLLocationManager(), didUpdateLocations: [older, latest])
+
+        await waitUntil {
+            abs(sut.selectedLocation.latitude - latest.coordinate.latitude) < 0.000001
+                && abs(sut.selectedLocation.longitude - latest.coordinate.longitude) < 0.000001
+        }
+
+        XCTAssertEqual(sut.selectedLocation.latitude, latest.coordinate.latitude, accuracy: 0.000001)
+        XCTAssertEqual(sut.selectedLocation.longitude, latest.coordinate.longitude, accuracy: 0.000001)
     }
 
     func test_LocationController_selectCoordinate_latestResolutionWins() async {

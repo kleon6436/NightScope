@@ -2,20 +2,13 @@ import SwiftUI
 
 @MainActor
 struct iOSForecastViewModel {
-    enum DisplayState {
-        case loading
-        case empty
-        case content
-    }
+    private let stateResolver = DetailContentStateResolver()
 
-    func displayState(hasDisplayNights: Bool, isCalculating: Bool) -> DisplayState {
-        if !hasDisplayNights && isCalculating {
-            return .loading
-        }
-        if !hasDisplayNights {
-            return .empty
-        }
-        return .content
+    func displayState(hasDisplayNights: Bool, isUpcomingLoading: Bool) -> LoadableContentState {
+        stateResolver.forecastState(
+            hasDisplayNights: hasDisplayNights,
+            isUpcomingLoading: isUpcomingLoading
+        )
     }
 
     func selectNight(_ date: Date, using gridViewModel: UpcomingNightsGridViewModel, selectedTab: Binding<Int>) {
@@ -36,10 +29,10 @@ struct iOSForecastView: View {
         self._gridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: detailViewModel))
     }
 
-    private var displayState: iOSForecastViewModel.DisplayState {
+    private var displayState: LoadableContentState {
         viewModel.displayState(
             hasDisplayNights: !gridViewModel.displayNights.isEmpty,
-            isCalculating: detailViewModel.isCalculating
+            isUpcomingLoading: detailViewModel.isUpcomingLoading || gridViewModel.isLoading
         )
     }
 

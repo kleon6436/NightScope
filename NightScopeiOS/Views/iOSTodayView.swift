@@ -2,6 +2,8 @@ import SwiftUI
 
 @MainActor
 struct iOSTodayViewModel {
+    private let stateResolver = DetailContentStateResolver()
+
     func locationText(_ rawLocationName: String) -> String {
         rawLocationName.isEmpty ? "場所を選択" : rawLocationName
     }
@@ -10,8 +12,8 @@ struct iOSTodayViewModel {
         selectedDate.formatted(.dateTime.year().month().day().weekday())
     }
 
-    func isInitialLoading(isCalculating: Bool, summary: NightSummary?) -> Bool {
-        isCalculating && summary == nil
+    func contentState(isCalculating: Bool, summary: NightSummary?) -> LoadableContentState {
+        stateResolver.todayState(isCalculating: isCalculating, summary: summary)
     }
 
     func refreshAll(using detailViewModel: DetailViewModel) async {
@@ -40,8 +42,8 @@ struct iOSTodayView: View {
     private var starGazingIndex: StarGazingIndex? { detailViewModel.starGazingIndex }
     private var weather: DayWeatherSummary? { detailViewModel.currentWeather }
 
-    private var isInitialLoading: Bool {
-        viewModel.isInitialLoading(isCalculating: detailViewModel.isCalculating, summary: nightSummary)
+    private var contentState: LoadableContentState {
+        viewModel.contentState(isCalculating: detailViewModel.isCalculating, summary: nightSummary)
     }
 
     var body: some View {
@@ -78,10 +80,49 @@ struct iOSTodayView: View {
 
     @ViewBuilder
     private var contentSection: some View {
-        if isInitialLoading {
+        switch contentState {
+        case .loading:
             loadingPlaceholder
-        } else if let summary = nightSummary {
-            mainContent(summary: summary)
+        case .empty:
+            emptyStateView
+        case .content:
+            if let summary = nightSummary {
+                mainContent(summary: summary)
+            }
+        }
+    }
+
+    private var emptyStateView: some View {
+        ContentUnavailableView(
+            "今夜の観測データがありません",
+            systemImage: "moon.zzz",
+            description: Text("場所や日付を変更して再度お試しください")
+        )
+    }
+
+    @ViewBuilder
+    private func mainContent(summary: NightSummary) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            if let index = starGazingIndex {
+                StarGazingIndexCard(
+                    index: index,
+                    lightPollutionViewModel: lightPollutionViewModel
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            DarkTimeCard(summary: summary, weather: weather)
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
+
+            NightWeatherCard(weather: weather, isLoading: detailViewModel.isWeatherLoading, viewModel: weatherViewModel)
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
+
+            MoonPhaseCard(summary: summary)
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
+
+            MilkyWaySummaryCard(summary: summary)
+                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight, alignment: .top)
+                .padding(.top, Spacing.xs)
         }
     }
 
@@ -121,31 +162,6 @@ struct iOSTodayView: View {
         .redacted(reason: .placeholder)
     }
 
-    @ViewBuilder
-    private func mainContent(summary: NightSummary) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            if let index = starGazingIndex {
-                StarGazingIndexCard(
-                    index: index,
-                    lightPollutionViewModel: lightPollutionViewModel
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            DarkTimeCard(summary: summary, weather: weather)
-                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
-
-            NightWeatherCard(weather: weather, isLoading: detailViewModel.isWeatherLoading, viewModel: weatherViewModel)
-                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
-
-            MoonPhaseCard(summary: summary)
-                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
-
-            MilkyWaySummaryCard(summary: summary)
-                .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight, alignment: .top)
-                .padding(.top, Spacing.xs)
-        }
-    }
 }
 
 #Preview("Today - Loading") {

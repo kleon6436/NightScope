@@ -117,6 +117,26 @@ final class DetailViewModelTests: XCTestCase {
         appController.isUpcomingLoading = true
         XCTAssertTrue(vm.isUpcomingLoading)
     }
+
+    func test_detailContentStateResolver_todayState_returnsEmptyWhenSummaryMissingAfterLoad() {
+        let resolver = DetailContentStateResolver()
+
+        let state = resolver.todayState(isCalculating: false, summary: nil)
+
+        XCTAssertEqual(state, .empty)
+    }
+
+    func test_detailContentStateResolver_forecastState_usesUpcomingLoading() {
+        let resolver = DetailContentStateResolver()
+
+        let loading = resolver.forecastState(hasDisplayNights: false, isUpcomingLoading: true)
+        let empty = resolver.forecastState(hasDisplayNights: false, isUpcomingLoading: false)
+        let content = resolver.forecastState(hasDisplayNights: true, isUpcomingLoading: false)
+
+        XCTAssertEqual(loading, .loading)
+        XCTAssertEqual(empty, .empty)
+        XCTAssertEqual(content, .content)
+    }
 }
 
 @MainActor
