@@ -87,11 +87,6 @@ model: Claude Sonnet 4.6 (copilot)
 - 曖昧な設計図ではなく、実装開始できる粒度まで落とし込む
 - 性能・セキュリティ・運用影響を見落とさない
 
-## NightScope での追加前提
-
-- `.github/copilot-instructions.md` を共通前提とし、UI を含む変更では対象プラットフォームの instructions を参照する。
-- 外部データソース、ターゲット分割、既存 MVVM / MVC の使い分けを踏まえ、不要な抽象化より変更境界の明確化を優先する。
-
 ## カスタマイズ欄
 
 - システム構成: `SwiftUI ベースの macOS / iPhone アプリを含むシングルレポ`

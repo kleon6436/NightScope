@@ -55,34 +55,54 @@ enum StarMapDateLogic {
         )
     }
 
+    static func observationDate(
+        for presentationDate: Date,
+        timeZone: TimeZone,
+        nightStartMinutes: Double
+    ) -> Date {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let startOfDay = calendar.startOfDay(for: presentationDate)
+        let clockMinutes = self.clockMinutes(for: presentationDate, timeZone: timeZone)
+        guard clockMinutes < nightStartMinutes else {
+            return startOfDay
+        }
+        return calendar.date(byAdding: .day, value: -1, to: startOfDay) ?? startOfDay
+    }
+
     static func resolvedPresentationDate(
         for selectedDate: Date,
         referenceDate: Date,
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) -> Date? {
-        guard let candidate = date(byApplyingTimeOf: referenceDate, to: selectedDate, timeZone: timeZone) else {
-            return nil
-        }
-
         guard let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
             date: selectedDate,
             location: location,
             timeZone: timeZone
         ) else {
-            return candidate
+            return date(byApplyingTimeOf: referenceDate, to: selectedDate, timeZone: timeZone)
         }
 
-        let candidateMinutes = clockMinutes(for: candidate, timeZone: timeZone)
+        let referenceMinutes = clockMinutes(for: referenceDate, timeZone: timeZone)
         if isWithinNightRange(
-            candidateMinutes,
+            referenceMinutes,
             eveningMinutes: twilight.eveningMinutes,
             morningMinutes: twilight.morningMinutes
         ) {
-            return candidate
+            return date(
+                bySettingClockMinutes: referenceMinutes,
+                onObservationDate: selectedDate,
+                timeZone: timeZone,
+                nightStartMinutes: twilight.eveningMinutes
+            )
         }
 
-        return date(bySettingClockMinutes: twilight.eveningMinutes, on: selectedDate, timeZone: timeZone)
+        return date(
+            bySettingClockMinutes: twilight.eveningMinutes,
+            onObservationDate: selectedDate,
+            timeZone: timeZone,
+            nightStartMinutes: twilight.eveningMinutes
+        )
     }
 
     static func date(bySettingClockMinutes minutes: Double, on date: Date, timeZone: TimeZone) -> Date? {
@@ -92,6 +112,24 @@ enum StarMapDateLogic {
             minute: normalizedMinutes % 60,
             second: 0,
             of: date
+        )
+    }
+
+    static func date(
+        bySettingClockMinutes minutes: Double,
+        onObservationDate observationDate: Date,
+        timeZone: TimeZone,
+        nightStartMinutes: Double
+    ) -> Date? {
+        let normalizedMinutes = ((Int(minutes.rounded()) % 1_440) + 1_440) % 1_440
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let dayOffset = Double(normalizedMinutes) < nightStartMinutes ? 1 : 0
+        let baseDate = calendar.date(byAdding: .day, value: dayOffset, to: observationDate) ?? observationDate
+        return calendar.date(
+            bySettingHour: normalizedMinutes / 60,
+            minute: normalizedMinutes % 60,
+            second: 0,
+            of: baseDate
         )
     }
 

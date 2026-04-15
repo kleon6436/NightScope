@@ -110,17 +110,29 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var searchResultsList: some View {
-        if !viewModel.isShowingCommittedSelection && !viewModel.searchResults.isEmpty {
+        switch viewModel.searchPresentation {
+        case .hidden, .loading:
+            EmptyView()
+        case .results(let results):
             SidebarSearchResultsList(
-                searchResults: viewModel.searchResults,
+                searchResults: results,
                 highlightedIndex: highlightedIndex,
                 onSelect: confirmSelection
             )
-        } else if viewModel.shouldShowSearchEmptyState(
-            isShowingCommittedSelection: viewModel.isShowingCommittedSelection
-        ) {
-            ContentUnavailableView.search(text: viewModel.searchText)
+        case .empty(let query):
+            ContentUnavailableView.search(text: query)
                 .padding(.vertical, Spacing.xs)
+        case .error(let query, let message):
+            ContentUnavailableView {
+                Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
+            } description: {
+                Text("\"\(query)\" の検索に失敗しました。\(message)")
+            } actions: {
+                Button("再試行") {
+                    viewModel.retrySearch()
+                }
+            }
+            .padding(.vertical, Spacing.xs)
         }
     }
 

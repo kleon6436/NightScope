@@ -79,6 +79,23 @@ final class LocationControllerTests: XCTestCase {
         }
     }
 
+    actor DelayedLocationNameResolver: LocationNameResolving {
+        let details: ResolvedLocationDetails
+        let delayNanoseconds: UInt64
+
+        init(details: ResolvedLocationDetails, delayNanoseconds: UInt64) {
+            self.details = details
+            self.delayNanoseconds = delayNanoseconds
+        }
+
+        func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
+            if delayNanoseconds > 0 {
+                try? await Task.sleep(nanoseconds: delayNanoseconds)
+            }
+            return details
+        }
+    }
+
     actor SequencedLocationNameResolver: LocationNameResolving {
         private let resolvedNames: [String]
         private let delaysInNanoseconds: [UInt64]
@@ -198,7 +215,7 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.searchResults.first?.name, "東京駅")
     }
 
-    func test_LocationController_search_failure_clearsResults() async {
+    func test_LocationController_search_failure_setsFailureState() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .failure(MockLocationSearchError.failed))
         let resolver = MockLocationNameResolver(resolvedName: "東京")
@@ -208,12 +225,14 @@ final class LocationControllerTests: XCTestCase {
         sut.search(query: "invalid")
 
         await waitUntil {
-            sut.isSearching == false
+            sut.searchState.phase == .failure
         }
 
         let lastQuery = await searchService.getLastQuery()
         XCTAssertEqual(lastQuery, "invalid")
         XCTAssertTrue(sut.searchResults.isEmpty)
+        XCTAssertEqual(sut.searchState.query, "invalid")
+        XCTAssertNotNil(sut.searchState.errorMessage)
     }
 
     func test_LocationController_search_trimsWhitespaceAndNewline() async {
@@ -275,6 +294,83 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(queries, ["tokyo"])
     }
 
+    func test_LocationController_search_newQueryImmediatelyClearsPreviousResults() {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "東京")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        sut.searchResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0), name: "Tokyo")]
+
+        sut.search(query: "Osaka")
+
+        XCTAssertTrue(sut.isSearching)
+        XCTAssertTrue(sut.searchResults.isEmpty)
+        XCTAssertEqual(sut.searchState.phase, .loading)
+        XCTAssertEqual(sut.searchState.query, "Osaka")
+    }
+
+    func test_MapItemLocationDetailsExtractor_usesMapItemTimeZone() {
+        let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        let item = makeMapItem(coordinate: coordinate, name: "ロサンゼルス")
+        item.timeZone = TimeZone(identifier: "America/Los_Angeles")
+
+        let details = MapItemLocationDetailsExtractor.details(from: item)
+
+        XCTAssertEqual(details.name, "ロサンゼルス")
+        XCTAssertEqual(details.timeZoneIdentifier, "America/Los_Angeles")
+    }
+
+    func test_LocationController_select_prefersMapItemTimeZoneWhenResolverOmitsTimeZone() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "ロサンゼルス", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+
+        let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        let item = makeMapItem(coordinate: coordinate, name: "Los Angeles")
+        item.timeZone = TimeZone(identifier: "America/Los_Angeles")
+
+        sut.select(item)
+
+        await waitUntil {
+            sut.selectedTimeZone.identifier == "America/Los_Angeles"
+                && sut.locationName == "ロサンゼルス"
+        }
+
+        XCTAssertEqual(storage.timeZoneIdentifier, "America/Los_Angeles")
+    }
+
+    func test_LocationController_select_recommitsWhenResolverCorrectsTimeZone() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = DelayedLocationNameResolver(
+            details: ResolvedLocationDetails(
+                name: "フェニックス",
+                timeZoneIdentifier: "America/Phoenix"
+            ),
+            delayNanoseconds: 80_000_000
+        )
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 33.4484, longitude: -112.0740)
+        let item = makeMapItem(coordinate: coordinate, name: "Phoenix")
+        item.timeZone = TimeZone(identifier: "America/Los_Angeles")
+
+        let initialUpdateID = sut.locationUpdateID
+        sut.select(item)
+        let committedUpdateID = sut.locationUpdateID
+
+        XCTAssertNotEqual(committedUpdateID, initialUpdateID)
+        XCTAssertEqual(sut.selectedTimeZone.identifier, "America/Los_Angeles")
+
+        await waitUntil(timeout: 2.0) {
+            sut.selectedTimeZone.identifier == "America/Phoenix"
+                && sut.locationUpdateID != committedUpdateID
+        }
+
+        XCTAssertEqual(sut.locationName, "フェニックス")
+        XCTAssertEqual(storage.timeZoneIdentifier, "America/Phoenix")
+    }
+
     func test_LocationController_select_updatesCenterTriggerAndResolvedName_andStopsLocating() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))
@@ -297,8 +393,8 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.selectedLocation.latitude, coordinate.latitude, accuracy: 0.000001)
         XCTAssertEqual(sut.selectedLocation.longitude, coordinate.longitude, accuracy: 0.000001)
         XCTAssertEqual(sut.currentLocationCenterTrigger, baseTrigger + 1)
-        XCTAssertTrue(sut.isSearching)
-        XCTAssertEqual(sut.searchResults.count, 1)
+        XCTAssertFalse(sut.isSearching)
+        XCTAssertTrue(sut.searchResults.isEmpty)
         XCTAssertFalse(sut.isLocating)
         guard let resolvedLatitude = await resolver.getLastCoordinate()?.latitude else {
             return XCTFail("resolver に座標が渡されていません")
@@ -333,6 +429,22 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(storedLongitude, coordinate.longitude, accuracy: 0.000001)
     }
 
+    func test_LocationController_selectCoordinate_usesManualSelectionFallbackNameWhenResolverCannotNameLocation() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "選択した地点"
+        }
+
+        XCTAssertEqual(sut.locationName, "選択した地点")
+    }
+
     func test_LocationController_selectCoordinate_updatesResolvedTimeZone() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))
@@ -351,6 +463,84 @@ final class LocationControllerTests: XCTestCase {
         }
 
         XCTAssertEqual(storage.timeZoneIdentifier, "America/Los_Angeles")
+    }
+
+    func test_LocationController_selectCoordinate_commitsLocationUpdateBeforeResolverFinishes() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = DelayedLocationNameResolver(
+            details: ResolvedLocationDetails(
+                name: "ロサンゼルス",
+                timeZoneIdentifier: "America/Los_Angeles"
+            ),
+            delayNanoseconds: 80_000_000
+        )
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+
+        let initialUpdateID = sut.locationUpdateID
+        sut.selectCoordinate(coordinate)
+
+        XCTAssertNotEqual(sut.locationUpdateID, initialUpdateID)
+        XCTAssertEqual(sut.selectedLocation.latitude, coordinate.latitude, accuracy: 0.000001)
+        XCTAssertEqual(sut.selectedLocation.longitude, coordinate.longitude, accuracy: 0.000001)
+
+        await waitUntil(timeout: 2.0) {
+            sut.locationName == "ロサンゼルス"
+                && sut.selectedTimeZone.identifier == "America/Los_Angeles"
+        }
+    }
+
+    func test_LocationController_selectCoordinate_fallsBackToApproximateTimeZone() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "東京", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "東京"
+                && storage.timeZoneIdentifier == sut.selectedTimeZone.identifier
+        }
+
+        XCTAssertEqual(sut.selectedTimeZone.secondsFromGMT(), 9 * 3_600)
+        XCTAssertEqual(storage.timeZoneIdentifier, sut.selectedTimeZone.identifier)
+    }
+
+    func test_LocationController_selectCoordinate_fallsBackToApproximateTimeZoneForAdelaide() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "アデレード", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: -34.9285, longitude: 138.6007)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "アデレード"
+                && storage.timeZoneIdentifier == sut.selectedTimeZone.identifier
+        }
+
+        XCTAssertEqual(sut.selectedTimeZone.identifier, "Australia/Adelaide")
+    }
+
+    func test_LocationController_selectCoordinate_fallsBackToApproximateTimeZoneForKathmandu() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "カトマンズ", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 27.7172, longitude: 85.3240)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "カトマンズ"
+                && storage.timeZoneIdentifier == sut.selectedTimeZone.identifier
+        }
+
+        XCTAssertEqual(sut.selectedTimeZone.identifier, "Asia/Kathmandu")
     }
 
     func test_LocationController_didUpdateLocations_usesLatestLocation() async {

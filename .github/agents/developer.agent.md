@@ -83,11 +83,6 @@ model: Claude Sonnet 4.6 (copilot)
 - 関連箇所の配線漏れを放置しない
 - 意図的な制約や未実装は明示する
 
-## NightScope での追加前提
-
-- `.github/copilot-instructions.md` を共通前提とし、`NightScope/` と `NightScopeTests/` は macOS instructions、`NightScopeiOS/` は iOS instructions を参照する。
-- Swift 実装では `.github/skills/swift-coding-standards/SKILL.md` を優先し、完了条件の検証コマンドは README 記載の `xcodebuild` を基準にする。
-
 ## カスタマイズ欄
 
 - 使用言語: `Swift 6（補助スクリプトは既存 Python を利用可）`

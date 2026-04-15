@@ -16,6 +16,14 @@ final class SidebarViewModel: ObservableObject {
         case clear
     }
 
+    enum SearchPresentation {
+        case hidden
+        case loading
+        case results([MKMapItem])
+        case empty(String)
+        case error(query: String, message: String)
+    }
+
     private enum PendingLocationUpdateBehavior {
         case preserveCommittedSelection(String)
         case clearSearch
@@ -29,9 +37,8 @@ final class SidebarViewModel: ObservableObject {
     @Published var viewport = ViewportBox()
     @Published var searchText = ""
     @Published private(set) var isShowingCommittedSelection = false
-    @Published private(set) var isSearching: Bool
+    @Published private(set) var searchState: LocationSearchState
     @Published private(set) var isLocating: Bool
-    @Published private(set) var searchResults: [MKMapItem]
     @Published private(set) var locationError: LocationController.LocationError?
     @Published private(set) var selectedCoordinate: CLLocationCoordinate2D
     @Published private(set) var selectedLocationName: String
@@ -47,12 +54,39 @@ final class SidebarViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var pendingLocationUpdateBehavior: PendingLocationUpdateBehavior?
 
+    var isSearching: Bool {
+        searchState.isSearching
+    }
+
+    var searchResults: [MKMapItem] {
+        searchState.results
+    }
+
+    var searchPresentation: SearchPresentation {
+        guard !isShowingCommittedSelection else { return .hidden }
+
+        switch searchState.phase {
+        case .idle:
+            return .hidden
+        case .loading:
+            return .loading
+        case .results:
+            return searchState.results.isEmpty ? .hidden : .results(searchState.results)
+        case .empty:
+            return .empty(searchState.query)
+        case .failure:
+            return .error(
+                query: searchState.query,
+                message: searchState.errorMessage ?? "場所を検索できませんでした。"
+            )
+        }
+    }
+
     init(locationController: some LocationProviding, lightPollutionService: some LightPollutionProviding) {
         self.locationController = locationController
         self.lightPollutionService = lightPollutionService
-        self.isSearching = locationController.isSearching
+        self.searchState = locationController.searchState
         self.isLocating = locationController.isLocating
-        self.searchResults = locationController.searchResults
         self.locationError = locationController.locationError
         self.selectedCoordinate = locationController.selectedLocation
         self.selectedLocationName = locationController.locationName
@@ -63,14 +97,9 @@ final class SidebarViewModel: ObservableObject {
         self.hasLightPollutionFetchFailed = lightPollutionService.fetchFailed
         self.selectedTimeZone = locationController.selectedTimeZone
 
-        locationController.searchResultsPublisher
+        locationController.searchStatePublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.searchResults = $0 }
-            .store(in: &cancellables)
-
-        locationController.isSearchingPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.isSearching = $0 }
+            .sink { [weak self] in self?.searchState = $0 }
             .store(in: &cancellables)
 
         locationController.isLocatingPublisher
@@ -153,7 +182,6 @@ final class SidebarViewModel: ObservableObject {
             for: searchTextBehavior,
             selectedLocationName: locationName
         )
-        locationController.clearSearch()
         locationController.select(item)
     }
 
@@ -194,16 +222,11 @@ final class SidebarViewModel: ObservableObject {
         }
     }
 
-    func shouldShowSearchEmptyState(
-        for searchText: String? = nil,
-        isShowingCommittedSelection: Bool? = nil
-    ) -> Bool {
-        SidebarSearchInteraction.shouldShowEmptyState(
-            searchText: searchText ?? self.searchText,
-            isSearching: isSearching,
-            hasResults: !searchResults.isEmpty,
-            isShowingCommittedSelection: isShowingCommittedSelection ?? self.isShowingCommittedSelection
-        )
+    func retrySearch() {
+        let normalizedQuery = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedQuery.isEmpty else { return }
+        isShowingCommittedSelection = false
+        locationController.search(query: normalizedQuery)
     }
 
     private func applyPendingLocationUpdateBehavior() {
@@ -271,15 +294,4 @@ enum SidebarSearchInteraction {
         max(current - 1, noSelectionIndex)
     }
 
-    static func shouldShowEmptyState(
-        searchText: String,
-        isSearching: Bool,
-        hasResults: Bool,
-        isShowingCommittedSelection: Bool
-    ) -> Bool {
-        !isShowingCommittedSelection
-            && !hasResults
-            && !isSearching
-            && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
 }

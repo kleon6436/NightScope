@@ -65,34 +65,17 @@ struct MapKitViewRepresentable: NSViewRepresentable {
 
     func updateNSView(_ nsView: MKMapView, context: Context) {
         context.coordinator.parent = self
-        MapKitViewSharedLogic.updateLightPollutionOverlayAlpha(on: nsView, targetAlpha: overlayAlpha)
-
-        let existing = MapKitViewSharedLogic.currentPinAnnotation(in: nsView)
-
-        guard let newCoord = pinCoordinate else {
-            MapKitViewSharedLogic.removeAnnotationsIfNeeded(from: nsView, existing: existing)
-            return
-        }
-
-        if let syncRegion = context.coordinator.state.syncedRegion(
-            existing: existing,
-            coordinate: newCoord,
-            syncState: syncState
-        ) {
-            MapKitViewSharedLogic.upsertPinAnnotation(on: nsView, existing: existing, coordinate: newCoord)
-            context.coordinator.state.scheduleRegionChange(on: nsView, region: syncRegion, animated: false)
-            return
-        }
-
-        MapKitViewSharedLogic.upsertPinAnnotation(on: nsView, existing: existing, coordinate: newCoord)
-        if let centeredRegion = context.coordinator.state.centeredRegion(
-            coordinate: newCoord,
-            centerTrigger: centerTrigger
-        ) {
-            context.coordinator.state.scheduleRegionChange(on: nsView, region: centeredRegion, animated: true)
-        }
-        MapKitViewSharedLogic.updateViewingDirectionOverlay(
-            on: nsView, pinCoordinate: pinCoordinate, viewingDirection: viewingDirection)
+        MapKitViewSharedLogic.applyMapUpdate(
+            on: nsView,
+            state: context.coordinator.state,
+            configuration: .init(
+                pinCoordinate: pinCoordinate,
+                syncState: syncState,
+                centerTrigger: centerTrigger,
+                overlayAlpha: overlayAlpha,
+                viewingDirection: viewingDirection
+            )
+        )
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }

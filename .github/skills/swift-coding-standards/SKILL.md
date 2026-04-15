@@ -225,28 +225,3 @@ func loadData() async throws {
 ```
 
 ---
-
-## 10. NightScope 固有ルール
-
-- **天文計算は `MilkyWayCalculator` `enum` に集中させる。**  
-  月相・銀河中心高度・ユリウス日などの計算ロジックを他のファイルに散在させない。
-
-- **外部 API 呼び出しは Service クラスに限定する。**  
-  `WeatherService`（MET Norway Locationforecast 2.0）のみが外部ネットワークリクエストを発行する。`LightPollutionService`・`TerrainService` はバンドルデータを参照するためネットワーク不要。View や ViewModel から直接 URL リクエストを行わない。
-
-- **星空指数スコア計算は `StarGazingIndex.swift` に集中させる。**  
-  スコア算出ロジック（星座条件・気象・光害の加重合算）を他のファイルに記述しない。
-
-- **`AppController` は常に `@MainActor` を維持する。**  
-  UI 更新はメインスレッドで行い、重い計算は `NightCalculationService` 経由で `Task.detached` にオフロードする。
-
-- **バックグラウンド計算は `NightCalculationService` 経由で行う。**  
-  `Task.detached(priority: .userInitiated)` で実行し、結果を `@MainActor` でメインスレッドに戻す。
-
-```swift
-// ✅ Good — 計算をバックグラウンドにオフロードし、結果をメインスレッドで受け取る
-let summary = await Task.detached(priority: .userInitiated) {
-    MilkyWayCalculator.calculateNightSummary(for: date, location: location)
-}.value
-await MainActor.run { self.nightSummary = summary }
-```

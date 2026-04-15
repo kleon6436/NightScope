@@ -53,6 +53,7 @@ protocol LocationProviding: AnyObject, ObservableObject {
     var selectedTimeZone: TimeZone { get }
     var locationName: String { get set }
     var locationUpdateID: UUID { get }
+    var searchState: LocationSearchState { get set }
     var searchResults: [MKMapItem] { get set }
     var isSearching: Bool { get set }
     var isLocating: Bool { get set }
@@ -61,6 +62,7 @@ protocol LocationProviding: AnyObject, ObservableObject {
     var currentLocationCenterTrigger: Int { get set }
     var selectedLocationPublisher: AnyPublisher<CLLocationCoordinate2D, Never> { get }
     var locationNamePublisher: AnyPublisher<String, Never> { get }
+    var searchStatePublisher: AnyPublisher<LocationSearchState, Never> { get }
     var searchResultsPublisher: AnyPublisher<[MKMapItem], Never> { get }
     var isSearchingPublisher: AnyPublisher<Bool, Never> { get }
     var isLocatingPublisher: AnyPublisher<Bool, Never> { get }

@@ -15,9 +15,121 @@ struct MKLocationSearchService: LocationSearchServicing {
     }
 }
 
+struct LocationSearchState {
+    enum Phase: Equatable {
+        case idle
+        case loading
+        case results
+        case empty
+        case failure
+    }
+
+    let phase: Phase
+    let query: String
+    let results: [MKMapItem]
+    let errorMessage: String?
+
+    static var idle: LocationSearchState {
+        LocationSearchState(phase: .idle, query: "", results: [], errorMessage: nil)
+    }
+
+    static func loading(query: String) -> LocationSearchState {
+        LocationSearchState(phase: .loading, query: query, results: [], errorMessage: nil)
+    }
+
+    static func results(query: String, items: [MKMapItem]) -> LocationSearchState {
+        LocationSearchState(phase: .results, query: query, results: items, errorMessage: nil)
+    }
+
+    static func empty(query: String) -> LocationSearchState {
+        LocationSearchState(phase: .empty, query: query, results: [], errorMessage: nil)
+    }
+
+    static func failure(query: String, errorMessage: String) -> LocationSearchState {
+        LocationSearchState(phase: .failure, query: query, results: [], errorMessage: errorMessage)
+    }
+
+    var isSearching: Bool {
+        phase == .loading
+    }
+}
+
 struct ResolvedLocationDetails: Sendable, Equatable {
     let name: String
     let timeZoneIdentifier: String?
+
+    var hasResolvedTimeZone: Bool {
+        validTimeZoneIdentifier != nil
+    }
+
+    func merged(with fallback: ResolvedLocationDetails) -> ResolvedLocationDetails {
+        ResolvedLocationDetails(
+            name: preferredName ?? fallback.preferredName ?? "現在地",
+            timeZoneIdentifier: validTimeZoneIdentifier ?? fallback.validTimeZoneIdentifier
+        )
+    }
+
+    private var preferredName: String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private var validTimeZoneIdentifier: String? {
+        guard let timeZoneIdentifier,
+              TimeZone(identifier: timeZoneIdentifier) != nil else {
+            return nil
+        }
+        return timeZoneIdentifier
+    }
+}
+
+enum MapItemLocationDetailsExtractor {
+    static func details(from item: MKMapItem) -> ResolvedLocationDetails {
+        let timeZoneIdentifier = item.timeZone?.identifier
+
+        if let repr = item.addressRepresentations,
+           let city = repr.cityWithContext,
+           !city.isEmpty {
+            return ResolvedLocationDetails(name: city, timeZoneIdentifier: timeZoneIdentifier)
+        }
+
+        if let address = item.address {
+            let text = address.shortAddress ?? address.fullAddress
+            if !text.isEmpty {
+                return ResolvedLocationDetails(name: text, timeZoneIdentifier: timeZoneIdentifier)
+            }
+        }
+
+        return ResolvedLocationDetails(
+            name: item.name ?? "現在地",
+            timeZoneIdentifier: timeZoneIdentifier
+        )
+    }
+}
+
+enum PlacemarkLocationDetailsExtractor {
+    static func details(from placemark: CLPlacemark) -> ResolvedLocationDetails {
+        if let locality = placemark.locality?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !locality.isEmpty {
+            return ResolvedLocationDetails(
+                name: locality,
+                timeZoneIdentifier: placemark.timeZone?.identifier
+            )
+        }
+
+        if let name = placemark.name?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !name.isEmpty {
+            return ResolvedLocationDetails(
+                name: name,
+                timeZoneIdentifier: placemark.timeZone?.identifier
+            )
+        }
+
+        return ResolvedLocationDetails(
+            name: "現在地",
+            timeZoneIdentifier: placemark.timeZone?.identifier
+        )
+    }
 }
 
 protocol LocationNameResolving: Sendable {
@@ -27,6 +139,16 @@ protocol LocationNameResolving: Sendable {
 struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
     func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let mapItemDetails = await resolveMapItemDetails(for: location)
+        guard !mapItemDetails.hasResolvedTimeZone else {
+            return mapItemDetails
+        }
+
+        let placemarkDetails = await resolvePlacemarkDetails(for: location)
+        return mapItemDetails.merged(with: placemarkDetails)
+    }
+
+    private func resolveMapItemDetails(for location: CLLocation) async -> ResolvedLocationDetails {
         guard let request = MKReverseGeocodingRequest(location: location) else {
             return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
         }
@@ -37,23 +159,20 @@ struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
             return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
         }
 
-        if let repr = item.addressRepresentations,
-           let city = repr.cityWithContext,
-           !city.isEmpty {
-            return ResolvedLocationDetails(name: city, timeZoneIdentifier: nil)
-        }
+        return MapItemLocationDetailsExtractor.details(from: item)
+    }
 
-        if let address = item.address {
-            let text = address.shortAddress ?? address.fullAddress
-            if !text.isEmpty {
-                return ResolvedLocationDetails(name: text, timeZoneIdentifier: nil)
-            }
-        }
-
-        return ResolvedLocationDetails(
-            name: item.name ?? "現在地",
-            timeZoneIdentifier: nil
+    private func resolvePlacemarkDetails(for location: CLLocation) async -> ResolvedLocationDetails {
+        let geocoder = CLGeocoder()
+        let placemarks = try? await geocoder.reverseGeocodeLocation(
+            location,
+            preferredLocale: Locale(identifier: "ja_JP")
         )
+        guard let placemark = placemarks?.first else {
+            return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
+        }
+
+        return PlacemarkLocationDetailsExtractor.details(from: placemark)
     }
 }
 

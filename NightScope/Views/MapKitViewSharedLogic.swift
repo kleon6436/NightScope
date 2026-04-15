@@ -12,6 +12,14 @@ enum MapKitViewSharedLogic {
         static let currentLocationLongitudeDelta: CLLocationDegrees = 0.5
     }
 
+    struct UpdateConfiguration {
+        let pinCoordinate: CLLocationCoordinate2D?
+        let syncState: MapKitSyncState
+        let centerTrigger: Int
+        let overlayAlpha: CGFloat
+        let viewingDirection: ViewingDirection?
+    }
+
     static var minCenterCoordinateDistance: CLLocationDistance {
         Config.minCenterCoordinateDistance
     }
@@ -67,9 +75,51 @@ enum MapKitViewSharedLogic {
         mapView.addAnnotation(annotation)
     }
 
+    static func applyMapUpdate(
+        on mapView: MKMapView,
+        state: MapKitCoordinatorState,
+        configuration: UpdateConfiguration
+    ) {
+        updateLightPollutionOverlayAlpha(on: mapView, targetAlpha: configuration.overlayAlpha)
+
+        let existing = currentPinAnnotation(in: mapView)
+
+        guard let pinCoordinate = configuration.pinCoordinate else {
+            removeAnnotationsIfNeeded(from: mapView, existing: existing)
+            updateViewingDirectionOverlay(
+                on: mapView,
+                pinCoordinate: nil,
+                viewingDirection: configuration.viewingDirection
+            )
+            return
+        }
+
+        if let syncRegion = state.syncedRegion(syncState: configuration.syncState) {
+            upsertPinAnnotation(on: mapView, existing: existing, coordinate: pinCoordinate)
+            state.scheduleRegionChange(on: mapView, region: syncRegion, animated: false)
+            updateViewingDirectionOverlay(
+                on: mapView,
+                pinCoordinate: pinCoordinate,
+                viewingDirection: configuration.viewingDirection
+            )
+            return
+        }
+
+        upsertPinAnnotation(on: mapView, existing: existing, coordinate: pinCoordinate)
+        if let centeredRegion = state.centeredRegion(
+            coordinate: pinCoordinate,
+            centerTrigger: configuration.centerTrigger
+        ) {
+            state.scheduleRegionChange(on: mapView, region: centeredRegion, animated: true)
+        }
+        updateViewingDirectionOverlay(
+            on: mapView,
+            pinCoordinate: pinCoordinate,
+            viewingDirection: configuration.viewingDirection
+        )
+    }
+
     static func applyViewportSyncIfNeeded(
-        existing: MKPointAnnotation?,
-        coordinate: CLLocationCoordinate2D,
         syncState: MapKitSyncState,
         lastSyncTrigger: inout Int
     ) -> MKCoordinateRegion? {
@@ -177,13 +227,9 @@ final class MapKitCoordinatorState {
     }
 
     func syncedRegion(
-        existing: MKPointAnnotation?,
-        coordinate: CLLocationCoordinate2D,
         syncState: MapKitSyncState
     ) -> MKCoordinateRegion? {
         MapKitViewSharedLogic.applyViewportSyncIfNeeded(
-            existing: existing,
-            coordinate: coordinate,
             syncState: syncState,
             lastSyncTrigger: &lastSyncTrigger
         )

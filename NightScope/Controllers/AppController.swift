@@ -14,7 +14,19 @@ final class AppController: ObservableObject {
         var isUpcomingLoading = false
     }
 
-    private struct LocationRefreshPayload {
+    struct LocationRefreshRequest {
+        let selectedDate: Date
+        let coordinate: CLLocationCoordinate2D
+        let timeZoneIdentifier: String
+    }
+
+    enum LocationRefreshDisposition: Equatable {
+        case discard
+        case applyAll
+        case applyLocationDataOnly
+    }
+
+    struct LocationRefreshPayload {
         let nightSummary: NightSummary
         let upcomingNights: [NightSummary]
         let weatherResult: WeatherService.FetchResult
@@ -60,6 +72,7 @@ final class AppController: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private var isApplyingLocationRefresh = false
     private var hasStarted = false
+    private var lastObservedTimeZone: TimeZone
 
     // MARK: - Init
     init(locationController: LocationController? = nil,
@@ -70,6 +83,7 @@ final class AppController: ObservableObject {
         self.weatherService = weatherService ?? WeatherService()
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
         self.calculationService = calculationService ?? NightCalculationService()
+        self.lastObservedTimeZone = self.locationController.selectedTimeZone
         publishObservationState()
         setupObservers()
         // 星カタログ（JSON 693KB）と色テーブルをバックグラウンドでプリウォーム。
@@ -124,6 +138,10 @@ final class AppController: ObservableObject {
         let date = selectedDate
         let location = selectedCoordinate
         let timeZone = selectedTimeZone
+        if !hasNightSummary(matching: date, location: location, timeZone: timeZone) {
+            nightSummary = nil
+            starGazingIndex = nil
+        }
         calculationTask = Task {
             let summary = await calculationService.calculateNightSummary(
                 date: date,
@@ -226,10 +244,22 @@ final class AppController: ObservableObject {
     }
 
     private func handleLocationChanged() async {
+        let timeZone = selectedTimeZone
+        let normalizedDate = ObservationTimeZone.preservingCalendarDay(
+            selectedDate,
+            from: lastObservedTimeZone,
+            to: timeZone
+        )
+        lastObservedTimeZone = timeZone
+        selectedDate = ObservationTimeZone.startOfDay(for: normalizedDate, timeZone: timeZone)
         prepareForLocationChange()
         let coordinate = selectedCoordinate
         let selectedDate = self.selectedDate
-        let timeZone = selectedTimeZone
+        let request = LocationRefreshRequest(
+            selectedDate: selectedDate,
+            coordinate: coordinate,
+            timeZoneIdentifier: timeZone.identifier
+        )
 
         async let summaryTask = calculationService.calculateNightSummary(
             date: selectedDate,
@@ -270,6 +300,8 @@ final class AppController: ObservableObject {
             bortleClass: lightPollutionResult.bortleClass,
             timeZone: timeZone
         )
+        let disposition = locationRefreshDisposition(for: request)
+        guard disposition != .discard else { return }
 
         applyLocationRefresh(
             LocationRefreshPayload(
@@ -279,7 +311,8 @@ final class AppController: ObservableObject {
                 lightPollutionResult: lightPollutionResult,
                 starGazingIndex: starGazingIndex,
                 upcomingIndexes: upcomingIndexes
-            )
+            ),
+            disposition: disposition
         )
     }
 
@@ -303,7 +336,7 @@ final class AppController: ObservableObject {
             .dropFirst()
             .removeDuplicates { $0.identifier == $1.identifier }
             .sink { [weak self] _ in
-                self?.scheduleLocationChangeHandling()
+                self?.handleSelectedTimeZoneChanged()
             }
             .store(in: &cancellables)
 
@@ -326,17 +359,61 @@ final class AppController: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func applyLocationRefresh(_ payload: LocationRefreshPayload) {
+    func locationRefreshDisposition(for request: LocationRefreshRequest) -> LocationRefreshDisposition {
+        guard Self.coordinatesEqual(selectedCoordinate, request.coordinate),
+              selectedTimeZone.identifier == request.timeZoneIdentifier else {
+            return .discard
+        }
+
+        if selectedDate != request.selectedDate {
+            return .applyLocationDataOnly
+        }
+
+        return .applyAll
+    }
+
+    func applyLocationRefresh(
+        _ payload: LocationRefreshPayload,
+        disposition: LocationRefreshDisposition
+    ) {
         isApplyingLocationRefresh = true
         weatherService.applyFetchResult(payload.weatherResult)
         lightPollutionService.applyFetchResult(payload.lightPollutionResult)
-        nightSummary = payload.nightSummary
         upcomingNights = payload.upcomingNights
-        starGazingIndex = payload.starGazingIndex
         upcomingIndexes = payload.upcomingIndexes
         isApplyingLocationRefresh = false
-        isCalculating = false
         isUpcomingLoading = false
+
+        switch disposition {
+        case .discard:
+            return
+        case .applyAll:
+            nightSummary = payload.nightSummary
+            starGazingIndex = payload.starGazingIndex
+            isCalculating = false
+        case .applyLocationDataOnly:
+            if hasCurrentNightSummaryForSelection() {
+                recomputeStarGazingIndex()
+                isCalculating = false
+            } else {
+                isCalculating = false
+                recalculateCurrentNightIfNeeded()
+            }
+        }
+    }
+
+    private func handleSelectedTimeZoneChanged() {
+        let newTimeZone = selectedTimeZone
+        let previousTimeZone = lastObservedTimeZone
+        lastObservedTimeZone = newTimeZone
+
+        let normalizedDate = ObservationTimeZone.preservingCalendarDay(
+            selectedDate,
+            from: previousTimeZone,
+            to: newTimeZone
+        )
+        guard normalizedDate != selectedDate else { return }
+        selectedDate = normalizedDate
     }
 
     private func cancelActiveCalculationTasks() {
@@ -383,5 +460,33 @@ final class AppController: ObservableObject {
             indexes[calendar.startOfDay(for: night.date)] = idx
         }
         return indexes
+    }
+
+    private func hasCurrentNightSummaryForSelection() -> Bool {
+        hasNightSummary(matching: selectedDate, location: selectedCoordinate, timeZone: selectedTimeZone)
+    }
+
+    private func hasNightSummary(
+        matching date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> Bool {
+        guard let nightSummary else { return false }
+        return nightSummary.date == date
+            && Self.coordinatesEqual(nightSummary.location, location)
+            && nightSummary.timeZoneIdentifier == timeZone.identifier
+    }
+
+    private func recalculateCurrentNightIfNeeded() {
+        guard !isCalculating else { return }
+        guard !hasCurrentNightSummaryForSelection() else { return }
+        recalculate()
+    }
+
+    private static func coordinatesEqual(
+        _ lhs: CLLocationCoordinate2D,
+        _ rhs: CLLocationCoordinate2D
+    ) -> Bool {
+        lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
     }
 }

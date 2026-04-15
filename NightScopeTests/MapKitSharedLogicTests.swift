@@ -15,8 +15,6 @@ final class MapKitSharedLogicTests: XCTestCase {
         var lastSyncTrigger = 0
 
         let region = MapKitViewSharedLogic.applyViewportSyncIfNeeded(
-            existing: nil,
-            coordinate: coordinate,
             syncState: syncState,
             lastSyncTrigger: &lastSyncTrigger
         )
@@ -70,7 +68,7 @@ final class MapKitSharedLogicTests: XCTestCase {
         )
         let state = MapKitCoordinatorState(syncTrigger: 0, centerTrigger: 0)
 
-        let syncedRegion = state.syncedRegion(existing: nil, coordinate: coordinate, syncState: syncState)
+        let syncedRegion = state.syncedRegion(syncState: syncState)
         let centeredRegion = state.centeredRegion(coordinate: coordinate, centerTrigger: 1)
 
         XCTAssertEqual(syncedRegion?.span.latitudeDelta ?? -1, 0.4, accuracy: 0.000001)

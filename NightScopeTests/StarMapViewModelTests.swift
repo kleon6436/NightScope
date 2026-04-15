@@ -1,9 +1,75 @@
 import XCTest
 import Combine
+import CoreLocation
+import MapKit
 @testable import NightScope
 
 @MainActor
 final class StarMapViewModelTests: XCTestCase {
+    final class InMemoryLocationStorage: LocationStorage {
+        var latitude: Double?
+        var longitude: Double?
+        var name: String?
+        var timeZoneIdentifier: String?
+    }
+
+    struct NoopLocationSearchService: LocationSearchServicing {
+        func search(query: String) async throws -> [MKMapItem] {
+            []
+        }
+    }
+
+    actor FixedLocationNameResolver: LocationNameResolving {
+        let resolvedName: String
+        let timeZoneIdentifier: String?
+
+        init(resolvedName: String, timeZoneIdentifier: String?) {
+            self.resolvedName = resolvedName
+            self.timeZoneIdentifier = timeZoneIdentifier
+        }
+
+        func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
+            ResolvedLocationDetails(name: resolvedName, timeZoneIdentifier: timeZoneIdentifier)
+        }
+    }
+
+    private func waitUntil(
+        timeout: TimeInterval = 1.0,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        condition: @escaping @MainActor () -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("条件を満たすまでにタイムアウトしました", file: file, line: line)
+    }
+
+    private func makeTokyoAppController() -> AppController {
+        let storage = InMemoryLocationStorage()
+        storage.latitude = 35.6762
+        storage.longitude = 139.6503
+        storage.name = "東京"
+        storage.timeZoneIdentifier = "Asia/Tokyo"
+
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                resolvedName: "東京",
+                timeZoneIdentifier: "Asia/Tokyo"
+            )
+        )
+
+        return AppController(
+            locationController: locationController,
+            calculationService: MockNightCalculationService()
+        )
+    }
 
     func test_StarMapPresentation_azimuthName_normalizesDegrees() {
         XCTAssertEqual(StarMapPresentation.azimuthName(for: -1), "北")
@@ -202,6 +268,7 @@ final class StarMapViewModelTests: XCTestCase {
             hour: 21,
             minute: 15
         ))!
+        appController.selectedDate = baseDate
         viewModel.displayDate = baseDate
 
         let sliderOffset = min(120.0, viewModel.nightDurationMinutes)
@@ -232,6 +299,7 @@ final class StarMapViewModelTests: XCTestCase {
             hour: 20,
             minute: 0
         ))!
+        appController.selectedDate = baseDate
         viewModel.displayDate = baseDate
 
         viewModel.beginTimeSliderInteraction()
@@ -257,7 +325,7 @@ final class StarMapViewModelTests: XCTestCase {
     }
 
     func test_StarMapViewModel_syncWithSelectedDate_snapsDaytimeToSelectedEvening() throws {
-        let appController = AppController(calculationService: MockNightCalculationService())
+        let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
         let calendar = Calendar.current
         let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
@@ -292,7 +360,7 @@ final class StarMapViewModelTests: XCTestCase {
     }
 
     func test_StarMapViewModel_syncWithSelectedDate_keepsCurrentTimeDuringNight() {
-        let appController = AppController(calculationService: MockNightCalculationService())
+        let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
         let calendar = Calendar.current
         let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
@@ -321,6 +389,214 @@ final class StarMapViewModelTests: XCTestCase {
         if expectedOffset < 0 { expectedOffset += 1_440 }
         expectedOffset = max(0, min(viewModel.nightDurationMinutes, expectedOffset))
         XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_syncWithSelectedDate_movesAfterMidnightIntoNextDay() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 2,
+            minute: 7
+        ))!
+
+        appController.selectedDate = selectedDate
+        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 13)
+        XCTAssertEqual(components.hour, 2)
+        XCTAssertEqual(components.minute, 7)
+    }
+
+    func test_StarMapViewModel_setTimeSliderMinutes_keepsObservationNightAcrossMidnight() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = Calendar.current
+        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 2,
+            minute: 7
+        ))!
+
+        appController.selectedDate = selectedDate
+        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
+        viewModel.setTimeSliderMinutes(0)
+
+        let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
+            date: selectedDate,
+            location: appController.locationController.selectedLocation,
+            timeZone: appController.locationController.selectedTimeZone
+        )
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 12)
+        XCTAssertEqual(components.hour, Int((twilight?.eveningMinutes ?? 0)) / 60)
+        XCTAssertEqual(components.minute, Int((twilight?.eveningMinutes ?? 0)) % 60)
+    }
+
+    func test_StarMapViewModel_updatesTimeSliderWhenTimeZoneChanges() async {
+        let storage = InMemoryLocationStorage()
+        storage.latitude = 35.6762
+        storage.longitude = 139.6503
+        storage.name = "東京"
+        storage.timeZoneIdentifier = "Asia/Tokyo"
+
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                resolvedName: "ロサンゼルス",
+                timeZoneIdentifier: "America/Los_Angeles"
+            )
+        )
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: MockNightCalculationService()
+        )
+        let viewModel = StarMapViewModel(appController: appController)
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        let displayDate = utcCalendar.date(from: DateComponents(
+            year: 2026,
+            month: 8,
+            day: 12,
+            hour: 4,
+            minute: 0
+        ))!
+
+        viewModel.displayDate = displayDate
+        let initialTimeSliderMinutes = viewModel.timeSliderMinutes
+
+        locationController.selectCoordinate(
+            CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        )
+
+        await waitUntil(timeout: 2.0) {
+            locationController.selectedTimeZone.identifier == "America/Los_Angeles"
+                && abs(viewModel.timeSliderMinutes - initialTimeSliderMinutes) > 0.5
+        }
+
+        let expectedRealMinutes = StarMapDateLogic.clockMinutes(
+            for: displayDate,
+            timeZone: locationController.selectedTimeZone
+        )
+        let expectedOffset = StarMapDateLogic.realMinutesToNightOffset(
+            expectedRealMinutes,
+            nightStartMinutes: viewModel.nightStartMinutes,
+            nightDurationMinutes: viewModel.nightDurationMinutes
+        )
+
+        XCTAssertEqual(locationController.selectedTimeZone.identifier, "America/Los_Angeles")
+        XCTAssertEqual(viewModel.timeSliderMinutes, expectedOffset, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_timeZoneChange_reanchorsDisplayDateToObservationNight() async {
+        let storage = InMemoryLocationStorage()
+        storage.latitude = 35.6762
+        storage.longitude = 139.6503
+        storage.name = "東京"
+        storage.timeZoneIdentifier = "Asia/Tokyo"
+
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                resolvedName: "ロサンゼルス",
+                timeZoneIdentifier: "America/Los_Angeles"
+            )
+        )
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: MockNightCalculationService()
+        )
+        let viewModel = StarMapViewModel(appController: appController)
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let losAngeles = TimeZone(identifier: "America/Los_Angeles")!
+        let tokyoCalendar = ObservationTimeZone.gregorianCalendar(timeZone: tokyo)
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+
+        appController.selectedDate = tokyoCalendar.date(from: DateComponents(
+            year: 2026,
+            month: 8,
+            day: 12
+        ))!
+        let initialDisplayDate = utcCalendar.date(from: DateComponents(
+            year: 2026,
+            month: 8,
+            day: 12,
+            hour: 4,
+            minute: 0
+        ))!
+        viewModel.displayDate = initialDisplayDate
+
+        locationController.selectCoordinate(
+            CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        )
+
+        await waitUntil(timeout: 2.0) {
+            locationController.selectedTimeZone.identifier == losAngeles.identifier
+        }
+
+        let expectedDate = StarMapDateLogic.resolvedPresentationDate(
+            for: appController.selectedDate,
+            referenceDate: initialDisplayDate,
+            location: locationController.selectedLocation,
+            timeZone: losAngeles
+        )
+
+        XCTAssertEqual(viewModel.displayDate, expectedDate)
+    }
+
+    func test_StarMapViewModel_setObservationDate_preservesDisplayedNightTime() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: tokyo)
+
+        let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let nextDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 13))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 21,
+            minute: 7
+        ))!
+
+        appController.selectedDate = selectedDate
+        viewModel.syncWithSelectedDate(referenceDate: referenceDate)
+        viewModel.setObservationDate(nextDate)
+
+        let displayComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: viewModel.displayDate)
+        let selectedComponents = calendar.dateComponents([.year, .month, .day], from: appController.selectedDate)
+
+        XCTAssertEqual(selectedComponents.year, 2026)
+        XCTAssertEqual(selectedComponents.month, 8)
+        XCTAssertEqual(selectedComponents.day, 13)
+        XCTAssertEqual(displayComponents.year, 2026)
+        XCTAssertEqual(displayComponents.month, 8)
+        XCTAssertEqual(displayComponents.day, 13)
+        XCTAssertEqual(displayComponents.hour, 21)
+        XCTAssertEqual(displayComponents.minute, 7)
     }
 
     func test_StarMapViewModel_terrainCacheKey_roundsCoordinatesConsistently() {

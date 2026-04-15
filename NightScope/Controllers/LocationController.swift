@@ -13,7 +13,6 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     @Published var selectedLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503) {
         didSet {
-            locationUpdateID = UUID()
             storage.latitude = selectedLocation.latitude
             storage.longitude = selectedLocation.longitude
         }
@@ -23,7 +22,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             storage.timeZoneIdentifier = selectedTimeZoneIdentifier
         }
     }
-    /// 場所が変わるたびに更新される ID（View 側での onChange 検知用）
+    /// 再計算が必要な場所変更が起きるたびに更新される ID（View 側での onChange 検知用）
     @Published private(set) var locationUpdateID: UUID = UUID()
     var selectedLocationPublisher: AnyPublisher<CLLocationCoordinate2D, Never> {
         $selectedLocation.eraseToAnyPublisher()
@@ -31,11 +30,18 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     var locationNamePublisher: AnyPublisher<String, Never> {
         $locationName.eraseToAnyPublisher()
     }
+    var searchStatePublisher: AnyPublisher<LocationSearchState, Never> {
+        $searchState.eraseToAnyPublisher()
+    }
     var searchResultsPublisher: AnyPublisher<[MKMapItem], Never> {
-        $searchResults.eraseToAnyPublisher()
+        $searchState
+            .map(\.results)
+            .eraseToAnyPublisher()
     }
     var isSearchingPublisher: AnyPublisher<Bool, Never> {
-        $isSearching.eraseToAnyPublisher()
+        $searchState
+            .map(\.isSearching)
+            .eraseToAnyPublisher()
     }
     var isLocatingPublisher: AnyPublisher<Bool, Never> {
         $isLocating.eraseToAnyPublisher()
@@ -61,13 +67,37 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     @Published var locationName: String = "東京" {
         didSet { storage.name = locationName }
     }
-    @Published var searchResults: [MKMapItem] = []
-    @Published var isSearching = false
+    @Published var searchState: LocationSearchState = .idle
     @Published var isLocating = false
     @Published var locationError: LocationError?
     @Published var searchFocusTrigger = 0
     /// 検索・現在地取得で場所が確定するたびにインクリメント（マップセンタリングのトリガー）
     @Published var currentLocationCenterTrigger = 0
+
+    var searchResults: [MKMapItem] {
+        get { searchState.results }
+        set {
+            let query = effectiveSearchQuery
+            if newValue.isEmpty {
+                searchState = query.isEmpty ? .idle : .empty(query: query)
+            } else {
+                searchState = .results(query: query, items: newValue)
+            }
+        }
+    }
+
+    var isSearching: Bool {
+        get { searchState.isSearching }
+        set {
+            guard newValue != searchState.isSearching else { return }
+            if newValue {
+                searchState = .loading(query: effectiveSearchQuery)
+            } else {
+                let query = effectiveSearchQuery
+                searchState = query.isEmpty ? .idle : .empty(query: query)
+            }
+        }
+    }
 
     // MARK: - Error
 
@@ -92,6 +122,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private var searchTask: Task<Void, Never>?
     private var locationNameTask: Task<Void, Never>?
     private var latestSearchQuery = ""
+    private static let searchFailureMessage = "場所を検索できませんでした。通信状況を確認して、もう一度お試しください。"
 
     // MARK: - Init
 
@@ -157,21 +188,15 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
 
         let isSameAsLatestQuery = normalizedQuery == latestSearchQuery
-        if isSameAsLatestQuery && (isSearching || !searchResults.isEmpty) {
+        if isSameAsLatestQuery && (searchState.isSearching || searchState.phase == .results) {
             return
         }
 
         latestSearchQuery = normalizedQuery
         searchTask?.cancel()
-        isSearching = true
+        searchState = .loading(query: normalizedQuery)
 
         searchTask = Task { [normalizedQuery] in
-            // キャンセルされた場合は isSearching をリセットしない（次の検索が既に true にセット済み）
-            defer {
-                if !Task.isCancelled, latestSearchQuery == normalizedQuery {
-                    isSearching = false
-                }
-            }
             // デバウンス: 150ms 以内に次の入力があればキャンセルされる
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
@@ -180,11 +205,16 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
                 let mapItems = try await searchService.search(query: normalizedQuery)
                 guard !Task.isCancelled else { return }
                 guard latestSearchQuery == normalizedQuery else { return }
-                searchResults = mapItems
+                searchState = mapItems.isEmpty
+                    ? .empty(query: normalizedQuery)
+                    : .results(query: normalizedQuery, items: mapItems)
             } catch {
                 guard !Task.isCancelled else { return }
                 guard latestSearchQuery == normalizedQuery else { return }
-                searchResults = []
+                searchState = .failure(
+                    query: normalizedQuery,
+                    errorMessage: Self.searchFailureMessage
+                )
             }
         }
     }
@@ -192,27 +222,57 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     func clearSearch() {
         searchTask?.cancel()
         latestSearchQuery = ""
-        searchResults = []
-        isSearching = false
+        searchState = .idle
     }
 
     /// 検索候補から場所を確定する（マップをセンタリングする）
     func select(_ mapItem: MKMapItem) {
+        clearSearch()
         if isLocating { stopLocating() }
-        selectedLocation = mapItem.location.coordinate
-        if let name = mapItem.name, !name.isEmpty {
-            locationName = name
+        let coordinate = mapItem.location.coordinate
+        let preferredDetails = MapItemLocationDetailsExtractor.details(from: mapItem)
+        let didChangeCoordinate = applyCoordinateSelection(coordinate)
+        let didChangeTimeZone = applyResolvedLocationDetails(
+            for: coordinate,
+            details: preferredDetails,
+            fallbackName: mapItem.name
+        )
+        if didChangeCoordinate || didChangeTimeZone {
+            commitLocationUpdate()
         }
         currentLocationCenterTrigger += 1
-        resolveLocationDetails(for: mapItem.location.coordinate, fallbackName: mapItem.name)
+        resolveLocationDetails(
+            for: coordinate,
+            fallbackName: preferredDetails.name,
+            preferredTimeZoneIdentifier: preferredDetails.timeZoneIdentifier
+        )
     }
 
     /// マップタップなど座標から場所を選択する（センタリングしない）
     func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
+        selectCoordinate(coordinate, provisionalName: "選択した地点")
+    }
+
+    private func selectCoordinate(_ coordinate: CLLocationCoordinate2D, provisionalName: String) {
         if isLocating { stopLocating() }
         clearSearch()
-        selectedLocation = coordinate
-        resolveLocationDetails(for: coordinate, fallbackName: nil)
+        let didChangeCoordinate = applyCoordinateSelection(coordinate)
+        let didChangeTimeZone = applyResolvedLocationDetails(
+            for: coordinate,
+            details: ResolvedLocationDetails(
+                name: provisionalName,
+                timeZoneIdentifier: approximateTimeZoneIdentifier(for: coordinate)
+            ),
+            fallbackName: provisionalName
+        )
+        if didChangeCoordinate || didChangeTimeZone {
+            commitLocationUpdate()
+        }
+        resolveLocationDetails(
+            for: coordinate,
+            fallbackName: provisionalName,
+            preferredTimeZoneIdentifier: selectedTimeZoneIdentifier
+        )
     }
 
     // MARK: - Private Helpers
@@ -241,7 +301,41 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         locationTimeoutTask = nil
     }
 
-    private func resolveLocationDetails(for coordinate: CLLocationCoordinate2D, fallbackName: String?) {
+    private func commitLocationUpdate() {
+        locationUpdateID = UUID()
+    }
+
+    @discardableResult
+    private func applyCoordinateSelection(_ coordinate: CLLocationCoordinate2D) -> Bool {
+        guard selectedLocation.latitude != coordinate.latitude
+                || selectedLocation.longitude != coordinate.longitude else {
+            return false
+        }
+        selectedLocation = coordinate
+        return true
+    }
+
+    @discardableResult
+    private func applyResolvedLocationDetails(
+        for coordinate: CLLocationCoordinate2D,
+        details: ResolvedLocationDetails,
+        fallbackName: String?
+    ) -> Bool {
+        locationName = resolvedLocationName(details.name, fallbackName: fallbackName)
+        let timeZoneIdentifier = resolvedTimeZoneIdentifier(
+            for: coordinate,
+            preferredIdentifier: details.timeZoneIdentifier
+        )
+        let didChangeTimeZone = selectedTimeZoneIdentifier != timeZoneIdentifier
+        selectedTimeZoneIdentifier = timeZoneIdentifier
+        return didChangeTimeZone
+    }
+
+    private func resolveLocationDetails(
+        for coordinate: CLLocationCoordinate2D,
+        fallbackName: String?,
+        preferredTimeZoneIdentifier: String?
+    ) {
         locationNameTask?.cancel()
         locationNameTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -249,12 +343,33 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             guard !Task.isCancelled else { return }
             guard self.selectedLocation.latitude == coordinate.latitude,
                   self.selectedLocation.longitude == coordinate.longitude else { return }
-            self.locationName = details.name.isEmpty ? (fallbackName ?? "現在地") : details.name
-            self.selectedTimeZoneIdentifier = resolvedTimeZoneIdentifier(
+            let didChangeTimeZone = self.applyResolvedLocationDetails(
                 for: coordinate,
-                preferredIdentifier: details.timeZoneIdentifier
+                details: ResolvedLocationDetails(
+                    name: details.name,
+                    timeZoneIdentifier: details.timeZoneIdentifier ?? preferredTimeZoneIdentifier
+                ),
+                fallbackName: fallbackName
             )
+            if didChangeTimeZone {
+                self.commitLocationUpdate()
+            }
         }
+    }
+
+    private func resolvedLocationName(_ preferredName: String, fallbackName: String?) -> String {
+        let trimmedPreferredName = preferredName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedFallbackName = fallbackName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if trimmedPreferredName == "現在地", !trimmedFallbackName.isEmpty {
+            return trimmedFallbackName
+        }
+
+        if !trimmedPreferredName.isEmpty {
+            return trimmedPreferredName
+        }
+
+        return trimmedFallbackName.isEmpty ? "選択した地点" : trimmedFallbackName
     }
 
     private func resolvedTimeZoneIdentifier(
@@ -266,15 +381,74 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             return preferredIdentifier
         }
 
-        return approximateTimeZone(for: coordinate).identifier
+        return approximateTimeZoneIdentifier(for: coordinate)
     }
 
     private func approximateTimeZone(for coordinate: CLLocationCoordinate2D) -> TimeZone {
-        let halfHourOffset = Int((coordinate.longitude / 15.0 * 2.0).rounded())
-        let secondsFromGMT = min(max(halfHourOffset * 1_800, -12 * 3_600), 14 * 3_600)
-        return TimeZone(secondsFromGMT: secondsFromGMT) ?? .current
+        let identifier = approximateTimeZoneIdentifier(for: coordinate)
+        return TimeZone(identifier: identifier)
+            ?? TimeZone(secondsFromGMT: approximateWholeHourOffset(for: coordinate) * 3_600)
+            ?? .current
     }
 
+    private func approximateTimeZoneIdentifier(for coordinate: CLLocationCoordinate2D) -> String {
+        if let timeZone = approximateFractionalTimeZone(for: coordinate) {
+            return timeZone.identifier
+        }
+
+        return fixedOffsetTimeZoneIdentifier(forHoursFromGMT: approximateWholeHourOffset(for: coordinate))
+    }
+
+    private func approximateFractionalTimeZone(for coordinate: CLLocationCoordinate2D) -> TimeZone? {
+        for heuristic in Self.fractionalTimeZoneHeuristics where heuristic.contains(coordinate: coordinate) {
+            return TimeZone(identifier: heuristic.identifier)
+        }
+
+        return nil
+    }
+
+    private func approximateWholeHourOffset(for coordinate: CLLocationCoordinate2D) -> Int {
+        min(max(Int((coordinate.longitude / 15.0).rounded()), -12), 14)
+    }
+
+    private func fixedOffsetTimeZoneIdentifier(forHoursFromGMT hourOffset: Int) -> String {
+        guard hourOffset != 0 else { return "Etc/GMT" }
+        let sign = hourOffset > 0 ? "-" : "+"
+        return "Etc/GMT\(sign)\(abs(hourOffset))"
+    }
+
+    private var effectiveSearchQuery: String {
+        if !latestSearchQuery.isEmpty {
+            return latestSearchQuery
+        }
+        return searchState.query
+    }
+
+    private static let fractionalTimeZoneHeuristics = [
+        TimeZoneHeuristic(latitudeRange: 26...31.5, longitudeRange: 80...89.5, identifier: "Asia/Kathmandu"),
+        TimeZoneHeuristic(latitudeRange: 9...29, longitudeRange: 92...101, identifier: "Asia/Yangon"),
+        TimeZoneHeuristic(latitudeRange: -32 ... -30, longitudeRange: 158...160.8, identifier: "Australia/Lord_Howe"),
+        TimeZoneHeuristic(latitudeRange: -33.5 ... -30, longitudeRange: 126...129.5, identifier: "Australia/Eucla"),
+        TimeZoneHeuristic(latitudeRange: -26 ... -10, longitudeRange: 129...139.5, identifier: "Australia/Darwin"),
+        TimeZoneHeuristic(latitudeRange: -39 ... -26, longitudeRange: 129...141, identifier: "Australia/Adelaide"),
+        TimeZoneHeuristic(latitudeRange: 46...53, longitudeRange: -60.5 ... -52, identifier: "America/St_Johns"),
+        TimeZoneHeuristic(latitudeRange: -11 ... -6, longitudeRange: -142 ... -138, identifier: "Pacific/Marquesas"),
+        TimeZoneHeuristic(latitudeRange: -45.5 ... -42, longitudeRange: -177.5 ... -175, identifier: "Pacific/Chatham"),
+        TimeZoneHeuristic(latitudeRange: 24...40, longitudeRange: 43...64, identifier: "Asia/Tehran"),
+        TimeZoneHeuristic(latitudeRange: 29...39.5, longitudeRange: 60...75, identifier: "Asia/Kabul"),
+        TimeZoneHeuristic(latitudeRange: 5...38, longitudeRange: 67...92, identifier: "Asia/Kolkata")
+    ]
+
+}
+
+private struct TimeZoneHeuristic {
+    let latitudeRange: ClosedRange<Double>
+    let longitudeRange: ClosedRange<Double>
+    let identifier: String
+
+    func contains(coordinate: CLLocationCoordinate2D) -> Bool {
+        latitudeRange.contains(coordinate.latitude) && longitudeRange.contains(coordinate.longitude)
+    }
 }
 
 // MARK: - CLLocationManagerDelegate
@@ -284,7 +458,7 @@ extension LocationController: CLLocationManagerDelegate {
         guard let location = locations.last else { return }
         manager.stopUpdatingLocation()
         Task { @MainActor in
-            self.selectCoordinate(location.coordinate)
+            self.selectCoordinate(location.coordinate, provisionalName: "現在地")
             self.currentLocationCenterTrigger += 1
         }
     }

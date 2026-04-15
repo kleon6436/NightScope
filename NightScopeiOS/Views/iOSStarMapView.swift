@@ -113,11 +113,7 @@ struct iOSStarMapView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            DatePicker(
-                "",
-                selection: $viewModel.displayDate,
-                displayedComponents: [.date]
-            )
+            DatePicker("", selection: observationDateBinding, displayedComponents: [.date])
             .labelsHidden()
             .datePickerStyle(.compact)
             .colorScheme(.dark)
@@ -156,6 +152,13 @@ struct iOSStarMapView: View {
                 .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
         }
         .padding(.vertical, Spacing.xs)
+    }
+
+    private var observationDateBinding: Binding<Date> {
+        Binding(
+            get: { viewModel.observationDate },
+            set: { viewModel.setObservationDate($0) }
+        )
     }
 
     private var locationLabel: some View {

@@ -8,8 +8,8 @@ struct iOSTodayViewModel {
         rawLocationName.isEmpty ? "場所を選択" : rawLocationName
     }
 
-    func headerTitle(for selectedDate: Date) -> String {
-        selectedDate.formatted(.dateTime.year().month().day().weekday())
+    func headerTitle(for selectedDate: Date, timeZone: TimeZone) -> String {
+        DateFormatters.yearMonthDayWeekdayString(from: selectedDate, timeZone: timeZone)
     }
 
     func contentState(isCalculating: Bool, summary: NightSummary?) -> LoadableContentState {
@@ -62,7 +62,10 @@ struct iOSTodayView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .sheet(isPresented: $showCalendar) {
                 NavigationStack {
-                    CalendarView(selectedDate: $detailViewModel.selectedDate)
+                    CalendarView(
+                        selectedDate: $detailViewModel.selectedDate,
+                        timeZone: detailViewModel.selectedTimeZone
+                    )
                         .navigationTitle("日付を選択")
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
@@ -128,7 +131,10 @@ struct iOSTodayView: View {
 
     private var headerSection: some View {
         iOSTabHeaderView(
-            title: viewModel.headerTitle(for: detailViewModel.selectedDate)
+            title: viewModel.headerTitle(
+                for: detailViewModel.selectedDate,
+                timeZone: detailViewModel.selectedTimeZone
+            )
         ) {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcons.Navigation.locationPin)

@@ -1,9 +1,33 @@
 import XCTest
 import CoreLocation
+import MapKit
 @testable import NightScope
 
 @MainActor
 final class AppControllerTests: XCTestCase {
+    final class InMemoryLocationStorage: LocationStorage {
+        var latitude: Double?
+        var longitude: Double?
+        var name: String?
+        var timeZoneIdentifier: String?
+    }
+
+    actor NoopLocationSearchService: LocationSearchServicing {
+        func search(query: String) async throws -> [MKMapItem] { [] }
+    }
+
+    actor FixedLocationNameResolver: LocationNameResolving {
+        let details: ResolvedLocationDetails
+
+        init(details: ResolvedLocationDetails) {
+            self.details = details
+        }
+
+        func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
+            details
+        }
+    }
+
     final class CalculationInvocationRecorder: @unchecked Sendable {
         private let lock = NSLock()
         private var invokedDates: [Date] = []
@@ -244,6 +268,70 @@ final class AppControllerTests: XCTestCase {
         XCTAssertTrue(indexes.values.allSatisfy(\.hasWeatherData))
     }
 
+    func test_recalculate_clearsStaleNightSummaryBeforeNewDateCompletes() async {
+        let baseDate = Calendar.current.startOfDay(for: Date())
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
+        let oldSummary = makeNightSummary(date: baseDate)
+
+        let mockCalculationService = MockNightCalculationService()
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: nextDate), delayMilliseconds: 250)
+
+        let appController = AppController(calculationService: mockCalculationService)
+        appController.nightSummary = oldSummary
+        appController.starGazingIndex = StarGazingIndex.compute(
+            nightSummary: oldSummary,
+            weather: nil,
+            bortleClass: 4
+        )
+        appController.selectedDate = nextDate
+
+        appController.recalculate()
+
+        XCTAssertNil(appController.nightSummary)
+        XCTAssertNil(appController.starGazingIndex)
+        XCTAssertTrue(appController.isCalculating)
+    }
+
+    func test_locationRefreshDisposition_appliesAll_whenSelectionStillMatches() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let request = AppController.LocationRefreshRequest(
+            selectedDate: appController.selectedDate,
+            coordinate: appController.locationController.selectedLocation,
+            timeZoneIdentifier: appController.locationController.selectedTimeZone.identifier
+        )
+
+        XCTAssertEqual(appController.locationRefreshDisposition(for: request), .applyAll)
+    }
+
+    func test_locationRefreshDisposition_appliesLocationDataOnly_whenSelectedDateChanged() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let request = AppController.LocationRefreshRequest(
+            selectedDate: appController.selectedDate,
+            coordinate: appController.locationController.selectedLocation,
+            timeZoneIdentifier: appController.locationController.selectedTimeZone.identifier
+        )
+
+        appController.selectedDate = appController.selectedDate.addingTimeInterval(86_400)
+
+        XCTAssertEqual(appController.locationRefreshDisposition(for: request), .applyLocationDataOnly)
+    }
+
+    func test_locationRefreshDisposition_discards_whenLocationChanged() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let request = AppController.LocationRefreshRequest(
+            selectedDate: appController.selectedDate,
+            coordinate: appController.locationController.selectedLocation,
+            timeZoneIdentifier: appController.locationController.selectedTimeZone.identifier
+        )
+
+        appController.locationController.selectedLocation = CLLocationCoordinate2D(
+            latitude: request.coordinate.latitude + 1,
+            longitude: request.coordinate.longitude + 1
+        )
+
+        XCTAssertEqual(appController.locationRefreshDisposition(for: request), .discard)
+    }
+
     func test_prepareForLocationChange_clearsDisplayedStateBeforeRefreshCompletes() {
         let baseDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
@@ -311,6 +399,102 @@ final class AppControllerTests: XCTestCase {
         XCTAssertTrue(appController.upcomingIndexes.isEmpty)
         XCTAssertTrue(appController.isCalculating)
         XCTAssertTrue(appController.isUpcomingLoading)
+    }
+
+    func test_applyLocationRefresh_recalculatesCurrentNightAfterSelectedDateChanged() async {
+        let baseDate = Calendar.current.startOfDay(for: Date())
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
+
+        let mockCalculationService = MockNightCalculationService()
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: nextDate))
+        let appController = AppController(calculationService: mockCalculationService)
+
+        appController.selectedDate = nextDate
+        appController.isCalculating = true
+
+        let payload = AppController.LocationRefreshPayload(
+            nightSummary: makeNightSummary(date: baseDate),
+            upcomingNights: [makeNightSummary(date: baseDate)],
+            weatherResult: WeatherService.FetchResult(
+                weatherByDate: [:],
+                errorMessage: nil,
+                lastModifiedDate: nil,
+                locationKey: "mock",
+                timeZoneIdentifier: appController.locationController.selectedTimeZone.identifier
+            ),
+            lightPollutionResult: LightPollutionService.FetchResult(
+                bortleClass: 4,
+                fetchFailed: false,
+                lastFetchedCoordinate: nil
+            ),
+            starGazingIndex: StarGazingIndex.compute(
+                nightSummary: makeNightSummary(date: baseDate),
+                weather: nil,
+                bortleClass: 4
+            ),
+            upcomingIndexes: [:]
+        )
+
+        appController.applyLocationRefresh(payload, disposition: .applyLocationDataOnly)
+
+        await waitUntil(timeout: 2.0) {
+            appController.nightSummary?.date == nextDate && appController.isCalculating == false
+        }
+
+        XCTAssertEqual(appController.nightSummary?.date, nextDate)
+    }
+
+    func test_selectedDate_preservesCalendarDayWhenTimeZoneChanges() async {
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let losAngeles = TimeZone(identifier: "America/Los_Angeles")!
+        let storage = InMemoryLocationStorage()
+        storage.latitude = 35.6762
+        storage.longitude = 139.6503
+        storage.name = "東京"
+        storage.timeZoneIdentifier = tokyo.identifier
+
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(
+                    name: "ロサンゼルス",
+                    timeZoneIdentifier: losAngeles.identifier
+                )
+            )
+        )
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: MockNightCalculationService()
+        )
+
+        let selectedDate = ObservationTimeZone.gregorianCalendar(timeZone: tokyo).date(
+            from: DateComponents(year: 2026, month: 8, day: 12)
+        )!
+        appController.selectedDate = selectedDate
+
+        locationController.selectCoordinate(
+            CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        )
+
+        await waitUntil(timeout: 2.0) {
+            let components = ObservationTimeZone.gregorianCalendar(timeZone: losAngeles)
+                .dateComponents([.year, .month, .day, .hour, .minute], from: appController.selectedDate)
+            return locationController.selectedTimeZone.identifier == losAngeles.identifier
+                && components.year == 2026
+                && components.month == 8
+                && components.day == 12
+                && components.hour == 0
+                && components.minute == 0
+        }
+
+        let components = ObservationTimeZone.gregorianCalendar(timeZone: losAngeles)
+            .dateComponents([.year, .month, .day, .hour, .minute], from: appController.selectedDate)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 8)
+        XCTAssertEqual(components.day, 12)
+        XCTAssertEqual(components.hour, 0)
+        XCTAssertEqual(components.minute, 0)
     }
 
     func test_NightCalculationService_calculateUpcomingNights_stopsAfterCancellation() async {

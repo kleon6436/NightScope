@@ -101,12 +101,25 @@ struct iOSLocationView: View {
 
     @ViewBuilder
     private var searchResultsList: some View {
-        let results = sidebarViewModel.searchResults
-        if !results.isEmpty {
+        switch sidebarViewModel.searchPresentation {
+        case .hidden, .loading:
+            EmptyView()
+        case .results(let results):
             searchResultsCard(results)
-        } else if sidebarViewModel.shouldShowSearchEmptyState() {
-            ContentUnavailableView.search(text: sidebarViewModel.searchText)
+        case .empty(let query):
+            ContentUnavailableView.search(text: query)
                 .padding(.vertical, Spacing.xs)
+        case .error(let query, let message):
+            ContentUnavailableView {
+                Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
+            } description: {
+                Text("\"\(query)\" の検索に失敗しました。\(message)")
+            } actions: {
+                Button("再試行") {
+                    sidebarViewModel.retrySearch()
+                }
+            }
+            .padding(.vertical, Spacing.xs)
         }
     }
 

@@ -73,8 +73,7 @@ func makeNightSummary(
 final class MockLocationController: LocationProviding {
     @Published var selectedLocation = CLLocationCoordinate2D(latitude: 0, longitude: 0)
     @Published var locationName = ""
-    @Published var searchResults: [MKMapItem] = []
-    @Published var isSearching = false
+    @Published var searchState: LocationSearchState = .idle
     @Published var isLocating = false
     @Published var locationError: LocationController.LocationError?
     @Published var searchFocusTrigger = 0
@@ -88,6 +87,26 @@ final class MockLocationController: LocationProviding {
     private(set) var selectedMapItem: MKMapItem?
     private(set) var selectedCoordinateCalls: [CLLocationCoordinate2D] = []
 
+    var searchResults: [MKMapItem] {
+        get { searchState.results }
+        set {
+            let query = normalizedSearchQuery
+            searchState = newValue.isEmpty ? (query.isEmpty ? .idle : .empty(query: query)) : .results(query: query, items: newValue)
+        }
+    }
+
+    var isSearching: Bool {
+        get { searchState.isSearching }
+        set {
+            if newValue {
+                searchState = .loading(query: normalizedSearchQuery)
+            } else {
+                let query = normalizedSearchQuery
+                searchState = query.isEmpty ? .idle : .empty(query: query)
+            }
+        }
+    }
+
     var selectedLocationPublisher: AnyPublisher<CLLocationCoordinate2D, Never> {
         $selectedLocation.eraseToAnyPublisher()
     }
@@ -96,12 +115,16 @@ final class MockLocationController: LocationProviding {
         $locationName.eraseToAnyPublisher()
     }
 
+    var searchStatePublisher: AnyPublisher<LocationSearchState, Never> {
+        $searchState.eraseToAnyPublisher()
+    }
+
     var searchResultsPublisher: AnyPublisher<[MKMapItem], Never> {
-        $searchResults.eraseToAnyPublisher()
+        $searchState.map(\.results).eraseToAnyPublisher()
     }
 
     var isSearchingPublisher: AnyPublisher<Bool, Never> {
-        $isSearching.eraseToAnyPublisher()
+        $searchState.map(\.isSearching).eraseToAnyPublisher()
     }
 
     var isLocatingPublisher: AnyPublisher<Bool, Never> {
@@ -129,25 +152,25 @@ final class MockLocationController: LocationProviding {
     }
 
     func search(query: String) {
-        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if normalizedQuery.isEmpty {
             searchQuery = query
-            searchResults = []
-            isSearching = false
+            searchState = .idle
             return
         }
         searchQuery = query
-        isSearching = true
+        searchState = .loading(query: normalizedQuery)
     }
 
     func clearSearch() {
         searchQuery = ""
-        searchResults = []
-        isSearching = false
+        searchState = .idle
     }
 
     func select(_ mapItem: MKMapItem) {
         selectedMapItem = mapItem
         selectedLocation = mapItem.location.coordinate
+        searchState = .idle
         currentLocationCenterTrigger += 1
         locationUpdateID = UUID()
     }
@@ -155,7 +178,12 @@ final class MockLocationController: LocationProviding {
     func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
         selectedCoordinateCalls.append(coordinate)
         selectedLocation = coordinate
+        searchState = .idle
         locationUpdateID = UUID()
+    }
+
+    private var normalizedSearchQuery: String {
+        searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines) ?? searchState.query
     }
 }
 

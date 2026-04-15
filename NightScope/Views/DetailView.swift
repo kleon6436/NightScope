@@ -141,7 +141,12 @@ struct DetailView: View {
             HStack(alignment: .lastTextBaseline, spacing: Spacing.sm) {
                 Text(viewModel.locationName)
                     .font(.largeTitle.bold())
-                Text(summary.date, style: .date)
+                Text(
+                    DateFormatters.yearMonthDayWeekdayString(
+                        from: summary.date,
+                        timeZone: viewModel.selectedTimeZone
+                    )
+                )
                     .font(.title3)
                     .foregroundStyle(.secondary)
                 if isSummaryRefreshing {
@@ -352,7 +357,7 @@ private struct MacStarMapSheet: View {
                     .foregroundStyle(.secondary)
                     .font(.body)
 
-                DatePicker("", selection: $viewModel.displayDate, displayedComponents: [.date])
+                DatePicker("", selection: observationDateBinding, displayedComponents: [.date])
                     .labelsHidden()
                     .datePickerStyle(.compact)
                     .fixedSize()
@@ -396,6 +401,13 @@ private struct MacStarMapSheet: View {
         Binding(
             get: { viewModel.timeSliderMinutes },
             set: { viewModel.setTimeSliderMinutes($0) }
+        )
+    }
+
+    private var observationDateBinding: Binding<Date> {
+        Binding(
+            get: { viewModel.observationDate },
+            set: { viewModel.setObservationDate($0) }
         )
     }
 

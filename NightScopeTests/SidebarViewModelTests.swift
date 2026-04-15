@@ -5,6 +5,22 @@ import MapKit
 
 @MainActor
 final class SidebarViewModelTests: XCTestCase {
+    private func waitUntil(
+        timeout: TimeInterval = 1.0,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        condition: @escaping @MainActor () -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTFail("条件を満たすまでにタイムアウトしました", file: file, line: line)
+    }
+
     func test_updateSearchText_triggersSearch() {
         let locationController = MockLocationController()
         let lightService = MockLightPollutionService()
@@ -15,6 +31,25 @@ final class SidebarViewModelTests: XCTestCase {
         XCTAssertEqual(vm.searchText, "Tokyo")
         XCTAssertEqual(locationController.searchQuery, "Tokyo")
         XCTAssertTrue(locationController.isSearching)
+    }
+
+    func test_updateSearchText_entersLoadingPresentationWithoutEmptyState() async {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        vm.updateSearchText("Osaka")
+
+        await waitUntil {
+            vm.searchState.phase == .loading
+        }
+
+        XCTAssertEqual(vm.searchState.phase, .loading)
+        if case .loading = vm.searchPresentation {
+            XCTAssertTrue(vm.isSearching)
+        } else {
+            XCTFail("検索中表示になっていません")
+        }
     }
 
     func test_selectCoordinate_updatesLocationController() {
@@ -67,16 +102,43 @@ final class SidebarViewModelTests: XCTestCase {
         let lightService = MockLightPollutionService()
         let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
         vm.searchText = "富士山"
-        locationController.searchResults = [
-            MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)
-        ]
-        locationController.isSearching = true
+        locationController.searchState = .results(
+            query: "富士山",
+            items: [MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)]
+        )
 
         vm.clearSearch()
 
         XCTAssertTrue(vm.searchText.isEmpty)
-        XCTAssertTrue(locationController.searchResults.isEmpty)
-        XCTAssertFalse(locationController.isSearching)
+        XCTAssertEqual(locationController.searchState.phase, .idle)
+        XCTAssertTrue(locationController.searchState.results.isEmpty)
+    }
+
+    func test_searchPresentation_showsErrorWithRetryForFailedSearch() async {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        vm.searchText = "Kyoto"
+        locationController.searchState = .failure(
+            query: "Kyoto",
+            errorMessage: "通信状況を確認してください。"
+        )
+
+        await waitUntil {
+            vm.searchState.phase == .failure
+        }
+
+        if case .error(let query, let message) = vm.searchPresentation {
+            XCTAssertEqual(query, "Kyoto")
+            XCTAssertEqual(message, "通信状況を確認してください。")
+        } else {
+            XCTFail("検索エラー表示になっていません")
+        }
+
+        vm.retrySearch()
+
+        XCTAssertEqual(locationController.searchQuery, "Kyoto")
+        XCTAssertEqual(locationController.searchState.phase, .loading)
     }
 
     func test_updateViewportIfNeeded_ignoresSmallRegionChanges() {
@@ -133,25 +195,12 @@ final class SidebarViewModelTests: XCTestCase {
 }
 
 final class SidebarSearchInteractionTests: XCTestCase {
-    func test_shouldShowEmptyState_whenUserQueryHasNoResults_returnsTrue() {
-        let shouldShow = SidebarSearchInteraction.shouldShowEmptyState(
-            searchText: "富士山",
-            isSearching: false,
-            hasResults: false,
-            isShowingCommittedSelection: false
-        )
+    func test_highlightedTarget_withoutValidIndex_returnsFirst() {
+        let first = MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)
+        let second = MKMapItem(location: CLLocation(latitude: 36.0, longitude: 140.0), address: nil)
 
-        XCTAssertTrue(shouldShow)
-    }
+        let target = SidebarSearchInteraction.highlightedTarget(in: [first, second], highlightedIndex: 99)
 
-    func test_shouldShowEmptyState_whenShowingCommittedSelection_returnsFalse() {
-        let shouldShow = SidebarSearchInteraction.shouldShowEmptyState(
-            searchText: "富士山五合目",
-            isSearching: false,
-            hasResults: false,
-            isShowingCommittedSelection: true
-        )
-
-        XCTAssertFalse(shouldShow)
+        XCTAssertTrue(target === first)
     }
 }

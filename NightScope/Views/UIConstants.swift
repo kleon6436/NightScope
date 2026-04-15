@@ -304,10 +304,15 @@ private enum FormatterFactory {
         return formatter
     }
 
-    static func localizedDate(localeIdentifier: String, dateFormat: String) -> DateFormatter {
+    static func localizedDate(
+        localeIdentifier: String,
+        dateFormat: String,
+        timeZone: TimeZone = .current
+    ) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: localeIdentifier)
         formatter.dateFormat = dateFormat
+        formatter.timeZone = timeZone
         return formatter
     }
 }
@@ -325,6 +330,15 @@ enum DateFormatters {
         FormatterFactory.observationTimeZone(
             dateStyle: .full,
             timeStyle: .none,
+            timeZone: timeZone
+        )
+        .string(from: date)
+    }
+
+    static func yearMonthDayWeekdayString(from date: Date, timeZone: TimeZone = .current) -> String {
+        FormatterFactory.localizedDate(
+            localeIdentifier: "ja_JP",
+            dateFormat: "y年M月d日(E)",
             timeZone: timeZone
         )
         .string(from: date)
@@ -385,13 +399,13 @@ struct ForecastCardPresentation {
     let weather: DayWeatherSummary?
     let timeZone: TimeZone
 
-    private static let shortDateFormatter = FormatterFactory.localizedDate(
-        localeIdentifier: "ja_JP",
-        dateFormat: "M/d(E)"
-    )
-
     var shortDateLabel: String {
-        Self.shortDateFormatter.string(from: night.date)
+        FormatterFactory.localizedDate(
+            localeIdentifier: "ja_JP",
+            dateFormat: "M/d(E)",
+            timeZone: timeZone
+        )
+        .string(from: night.date)
     }
 
     var relativeNightLabel: String? {

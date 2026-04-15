@@ -31,32 +31,17 @@ struct iOSMapView: UIViewRepresentable {
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
         context.coordinator.parent = self
-        MapKitViewSharedLogic.updateLightPollutionOverlayAlpha(on: uiView, targetAlpha: overlayAlpha)
-
-        let existing = MapKitViewSharedLogic.currentPinAnnotation(in: uiView)
-
-        guard let newCoord = pinCoordinate else {
-            MapKitViewSharedLogic.removeAnnotationsIfNeeded(from: uiView, existing: existing)
-            return
-        }
-
-        if let syncRegion = context.coordinator.state.syncedRegion(
-            existing: existing,
-            coordinate: newCoord,
-            syncState: syncState
-        ) {
-            MapKitViewSharedLogic.upsertPinAnnotation(on: uiView, existing: existing, coordinate: newCoord)
-            context.coordinator.state.scheduleRegionChange(on: uiView, region: syncRegion, animated: false)
-            return
-        }
-
-        MapKitViewSharedLogic.upsertPinAnnotation(on: uiView, existing: existing, coordinate: newCoord)
-        if let centeredRegion = context.coordinator.state.centeredRegion(
-            coordinate: newCoord,
-            centerTrigger: centerTrigger
-        ) {
-            context.coordinator.state.scheduleRegionChange(on: uiView, region: centeredRegion, animated: true)
-        }
+        MapKitViewSharedLogic.applyMapUpdate(
+            on: uiView,
+            state: context.coordinator.state,
+            configuration: .init(
+                pinCoordinate: pinCoordinate,
+                syncState: syncState,
+                centerTrigger: centerTrigger,
+                overlayAlpha: overlayAlpha,
+                viewingDirection: nil
+            )
+        )
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }

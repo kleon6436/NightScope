@@ -94,7 +94,7 @@ struct UpcomingNightsGrid: View {
 
     private func cardHeader(night: NightSummary, presentation: ForecastCardPresentation) -> some View {
         HStack {
-            Text(night.date, style: .date)
+            Text(presentation.shortDateLabel)
                 .font(.headline)
             Spacer()
             HStack(spacing: 2) {
