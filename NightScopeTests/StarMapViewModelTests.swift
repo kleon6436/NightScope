@@ -71,6 +71,10 @@ final class StarMapViewModelTests: XCTestCase {
         )
     }
 
+    private func observationCalendar(for timeZone: TimeZone) -> Calendar {
+        ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+    }
+
     func test_StarMapPresentation_azimuthName_normalizesDegrees() {
         XCTAssertEqual(StarMapPresentation.azimuthName(for: -1), "北")
         XCTAssertEqual(StarMapPresentation.azimuthName(for: 44), "北東")
@@ -235,9 +239,9 @@ final class StarMapViewModelTests: XCTestCase {
     }
 
     func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
-        let appController = AppController(calculationService: MockNightCalculationService())
+        let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
         let targetDate = calendar.date(from: DateComponents(
             year: 2026,
             month: 4,
@@ -258,9 +262,9 @@ final class StarMapViewModelTests: XCTestCase {
     }
 
     func test_StarMapViewModel_setTimeSliderMinutes_updatesDisplayDateKeepingDate() {
-        let appController = AppController(calculationService: MockNightCalculationService())
+        let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
         let baseDate = calendar.date(from: DateComponents(
             year: 2026,
             month: 4,
@@ -289,9 +293,9 @@ final class StarMapViewModelTests: XCTestCase {
     }
 
     func test_StarMapViewModel_timeSliderInteraction_commitsFinalDateOnEnd() {
-        let appController = AppController(calculationService: MockNightCalculationService())
+        let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
         let baseDate = calendar.date(from: DateComponents(
             year: 2026,
             month: 4,
@@ -327,7 +331,7 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapViewModel_syncWithSelectedDate_snapsDaytimeToSelectedEvening() throws {
         let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
         let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
         let referenceDate = calendar.date(from: DateComponents(
             year: 2025,
@@ -362,7 +366,7 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapViewModel_syncWithSelectedDate_keepsCurrentTimeDuringNight() {
         let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
         let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
         let referenceDate = calendar.date(from: DateComponents(
             year: 2025,
@@ -394,7 +398,7 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapViewModel_syncWithSelectedDate_movesAfterMidnightIntoNextDay() {
         let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
         let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
         let referenceDate = calendar.date(from: DateComponents(
             year: 2025,
@@ -421,7 +425,7 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapViewModel_setTimeSliderMinutes_keepsObservationNightAcrossMidnight() {
         let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
-        let calendar = Calendar.current
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
         let selectedDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
         let referenceDate = calendar.date(from: DateComponents(
             year: 2025,
