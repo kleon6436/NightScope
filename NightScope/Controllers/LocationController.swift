@@ -376,45 +376,14 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         for coordinate: CLLocationCoordinate2D,
         preferredIdentifier: String?
     ) -> String {
-        if let preferredIdentifier,
-           TimeZone(identifier: preferredIdentifier) != nil {
-            return preferredIdentifier
-        }
-
-        return approximateTimeZoneIdentifier(for: coordinate)
-    }
-
-    private func approximateTimeZone(for coordinate: CLLocationCoordinate2D) -> TimeZone {
-        let identifier = approximateTimeZoneIdentifier(for: coordinate)
-        return TimeZone(identifier: identifier)
-            ?? TimeZone(secondsFromGMT: approximateWholeHourOffset(for: coordinate) * 3_600)
-            ?? .current
+        ApproximateTimeZoneResolver.bestIdentifier(
+            for: coordinate,
+            preferredIdentifier: preferredIdentifier
+        )
     }
 
     private func approximateTimeZoneIdentifier(for coordinate: CLLocationCoordinate2D) -> String {
-        if let timeZone = approximateHeuristicTimeZone(for: coordinate) {
-            return timeZone.identifier
-        }
-
-        return fixedOffsetTimeZoneIdentifier(forHoursFromGMT: approximateWholeHourOffset(for: coordinate))
-    }
-
-    private func approximateHeuristicTimeZone(for coordinate: CLLocationCoordinate2D) -> TimeZone? {
-        for heuristic in Self.timeZoneHeuristics where heuristic.contains(coordinate: coordinate) {
-            return TimeZone(identifier: heuristic.identifier)
-        }
-
-        return nil
-    }
-
-    private func approximateWholeHourOffset(for coordinate: CLLocationCoordinate2D) -> Int {
-        min(max(Int((coordinate.longitude / 15.0).rounded()), -12), 14)
-    }
-
-    private func fixedOffsetTimeZoneIdentifier(forHoursFromGMT hourOffset: Int) -> String {
-        guard hourOffset != 0 else { return "Etc/GMT" }
-        let sign = hourOffset > 0 ? "-" : "+"
-        return "Etc/GMT\(sign)\(abs(hourOffset))"
+        ApproximateTimeZoneResolver.identifier(for: coordinate)
     }
 
     private var effectiveSearchQuery: String {
@@ -424,43 +393,6 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         return searchState.query
     }
 
-    private static let timeZoneHeuristics = [
-        TimeZoneHeuristic(latitudeRange: 26...31.5, longitudeRange: 80...89.5, identifier: "Asia/Kathmandu"),
-        TimeZoneHeuristic(latitudeRange: 9...29, longitudeRange: 92...101, identifier: "Asia/Yangon"),
-        TimeZoneHeuristic(latitudeRange: -32 ... -30, longitudeRange: 158...160.8, identifier: "Australia/Lord_Howe"),
-        TimeZoneHeuristic(latitudeRange: -33.5 ... -30, longitudeRange: 126...129.5, identifier: "Australia/Eucla"),
-        TimeZoneHeuristic(latitudeRange: -26 ... -10, longitudeRange: 129...139.5, identifier: "Australia/Darwin"),
-        TimeZoneHeuristic(latitudeRange: -39 ... -26, longitudeRange: 129...141, identifier: "Australia/Adelaide"),
-        TimeZoneHeuristic(latitudeRange: 46...53, longitudeRange: -60.5 ... -52, identifier: "America/St_Johns"),
-        TimeZoneHeuristic(latitudeRange: -11 ... -6, longitudeRange: -142 ... -138, identifier: "Pacific/Marquesas"),
-        TimeZoneHeuristic(latitudeRange: -45.5 ... -42, longitudeRange: -177.5 ... -175, identifier: "Pacific/Chatham"),
-        TimeZoneHeuristic(latitudeRange: 24...40, longitudeRange: 43...64, identifier: "Asia/Tehran"),
-        TimeZoneHeuristic(latitudeRange: 29...39.5, longitudeRange: 60...75, identifier: "Asia/Kabul"),
-        TimeZoneHeuristic(latitudeRange: 5...38, longitudeRange: 67...92, identifier: "Asia/Kolkata"),
-        TimeZoneHeuristic(latitudeRange: 31...38, longitudeRange: -115 ... -109, identifier: "America/Phoenix"),
-        TimeZoneHeuristic(latitudeRange: 51...72, longitudeRange: -171 ... -129, identifier: "America/Anchorage"),
-        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -129 ... -113, identifier: "America/Los_Angeles"),
-        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -115 ... -101, identifier: "America/Denver"),
-        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -106 ... -84, identifier: "America/Chicago"),
-        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -90 ... -60, identifier: "America/New_York"),
-        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: -11 ... 0, identifier: "Europe/London"),
-        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: 0...20, identifier: "Europe/Paris"),
-        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: 20...36, identifier: "Europe/Athens"),
-        TimeZoneHeuristic(latitudeRange: -44 ... -28, longitudeRange: 141...154.5, identifier: "Australia/Sydney"),
-        TimeZoneHeuristic(latitudeRange: -48 ... -33, longitudeRange: 166...179.9, identifier: "Pacific/Auckland"),
-        TimeZoneHeuristic(latitudeRange: -56 ... -17, longitudeRange: -76 ... -65, identifier: "America/Santiago")
-    ]
-
-}
-
-private struct TimeZoneHeuristic {
-    let latitudeRange: ClosedRange<Double>
-    let longitudeRange: ClosedRange<Double>
-    let identifier: String
-
-    func contains(coordinate: CLLocationCoordinate2D) -> Bool {
-        latitudeRange.contains(coordinate.latitude) && longitudeRange.contains(coordinate.longitude)
-    }
 }
 
 // MARK: - CLLocationManagerDelegate

@@ -591,6 +591,29 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.selectedTimeZone.secondsFromGMT(for: summerDate), 2 * 3_600)
     }
 
+    func test_ApproximateTimeZoneResolver_usesRegionBackedTimeZoneForTokyo() {
+        let coordinate = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+
+        let identifier = ApproximateTimeZoneResolver.identifier(for: coordinate, regionIdentifier: "JP")
+
+        XCTAssertEqual(identifier, "Asia/Tokyo")
+    }
+
+    func test_ApproximateTimeZoneResolver_usesRegionBackedTimeZoneForBerlinWithDST() {
+        let coordinate = CLLocationCoordinate2D(latitude: 52.5200, longitude: 13.4050)
+        let summerDate = DateComponents(
+            calendar: Calendar(identifier: .gregorian),
+            year: 2026,
+            month: 7,
+            day: 1
+        ).date!
+
+        let identifier = ApproximateTimeZoneResolver.identifier(for: coordinate, regionIdentifier: "DE")
+
+        XCTAssertEqual(identifier, "Europe/Berlin")
+        XCTAssertEqual(TimeZone(identifier: identifier)?.secondsFromGMT(for: summerDate), 2 * 3_600)
+    }
+
     func test_LocationController_didUpdateLocations_usesLatestLocation() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))

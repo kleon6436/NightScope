@@ -61,7 +61,11 @@ struct ResolvedLocationDetails: Sendable, Equatable {
 
 enum MapItemLocationDetailsExtractor {
     static func details(from item: MKMapItem) -> ResolvedLocationDetails {
-        let timeZoneIdentifier = item.timeZone?.identifier
+        let timeZoneIdentifier = ApproximateTimeZoneResolver.bestIdentifier(
+            for: item.location.coordinate,
+            preferredIdentifier: item.timeZone?.identifier,
+            regionIdentifier: item.addressRepresentations?.region?.identifier
+        )
 
         if let repr = item.addressRepresentations,
            let city = repr.cityWithContext,
@@ -80,6 +84,162 @@ enum MapItemLocationDetailsExtractor {
             name: item.name ?? "現在地",
             timeZoneIdentifier: timeZoneIdentifier
         )
+    }
+}
+
+enum ApproximateTimeZoneResolver {
+    static func bestIdentifier(
+        for coordinate: CLLocationCoordinate2D,
+        preferredIdentifier: String?,
+        regionIdentifier: String? = nil
+    ) -> String {
+        if let preferredIdentifier,
+           TimeZone(identifier: preferredIdentifier) != nil {
+            return preferredIdentifier
+        }
+
+        return identifier(for: coordinate, regionIdentifier: regionIdentifier)
+    }
+
+    static func identifier(
+        for coordinate: CLLocationCoordinate2D,
+        regionIdentifier: String? = nil
+    ) -> String {
+        if let regionIdentifier,
+           let regionBackedIdentifier = regionBackedIdentifier(
+            for: coordinate,
+            regionIdentifier: regionIdentifier
+           ) {
+            return regionBackedIdentifier
+        }
+
+        if let heuristicIdentifier = heuristicIdentifier(for: coordinate) {
+            return heuristicIdentifier
+        }
+
+        return fixedOffsetTimeZoneIdentifier(forHoursFromGMT: wholeHourOffset(for: coordinate))
+    }
+
+    private static func regionBackedIdentifier(
+        for coordinate: CLLocationCoordinate2D,
+        regionIdentifier: String
+    ) -> String? {
+        let normalizedRegionIdentifier = regionIdentifier.uppercased()
+
+        switch normalizedRegionIdentifier {
+        case "AU":
+            return heuristicIdentifier(for: coordinate) ?? "Australia/Sydney"
+        case "NZ":
+            return heuristicIdentifier(for: coordinate) ?? "Pacific/Auckland"
+        default:
+            return singleRegionTimeZoneIdentifiers[normalizedRegionIdentifier]
+        }
+    }
+
+    private static func heuristicIdentifier(for coordinate: CLLocationCoordinate2D) -> String? {
+        for heuristic in timeZoneHeuristics where heuristic.contains(coordinate: coordinate) {
+            return heuristic.identifier
+        }
+
+        return nil
+    }
+
+    private static func wholeHourOffset(for coordinate: CLLocationCoordinate2D) -> Int {
+        min(max(Int((coordinate.longitude / 15.0).rounded()), -12), 14)
+    }
+
+    private static func fixedOffsetTimeZoneIdentifier(forHoursFromGMT hourOffset: Int) -> String {
+        guard hourOffset != 0 else { return "Etc/GMT" }
+        let sign = hourOffset > 0 ? "-" : "+"
+        return "Etc/GMT\(sign)\(abs(hourOffset))"
+    }
+
+    private static let singleRegionTimeZoneIdentifiers = [
+        "AF": "Asia/Kabul",
+        "AT": "Europe/Vienna",
+        "BD": "Asia/Dhaka",
+        "BE": "Europe/Brussels",
+        "BG": "Europe/Sofia",
+        "BH": "Asia/Bahrain",
+        "CH": "Europe/Zurich",
+        "CN": "Asia/Shanghai",
+        "CZ": "Europe/Prague",
+        "DE": "Europe/Berlin",
+        "DK": "Europe/Copenhagen",
+        "EE": "Europe/Tallinn",
+        "FI": "Europe/Helsinki",
+        "GR": "Europe/Athens",
+        "HK": "Asia/Hong_Kong",
+        "HU": "Europe/Budapest",
+        "IE": "Europe/Dublin",
+        "IN": "Asia/Kolkata",
+        "IR": "Asia/Tehran",
+        "IS": "Atlantic/Reykjavik",
+        "IT": "Europe/Rome",
+        "JP": "Asia/Tokyo",
+        "KR": "Asia/Seoul",
+        "KW": "Asia/Kuwait",
+        "LK": "Asia/Colombo",
+        "LT": "Europe/Vilnius",
+        "LU": "Europe/Luxembourg",
+        "LV": "Europe/Riga",
+        "MO": "Asia/Macau",
+        "MY": "Asia/Kuala_Lumpur",
+        "NL": "Europe/Amsterdam",
+        "NO": "Europe/Oslo",
+        "NP": "Asia/Kathmandu",
+        "OM": "Asia/Muscat",
+        "PH": "Asia/Manila",
+        "PK": "Asia/Karachi",
+        "PL": "Europe/Warsaw",
+        "QA": "Asia/Qatar",
+        "RO": "Europe/Bucharest",
+        "SA": "Asia/Riyadh",
+        "SE": "Europe/Stockholm",
+        "SG": "Asia/Singapore",
+        "SK": "Europe/Bratislava",
+        "TH": "Asia/Bangkok",
+        "TR": "Europe/Istanbul",
+        "TW": "Asia/Taipei",
+        "UA": "Europe/Kyiv",
+        "VN": "Asia/Ho_Chi_Minh"
+    ]
+
+    private static let timeZoneHeuristics = [
+        TimeZoneHeuristic(latitudeRange: 26...31.5, longitudeRange: 80...89.5, identifier: "Asia/Kathmandu"),
+        TimeZoneHeuristic(latitudeRange: 9...29, longitudeRange: 92...101, identifier: "Asia/Yangon"),
+        TimeZoneHeuristic(latitudeRange: -32 ... -30, longitudeRange: 158...160.8, identifier: "Australia/Lord_Howe"),
+        TimeZoneHeuristic(latitudeRange: -33.5 ... -30, longitudeRange: 126...129.5, identifier: "Australia/Eucla"),
+        TimeZoneHeuristic(latitudeRange: -26 ... -10, longitudeRange: 129...139.5, identifier: "Australia/Darwin"),
+        TimeZoneHeuristic(latitudeRange: -39 ... -26, longitudeRange: 129...141, identifier: "Australia/Adelaide"),
+        TimeZoneHeuristic(latitudeRange: 46...53, longitudeRange: -60.5 ... -52, identifier: "America/St_Johns"),
+        TimeZoneHeuristic(latitudeRange: -11 ... -6, longitudeRange: -142 ... -138, identifier: "Pacific/Marquesas"),
+        TimeZoneHeuristic(latitudeRange: -45.5 ... -42, longitudeRange: -177.5 ... -175, identifier: "Pacific/Chatham"),
+        TimeZoneHeuristic(latitudeRange: 24...40, longitudeRange: 43...64, identifier: "Asia/Tehran"),
+        TimeZoneHeuristic(latitudeRange: 29...39.5, longitudeRange: 60...75, identifier: "Asia/Kabul"),
+        TimeZoneHeuristic(latitudeRange: 5...38, longitudeRange: 67...92, identifier: "Asia/Kolkata"),
+        TimeZoneHeuristic(latitudeRange: 31...38, longitudeRange: -115 ... -109, identifier: "America/Phoenix"),
+        TimeZoneHeuristic(latitudeRange: 51...72, longitudeRange: -171 ... -129, identifier: "America/Anchorage"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -129 ... -113, identifier: "America/Los_Angeles"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -115 ... -101, identifier: "America/Denver"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -106 ... -84, identifier: "America/Chicago"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -90 ... -60, identifier: "America/New_York"),
+        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: -11 ... 0, identifier: "Europe/London"),
+        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: 0...20, identifier: "Europe/Paris"),
+        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: 20...36, identifier: "Europe/Athens"),
+        TimeZoneHeuristic(latitudeRange: -44 ... -28, longitudeRange: 141...154.5, identifier: "Australia/Sydney"),
+        TimeZoneHeuristic(latitudeRange: -48 ... -33, longitudeRange: 166...179.9, identifier: "Pacific/Auckland"),
+        TimeZoneHeuristic(latitudeRange: -56 ... -17, longitudeRange: -76 ... -65, identifier: "America/Santiago")
+    ]
+}
+
+private struct TimeZoneHeuristic {
+    let latitudeRange: ClosedRange<Double>
+    let longitudeRange: ClosedRange<Double>
+    let identifier: String
+
+    func contains(coordinate: CLLocationCoordinate2D) -> Bool {
+        latitudeRange.contains(coordinate.latitude) && longitudeRange.contains(coordinate.longitude)
     }
 }
 

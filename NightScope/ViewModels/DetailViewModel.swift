@@ -37,6 +37,7 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var upcomingNights: [NightSummary] = []
     @Published private(set) var upcomingIndexes: [Date: StarGazingIndex] = [:]
     @Published var selectedDate: Date
+    @Published private(set) var displayedDate: Date
     @Published private(set) var locationName: String = ""
     @Published private(set) var hasWeatherError: Bool = false
     @Published private(set) var weatherErrorMessage: String? = nil
@@ -52,6 +53,7 @@ final class DetailViewModel: ObservableObject {
     init(appController: AppController) {
         self.appController = appController
         self.selectedDate = appController.selectedDate
+        self.displayedDate = appController.selectedDate
         self.selectedTimeZone = appController.locationController.selectedTimeZone
         bind()
     }
@@ -69,20 +71,15 @@ final class DetailViewModel: ObservableObject {
                 if self.selectedDate != state.selectedDate {
                     self.selectedDate = state.selectedDate
                 }
+                self.updateDisplayedContentState()
             }
             .store(in: &cancellables)
 
-        Publishers.CombineLatest(
-            appController.$observationState
-                .map(\.selectedDate)
-                .removeDuplicates(),
-            appController.weatherService.$weatherByDate
-        )
-        .sink { [weak self] date, _ in
-            guard let self else { return }
-            self.currentWeather = self.appController.weatherService.summary(for: date)
-        }
-        .store(in: &cancellables)
+        appController.weatherService.$weatherByDate
+            .sink { [weak self] _ in
+                self?.updateDisplayedContentState()
+            }
+            .store(in: &cancellables)
 
         $selectedDate
             .dropFirst()
@@ -99,7 +96,12 @@ final class DetailViewModel: ObservableObject {
             .assign(to: &$locationName)
 
         appController.locationController.selectedTimeZonePublisher
-            .assign(to: &$selectedTimeZone)
+            .sink { [weak self] timeZone in
+                guard let self else { return }
+                self.selectedTimeZone = timeZone
+                self.updateDisplayedContentState()
+            }
+            .store(in: &cancellables)
 
         appController.weatherService.$errorMessage
             .sink { [weak self] errorMessage in
@@ -143,5 +145,26 @@ final class DetailViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Error Handling
+    private var effectiveDisplayDate: Date {
+        guard isCalculating,
+              let nightSummary,
+              !ObservationTimeZone.isDate(
+                nightSummary.date,
+                inSameDayAs: selectedDate,
+                timeZone: selectedTimeZone
+              ) else {
+            return selectedDate
+        }
+
+        return nightSummary.date
+    }
+
+    private func updateDisplayedContentState() {
+        displayedDate = effectiveDisplayDate
+        currentWeather = appController.weatherService.summary(
+            for: displayedDate,
+            from: appController.weatherService.weatherByDate,
+            timeZone: selectedTimeZone
+        )
+    }
 }

@@ -98,6 +98,63 @@ final class DetailViewModelTests: XCTestCase {
         XCTAssertEqual(vm.currentWeather?.avgCloudCover ?? -1, 22, accuracy: 0.001)
     }
 
+    func test_displayedDateAndWeather_stayOnVisibleSummaryWhileRefreshingNextDate() async {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let currentDate = Calendar.current.startOfDay(for: Date())
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        let currentSummary = makeNightSummary(date: currentDate)
+        let currentWeather = DayWeatherSummary(date: currentDate, nighttimeHours: [makeHourlyWeather(cloudCover: 22)])
+        let nextWeather = DayWeatherSummary(date: nextDate, nighttimeHours: [makeHourlyWeather(cloudCover: 88)])
+
+        appController.selectedDate = currentDate
+        appController.nightSummary = currentSummary
+        appController.weatherService.weatherByDate = [
+            appController.weatherService.dateKey(currentDate): currentWeather,
+            appController.weatherService.dateKey(nextDate): nextWeather
+        ]
+
+        let vm = DetailViewModel(appController: appController)
+
+        appController.selectedDate = nextDate
+        appController.isCalculating = true
+
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        XCTAssertEqual(vm.displayedDate, currentDate)
+        XCTAssertEqual(vm.currentWeather?.avgCloudCover ?? -1, 22, accuracy: 0.001)
+    }
+
+    func test_displayedDateAndWeather_switchToNewSelectionAfterRefreshCompletes() async {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let currentDate = Calendar.current.startOfDay(for: Date())
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        let currentSummary = makeNightSummary(date: currentDate)
+        let nextSummary = makeNightSummary(date: nextDate)
+        let currentWeather = DayWeatherSummary(date: currentDate, nighttimeHours: [makeHourlyWeather(cloudCover: 22)])
+        let nextWeather = DayWeatherSummary(date: nextDate, nighttimeHours: [makeHourlyWeather(cloudCover: 88)])
+
+        appController.selectedDate = currentDate
+        appController.nightSummary = currentSummary
+        appController.weatherService.weatherByDate = [
+            appController.weatherService.dateKey(currentDate): currentWeather,
+            appController.weatherService.dateKey(nextDate): nextWeather
+        ]
+
+        let vm = DetailViewModel(appController: appController)
+
+        appController.selectedDate = nextDate
+        appController.isCalculating = true
+        appController.nightSummary = nextSummary
+        appController.isCalculating = false
+
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        XCTAssertEqual(vm.displayedDate, nextDate)
+        XCTAssertEqual(vm.currentWeather?.avgCloudCover ?? -1, 88, accuracy: 0.001)
+    }
+
     func test_isWeatherLoading_reflectsService() {
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
@@ -116,26 +173,6 @@ final class DetailViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isUpcomingLoading)
         appController.isUpcomingLoading = true
         XCTAssertTrue(vm.isUpcomingLoading)
-    }
-
-    func test_detailContentStateResolver_todayState_returnsEmptyWhenSummaryMissingAfterLoad() {
-        let resolver = DetailContentStateResolver()
-
-        let state = resolver.todayState(isCalculating: false, summary: nil)
-
-        XCTAssertEqual(state, .empty)
-    }
-
-    func test_detailContentStateResolver_forecastState_usesUpcomingLoading() {
-        let resolver = DetailContentStateResolver()
-
-        let loading = resolver.forecastState(hasDisplayNights: false, isUpcomingLoading: true)
-        let empty = resolver.forecastState(hasDisplayNights: false, isUpcomingLoading: false)
-        let content = resolver.forecastState(hasDisplayNights: true, isUpcomingLoading: false)
-
-        XCTAssertEqual(loading, .loading)
-        XCTAssertEqual(empty, .empty)
-        XCTAssertEqual(content, .content)
     }
 }
 
