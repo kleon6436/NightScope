@@ -57,30 +57,6 @@ struct LocationSearchState {
 struct ResolvedLocationDetails: Sendable, Equatable {
     let name: String
     let timeZoneIdentifier: String?
-
-    var hasResolvedTimeZone: Bool {
-        validTimeZoneIdentifier != nil
-    }
-
-    func merged(with fallback: ResolvedLocationDetails) -> ResolvedLocationDetails {
-        ResolvedLocationDetails(
-            name: preferredName ?? fallback.preferredName ?? "現在地",
-            timeZoneIdentifier: validTimeZoneIdentifier ?? fallback.validTimeZoneIdentifier
-        )
-    }
-
-    private var preferredName: String? {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
-    private var validTimeZoneIdentifier: String? {
-        guard let timeZoneIdentifier,
-              TimeZone(identifier: timeZoneIdentifier) != nil else {
-            return nil
-        }
-        return timeZoneIdentifier
-    }
 }
 
 enum MapItemLocationDetailsExtractor {
@@ -107,31 +83,6 @@ enum MapItemLocationDetailsExtractor {
     }
 }
 
-enum PlacemarkLocationDetailsExtractor {
-    static func details(from placemark: CLPlacemark) -> ResolvedLocationDetails {
-        if let locality = placemark.locality?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !locality.isEmpty {
-            return ResolvedLocationDetails(
-                name: locality,
-                timeZoneIdentifier: placemark.timeZone?.identifier
-            )
-        }
-
-        if let name = placemark.name?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !name.isEmpty {
-            return ResolvedLocationDetails(
-                name: name,
-                timeZoneIdentifier: placemark.timeZone?.identifier
-            )
-        }
-
-        return ResolvedLocationDetails(
-            name: "現在地",
-            timeZoneIdentifier: placemark.timeZone?.identifier
-        )
-    }
-}
-
 protocol LocationNameResolving: Sendable {
     func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails
 }
@@ -139,13 +90,7 @@ protocol LocationNameResolving: Sendable {
 struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
     func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        let mapItemDetails = await resolveMapItemDetails(for: location)
-        guard !mapItemDetails.hasResolvedTimeZone else {
-            return mapItemDetails
-        }
-
-        let placemarkDetails = await resolvePlacemarkDetails(for: location)
-        return mapItemDetails.merged(with: placemarkDetails)
+        return await resolveMapItemDetails(for: location)
     }
 
     private func resolveMapItemDetails(for location: CLLocation) async -> ResolvedLocationDetails {
@@ -160,19 +105,6 @@ struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
         }
 
         return MapItemLocationDetailsExtractor.details(from: item)
-    }
-
-    private func resolvePlacemarkDetails(for location: CLLocation) async -> ResolvedLocationDetails {
-        let geocoder = CLGeocoder()
-        let placemarks = try? await geocoder.reverseGeocodeLocation(
-            location,
-            preferredLocale: Locale(identifier: "ja_JP")
-        )
-        guard let placemark = placemarks?.first else {
-            return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
-        }
-
-        return PlacemarkLocationDetailsExtractor.details(from: placemark)
     }
 }
 

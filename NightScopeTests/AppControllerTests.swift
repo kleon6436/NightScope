@@ -268,27 +268,28 @@ final class AppControllerTests: XCTestCase {
         XCTAssertTrue(indexes.values.allSatisfy(\.hasWeatherData))
     }
 
-    func test_recalculate_clearsStaleNightSummaryBeforeNewDateCompletes() async {
+    func test_recalculate_keepsDisplayedNightSummaryUntilNewDateCompletes() async {
         let baseDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
         let oldSummary = makeNightSummary(date: baseDate)
+        let oldIndex = StarGazingIndex.compute(
+            nightSummary: oldSummary,
+            weather: nil,
+            bortleClass: 4
+        )
 
         let mockCalculationService = MockNightCalculationService()
         await mockCalculationService.enqueueNightSummary(makeNightSummary(date: nextDate), delayMilliseconds: 250)
 
         let appController = AppController(calculationService: mockCalculationService)
         appController.nightSummary = oldSummary
-        appController.starGazingIndex = StarGazingIndex.compute(
-            nightSummary: oldSummary,
-            weather: nil,
-            bortleClass: 4
-        )
+        appController.starGazingIndex = oldIndex
         appController.selectedDate = nextDate
 
         appController.recalculate()
 
-        XCTAssertNil(appController.nightSummary)
-        XCTAssertNil(appController.starGazingIndex)
+        XCTAssertEqual(appController.nightSummary?.date, oldSummary.date)
+        XCTAssertEqual(appController.starGazingIndex?.score, oldIndex.score)
         XCTAssertTrue(appController.isCalculating)
     }
 

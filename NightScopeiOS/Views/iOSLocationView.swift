@@ -63,6 +63,7 @@ struct iOSLocationView: View {
             }
         } trailing: {
             Button {
+                isSearchFocused = false
                 sidebarViewModel.requestCurrentLocation()
             } label: {
                 Group {
@@ -168,7 +169,7 @@ struct iOSLocationView: View {
         ZStack(alignment: .bottomTrailing) {
             iOSMapView(
                 pinCoordinate: sidebarViewModel.selectedCoordinate,
-                onTap: sidebarViewModel.selectCoordinate,
+                onTap: handleMapTap,
                 syncState: MapKitSyncState(
                     trigger: mapViewportSyncTrigger,
                     center: sidebarViewModel.viewport.center,
@@ -242,6 +243,11 @@ struct iOSLocationView: View {
                 }
             }
         )
+    }
+
+    private func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
+        isSearchFocused = false
+        sidebarViewModel.selectCoordinate(coordinate)
     }
 
     private func clearSearchInteraction() {

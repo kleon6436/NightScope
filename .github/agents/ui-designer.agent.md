@@ -1,7 +1,7 @@
 ---
 name: ui-designer
 description: 'UI/UX、情報設計、画面状態、アクセシビリティの観点から体験を設計・レビューする。'
-model: GPT-5.4 (copilot)
+model: Claude Opus 4.6 (copilot)
 ---
 
 # UI Designer Agent

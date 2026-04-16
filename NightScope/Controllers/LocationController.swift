@@ -392,15 +392,15 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     }
 
     private func approximateTimeZoneIdentifier(for coordinate: CLLocationCoordinate2D) -> String {
-        if let timeZone = approximateFractionalTimeZone(for: coordinate) {
+        if let timeZone = approximateHeuristicTimeZone(for: coordinate) {
             return timeZone.identifier
         }
 
         return fixedOffsetTimeZoneIdentifier(forHoursFromGMT: approximateWholeHourOffset(for: coordinate))
     }
 
-    private func approximateFractionalTimeZone(for coordinate: CLLocationCoordinate2D) -> TimeZone? {
-        for heuristic in Self.fractionalTimeZoneHeuristics where heuristic.contains(coordinate: coordinate) {
+    private func approximateHeuristicTimeZone(for coordinate: CLLocationCoordinate2D) -> TimeZone? {
+        for heuristic in Self.timeZoneHeuristics where heuristic.contains(coordinate: coordinate) {
             return TimeZone(identifier: heuristic.identifier)
         }
 
@@ -424,7 +424,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         return searchState.query
     }
 
-    private static let fractionalTimeZoneHeuristics = [
+    private static let timeZoneHeuristics = [
         TimeZoneHeuristic(latitudeRange: 26...31.5, longitudeRange: 80...89.5, identifier: "Asia/Kathmandu"),
         TimeZoneHeuristic(latitudeRange: 9...29, longitudeRange: 92...101, identifier: "Asia/Yangon"),
         TimeZoneHeuristic(latitudeRange: -32 ... -30, longitudeRange: 158...160.8, identifier: "Australia/Lord_Howe"),
@@ -436,7 +436,19 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         TimeZoneHeuristic(latitudeRange: -45.5 ... -42, longitudeRange: -177.5 ... -175, identifier: "Pacific/Chatham"),
         TimeZoneHeuristic(latitudeRange: 24...40, longitudeRange: 43...64, identifier: "Asia/Tehran"),
         TimeZoneHeuristic(latitudeRange: 29...39.5, longitudeRange: 60...75, identifier: "Asia/Kabul"),
-        TimeZoneHeuristic(latitudeRange: 5...38, longitudeRange: 67...92, identifier: "Asia/Kolkata")
+        TimeZoneHeuristic(latitudeRange: 5...38, longitudeRange: 67...92, identifier: "Asia/Kolkata"),
+        TimeZoneHeuristic(latitudeRange: 31...38, longitudeRange: -115 ... -109, identifier: "America/Phoenix"),
+        TimeZoneHeuristic(latitudeRange: 51...72, longitudeRange: -171 ... -129, identifier: "America/Anchorage"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -129 ... -113, identifier: "America/Los_Angeles"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -115 ... -101, identifier: "America/Denver"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -106 ... -84, identifier: "America/Chicago"),
+        TimeZoneHeuristic(latitudeRange: 25...52, longitudeRange: -90 ... -60, identifier: "America/New_York"),
+        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: -11 ... 0, identifier: "Europe/London"),
+        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: 0...20, identifier: "Europe/Paris"),
+        TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: 20...36, identifier: "Europe/Athens"),
+        TimeZoneHeuristic(latitudeRange: -44 ... -28, longitudeRange: 141...154.5, identifier: "Australia/Sydney"),
+        TimeZoneHeuristic(latitudeRange: -48 ... -33, longitudeRange: 166...179.9, identifier: "Pacific/Auckland"),
+        TimeZoneHeuristic(latitudeRange: -56 ... -17, longitudeRange: -76 ... -65, identifier: "America/Santiago")
     ]
 
 }

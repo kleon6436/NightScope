@@ -143,7 +143,7 @@ struct DetailView: View {
                     .font(.largeTitle.bold())
                 Text(
                     DateFormatters.yearMonthDayWeekdayString(
-                        from: summary.date,
+                        from: viewModel.selectedDate,
                         timeZone: viewModel.selectedTimeZone
                     )
                 )

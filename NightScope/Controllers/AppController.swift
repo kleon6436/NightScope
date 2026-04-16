@@ -138,10 +138,6 @@ final class AppController: ObservableObject {
         let date = selectedDate
         let location = selectedCoordinate
         let timeZone = selectedTimeZone
-        if !hasNightSummary(matching: date, location: location, timeZone: timeZone) {
-            nightSummary = nil
-            starGazingIndex = nil
-        }
         calculationTask = Task {
             let summary = await calculationService.calculateNightSummary(
                 date: date,

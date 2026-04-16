@@ -543,6 +543,54 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.selectedTimeZone.identifier, "Asia/Kathmandu")
     }
 
+    func test_LocationController_selectCoordinate_fallsBackToDSTAwareTimeZoneForLosAngeles() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "ロサンゼルス", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "ロサンゼルス"
+                && storage.timeZoneIdentifier == sut.selectedTimeZone.identifier
+        }
+
+        let summerDate = DateComponents(
+            calendar: Calendar(identifier: .gregorian),
+            year: 2026,
+            month: 7,
+            day: 1
+        ).date!
+        XCTAssertEqual(sut.selectedTimeZone.identifier, "America/Los_Angeles")
+        XCTAssertEqual(sut.selectedTimeZone.secondsFromGMT(for: summerDate), -7 * 3_600)
+    }
+
+    func test_LocationController_selectCoordinate_fallsBackToDSTAwareTimeZoneForParis() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "パリ", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 48.8566, longitude: 2.3522)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "パリ"
+                && storage.timeZoneIdentifier == sut.selectedTimeZone.identifier
+        }
+
+        let summerDate = DateComponents(
+            calendar: Calendar(identifier: .gregorian),
+            year: 2026,
+            month: 7,
+            day: 1
+        ).date!
+        XCTAssertEqual(sut.selectedTimeZone.identifier, "Europe/Paris")
+        XCTAssertEqual(sut.selectedTimeZone.secondsFromGMT(for: summerDate), 2 * 3_600)
+    }
+
     func test_LocationController_didUpdateLocations_usesLatestLocation() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))
