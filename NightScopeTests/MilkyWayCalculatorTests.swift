@@ -1,7 +1,25 @@
 import XCTest
+import CoreLocation
 @testable import NightScope
 
 final class MilkyWayCalculatorTests: XCTestCase {
+    private func makeDate(
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int = 0,
+        minute: Int = 0,
+        timeZoneIdentifier: String
+    ) -> Date {
+        var components = DateComponents()
+        components.year = year
+        components.month = month
+        components.day = day
+        components.hour = hour
+        components.minute = minute
+        components.timeZone = TimeZone(identifier: timeZoneIdentifier)
+        return Calendar(identifier: .gregorian).date(from: components)!
+    }
 
     // MARK: - julianDate
 
@@ -192,6 +210,29 @@ final class MilkyWayCalculatorTests: XCTestCase {
         }
         let windows = MilkyWayCalculator.findViewingWindows(events: events)
         XCTAssertTrue(windows.isEmpty)
+    }
+
+    func test_calculateNightSummary_usesNextLocalMidnightAcrossDstBoundary() {
+        let timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let date = makeDate(year: 2024, month: 11, day: 3, timeZoneIdentifier: timeZone.identifier)
+        let location = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let nextMidnight = calendar.date(
+            byAdding: .day,
+            value: 1,
+            to: calendar.startOfDay(for: date)
+        )!
+        let expectedPhase = MilkyWayCalculator.moonRaDec(
+            jd: MilkyWayCalculator.julianDate(from: nextMidnight)
+        ).phase
+
+        let summary = MilkyWayCalculator.calculateNightSummary(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        )
+
+        XCTAssertEqual(summary.moonPhaseAtMidnight, expectedPhase, accuracy: 1e-9)
     }
 
     // MARK: - galacticToEquatorial

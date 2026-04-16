@@ -59,7 +59,7 @@ struct NightScopeCommands: Commands {
             Divider()
 
             Button("今日に移動") {
-                selectedDate = Date()
+                selectedDate = observationCalendar.startOfDay(for: Date())
             }
             .keyboardShortcut("t", modifiers: .command)
             .disabled(selectedDate == nil)

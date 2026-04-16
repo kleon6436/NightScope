@@ -145,35 +145,7 @@ final class StarMapViewModel: ObservableObject {
         self.terrainDependency = terrainDependency ?? .live
         self.computationDependency = computationDependency ?? .live
         self.starDisplayDensity = self.settingsDependency.currentDensity()
-        // 場所が変わったら再計算
-        appController.locationController.selectedLocationPublisher
-            .dropFirst()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.handleSelectedLocationChanged()
-            }
-            .store(in: &cancellables)
-        appController.locationController.selectedTimeZonePublisher
-            .dropFirst()
-            .removeDuplicates { $0.identifier == $1.identifier }
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.handleSelectedTimeZoneChanged()
-            }
-            .store(in: &cancellables)
-        self.settingsDependency.changes
-            .receive(on: RunLoop.main)
-            .sink { [weak self] density in
-                self?.applyStarDisplayDensity(density)
-            }
-            .store(in: &cancellables)
-        appController.$selectedDate
-            .dropFirst()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.handleSelectedDateChanged()
-            }
-            .store(in: &cancellables)
+        setupBindings()
         updateNightRange()
         syncTimeSliderWithDisplayDate()
         update()
@@ -216,6 +188,12 @@ final class StarMapViewModel: ObservableObject {
         var terrainCacheKey: String {
             StarMapViewModel.terrainCacheKey(latitude: latitude, longitude: longitude)
         }
+    }
+
+    private struct ObservationContext {
+        let selectedDate: Date
+        let location: CLLocationCoordinate2D
+        let timeZone: TimeZone
     }
 
     private enum DisplayDateUpdateMode {
@@ -278,26 +256,77 @@ final class StarMapViewModel: ObservableObject {
         }
     }
 
+    private var selectedLocation: CLLocationCoordinate2D {
+        appController.locationController.selectedLocation
+    }
+
+    private var selectedTimeZone: TimeZone {
+        appController.locationController.selectedTimeZone
+    }
+
+    private var observationContext: ObservationContext {
+        ObservationContext(
+            selectedDate: appController.selectedDate,
+            location: selectedLocation,
+            timeZone: selectedTimeZone
+        )
+    }
+
+    private func setupBindings() {
+        appController.locationController.selectedLocationPublisher
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.handleSelectedLocationChanged()
+            }
+            .store(in: &cancellables)
+
+        appController.locationController.selectedTimeZonePublisher
+            .dropFirst()
+            .removeDuplicates { $0.identifier == $1.identifier }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.handleSelectedTimeZoneChanged()
+            }
+            .store(in: &cancellables)
+
+        settingsDependency.changes
+            .receive(on: RunLoop.main)
+            .sink { [weak self] density in
+                self?.applyStarDisplayDensity(density)
+            }
+            .store(in: &cancellables)
+
+        appController.$selectedDate
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.handleSelectedDateChanged()
+            }
+            .store(in: &cancellables)
+    }
+
     private func makeUpdateContext() -> UpdateContext {
-        let location = appController.locationController.selectedLocation
+        let context = observationContext
         let date = displayDate
         let julianDate = MilkyWayCalculator.julianDate(from: date)
 
         return UpdateContext(
-            latitude: location.latitude,
-            longitude: location.longitude,
+            latitude: context.location.latitude,
+            longitude: context.location.longitude,
             julianDate: julianDate,
             localSiderealTime: MilkyWayCalculator.localSiderealTime(
                 jd: julianDate,
-                longitude: location.longitude
+                longitude: context.location.longitude
             ),
             activeMeteorShowers: MeteorShowerCatalog.active(
                 on: date,
-                timeZone: appController.locationController.selectedTimeZone
+                timeZone: context.timeZone
             )
         )
     }
 
+    /// 表示する恒星密度を切り替え、必要な再計算を要求します。
     func setStarDisplayDensity(_ density: StarDisplayDensity) {
         applyStarDisplayDensity(density)
     }
@@ -350,7 +379,7 @@ final class StarMapViewModel: ObservableObject {
     var activeMeteorShowers: [MeteorShower] {
         MeteorShowerCatalog.active(
             on: displayDate,
-            timeZone: appController.locationController.selectedTimeZone
+            timeZone: selectedTimeZone
         )
     }
 
@@ -358,14 +387,15 @@ final class StarMapViewModel: ObservableObject {
     var nextMeteorShower: (shower: MeteorShower, daysUntilPeak: Int)? {
         MeteorShowerCatalog.next(
             after: displayDate,
-            timeZone: appController.locationController.selectedTimeZone
+            timeZone: selectedTimeZone
         )
     }
 
+    /// 現在の表示が属する観測日の開始時刻です。
     var observationDate: Date {
         ObservationTimeZone.startOfDay(
             for: appController.selectedDate,
-            timeZone: appController.locationController.selectedTimeZone
+            timeZone: selectedTimeZone
         )
     }
 
@@ -380,8 +410,9 @@ final class StarMapViewModel: ObservableObject {
         syncWithSelectedDate(referenceDate: referenceDate)
     }
 
+    /// 表示中の夜時刻をできるだけ保ったまま観測日を切り替えます。
     func setObservationDate(_ date: Date) {
-        let timeZone = appController.locationController.selectedTimeZone
+        let timeZone = selectedTimeZone
         let normalizedDate = ObservationTimeZone.startOfDay(for: date, timeZone: timeZone)
         guard !ObservationTimeZone.isDate(
             appController.selectedDate,
@@ -425,35 +456,25 @@ final class StarMapViewModel: ObservableObject {
 
     /// 選択日へ現在の時刻を反映し、昼間なら当日夕方側の夜へ寄せて表示日時を決める。
     func syncWithSelectedDate(referenceDate: Date = Date()) {
-        let selected = appController.selectedDate
-        let location = appController.locationController.selectedLocation
-        let timeZone = appController.locationController.selectedTimeZone
+        let context = observationContext
         updateNightRange()
         if let date = resolvedPresentationDate(
-            for: selected,
+            for: context.selectedDate,
             referenceDate: referenceDate,
-            location: location,
-            timeZone: timeZone
+            location: context.location,
+            timeZone: context.timeZone
         ) {
             displayDate = date
         }
     }
 
+    /// 夜間スライダーの値を表示日時へ反映します。
     func setTimeSliderMinutes(_ minutes: Double) {
         let clampedMinutes = max(0, min(nightDurationMinutes, minutes.rounded()))
         guard abs(timeSliderMinutes - clampedMinutes) > 0.5 else { return }
         timeSliderMinutes = clampedMinutes
 
-        let realMinutes = StarMapDateLogic.nightOffsetToRealMinutes(
-            clampedMinutes,
-            nightStartMinutes: nightStartMinutes
-        )
-        guard let updatedDate = StarMapDateLogic.date(
-            bySettingClockMinutes: realMinutes,
-            onObservationDate: appController.selectedDate,
-            timeZone: appController.locationController.selectedTimeZone,
-            nightStartMinutes: nightStartMinutes
-        ) else {
+        guard let updatedDate = makeDisplayDate(forTimeSliderMinutes: clampedMinutes) else {
             return
         }
 
@@ -469,6 +490,7 @@ final class StarMapViewModel: ObservableObject {
         }
     }
 
+    /// 夜間スライダーに対応する表示用時刻文字列です。
     var displayTimeString: String {
         let realMinutes = StarMapDateLogic.nightOffsetToRealMinutes(
             timeSliderMinutes,
@@ -478,9 +500,10 @@ final class StarMapViewModel: ObservableObject {
     }
 
     private func syncTimeSliderWithDisplayDate() {
+        let context = observationContext
         let realMinutes = StarMapDateLogic.clockMinutes(
             for: displayDate,
-            timeZone: appController.locationController.selectedTimeZone
+            timeZone: context.timeZone
         )
         let offset = StarMapDateLogic.realMinutesToNightOffset(
             realMinutes,
@@ -491,11 +514,13 @@ final class StarMapViewModel: ObservableObject {
         timeSliderMinutes = offset
     }
 
+    /// スライダー編集中の更新頻度へ切り替えます。
     func beginTimeSliderInteraction() {
         guard !isTimeSliderScrubbing else { return }
         isTimeSliderScrubbing = true
     }
 
+    /// 保留中の日時反映をコミットして通常更新へ戻します。
     func endTimeSliderInteraction() {
         guard isTimeSliderScrubbing else { return }
         isTimeSliderScrubbing = false
@@ -547,7 +572,7 @@ final class StarMapViewModel: ObservableObject {
     }
 
     private func handleSelectedDateChanged() {
-        let timeZone = appController.locationController.selectedTimeZone
+        let timeZone = selectedTimeZone
         let currentObservationDate = StarMapDateLogic.observationDate(
             for: displayDate,
             timeZone: timeZone,
@@ -588,20 +613,34 @@ final class StarMapViewModel: ObservableObject {
 
     /// 夜間範囲を現在の日付・場所で再計算
     private func updateNightRange() {
-        let location = appController.locationController.selectedLocation
-        let observationDate = appController.selectedDate
+        let context = observationContext
         let fallback = StarMapDateLogic.NightRange(
             startMinutes: nightStartMinutes,
             durationMinutes: nightDurationMinutes
         )
         let range = StarMapDateLogic.nightRange(
-            for: observationDate,
-            location: location,
-            timeZone: appController.locationController.selectedTimeZone,
+            for: context.selectedDate,
+            location: context.location,
+            timeZone: context.timeZone,
             fallback: fallback
         )
         nightStartMinutes = range.startMinutes
         nightDurationMinutes = range.durationMinutes
+    }
+
+    /// 夜間スライダーのオフセットを、現在の観測日に属する実際の表示日時へ変換します。
+    private func makeDisplayDate(forTimeSliderMinutes minutes: Double) -> Date? {
+        let context = observationContext
+        let realMinutes = StarMapDateLogic.nightOffsetToRealMinutes(
+            minutes,
+            nightStartMinutes: nightStartMinutes
+        )
+        return StarMapDateLogic.date(
+            bySettingClockMinutes: realMinutes,
+            onObservationDate: context.selectedDate,
+            timeZone: context.timeZone,
+            nightStartMinutes: nightStartMinutes
+        )
     }
 
     private func resolvedPresentationDate(

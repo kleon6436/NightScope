@@ -4,6 +4,13 @@ import MapKit
 
 @MainActor
 final class LocationController: NSObject, ObservableObject, LocationProviding {
+    private struct SelectionRequest {
+        let coordinate: CLLocationCoordinate2D
+        let fallbackName: String?
+        let preferredDetails: ResolvedLocationDetails
+        let preferredTimeZoneIdentifierForResolution: String?
+        let incrementsCenterTrigger: Bool
+    }
 
     // MARK: - Published State
 
@@ -155,6 +162,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     // MARK: - Public API
 
+    /// 現在地取得を開始します。未許可の場合は権限ダイアログを要求します。
     func requestCurrentLocation() {
         let status = locationManager.authorizationStatus
         guard status != .denied, status != .restricted else {
@@ -180,6 +188,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
     }
 
+    /// クエリを正規化して場所検索を開始します。
     func search(query: String) {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedQuery.isEmpty else {
@@ -219,6 +228,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
     }
 
+    /// 検索状態を初期化し、進行中の検索を取り消します。
     func clearSearch() {
         searchTask?.cancel()
         latestSearchQuery = ""
@@ -227,24 +237,15 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     /// 検索候補から場所を確定する（マップをセンタリングする）
     func select(_ mapItem: MKMapItem) {
-        clearSearch()
-        if isLocating { stopLocating() }
-        let coordinate = mapItem.location.coordinate
         let preferredDetails = MapItemLocationDetailsExtractor.details(from: mapItem)
-        let didChangeCoordinate = applyCoordinateSelection(coordinate)
-        let didChangeTimeZone = applyResolvedLocationDetails(
-            for: coordinate,
-            details: preferredDetails,
-            fallbackName: mapItem.name
-        )
-        if didChangeCoordinate || didChangeTimeZone {
-            commitLocationUpdate()
-        }
-        currentLocationCenterTrigger += 1
-        resolveLocationDetails(
-            for: coordinate,
-            fallbackName: preferredDetails.name,
-            preferredTimeZoneIdentifier: preferredDetails.timeZoneIdentifier
+        applySelection(
+            SelectionRequest(
+                coordinate: mapItem.location.coordinate,
+                fallbackName: mapItem.name,
+                preferredDetails: preferredDetails,
+                preferredTimeZoneIdentifierForResolution: preferredDetails.timeZoneIdentifier,
+                incrementsCenterTrigger: true
+            )
         )
     }
 
@@ -254,28 +255,45 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     }
 
     private func selectCoordinate(_ coordinate: CLLocationCoordinate2D, provisionalName: String) {
-        if isLocating { stopLocating() }
-        clearSearch()
-        let didChangeCoordinate = applyCoordinateSelection(coordinate)
-        let didChangeTimeZone = applyResolvedLocationDetails(
-            for: coordinate,
-            details: ResolvedLocationDetails(
-                name: provisionalName,
-                timeZoneIdentifier: approximateTimeZoneIdentifier(for: coordinate)
-            ),
-            fallbackName: provisionalName
-        )
-        if didChangeCoordinate || didChangeTimeZone {
-            commitLocationUpdate()
-        }
-        resolveLocationDetails(
-            for: coordinate,
-            fallbackName: provisionalName,
-            preferredTimeZoneIdentifier: selectedTimeZoneIdentifier
+        let approximateTimeZoneIdentifier = approximateTimeZoneIdentifier(for: coordinate)
+        applySelection(
+            SelectionRequest(
+                coordinate: coordinate,
+                fallbackName: provisionalName,
+                preferredDetails: ResolvedLocationDetails(
+                    name: provisionalName,
+                    timeZoneIdentifier: approximateTimeZoneIdentifier
+                ),
+                preferredTimeZoneIdentifierForResolution: approximateTimeZoneIdentifier,
+                incrementsCenterTrigger: false
+            )
         )
     }
 
     // MARK: - Private Helpers
+
+    /// 場所確定時の共通フローです。即時反映と非同期の詳細解決をまとめて扱います。
+    private func applySelection(_ request: SelectionRequest) {
+        if isLocating { stopLocating() }
+        clearSearch()
+        let didChangeCoordinate = applyCoordinateSelection(request.coordinate)
+        let didChangeTimeZone = applyResolvedLocationDetails(
+            for: request.coordinate,
+            details: request.preferredDetails,
+            fallbackName: request.fallbackName
+        )
+        if didChangeCoordinate || didChangeTimeZone {
+            commitLocationUpdate()
+        }
+        if request.incrementsCenterTrigger {
+            currentLocationCenterTrigger += 1
+        }
+        resolveLocationDetails(
+            for: request.coordinate,
+            fallbackName: request.fallbackName,
+            preferredTimeZoneIdentifier: request.preferredTimeZoneIdentifierForResolution
+        )
+    }
 
     private func stopLocating() {
         cancelLocationTimeout()

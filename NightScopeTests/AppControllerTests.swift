@@ -317,6 +317,19 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(appController.locationRefreshDisposition(for: request), .applyLocationDataOnly)
     }
 
+    func test_locationRefreshDisposition_appliesAll_whenOnlyTimeComponentDiffers() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let request = AppController.LocationRefreshRequest(
+            selectedDate: appController.selectedDate,
+            coordinate: appController.locationController.selectedLocation,
+            timeZoneIdentifier: appController.locationController.selectedTimeZone.identifier
+        )
+
+        appController.selectedDate = appController.selectedDate.addingTimeInterval(3_600)
+
+        XCTAssertEqual(appController.locationRefreshDisposition(for: request), .applyAll)
+    }
+
     func test_locationRefreshDisposition_discards_whenLocationChanged() {
         let appController = AppController(calculationService: MockNightCalculationService())
         let request = AppController.LocationRefreshRequest(

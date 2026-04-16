@@ -86,8 +86,18 @@ final class DetailViewModel: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] date in
                 guard let self else { return }
-                guard self.appController.selectedDate != date else { return }
-                self.appController.selectedDate = date
+                let normalizedDate = ObservationTimeZone.startOfDay(
+                    for: date,
+                    timeZone: self.selectedTimeZone
+                )
+                guard !ObservationTimeZone.isDate(
+                    self.appController.selectedDate,
+                    inSameDayAs: normalizedDate,
+                    timeZone: self.selectedTimeZone
+                ) else {
+                    return
+                }
+                self.appController.selectedDate = normalizedDate
                 self.appController.recalculate()
             }
             .store(in: &cancellables)

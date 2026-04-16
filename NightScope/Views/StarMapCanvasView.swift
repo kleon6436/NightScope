@@ -17,6 +17,52 @@ struct StarMapCanvasView: View {
         var id: Double { azimuthDegrees }
     }
 
+    private struct GnomonicProjectionContext {
+        let cx: Double
+        let cy: Double
+        let scale: Double
+        let forward: (x: Double, y: Double, z: Double)
+        let right: (x: Double, y: Double, z: Double)
+        let up: (x: Double, y: Double, z: Double)
+
+        init(size: CGSize, centerAlt: Double, centerAz: Double, fov: Double) {
+            self.cx = size.width / 2
+            self.cy = size.height / 2
+            let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
+            self.scale = min(size.width, size.height) / (2 * tan(halfFovRad))
+
+            let altitudeRadians = centerAlt * .pi / 180
+            let azimuthRadians = centerAz * .pi / 180
+            let forwardVector = StarMapCanvasView.altAzToCartesianStatic(
+                alt: altitudeRadians,
+                az: azimuthRadians
+            )
+            self.forward = (x: forwardVector.0, y: forwardVector.1, z: forwardVector.2)
+            self.right = (x: cos(azimuthRadians), y: -sin(azimuthRadians), z: 0)
+
+            let upCrossX = right.y * forward.z - right.z * forward.y
+            let upCrossY = right.z * forward.x - right.x * forward.z
+            let upCrossZ = right.x * forward.y - right.y * forward.x
+            let upLength = sqrt(upCrossX * upCrossX + upCrossY * upCrossY + upCrossZ * upCrossZ)
+            self.up = upLength > 1e-10
+                ? (x: upCrossX / upLength, y: upCrossY / upLength, z: upCrossZ / upLength)
+                : (x: 0, y: 0, z: 1)
+        }
+
+        func project(altitudeRadians: Double, azimuthRadians: Double) -> CGPoint? {
+            let point = StarMapCanvasView.altAzToCartesianStatic(
+                alt: altitudeRadians,
+                az: azimuthRadians
+            )
+            let dot = point.0 * forward.x + point.1 * forward.y + point.2 * forward.z
+            guard dot > 0.1 else { return nil }
+
+            let projectedX = (point.0 * right.x + point.1 * right.y + point.2 * right.z) / dot * scale
+            let projectedY = (point.0 * up.x + point.1 * up.y + point.2 * up.z) / dot * scale
+            return CGPoint(x: cx + projectedX, y: cy - projectedY)
+        }
+    }
+
     @ObservedObject var viewModel: StarMapViewModel
     var showsCardinalOverlay: Bool = true
 
@@ -33,6 +79,7 @@ struct StarMapCanvasView: View {
 
 #if os(macOS)
     @State private var scrollWheelMonitor: Any?
+    @State private var isPointerOverCanvas = false
 #endif
 
     // MARK: Body
@@ -73,6 +120,9 @@ struct StarMapCanvasView: View {
                 removeMacScrollWheelMonitor()
 #endif
             }
+#if os(macOS)
+            .onHover { isPointerOverCanvas = $0 }
+#endif
             .onChange(of: size) { _, newSize in
                 onCanvasAppear(newSize)
             }
@@ -86,10 +136,10 @@ struct StarMapCanvasView: View {
                 handleAzimuthKey(step: StarMapLayout.directionStep)
             }
             .onKeyPress(.upArrow) {
-                handleAltitudeKey(step: StarMapLayout.directionStep, size: size)
+                handleAltitudeKey(step: StarMapLayout.directionStep)
             }
             .onKeyPress(.downArrow) {
-                handleAltitudeKey(step: -StarMapLayout.directionStep, size: size)
+                handleAltitudeKey(step: -StarMapLayout.directionStep)
             }
             .onKeyPress(KeyEquivalent("=")) {
                 handleZoomKey(step: -StarMapLayout.zoomStep)
@@ -122,7 +172,7 @@ struct StarMapCanvasView: View {
         return .handled
     }
 
-    private func handleAltitudeKey(step: Double, size: CGSize) -> KeyPress.Result {
+    private func handleAltitudeKey(step: Double) -> KeyPress.Result {
         viewModel.viewAltitude = max(-10, min(89, viewModel.viewAltitude + step))
         return .handled
     }
@@ -169,18 +219,12 @@ struct StarMapCanvasView: View {
         let fov = effectiveGnomonicFOV()
         let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
         let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
-
-        // スクリーン移動 → カメラ空間の角度変化 (atan で正確に)
-        let yawRad = atan2(gestureDragOffset.width, scale)
-        let pitchRad = atan2(gestureDragOffset.height, scale)
-
-        var newAlt = viewModel.viewAltitude + pitchRad * 180 / .pi
-        var newAz = viewModel.viewAzimuth - yawRad * 180 / .pi
-
-        newAlt = max(-10, min(89, newAlt))
-        newAz = newAz.truncatingRemainder(dividingBy: 360)
-        if newAz < 0 { newAz += 360 }
-        return (newAlt, newAz)
+        return Self.adjustedCenter(
+            altitude: viewModel.viewAltitude,
+            azimuth: viewModel.viewAzimuth,
+            translation: gestureDragOffset,
+            scale: scale
+        )
     }
 
 
@@ -188,44 +232,19 @@ struct StarMapCanvasView: View {
                                         cx: Double, cy: Double, size: CGSize,
                                         centerAlt: Double, centerAz: Double, fov: Double) {
         let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
-        let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
-        let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
-
-        let cAlt = centerAlt * .pi / 180
-        let cAz  = centerAz * .pi / 180
-
-        // カメラ中心方向 (forward)
-        let (fwdX, fwdY, fwdZ) = altAzToCartesian(alt: cAlt, az: cAz)
-
-        // 水平右方向ベクトル (方位に直交、水平面内)
-        let rightX = cos(cAz)
-        let rightY = -sin(cAz)
-        let rightZ = 0.0
-
-        // 上方向ベクトル = right × forward, 正規化
-        let uCrossX = rightY * fwdZ - rightZ * fwdY
-        let uCrossY = rightZ * fwdX - rightX * fwdZ
-        let uCrossZ = rightX * fwdY - rightY * fwdX
-        let uLen = sqrt(uCrossX * uCrossX + uCrossY * uCrossY + uCrossZ * uCrossZ)
-        let (upX, upY, upZ) = uLen > 1e-10
-            ? (uCrossX / uLen, uCrossY / uLen, uCrossZ / uLen)
-            : (0.0, 0.0, 1.0)
-
-        func project(alt: Double, az: Double) -> CGPoint? {
-            let (px, py, pz) = altAzToCartesian(alt: alt, az: az)
-            let dot = px * fwdX + py * fwdY + pz * fwdZ
-            guard dot > 0.1 else { return nil }
-            let projX = (px * rightX + py * rightY + pz * rightZ) / dot * scale
-            let projY = (px * upX    + py * upY    + pz * upZ)    / dot * scale
-            return CGPoint(x: cx + projX, y: cy - projY)
-        }
+        let projection = GnomonicProjectionContext(
+            size: size,
+            centerAlt: centerAlt,
+            centerAz: centerAz,
+            fov: fov
+        )
 
         // 地平線・地面描画
-        let horizonScreenY = Self.horizonScreenY(centerAlt: centerAlt, cy: cy, scale: scale)
+        let horizonScreenY = Self.horizonScreenY(centerAlt: centerAlt, cy: cy, scale: projection.scale)
         drawGnomonicGround(ctx: ctx, cx: cx, cy: cy, size: size,
-                           centerAlt: centerAlt, scale: scale,
-                           fwdX: fwdX, fwdY: fwdY, fwdZ: fwdZ,
-                           upX: upX, upY: upY, upZ: upZ,
+                           centerAlt: centerAlt, scale: projection.scale,
+                           fwdX: projection.forward.x, fwdY: projection.forward.y, fwdZ: projection.forward.z,
+                           upX: projection.up.x, upY: projection.up.y, upZ: projection.up.z,
                            horizonScreenY: horizonScreenY)
 
         // 星座線
@@ -233,8 +252,8 @@ struct StarMapCanvasView: View {
         for line in viewModel.constellationLines {
             let a1 = max(line.startAlt, -5) * .pi / 180
             let a2 = max(line.endAlt,   -5) * .pi / 180
-            if let p1 = project(alt: a1, az: line.startAz * .pi / 180),
-               let p2 = project(alt: a2, az: line.endAz   * .pi / 180) {
+            if let p1 = projection.project(altitudeRadians: a1, azimuthRadians: line.startAz * .pi / 180),
+               let p2 = projection.project(altitudeRadians: a2, azimuthRadians: line.endAz * .pi / 180) {
                 constPath.move(to: p1)
                 constPath.addLine(to: p2)
             }
@@ -245,7 +264,12 @@ struct StarMapCanvasView: View {
 
         // 天の川バンド（星座線の上、恒星の下に描画）
         if viewModel.isNight {
-            drawGnomonicMilkyWayBand(ctx: ctx, project: project)
+            drawGnomonicMilkyWayBand(
+                ctx: ctx,
+                project: { alt, az in
+                    projection.project(altitudeRadians: alt, azimuthRadians: az)
+                }
+            )
         }
 
         // 恒星
@@ -254,7 +278,7 @@ struct StarMapCanvasView: View {
             if pos.altitude < 5 && pos.star.magnitude > 6.0 { continue }
             let alt = pos.altitude * .pi / 180
             let az  = pos.azimuth  * .pi / 180
-            if let pt = project(alt: alt, az: az) {
+            if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                          altitude: pos.altitude)
@@ -269,7 +293,7 @@ struct StarMapCanvasView: View {
             for label in viewModel.constellationLabels {
                 let alt = label.alt * .pi / 180
                 let az  = label.az  * .pi / 180
-                if let pt = project(alt: alt, az: az) {
+                if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
                     ctx.draw(
                         Text(label.name)
                             .font(.system(size: 11))
@@ -282,7 +306,10 @@ struct StarMapCanvasView: View {
         // 月
         if viewModel.moonAltitude > -1 {
             let alt = viewModel.moonAltitude * .pi / 180
-            if let pt = project(alt: alt, az: viewModel.moonAzimuth * .pi / 180) {
+            if let pt = projection.project(
+                altitudeRadians: alt,
+                azimuthRadians: viewModel.moonAzimuth * .pi / 180
+            ) {
                 drawMoon(ctx: ctx, at: pt, phase: viewModel.moonPhase)
             }
         }
@@ -290,7 +317,10 @@ struct StarMapCanvasView: View {
         // 銀河系中心
         if viewModel.galacticCenterAltitude > -1 {
             let alt = viewModel.galacticCenterAltitude * .pi / 180
-            if let pt = project(alt: alt, az: viewModel.galacticCenterAzimuth * .pi / 180) {
+            if let pt = projection.project(
+                altitudeRadians: alt,
+                azimuthRadians: viewModel.galacticCenterAzimuth * .pi / 180
+            ) {
                 drawGalacticCenter(ctx: ctx, at: pt)
             }
         }
@@ -298,7 +328,10 @@ struct StarMapCanvasView: View {
         // 惑星
         for planet in viewModel.planetPositions where planet.altitude > -1 {
             let alt = planet.altitude * .pi / 180
-            if let pt = project(alt: alt, az: planet.azimuth * .pi / 180) {
+            if let pt = projection.project(
+                altitudeRadians: alt,
+                azimuthRadians: planet.azimuth * .pi / 180
+            ) {
                 drawPlanet(ctx: ctx, at: pt, planet: planet)
             }
         }
@@ -306,26 +339,29 @@ struct StarMapCanvasView: View {
         // 流星群放射点
         for radiant in viewModel.meteorShowerRadiants where radiant.altitude > -1 {
             let alt = radiant.altitude * .pi / 180
-            if let pt = project(alt: alt, az: radiant.azimuth * .pi / 180) {
+            if let pt = projection.project(
+                altitudeRadians: alt,
+                azimuthRadians: radiant.azimuth * .pi / 180
+            ) {
                 drawMeteorShowerRadiant(ctx: ctx, at: pt, shower: radiant.shower)
             }
         }
 
         // 地形シルエット（最前面: 天体を自然に隠す）
         if let terrain = viewModel.terrainProfile {
-            drawGnomonicTerrainSilhouette(ctx: ctx, project: project,
-                                           centerAz: centerAz, fov: fov,
-                                           size: size, terrain: terrain)
+            drawGnomonicTerrainSilhouette(
+                ctx: ctx,
+                project: { alt, az in
+                    projection.project(altitudeRadians: alt, azimuthRadians: az)
+                },
+                centerAz: centerAz,
+                fov: fov,
+                size: size,
+                terrain: terrain
+            )
         }
 
         drawCrosshair(ctx: ctx, cx: cx, cy: cy)
-    }
-
-    private func altAzToCartesian(alt: Double, az: Double) -> (Double, Double, Double) {
-        let x = cos(alt) * sin(az)
-        let y = cos(alt) * cos(az)
-        let z = sin(alt)
-        return (x, y, z)
     }
 
     // MARK: - Gnomonic Ground / Horizon / Cardinals
@@ -333,7 +369,7 @@ struct StarMapCanvasView: View {
     /// 地平線と地面を解析的に描画する。
     /// 心射図法では地平線（大円）は直線に射影されるため、
     /// カメラの仰角から地平線の Y 座標を直接計算する。
-    static func horizonScreenY(centerAlt: Double, cy: Double, scale: Double) -> Double {
+    nonisolated static func horizonScreenY(centerAlt: Double, cy: Double, scale: Double) -> Double {
         let cAltRad = centerAlt * .pi / 180
         let horizonProjY = -tan(cAltRad) * scale
         return cy - horizonProjY
@@ -380,7 +416,8 @@ struct StarMapCanvasView: View {
         )
     }
 
-    static func cardinalLabelPlacements(
+    /// 画面下部オーバーレイに表示する方位ラベルの配置候補を返します。
+    nonisolated static func cardinalLabelPlacements(
         size: CGSize,
         centerAlt: Double,
         centerAz: Double,
@@ -416,17 +453,19 @@ struct StarMapCanvasView: View {
         }
     }
 
-    static func clampedCardinalLabelX(_ x: Double, sizeWidth: Double) -> Double {
+    /// 方位ラベルが画面端で切れないように X 座標を制限します。
+    nonisolated static func clampedCardinalLabelX(_ x: Double, sizeWidth: Double) -> Double {
         let minX = Double(StarMapLayout.cardinalLabelSidePadding)
         let maxX = sizeWidth - Double(StarMapLayout.cardinalLabelSidePadding)
         return min(max(x, minX), maxX)
     }
 
-    static func cardinalOverlayY(sizeHeight: Double) -> Double {
+    /// 方位ラベルの固定オーバーレイ Y 座標を返します。
+    nonisolated static func cardinalOverlayY(sizeHeight: Double) -> Double {
         sizeHeight - Double(StarMapLayout.cardinalLabelBottomInset)
     }
 
-    private static func projectedCardinalLabelX(
+    nonisolated private static func projectedCardinalLabelX(
         azimuthDegrees: Double,
         size: CGSize,
         centerAlt: Double,
@@ -454,11 +493,31 @@ struct StarMapCanvasView: View {
         return clampedCardinalLabelX(cx + projX, sizeWidth: size.width)
     }
 
-    private static func altAzToCartesianStatic(alt: Double, az: Double) -> (Double, Double, Double) {
+    nonisolated private static func altAzToCartesianStatic(alt: Double, az: Double) -> (Double, Double, Double) {
         let x = cos(alt) * sin(az)
         let y = cos(alt) * cos(az)
         let z = sin(alt)
         return (x, y, z)
+    }
+
+    nonisolated private static func adjustedCenter(
+        altitude: Double,
+        azimuth: Double,
+        translation: CGSize,
+        scale: Double
+    ) -> (alt: Double, az: Double) {
+        let yawRadians = atan2(translation.width, scale)
+        let pitchRadians = atan2(translation.height, scale)
+
+        var adjustedAltitude = altitude + pitchRadians * 180 / .pi
+        var adjustedAzimuth = azimuth - yawRadians * 180 / .pi
+
+        adjustedAltitude = max(-10, min(89, adjustedAltitude))
+        adjustedAzimuth = adjustedAzimuth.truncatingRemainder(dividingBy: 360)
+        if adjustedAzimuth < 0 {
+            adjustedAzimuth += 360
+        }
+        return (adjustedAltitude, adjustedAzimuth)
     }
 
     // MARK: - Drawing primitives
@@ -558,29 +617,17 @@ struct StarMapCanvasView: View {
     /// タップ/クリック座標に最も近い明るい星 (等級 ≤ 2.5) を返す。
     /// 閾値 (pt) 以内に星がなければ nil。
     private func nearestStar(at tapPoint: CGPoint, size: CGSize,
-                              threshold: CGFloat = 25) -> StarPosition? {
+                               threshold: CGFloat = 25) -> StarPosition? {
         guard !viewModel.isGyroMode else { return nil }
 
         let fov = effectiveGnomonicFOV()
-        let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
-        let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
-        let cx = size.width / 2
-        let cy = size.height / 2
-
         let (centerAlt, centerAz) = effectiveGnomonicCenter(size: size)
-        let cAlt = centerAlt * .pi / 180
-        let cAz = centerAz * .pi / 180
-
-        let (fwdX, fwdY, fwdZ) = altAzToCartesian(alt: cAlt, az: cAz)
-        let rightX = cos(cAz)
-        let rightY = -sin(cAz)
-        let uCrossX = rightY * fwdZ
-        let uCrossY = -rightX * fwdZ
-        let uCrossZ = rightX * fwdY - rightY * fwdX
-        let uLen = sqrt(uCrossX * uCrossX + uCrossY * uCrossY + uCrossZ * uCrossZ)
-        let (upX, upY, upZ) = uLen > 1e-10
-            ? (uCrossX / uLen, uCrossY / uLen, uCrossZ / uLen)
-            : (0.0, 0.0, 1.0)
+        let projection = GnomonicProjectionContext(
+            size: size,
+            centerAlt: centerAlt,
+            centerAz: centerAz,
+            fov: fov
+        )
 
         var nearest: StarPosition? = nil
         var nearestDist: CGFloat = threshold
@@ -588,15 +635,14 @@ struct StarMapCanvasView: View {
         for pos in viewModel.starPositions where pos.star.magnitude <= 2.5 && pos.altitude > -3 {
             let alt = pos.altitude * .pi / 180
             let az = pos.azimuth * .pi / 180
-            let (px, py, pz) = altAzToCartesian(alt: alt, az: az)
-            let dot = px * fwdX + py * fwdY + pz * fwdZ
-            guard dot > 0.1 else { continue }
-            let projX = (px * rightX + py * rightY) / dot * scale
-            let projY = (px * upX + py * upY + pz * upZ) / dot * scale
-            let sx = cx + projX
-            let sy = cy - projY
-            let dx = sx - tapPoint.x
-            let dy = sy - tapPoint.y
+            guard let screenPoint = projection.project(
+                altitudeRadians: alt,
+                azimuthRadians: az
+            ) else {
+                continue
+            }
+            let dx = screenPoint.x - tapPoint.x
+            let dy = screenPoint.y - tapPoint.y
             let dist = sqrt(dx * dx + dy * dy)
             if dist < nearestDist {
                 nearestDist = dist
@@ -617,19 +663,14 @@ struct StarMapCanvasView: View {
                 let fov = effectiveGnomonicFOV()
                 let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
                 let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
-
-                let yawRad = atan2(value.translation.width, scale)
-                let pitchRad = atan2(value.translation.height, scale)
-
-                var newAlt = viewModel.viewAltitude + pitchRad * 180 / .pi
-                var newAz = viewModel.viewAzimuth - yawRad * 180 / .pi
-
-                newAlt = max(-10, min(89, newAlt))
-                newAz = newAz.truncatingRemainder(dividingBy: 360)
-                if newAz < 0 { newAz += 360 }
-
-                viewModel.viewAltitude = newAlt
-                viewModel.viewAzimuth = newAz
+                let adjustedCenter = Self.adjustedCenter(
+                    altitude: viewModel.viewAltitude,
+                    azimuth: viewModel.viewAzimuth,
+                    translation: value.translation,
+                    scale: scale
+                )
+                viewModel.viewAltitude = adjustedCenter.alt
+                viewModel.viewAzimuth = adjustedCenter.az
             }
     }
 
@@ -649,16 +690,8 @@ struct StarMapCanvasView: View {
 #if os(macOS)
     private func installMacScrollWheelMonitor() {
         guard scrollWheelMonitor == nil else { return }
-        scrollWheelMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [viewModel] event in
-            let updatedFOV = Self.zoomedFOV(
-                currentFOV: viewModel.fov,
-                scrollDeltaY: event.scrollingDeltaY,
-                preciseScrolling: event.hasPreciseScrollingDeltas
-            )
-            if updatedFOV != viewModel.fov {
-                viewModel.fov = updatedFOV
-            }
-            return nil
+        scrollWheelMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { event in
+            handleMacScrollWheel(event)
         }
     }
 
@@ -666,6 +699,21 @@ struct StarMapCanvasView: View {
         guard let scrollWheelMonitor else { return }
         NSEvent.removeMonitor(scrollWheelMonitor)
         self.scrollWheelMonitor = nil
+    }
+
+    private func handleMacScrollWheel(_ event: NSEvent) -> NSEvent? {
+        guard isPointerOverCanvas else {
+            return event
+        }
+        let updatedFOV = Self.zoomedFOV(
+            currentFOV: viewModel.fov,
+            scrollDeltaY: event.scrollingDeltaY,
+            preciseScrolling: event.hasPreciseScrollingDeltas
+        )
+        if updatedFOV != viewModel.fov {
+            viewModel.fov = updatedFOV
+        }
+        return nil
     }
 #endif
 
@@ -871,7 +919,8 @@ private extension StarMapCanvasView {
 }
 
 extension StarMapCanvasView {
-    static func zoomedFOV(currentFOV: Double, scrollDeltaY: Double, preciseScrolling: Bool) -> Double {
+    /// スクロール量からズーム後の視野角を計算します。
+    nonisolated static func zoomedFOV(currentFOV: Double, scrollDeltaY: Double, preciseScrolling: Bool) -> Double {
         let sensitivity = preciseScrolling ? 1.2 : 4.0
         return StarMapLayout.clampedFOV(currentFOV - scrollDeltaY * sensitivity)
     }

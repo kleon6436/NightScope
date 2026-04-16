@@ -346,7 +346,11 @@ enum MilkyWayCalculator {
 
         // 深夜0時の月の位相
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let midnight = calendar.startOfDay(for: date).addingTimeInterval(Constants.secondsPerDay)
+        let midnight = calendar.date(
+            byAdding: .day,
+            value: 1,
+            to: calendar.startOfDay(for: date)
+        ) ?? calendar.startOfDay(for: date).addingTimeInterval(Constants.secondsPerDay)
         let moonAtMidnight = moonRaDec(jd: julianDate(from: midnight))
 
         return NightSummary(

@@ -7,14 +7,19 @@ final class DetailViewModelTests: XCTestCase {
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
         let vm = DetailViewModel(appController: appController)
+        let calendar = Calendar.current
 
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        let tomorrow = calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: 1, to: Date())!
+        )
         vm.selectedDate = tomorrow
 
         try? await Task.sleep(nanoseconds: 10_000_000)
         XCTAssertEqual(appController.selectedDate, tomorrow)
 
-        let afterTomorrow = Calendar.current.date(byAdding: .day, value: 2, to: Date())!
+        let afterTomorrow = calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: 2, to: Date())!
+        )
         appController.selectedDate = afterTomorrow
 
         try? await Task.sleep(nanoseconds: 10_000_000)

@@ -3,15 +3,25 @@ import CoreLocation
 @testable import NightScope
 
 final class AstroModelsTests: XCTestCase {
+    private func makeOffsetDate(_ iso8601: String) -> Date {
+        ISO8601DateFormatter().date(from: iso8601)!
+    }
 
-    private func makeDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int) -> Date {
+    private func makeDate(
+        _ year: Int,
+        _ month: Int,
+        _ day: Int,
+        _ hour: Int,
+        _ minute: Int,
+        timeZoneIdentifier: String = "Asia/Tokyo"
+    ) -> Date {
         var components = DateComponents()
         components.year = year
         components.month = month
         components.day = day
         components.hour = hour
         components.minute = minute
-        components.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        components.timeZone = TimeZone(identifier: timeZoneIdentifier)
         return Calendar(identifier: .gregorian).date(from: components)!
     }
 
@@ -55,13 +65,17 @@ final class AstroModelsTests: XCTestCase {
         )
     }
 
-    private func makeSummary(events: [AstroEvent]) -> NightSummary {
+    private func makeSummary(
+        events: [AstroEvent],
+        timeZoneIdentifier: String = "Asia/Tokyo"
+    ) -> NightSummary {
         NightSummary(
             date: events.first?.date ?? Date(),
             location: CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0),
             events: events,
             viewingWindows: [],
-            moonPhaseAtMidnight: 0.1
+            moonPhaseAtMidnight: 0.1,
+            timeZoneIdentifier: timeZoneIdentifier
         )
     }
 
@@ -122,5 +136,51 @@ final class AstroModelsTests: XCTestCase {
         ]
 
         XCTAssertEqual(summary.weatherAwareRangeText(nighttimeHours: hours), "")
+    }
+
+    func test_weatherAwareObservableWindow_distinguishesRepeatedDstHours() {
+        let losAngeles = "America/Los_Angeles"
+        let firstHour = makeOffsetDate("2024-11-03T01:00:00-07:00")
+        let firstEvent = makeOffsetDate("2024-11-03T01:15:00-07:00")
+        let secondHour = makeOffsetDate("2024-11-03T01:00:00-08:00")
+        let secondEvent = makeOffsetDate("2024-11-03T01:15:00-08:00")
+        let summary = makeSummary(
+            events: [
+                makeEvent(date: firstEvent),
+                makeEvent(date: secondEvent)
+            ],
+            timeZoneIdentifier: losAngeles
+        )
+
+        let hours = [
+            makeWeatherHour(date: firstHour, cloud: 95, precipitation: 1.0, weatherCode: 61),
+            makeWeatherHour(date: secondHour, cloud: 0, precipitation: 0, weatherCode: 0)
+        ]
+
+        let window = summary.weatherAwareObservableWindow(nighttimeHours: hours)
+        XCTAssertEqual(window?.start, secondEvent)
+        XCTAssertEqual(window?.end, secondEvent.addingTimeInterval(15 * 60))
+    }
+
+    func test_weatherAwareObservableWindow_mergesAcrossMidnightOnDstEndNight() {
+        let losAngeles = "America/Los_Angeles"
+        let morning = makeOffsetDate("2024-11-03T00:00:00-07:00")
+        let evening = makeOffsetDate("2024-11-03T23:45:00-08:00")
+        let summary = makeSummary(
+            events: [
+                makeEvent(date: evening),
+                makeEvent(date: morning)
+            ],
+            timeZoneIdentifier: losAngeles
+        )
+
+        let hours = [
+            makeWeatherHour(date: evening),
+            makeWeatherHour(date: morning)
+        ]
+
+        let window = summary.weatherAwareObservableWindow(nighttimeHours: hours)
+        XCTAssertEqual(window?.start, evening)
+        XCTAssertEqual(window?.end, morning.addingTimeInterval(15 * 60))
     }
 }

@@ -56,7 +56,7 @@ struct ViewingWindow {
 }
 
 struct NightSummary {
-    private typealias WeatherByHour = [Int: HourlyWeather]
+    private typealias WeatherByHour = [Date: HourlyWeather]
     private typealias AdjustedNightEvent = (original: Date, sortKey: Date)
 
     let date: Date
@@ -200,13 +200,13 @@ struct NightSummary {
     }
 
     private func makeWeatherByHour(nighttimeHours: [HourlyWeather], calendar: Calendar) -> WeatherByHour {
-        // 時刻（0-23）をキーにする。
-        // 根拠: nighttimeHours は 18-23 時（当日）と 0-6 時（翌日 → 前日キー）で重複なし。
-        //       UTCタイムスタンプをキーにすると翌日分の朝時間が一致しないため、
-        //       時刻のみでマッチングすることで日付をまたいでも正しく対応できる。
         Dictionary(
-            nighttimeHours.map { (calendar.component(.hour, from: $0.date), $0) },
-            uniquingKeysWith: { first, _ in first }
+            uniqueKeysWithValues: nighttimeHours.compactMap { weather in
+                guard let hourStart = calendar.dateInterval(of: .hour, for: weather.date)?.start else {
+                    return nil
+                }
+                return (hourStart, weather)
+            }
         )
     }
 
@@ -228,8 +228,10 @@ struct NightSummary {
     }
 
     private func passesWeatherFilter(event: AstroEvent, weatherByHour: WeatherByHour, calendar: Calendar) -> Bool {
-        let hour = calendar.component(.hour, from: event.date)
-        guard let weather = weatherByHour[hour] else {
+        guard let hourStart = calendar.dateInterval(of: .hour, for: event.date)?.start else {
+            return true
+        }
+        guard let weather = weatherByHour[hourStart] else {
             return true
         }
         // 実効雲量: 層別データがあれば加重計算（星空指数と同一ロジック）、なければ総合雲量
@@ -255,10 +257,12 @@ struct NightSummary {
         // 夕方イベントの後に連続するものとして扱う。
         // 根拠: 天文学的な1夜は前日夕方〜翌朝にわたるためカレンダー上の0時で分断してはいけない。
         //       例) 夕方23:45 → 翌朝00:00 の間隔は15分（連続）だが、
-        //           タイムスタンプ差はマイナスになるため+24h補正が必要。
+        //           DST 切替日でもローカル時刻の連続性を保つため、固定86400秒ではなく暦日を1日進める。
         events.map { event in
             let hour = calendar.component(.hour, from: event.date)
-            let sortKey = hour < 12 ? event.date.addingTimeInterval(86400) : event.date
+            let sortKey = hour < 12
+                ? (calendar.date(byAdding: .day, value: 1, to: event.date) ?? event.date)
+                : event.date
             return (original: event.date, sortKey: sortKey)
         }
     }

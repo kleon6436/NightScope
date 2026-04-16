@@ -209,7 +209,7 @@ struct iOSStarMapView: View {
                 .symbolEffect(.bounce, value: viewModel.isGyroMode)
         }
         .help(viewModel.isGyroMode ? "タッチ操作に切替" : "ジャイロ操作に切替")
-        .disabled(!motionManager.isDeviceMotionAvailable)
+        .disabled(!canEnableGyroMode)
     }
 
     // MARK: - CoreMotion
@@ -223,7 +223,7 @@ struct iOSStarMapView: View {
     }
 
     private func startMotion() {
-        guard motionManager.isDeviceMotionAvailable else {
+        guard canEnableGyroMode else {
             viewModel.isGyroMode = false
             return
         }
@@ -242,9 +242,14 @@ struct iOSStarMapView: View {
         }
 
         // 方位角は CLLocationManager の heading から取得
-        headingController.start { heading in
+        headingController.start(
+            onHeading: { heading in
             viewModel.viewAzimuth = heading
-        }
+        },
+            onAuthorizationUnavailable: {
+                viewModel.isGyroMode = false
+            }
+        )
     }
 
     private func stopMotion() {
@@ -266,6 +271,10 @@ struct iOSStarMapView: View {
             viewModel.endTimeSliderInteraction()
         }
     }
+
+    private var canEnableGyroMode: Bool {
+        motionManager.isDeviceMotionAvailable && headingController.canStartHeadingUpdates
+    }
 }
 
 // MARK: - StarMapHeadingController
@@ -275,14 +284,35 @@ struct iOSStarMapView: View {
 final class StarMapHeadingController: NSObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private var onHeading: ((Double) -> Void)?
+    private var onAuthorizationUnavailable: (() -> Void)?
 
     override init() {
         super.init()
         locationManager.delegate = self
     }
 
-    func start(onHeading: @escaping (Double) -> Void) {
+    var canStartHeadingUpdates: Bool {
+        guard CLLocationManager.headingAvailable() else {
+            return false
+        }
+        switch locationManager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways, .notDetermined:
+            return true
+        default:
+            return false
+        }
+    }
+
+    func start(
+        onHeading: @escaping (Double) -> Void,
+        onAuthorizationUnavailable: @escaping () -> Void
+    ) {
         self.onHeading = onHeading
+        self.onAuthorizationUnavailable = onAuthorizationUnavailable
+        guard CLLocationManager.headingAvailable() else {
+            onAuthorizationUnavailable()
+            return
+        }
         let status = locationManager.authorizationStatus
         switch status {
         case .notDetermined:
@@ -290,13 +320,14 @@ final class StarMapHeadingController: NSObject, CLLocationManagerDelegate {
         case .authorizedWhenInUse, .authorizedAlways:
             locationManager.startUpdatingHeading()
         default:
-            break
+            onAuthorizationUnavailable()
         }
     }
 
     func stop() {
         locationManager.stopUpdatingHeading()
         onHeading = nil
+        onAuthorizationUnavailable = nil
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -307,6 +338,9 @@ final class StarMapHeadingController: NSObject, CLLocationManagerDelegate {
             }
         default:
             manager.stopUpdatingHeading()
+            if onHeading != nil {
+                onAuthorizationUnavailable?()
+            }
         }
     }
 
