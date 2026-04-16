@@ -29,14 +29,14 @@ enum MapKitViewSharedLogic {
     }
 
     static func setInitialRegionIfNeeded(on mapView: MKMapView, pinCoordinate: CLLocationCoordinate2D?) {
-        guard let pinCoordinate else { return }
-        let region = MKCoordinateRegion(
-            center: pinCoordinate,
-            span: MKCoordinateSpan(
-                latitudeDelta: Config.initialPinLatitudeDelta,
-                longitudeDelta: Config.initialPinLongitudeDelta
-            )
-        )
+        guard let pinCoordinate = GeoStateValidator.sanitizedCoordinate(pinCoordinate),
+              let region = GeoStateValidator.sanitizedRegion(
+                center: pinCoordinate,
+                span: MKCoordinateSpan(
+                    latitudeDelta: Config.initialPinLatitudeDelta,
+                    longitudeDelta: Config.initialPinLongitudeDelta
+                )
+              ) else { return }
         mapView.setRegion(region, animated: false)
     }
 
@@ -63,6 +63,11 @@ enum MapKitViewSharedLogic {
         existing: MKPointAnnotation?,
         coordinate: CLLocationCoordinate2D
     ) {
+        guard let coordinate = GeoStateValidator.sanitizedCoordinate(coordinate) else {
+            removeAnnotationsIfNeeded(from: mapView, existing: existing)
+            return
+        }
+
         if let existing {
             if !coordinatesEqual(existing.coordinate, coordinate) {
                 existing.coordinate = coordinate
@@ -83,8 +88,9 @@ enum MapKitViewSharedLogic {
         updateLightPollutionOverlayAlpha(on: mapView, targetAlpha: configuration.overlayAlpha)
 
         let existing = currentPinAnnotation(in: mapView)
+        let pinCoordinate = GeoStateValidator.sanitizedCoordinate(configuration.pinCoordinate)
 
-        guard let pinCoordinate = configuration.pinCoordinate else {
+        guard let pinCoordinate else {
             removeAnnotationsIfNeeded(from: mapView, existing: existing)
             updateViewingDirectionOverlay(
                 on: mapView,
@@ -128,7 +134,10 @@ enum MapKitViewSharedLogic {
         }
 
         lastSyncTrigger = syncState.trigger
-        return MKCoordinateRegion(center: syncState.center, span: syncState.span)
+        return GeoStateValidator.sanitizedRegion(
+            center: syncState.center,
+            span: syncState.span
+        )
     }
 
     static func centerOnCurrentLocationIfNeeded(
@@ -141,7 +150,7 @@ enum MapKitViewSharedLogic {
         }
 
         lastCenterTrigger = centerTrigger
-        return MKCoordinateRegion(
+        return GeoStateValidator.sanitizedRegion(
             center: coordinate,
             span: MKCoordinateSpan(
                 latitudeDelta: Config.currentLocationLatitudeDelta,
@@ -247,6 +256,12 @@ final class MapKitCoordinatorState {
     }
 
     func scheduleRegionChange(on mapView: MKMapView, region: MKCoordinateRegion, animated: Bool) {
+        guard let sanitizedRegion = GeoStateValidator.sanitizedRegion(
+            center: region.center,
+            span: region.span
+        ) else {
+            return
+        }
         pendingIgnoredRegionChanges += 1
         latestProgrammaticRegionGeneration += 1
         let scheduledGeneration = latestProgrammaticRegionGeneration
@@ -257,7 +272,7 @@ final class MapKitCoordinatorState {
                 self.pendingIgnoredRegionChanges = max(0, self.pendingIgnoredRegionChanges - 1)
                 return
             }
-            mapView.setRegion(region, animated: animated)
+            mapView.setRegion(sanitizedRegion, animated: animated)
         }
     }
 
@@ -269,11 +284,17 @@ final class MapKitCoordinatorState {
             return
         }
         let region = mapView.region
+        guard let sanitizedRegion = GeoStateValidator.sanitizedRegion(
+            center: region.center,
+            span: region.span
+        ) else {
+            return
+        }
         let capturedGeneration = latestProgrammaticRegionGeneration
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             guard capturedGeneration == self.latestProgrammaticRegionGeneration else { return }
-            onRegionChange(region.center, region.span)
+            onRegionChange(sanitizedRegion.center, sanitizedRegion.span)
         }
     }
 

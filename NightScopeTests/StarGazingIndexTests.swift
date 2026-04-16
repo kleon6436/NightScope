@@ -134,11 +134,47 @@ final class StarGazingIndexTests: XCTestCase {
         weather: DayWeatherSummary? = nil,
         bortleClass: Double? = nil
     ) -> StarGazingIndex {
-        StarGazingIndex.compute(
+        let expandedWeather = weather.map { expandWeatherCoverage($0, for: nightSummary) }
+        return StarGazingIndex.compute(
             nightSummary: nightSummary,
-            weather: weather,
+            weather: expandedWeather,
             bortleClass: bortleClass
         )
+    }
+
+    private func expandWeatherCoverage(_ weather: DayWeatherSummary, for nightSummary: NightSummary) -> DayWeatherSummary {
+        guard let template = weather.nighttimeHours.first else {
+            return weather
+        }
+
+        let expectedHours = Set(nightSummary.events.compactMap { event in
+            Calendar(identifier: .gregorian).dateInterval(of: .hour, for: event.date)?.start
+        }).sorted()
+
+        guard expectedHours.count > weather.nighttimeHours.count else {
+            return weather
+        }
+
+        let expandedHours = expectedHours.map { hourStart in
+            HourlyWeather(
+                date: hourStart,
+                temperatureCelsius: template.temperatureCelsius,
+                cloudCoverPercent: template.cloudCoverPercent,
+                precipitationMM: template.precipitationMM,
+                windSpeedKmh: template.windSpeedKmh,
+                humidityPercent: template.humidityPercent,
+                dewpointCelsius: template.dewpointCelsius,
+                weatherCode: template.weatherCode,
+                visibilityMeters: template.visibilityMeters,
+                windGustsKmh: template.windGustsKmh,
+                cloudCoverLowPercent: template.cloudCoverLowPercent,
+                cloudCoverMidPercent: template.cloudCoverMidPercent,
+                cloudCoverHighPercent: template.cloudCoverHighPercent,
+                windSpeedKmh500hpa: template.windSpeedKmh500hpa
+            )
+        }
+
+        return DayWeatherSummary(date: weather.date, nighttimeHours: expandedHours)
     }
 
     // MARK: - Tier
@@ -277,7 +313,7 @@ final class StarGazingIndexTests: XCTestCase {
         // gusts=15(<20), wind=5(<10)→+4
         // spread=20(>5)→+2
         // total = 40
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let weather = makeWeather(
             cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
             visibility: 25000, windGusts: 15
@@ -292,7 +328,7 @@ final class StarGazingIndexTests: XCTestCase {
         // precip=1.0(≥0.5)→+0
         // gusts=nil→40(fallback), 40≥35 and not <50&&<35 combo → +0
         // spread=3(≤3)→+0
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let weather = makeWeather(cloud: 80, precip: 1.0, wind: 40, humidity: 90, dewpointSpread: 3)
         let idx = computeIndex(nightSummary: summary, weather: weather)
         XCTAssertEqual(idx.weatherScore, 0)
@@ -305,7 +341,7 @@ final class StarGazingIndexTests: XCTestCase {
         // gusts=nil→15(fallback), gusts=15(<35), wind=15(<20)→+2
         // spread=12(>5)→+2
         // total = 24
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let weather = makeWeather(cloud: 25, precip: 0.3, wind: 15, humidity: 60, dewpointSpread: 12)
         let idx = computeIndex(nightSummary: summary, weather: weather)
         XCTAssertEqual(idx.weatherScore, 24)
@@ -316,7 +352,7 @@ final class StarGazingIndexTests: XCTestCase {
     func test_weatherScore_layeredClouds_highOnly_lowsEffectiveCloud() {
         // low=0, mid=0, high=60 → effectiveCloud = 0×1.0 + 0×0.7 + 60×0.3 = 18
         // 総合雲量60%なら+7だが、実効雲量18%(<35)なら+13 になることを確認
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let weatherLayered = makeWeather(
             cloud: 60, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
             cloudLow: 0, cloudMid: 0, cloudHigh: 60
@@ -333,7 +369,7 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_weatherScore_transparencyScore_withExcellentVisibility() {
         // visibility=25km(≥20)→+8, spread=20(>15)→+2, 透明度 = 10点
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let withVis = makeWeather(
             cloud: 0, precip: 0, wind: 5, humidity: 30, dewpointSpread: 20,
             visibility: 25000, windGusts: 15
@@ -351,7 +387,7 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_weatherScore_fogWeatherCode_reducesPrecipScore() {
         // precip=0 だが weatherCode=45(霧) → 降水スコアは1点のみ
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let fog = makeWeather(
             cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 10,
             weatherCode: 45
@@ -369,7 +405,7 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_weatherScore_drizzleCode_zerosPrecipScore() {
         // 霧雨(code 51-55) は降水量が微量（0.05mm）でも isObservationBlocked と同様に 0 点
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let drizzle = makeWeather(
             cloud: 80, precip: 0.05, wind: 5, humidity: 90, dewpointSpread: 2,
             weatherCode: 51
@@ -387,7 +423,7 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_weatherScore_drizzleCode_zeroPrecip_zerosPrecipScore() {
         // 霧雨コード(53) + 降水量ゼロでも観測不可と判断して 0 点
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let drizzleNoPrecip = makeWeather(
             cloud: 90, precip: 0, wind: 3, humidity: 95, dewpointSpread: 1,
             weatherCode: 53
@@ -405,7 +441,7 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_weatherScore_highWindGusts_reducesSeeingScore() {
         // avgWind=5(良好) でも windGusts=45(< 50 && avgWind < 35) → シーイング1点のみ
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let highGusts = makeWeather(
             cloud: 0, precip: 0, wind: 5, humidity: 30, dewpointSpread: 20,
             visibility: 25000, windGusts: 45
@@ -423,7 +459,7 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_weatherScore_dewRisk_highRisk_zeroPoints() {
         // spread=2°C → 気温-露点差 < 3°C → 結露リスク高 → 露リスク0点
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 1)
         let highRisk = makeWeather(
             cloud: 0, precip: 0, wind: 5, humidity: 95, dewpointSpread: 2,
             visibility: 25000, windGusts: 15
@@ -471,6 +507,33 @@ final class StarGazingIndexTests: XCTestCase {
         XCTAssertEqual(idx.score, 100)
         XCTAssertFalse(idx.hasWeatherData)
         XCTAssertFalse(idx.hasLightPollutionData)
+    }
+
+    func test_compute_partialWeatherCoverage_treatedAsNoWeather() {
+        let summary = makeIdealDarkSummary()
+        let partialWeather = DayWeatherSummary(
+            date: Date(timeIntervalSince1970: 0),
+            nighttimeHours: [
+                makeHourlyWeather(
+                    base: Date(timeIntervalSince1970: 0),
+                    hourOffset: 0,
+                    cloud: 10,
+                    precip: 0,
+                    wind: 5,
+                    humidity: 40,
+                    dewpoint: 0,
+                    weatherCode: 0
+                )
+            ]
+        )
+
+        let idx = StarGazingIndex.compute(
+            nightSummary: summary,
+            weather: partialWeather,
+            bortleClass: 3.0
+        )
+
+        XCTAssertFalse(idx.hasWeatherData)
     }
 
     func test_compute_overcast_isBad() {

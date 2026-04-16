@@ -245,7 +245,8 @@ struct StarGazingIndex {
         let lightPollution = computeLightPollutionScore(bortleClass: bortleClass)
         let hasLP = bortleClass != nil
 
-        if let weather = weather {
+        if let weather = weather,
+           nightSummary.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours) {
             let weatherPts = computeWeatherScore(weather: weather)
             // 合計: 星座(0-30) + 気象(0-40) + 光害(0-30) = 0-100
             let rawTotal = min(100, constellation + weatherPts + lightPollution)
@@ -589,10 +590,13 @@ struct StarGazingIndex {
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: nightSummary.timeZone)
         let darkHourSet = Set(nightSummary.events
             .filter { $0.isDark }
-            .map { calendar.component(.hour, from: $0.date) })
+            .compactMap { calendar.dateInterval(of: .hour, for: $0.date)?.start })
 
         return weather.nighttimeHours.filter { hour in
-            darkHourSet.contains(calendar.component(.hour, from: hour.date))
+            guard let hourStart = calendar.dateInterval(of: .hour, for: hour.date)?.start else {
+                return false
+            }
+            return darkHourSet.contains(hourStart)
         }
     }
 

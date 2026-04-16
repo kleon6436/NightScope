@@ -230,10 +230,12 @@ enum MilkyWayCalculator {
     ) -> [AstroEvent] {
         var events: [AstroEvent] = []
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let startOfDay = calendar.startOfDay(for: date)
+        let observationDate = calendar.startOfDay(for: date)
+        let samplingStart = calendar.date(byAdding: .hour, value: 12, to: observationDate)
+            ?? observationDate.addingTimeInterval(12 * 60 * 60)
 
         for minutes in stride(from: 0, to: 24 * 60, by: Constants.sampleIntervalMinutes) {
-            let sampleDate = startOfDay.addingTimeInterval(Double(minutes) * 60)
+            let sampleDate = samplingStart.addingTimeInterval(Double(minutes) * 60)
             let jd = julianDate(from: sampleDate)
             let lst = localSiderealTime(jd: jd, longitude: location.longitude)
 
@@ -341,20 +343,21 @@ enum MilkyWayCalculator {
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) -> NightSummary {
-        let events = calculateEvents(date: date, location: location, timeZone: timeZone)
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let observationDate = calendar.startOfDay(for: date)
+        let events = calculateEvents(date: observationDate, location: location, timeZone: timeZone)
         let windows = findViewingWindows(events: events)
 
         // 深夜0時の月の位相
-        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let midnight = calendar.date(
             byAdding: .day,
             value: 1,
-            to: calendar.startOfDay(for: date)
-        ) ?? calendar.startOfDay(for: date).addingTimeInterval(Constants.secondsPerDay)
+            to: observationDate
+        ) ?? observationDate.addingTimeInterval(Constants.secondsPerDay)
         let moonAtMidnight = moonRaDec(jd: julianDate(from: midnight))
 
         return NightSummary(
-            date: date,
+            date: observationDate,
             location: location,
             events: events,
             viewingWindows: windows,
@@ -371,8 +374,9 @@ enum MilkyWayCalculator {
         days: Int = 14
     ) -> [NightSummary] {
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let observationStartDate = calendar.startOfDay(for: startDate)
         return (0..<days).map { offset in
-            let date = calendar.date(byAdding: .day, value: offset, to: startDate) ?? startDate
+            let date = calendar.date(byAdding: .day, value: offset, to: observationStartDate) ?? observationStartDate
             return calculateNightSummary(date: date, location: location, timeZone: timeZone)
         }
     }

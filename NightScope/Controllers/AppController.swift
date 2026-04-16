@@ -170,8 +170,8 @@ final class AppController: ObservableObject {
     func recalculateUpcoming() {
         upcomingTask?.cancel()
         isUpcomingLoading = true
-        let today = Date()
         let context = selectedLocationContext
+        let today = ObservationTimeZone.startOfDay(for: Date(), timeZone: context.timeZone)
         upcomingTask = Task {
             let upcoming = await calculationService.calculateUpcomingNights(
                 from: today,
@@ -282,7 +282,7 @@ final class AppController: ObservableObject {
             timeZone: timeZone
         )
         async let upcomingTask = calculationService.calculateUpcomingNights(
-            from: Date(),
+            from: ObservationTimeZone.startOfDay(for: Date(), timeZone: timeZone),
             location: request.coordinate,
             timeZone: timeZone,
             days: 14

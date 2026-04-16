@@ -148,16 +148,38 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     }
 
     private func restorePersistedLocation() {
-        if let lat = storage.latitude, let lon = storage.longitude {
-            selectedLocation = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        let storedCoordinate = storedCoordinateFromStorage()
+        switch storedCoordinate {
+        case .some(let coordinate):
+            selectedLocation = coordinate
+            if let name = storage.name {
+                locationName = name
+            }
+            if let timeZoneIdentifier = storage.timeZoneIdentifier,
+               TimeZone(identifier: timeZoneIdentifier) != nil {
+                selectedTimeZoneIdentifier = timeZoneIdentifier
+            }
+        case .none:
+            if storage.latitude != nil || storage.longitude != nil {
+                clearPersistedLocation()
+            }
         }
-        if let name = storage.name {
-            locationName = name
+    }
+
+    private func storedCoordinateFromStorage() -> CLLocationCoordinate2D? {
+        guard let lat = storage.latitude, let lon = storage.longitude else {
+            return nil
         }
-        if let timeZoneIdentifier = storage.timeZoneIdentifier,
-           TimeZone(identifier: timeZoneIdentifier) != nil {
-            selectedTimeZoneIdentifier = timeZoneIdentifier
-        }
+        return GeoStateValidator.sanitizedCoordinate(
+            CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        )
+    }
+
+    private func clearPersistedLocation() {
+        storage.latitude = nil
+        storage.longitude = nil
+        storage.name = nil
+        storage.timeZoneIdentifier = nil
     }
 
     // MARK: - Public API

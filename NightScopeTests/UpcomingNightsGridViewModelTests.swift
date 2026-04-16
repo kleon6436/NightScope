@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class UpcomingNightsGridViewModelTests: XCTestCase {
-    func test_displaysOnlyNightsWithWindows() async {
+    func test_displaysAllUpcomingNights() async {
         let mockCalc = MockNightCalculationService()
         let nightWithWindow = makeNightSummary(date: Date(), withWindow: true)
         let nightWithoutWindow = makeNightSummary(date: Date().addingTimeInterval(86_400), withWindow: false)
@@ -18,8 +18,9 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
             if !gridVM.displayNights.isEmpty { break }
         }
 
-        XCTAssertEqual(gridVM.displayNights.count, 1)
+        XCTAssertEqual(gridVM.displayNights.count, 2)
         XCTAssertFalse(gridVM.displayNights[0].viewingWindows.isEmpty)
+        XCTAssertTrue(gridVM.displayNights[1].viewingWindows.isEmpty)
     }
 
     func test_observableRangeText_noWeather_emptyRange() {

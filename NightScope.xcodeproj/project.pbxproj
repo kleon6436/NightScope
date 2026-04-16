@@ -33,6 +33,8 @@
 		8A2E00716A7CF7F2FBDBA8C9 /* StarGazingIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F03 /* StarGazingIndex.swift */; };
 		91F8C0F8D6AA500B2E697662 /* iOSTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C88010FC1657FBB75579A3E /* iOSTodayView.swift */; };
 		983D7E6CD2271870DD1E8E6D /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
+		A1B2C3D4E5F60718293A4B01 /* GeoStateValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */; };
+		A1B2C3D4E5F60718293A4B02 /* GeoStateValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */; };
 		A2A2D85F57CA69E8B6B666EB /* ViewingWindowsSectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */; };
 		AA0000000000000000001B01 /* NightScopeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F01 /* NightScopeApp.swift */; };
 		AA0000000000000000001B03 /* MilkyWayCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F03 /* MilkyWayCalculator.swift */; };
@@ -158,6 +160,7 @@
 		816BFE2E87B5441281342EF9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94893EBD94DD9539C7C86561 /* iOSNightCardRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSNightCardRow.swift; sourceTree = "<group>"; };
 		9645065BBBF802A955B5582A /* NightScopeiOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NightScopeiOS.entitlements; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeoStateValidator.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F01 /* NightScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F03 /* MilkyWayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculator.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F05 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -332,6 +335,7 @@
 				AA0000000000000000002F01 /* AstroModels.swift */,
 				AA0000000000000000002F02 /* WeatherModels.swift */,
 				AA0000000000000000002F03 /* StarGazingIndex.swift */,
+				A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */,
 				AA0000000000000000002F21 /* TerrainProfile.swift */,
 				BB0000000000000000003F01 /* stars_fill.json */,
 				BB0000000000000000003F02 /* bortle_map.bin */,
@@ -579,6 +583,7 @@
 				726077AD15C19C005AB769DB /* AstroModels.swift in Sources */,
 				7BA722D255FEC71D78109ED2 /* WeatherModels.swift in Sources */,
 				8A2E00716A7CF7F2FBDBA8C9 /* StarGazingIndex.swift in Sources */,
+				A1B2C3D4E5F60718293A4B01 /* GeoStateValidator.swift in Sources */,
 				6C1674E92F8E7B7500AF040A /* ObservationTimeZone.swift in Sources */,
 				8386FEB6D2C20C41B5B5B4F8 /* AppController.swift in Sources */,
 				AA0000000000000000003B09 /* AppRootDependencies.swift in Sources */,
@@ -636,6 +641,7 @@
 				6CD4ED0F2F83B99000ECC17B /* MapTileOverlay.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B02 /* MapKitViewSharedLogic.swift in Sources */,
 				AA0000000000000000002B03 /* StarGazingIndex.swift in Sources */,
+				A1B2C3D4E5F60718293A4B02 /* GeoStateValidator.swift in Sources */,
 				AA0000000000000000002B04 /* AppController.swift in Sources */,
 				AA0000000000000000002B26 /* AppRootDependencies.swift in Sources */,
 				AA0000000000000000002B05 /* LocationController.swift in Sources */,

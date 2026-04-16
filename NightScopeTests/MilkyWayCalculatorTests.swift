@@ -235,6 +235,23 @@ final class MilkyWayCalculatorTests: XCTestCase {
         XCTAssertEqual(summary.moonPhaseAtMidnight, expectedPhase, accuracy: 1e-9)
     }
 
+    func test_calculateNightSummary_eventsCoverNextMorningForObservationNight() {
+        let timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let date = makeDate(year: 2026, month: 4, day: 2, timeZoneIdentifier: timeZone.identifier)
+        let location = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+
+        let summary = MilkyWayCalculator.calculateNightSummary(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        )
+
+        XCTAssertEqual(calendar.component(.hour, from: summary.events.first?.date ?? date), 12)
+        XCTAssertEqual(calendar.component(.day, from: summary.events.last?.date ?? date), 3)
+        XCTAssertEqual(calendar.component(.hour, from: summary.events.last?.date ?? date), 11)
+    }
+
     // MARK: - galacticToEquatorial
 
     /// 銀河中心 (l=0, b=0) → RA≈266.4°, Dec≈-29.0° に近似一致する

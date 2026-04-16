@@ -25,7 +25,6 @@ final class UpcomingNightsGridViewModel: ObservableObject {
 
     private func setupBindings() {
         detailViewModel.$upcomingNights
-            .map { nights in nights.filter { !$0.viewingWindows.isEmpty } }
             .sink { [weak self] nights in self?.displayNights = nights }
             .store(in: &cancellables)
 

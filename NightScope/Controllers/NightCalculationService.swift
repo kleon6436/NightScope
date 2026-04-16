@@ -53,10 +53,11 @@ final class NightCalculationService: NightCalculating, Sendable {
                 var summaries: [NightSummary] = []
                 summaries.reserveCapacity(days)
                 let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+                let observationDate = calendar.startOfDay(for: date)
 
                 for offset in 0..<days {
                     guard !Task.isCancelled else { break }
-                    let targetDate = calendar.date(byAdding: .day, value: offset, to: date) ?? date
+                    let targetDate = calendar.date(byAdding: .day, value: offset, to: observationDate) ?? observationDate
                     summaries.append(summaryCalculator(targetDate, location, timeZone))
                 }
 

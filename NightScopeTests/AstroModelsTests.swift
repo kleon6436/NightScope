@@ -81,8 +81,7 @@ final class AstroModelsTests: XCTestCase {
 
     func test_weatherAwareObservableWindow_mergesAcrossMidnight() {
         let evening = makeDate(2026, 4, 2, 23, 45)
-        // 実装は同一日の 0時台イベントを +24h 補正して夜跨ぎ連続性を判定する
-        let morning = makeDate(2026, 4, 2, 0, 0)
+        let morning = makeDate(2026, 4, 3, 0, 0)
 
         let summary = makeSummary(events: [
             makeEvent(date: evening),
@@ -91,7 +90,7 @@ final class AstroModelsTests: XCTestCase {
 
         let hours = [
             makeWeatherHour(date: makeDate(2026, 4, 2, 23, 0)),
-            makeWeatherHour(date: makeDate(2026, 4, 2, 0, 0))
+            makeWeatherHour(date: makeDate(2026, 4, 3, 0, 0))
         ]
 
         let window = summary.weatherAwareObservableWindow(nighttimeHours: hours)
@@ -140,10 +139,10 @@ final class AstroModelsTests: XCTestCase {
 
     func test_weatherAwareObservableWindow_distinguishesRepeatedDstHours() {
         let losAngeles = "America/Los_Angeles"
-        let firstHour = makeOffsetDate("2024-11-03T01:00:00-07:00")
-        let firstEvent = makeOffsetDate("2024-11-03T01:15:00-07:00")
-        let secondHour = makeOffsetDate("2024-11-03T01:00:00-08:00")
-        let secondEvent = makeOffsetDate("2024-11-03T01:15:00-08:00")
+        let firstHour = makeOffsetDate("2024-11-03T23:00:00-08:00")
+        let firstEvent = makeOffsetDate("2024-11-03T23:15:00-08:00")
+        let secondHour = makeOffsetDate("2024-11-04T01:00:00-08:00")
+        let secondEvent = makeOffsetDate("2024-11-04T01:15:00-08:00")
         let summary = makeSummary(
             events: [
                 makeEvent(date: firstEvent),
@@ -164,7 +163,7 @@ final class AstroModelsTests: XCTestCase {
 
     func test_weatherAwareObservableWindow_mergesAcrossMidnightOnDstEndNight() {
         let losAngeles = "America/Los_Angeles"
-        let morning = makeOffsetDate("2024-11-03T00:00:00-07:00")
+        let morning = makeOffsetDate("2024-11-04T00:00:00-08:00")
         let evening = makeOffsetDate("2024-11-03T23:45:00-08:00")
         let summary = makeSummary(
             events: [
@@ -182,5 +181,20 @@ final class AstroModelsTests: XCTestCase {
         let window = summary.weatherAwareObservableWindow(nighttimeHours: hours)
         XCTAssertEqual(window?.start, evening)
         XCTAssertEqual(window?.end, morning.addingTimeInterval(15 * 60))
+    }
+
+    func test_weatherAwareRangeText_returnsNilWhenNightWeatherCoverageIsIncomplete() {
+        let evening = makeDate(2026, 4, 2, 23, 45)
+        let morning = makeDate(2026, 4, 3, 0, 0)
+        let summary = makeSummary(events: [
+            makeEvent(date: evening),
+            makeEvent(date: morning)
+        ])
+
+        let hours = [
+            makeWeatherHour(date: makeDate(2026, 4, 2, 23, 0))
+        ]
+
+        XCTAssertNil(summary.weatherAwareRangeText(nighttimeHours: hours))
     }
 }

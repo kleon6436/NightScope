@@ -195,6 +195,28 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(storage.longitude, 0)
     }
 
+    func test_LocationController_init_ignoresInvalidPersistedCoordinateAndClearsStorage() {
+        let storage = InMemoryLocationStorage()
+        storage.latitude = 90.0522
+        storage.longitude = -62.2437
+        storage.name = "破損した場所"
+        storage.timeZoneIdentifier = "America/Halifax"
+
+        let sut = LocationController(
+            storage: storage,
+            searchService: MockLocationSearchService(result: .success([])),
+            locationNameResolver: MockLocationNameResolver(resolvedName: "東京")
+        )
+
+        XCTAssertEqual(sut.selectedLocation.latitude, 35.6762, accuracy: 0.000001)
+        XCTAssertEqual(sut.selectedLocation.longitude, 139.6503, accuracy: 0.000001)
+        XCTAssertEqual(sut.locationName, "東京")
+        XCTAssertNil(storage.latitude)
+        XCTAssertNil(storage.longitude)
+        XCTAssertNil(storage.name)
+        XCTAssertNil(storage.timeZoneIdentifier)
+    }
+
     func test_LocationController_search_success_updatesResults() async {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
         let item = makeMapItem(coordinate: coordinate, name: "東京駅")

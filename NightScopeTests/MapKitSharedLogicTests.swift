@@ -49,6 +49,47 @@ final class MapKitSharedLogicTests: XCTestCase {
         XCTAssertEqual(lastCenterTrigger, 1)
     }
 
+    func test_applyViewportSyncIfNeeded_sanitizesInvalidCenterToDefaultCoordinate() {
+        let syncState = MapKitSyncState(
+            trigger: 1,
+            center: CLLocationCoordinate2D(latitude: 90.0522, longitude: -62.2437),
+            span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
+        )
+        var lastSyncTrigger = 0
+
+        let region = MapKitViewSharedLogic.applyViewportSyncIfNeeded(
+            syncState: syncState,
+            lastSyncTrigger: &lastSyncTrigger
+        )
+
+        guard let region else {
+            return XCTFail("sync region が返されませんでした")
+        }
+        XCTAssertEqual(region.center.latitude, GeoStateValidator.defaultCoordinate.latitude, accuracy: 0.000001)
+        XCTAssertEqual(region.center.longitude, GeoStateValidator.defaultCoordinate.longitude, accuracy: 0.000001)
+    }
+
+    func test_applyViewportSyncIfNeeded_clampsInvalidSpan() {
+        let coordinate = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+        let syncState = MapKitSyncState(
+            trigger: 1,
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: -1, longitudeDelta: 720)
+        )
+        var lastSyncTrigger = 0
+
+        let region = MapKitViewSharedLogic.applyViewportSyncIfNeeded(
+            syncState: syncState,
+            lastSyncTrigger: &lastSyncTrigger
+        )
+
+        guard let region else {
+            return XCTFail("sync region が返されませんでした")
+        }
+        XCTAssertEqual(region.span.latitudeDelta, 1, accuracy: 0.000001)
+        XCTAssertEqual(region.span.longitudeDelta, 360, accuracy: 0.000001)
+    }
+
     func test_consumePendingRegionChangeIgnore_decrementsCounter() {
         var pendingIgnoredRegionChanges = 2
 
@@ -73,5 +114,13 @@ final class MapKitSharedLogicTests: XCTestCase {
 
         XCTAssertEqual(syncedRegion?.span.latitudeDelta ?? -1, 0.4, accuracy: 0.000001)
         XCTAssertEqual(centeredRegion?.center.latitude ?? -1, coordinate.latitude, accuracy: 0.000001)
+    }
+
+    func test_geoStateValidator_rejectsOutOfBoundsCoordinate() {
+        XCTAssertNil(
+            GeoStateValidator.sanitizedCoordinate(
+                CLLocationCoordinate2D(latitude: 95, longitude: 139.6503)
+            )
+        )
     }
 }

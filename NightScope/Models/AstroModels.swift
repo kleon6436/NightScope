@@ -57,7 +57,6 @@ struct ViewingWindow {
 
 struct NightSummary {
     private typealias WeatherByHour = [Date: HourlyWeather]
-    private typealias AdjustedNightEvent = (original: Date, sortKey: Date)
 
     let date: Date
     let location: CLLocationCoordinate2D
@@ -163,17 +162,20 @@ struct NightSummary {
     /// - Parameter nighttimeHours: DayWeatherSummary.nighttimeHours
     /// - Returns: (start, end) または nil（観測可能な時間帯なし）
     func weatherAwareObservableWindow(nighttimeHours: [HourlyWeather]) -> (start: Date, end: Date)? {
-        guard !nighttimeHours.isEmpty else { return nil }
+        guard hasReliableWeatherData(nighttimeHours: nighttimeHours) else { return nil }
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let weatherByHour = makeWeatherByHour(nighttimeHours: nighttimeHours, calendar: calendar)
+        let matchedNighttimeHours = darkWeatherHours(nighttimeHours: nighttimeHours)
+        let weatherByHour = makeWeatherByHour(nighttimeHours: matchedNighttimeHours, calendar: calendar)
         let clearDarkEvents = filteredDarkEvents(
             weatherByHour: weatherByHour,
             calendar: calendar,
             includeMoonFilter: true
         )
         guard !clearDarkEvents.isEmpty else { return nil }
-        let adjusted = adjustForNightBoundary(events: clearDarkEvents, calendar: calendar)
-        return longestMergedWindow(from: adjusted, mergeGap: MilkyWayCalculator.Constants.windowMergeGapSeconds)
+        return longestMergedWindow(
+            from: clearDarkEvents.map(\.date),
+            mergeGap: MilkyWayCalculator.Constants.windowMergeGapSeconds
+        )
     }
 
     /// 天気を考慮した観測可能時間帯の範囲文字列（例: "22:00 〜 04:15"）
@@ -183,20 +185,28 @@ struct NightSummary {
     ///   - "月明かり": 天気は良好だが月が明るすぎる
     ///   - その他 : 観測可能な時間帯文字列
     func weatherAwareRangeText(nighttimeHours: [HourlyWeather]) -> String? {
-        guard !nighttimeHours.isEmpty else { return nil }
+        guard hasReliableWeatherData(nighttimeHours: nighttimeHours) else { return nil }
         if let w = weatherAwareObservableWindow(nighttimeHours: nighttimeHours) {
             return "\(w.start.nightTimeString(timeZone: timeZone)) 〜 \(w.end.nightTimeString(timeZone: timeZone))"
         }
         // 観測可能ウィンドウなし — 原因を判定して適切なメッセージを返す
         // 天気フィルタのみ（月フィルタなし）で暗いイベントが存在すれば月が原因
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let weatherByHour = makeWeatherByHour(nighttimeHours: nighttimeHours, calendar: calendar)
+        let weatherByHour = makeWeatherByHour(
+            nighttimeHours: darkWeatherHours(nighttimeHours: nighttimeHours),
+            calendar: calendar
+        )
         let hasWeatherClearDarkHour = !filteredDarkEvents(
             weatherByHour: weatherByHour,
             calendar: calendar,
             includeMoonFilter: false
         ).isEmpty
         return hasWeatherClearDarkHour ? "月明かり" : ""
+    }
+
+    func hasReliableWeatherData(nighttimeHours: [HourlyWeather]) -> Bool {
+        let coverage = darkWeatherCoverage(nighttimeHours: nighttimeHours)
+        return coverage.hasFullCoverage && !coverage.hours.isEmpty
     }
 
     private func makeWeatherByHour(nighttimeHours: [HourlyWeather], calendar: Calendar) -> WeatherByHour {
@@ -208,6 +218,41 @@ struct NightSummary {
                 return (hourStart, weather)
             }
         )
+    }
+
+    private func darkWeatherHours(nighttimeHours: [HourlyWeather]) -> [HourlyWeather] {
+        darkWeatherCoverage(nighttimeHours: nighttimeHours).hours
+    }
+
+    private func darkWeatherCoverage(nighttimeHours: [HourlyWeather]) -> (hours: [HourlyWeather], hasFullCoverage: Bool) {
+        let expectedHourStarts = darkHourStarts
+        guard !expectedHourStarts.isEmpty else {
+            return ([], false)
+        }
+
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let matchedHours = nighttimeHours.filter { weather in
+            guard let hourStart = calendar.dateInterval(of: .hour, for: weather.date)?.start else {
+                return false
+            }
+            return expectedHourStarts.contains(hourStart)
+        }
+
+        let matchedHourStarts = Set(matchedHours.compactMap { weather in
+            calendar.dateInterval(of: .hour, for: weather.date)?.start
+        })
+
+        return (
+            matchedHours.sorted { $0.date < $1.date },
+            matchedHourStarts == expectedHourStarts
+        )
+    }
+
+    private var darkHourStarts: Set<Date> {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        return Set(darkEvents.compactMap { event in
+            calendar.dateInterval(of: .hour, for: event.date)?.start
+        })
     }
 
     private func filteredDarkEvents(
@@ -252,26 +297,11 @@ struct NightSummary {
         return !(event.moonAltitude > 0 && illumination >= 0.30)
     }
 
-    private func adjustForNightBoundary(events: [AstroEvent], calendar: Calendar) -> [AdjustedNightEvent] {
-        // 夜をまたぐ連続性を正しく判定するため、深夜前（hour < 12）のイベントに24時間を加算して
-        // 夕方イベントの後に連続するものとして扱う。
-        // 根拠: 天文学的な1夜は前日夕方〜翌朝にわたるためカレンダー上の0時で分断してはいけない。
-        //       例) 夕方23:45 → 翌朝00:00 の間隔は15分（連続）だが、
-        //           DST 切替日でもローカル時刻の連続性を保つため、固定86400秒ではなく暦日を1日進める。
-        events.map { event in
-            let hour = calendar.component(.hour, from: event.date)
-            let sortKey = hour < 12
-                ? (calendar.date(byAdding: .day, value: 1, to: event.date) ?? event.date)
-                : event.date
-            return (original: event.date, sortKey: sortKey)
-        }
-    }
-
     private func longestMergedWindow(
-        from adjustedEvents: [AdjustedNightEvent],
+        from dates: [Date],
         mergeGap: TimeInterval
     ) -> (start: Date, end: Date)? {
-        let sorted = adjustedEvents.sorted { $0.sortKey < $1.sortKey }
+        let sorted = dates.sorted()
         guard let first = sorted.first else { return nil }
 
         var bestStart = first
@@ -283,12 +313,12 @@ struct NightSummary {
             let previous = sorted[index - 1]
             let current = sorted[index]
 
-            if current.sortKey.timeIntervalSince(previous.sortKey) <= mergeGap {
+            if current.timeIntervalSince(previous) <= mergeGap {
                 currentEnd = current
                 continue
             }
 
-            if currentEnd.sortKey.timeIntervalSince(currentStart.sortKey) > bestEnd.sortKey.timeIntervalSince(bestStart.sortKey) {
+            if currentEnd.timeIntervalSince(currentStart) > bestEnd.timeIntervalSince(bestStart) {
                 bestStart = currentStart
                 bestEnd = currentEnd
             }
@@ -296,12 +326,12 @@ struct NightSummary {
             currentEnd = current
         }
 
-        if currentEnd.sortKey.timeIntervalSince(currentStart.sortKey) > bestEnd.sortKey.timeIntervalSince(bestStart.sortKey) {
+        if currentEnd.timeIntervalSince(currentStart) > bestEnd.timeIntervalSince(bestStart) {
             bestStart = currentStart
             bestEnd = currentEnd
         }
 
-        return (start: bestStart.original, end: bestEnd.original.addingTimeInterval(15 * 60))
+        return (start: bestStart, end: bestEnd.addingTimeInterval(15 * 60))
     }
 
     /// 暗い観測時間帯の範囲文字列（例: "21:00 〜 03:30"）

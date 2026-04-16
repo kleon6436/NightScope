@@ -94,8 +94,10 @@ final class AppControllerTests: XCTestCase {
     }
 
     private func makeWeatherSummary(date: Date) -> DayWeatherSummary {
+        let eventDate = Calendar.current.date(byAdding: .hour, value: 21, to: date) ?? date
+        let hourStart = Calendar.current.dateInterval(of: .hour, for: eventDate)?.start ?? eventDate
         let hourly = HourlyWeather(
-            date: date,
+            date: hourStart,
             temperatureCelsius: 12,
             cloudCoverPercent: 15,
             precipitationMM: 0,

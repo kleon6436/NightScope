@@ -29,9 +29,9 @@ struct UpcomingNightsGrid: View {
                 placeholderGrid
             } else if displayNights.isEmpty {
                 ContentUnavailableView(
-                    "観測に適した夜がありません",
+                    "予報データがありません",
                     systemImage: AppIcons.Astronomy.moonZzz,
-                    description: Text("今後2週間は天の川の観測に適した夜がありませんでした")
+                    description: Text("今後2週間の夜間予報を表示できませんでした")
                 )
             } else {
                 GlassEffectContainer {
