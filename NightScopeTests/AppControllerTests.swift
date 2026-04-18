@@ -59,10 +59,27 @@ final class AppControllerTests: XCTestCase {
             }
         }
 
-        let appController = AppController(calculationService: MockNightCalculationService())
+        let storage = InMemoryLocationStorage()
+        storage.timeZoneIdentifier = TimeZone.current.identifier
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(name: "東京", timeZoneIdentifier: TimeZone.current.identifier)
+            )
+        )
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: MockNightCalculationService()
+        )
+        let selectedTimeZone = locationController.selectedTimeZone
 
-        XCTAssertTrue(Calendar.current.isDateInToday(appController.selectedDate))
-        XCTAssertFalse(Calendar.current.isDate(appController.selectedDate, inSameDayAs: sentinelDate))
+        XCTAssertTrue(ObservationTimeZone.isDateInToday(appController.selectedDate, timeZone: selectedTimeZone))
+        XCTAssertFalse(ObservationTimeZone.isDate(
+            appController.selectedDate,
+            inSameDayAs: sentinelDate,
+            timeZone: selectedTimeZone
+        ))
         XCTAssertEqual(userDefaults.double(forKey: key), sentinelDate.timeIntervalSince1970)
     }
 
@@ -184,16 +201,17 @@ final class AppControllerTests: XCTestCase {
 
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
+        let selectedTimeZone = appController.locationController.selectedTimeZone
 
         appController.upcomingNights = [night]
         appController.recomputeUpcomingIndexes()
 
-        let dayKey = Calendar.current.startOfDay(for: night.date)
+        let dayKey = ObservationTimeZone.startOfDay(for: night.date, timeZone: selectedTimeZone)
         XCTAssertEqual(appController.upcomingIndexes[dayKey]?.hasWeatherData, false)
 
         let weatherSummary = makeWeatherSummary(date: night.date)
         appController.weatherService.weatherByDate = [
-            appController.weatherService.dateKey(night.date): weatherSummary
+            appController.weatherService.dateKey(night.date, timeZone: selectedTimeZone): weatherSummary
         ]
 
         await waitUntil {

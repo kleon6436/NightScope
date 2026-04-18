@@ -209,6 +209,7 @@ struct iOSStarMapView: View {
                 .symbolEffect(.bounce, value: viewModel.isGyroMode)
         }
         .help(viewModel.isGyroMode ? "タッチ操作に切替" : "ジャイロ操作に切替")
+        .accessibilityLabel(viewModel.isGyroMode ? "タッチ操作に切り替える" : "ジャイロ操作に切り替える")
         .disabled(!canEnableGyroMode)
     }
 

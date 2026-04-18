@@ -47,25 +47,25 @@ final class AppController: ObservableObject {
 
     // MARK: - Published State
     @Published var selectedDate: Date = Date() {
-        didSet { publishObservationState() }
+        didSet { publishObservationStateIfNeeded() }
     }
     @Published var nightSummary: NightSummary? {
-        didSet { publishObservationState() }
+        didSet { publishObservationStateIfNeeded() }
     }
     @Published var upcomingNights: [NightSummary] = [] {
-        didSet { publishObservationState() }
+        didSet { publishObservationStateIfNeeded() }
     }
     @Published var starGazingIndex: StarGazingIndex? {
-        didSet { publishObservationState() }
+        didSet { publishObservationStateIfNeeded() }
     }
     @Published var upcomingIndexes: [Date: StarGazingIndex] = [:] {
-        didSet { publishObservationState() }
+        didSet { publishObservationStateIfNeeded() }
     }
     @Published var isCalculating = false {
-        didSet { publishObservationState() }
+        didSet { publishObservationStateIfNeeded() }
     }
     @Published var isUpcomingLoading = false {
-        didSet { publishObservationState() }
+        didSet { publishObservationStateIfNeeded() }
     }
     @Published private(set) var observationState = ObservationState()
 
@@ -78,6 +78,7 @@ final class AppController: ObservableObject {
     private var isApplyingLocationRefresh = false
     private var hasStarted = false
     private var lastObservedTimeZone: TimeZone
+    private var observationStateBatchDepth = 0
 
     // MARK: - Init
     init(locationController: LocationController? = nil,
@@ -138,6 +139,21 @@ final class AppController: ObservableObject {
         )
     }
 
+    /// 選択日を更新し、必要な当夜再計算を開始します。
+    func selectObservationDate(_ date: Date, timeZone: TimeZone? = nil) {
+        let effectiveTimeZone = timeZone ?? selectedTimeZone
+        let normalizedDate = ObservationTimeZone.startOfDay(for: date, timeZone: effectiveTimeZone)
+        guard !ObservationTimeZone.isDate(
+            selectedDate,
+            inSameDayAs: normalizedDate,
+            timeZone: effectiveTimeZone
+        ) else {
+            return
+        }
+        selectedDate = normalizedDate
+        recalculate()
+    }
+
     /// 外部データ更新を fire-and-forget で開始します。
     func refreshExternalDataInBackground() {
         Task {
@@ -160,9 +176,11 @@ final class AppController: ObservableObject {
                 timeZone: context.timeZone
             )
             guard !Task.isCancelled else { return }
-            nightSummary = summary
-            isCalculating = false
-            recomputeStarGazingIndex()
+            performObservationStateBatchUpdate {
+                nightSummary = summary
+                isCalculating = false
+                recomputeStarGazingIndex()
+            }
         }
     }
 
@@ -180,9 +198,11 @@ final class AppController: ObservableObject {
                 days: 14
             )
             guard !Task.isCancelled else { return }
-            upcomingNights = upcoming
-            recomputeUpcomingIndexes()
-            isUpcomingLoading = false
+            performObservationStateBatchUpdate {
+                upcomingNights = upcoming
+                recomputeUpcomingIndexes()
+                isUpcomingLoading = false
+            }
         }
     }
 
@@ -234,12 +254,14 @@ final class AppController: ObservableObject {
     /// 場所変更後の再取得に備えて、既存の観測結果と外部データ状態を初期化します。
     private func prepareForLocationChange(using context: SelectedLocationContext) {
         cancelActiveCalculationTasks()
-        isCalculating = true
-        isUpcomingLoading = true
-        nightSummary = nil
-        upcomingNights = []
-        starGazingIndex = nil
-        upcomingIndexes = [:]
+        performObservationStateBatchUpdate {
+            isCalculating = true
+            isUpcomingLoading = true
+            nightSummary = nil
+            upcomingNights = []
+            starGazingIndex = nil
+            upcomingIndexes = [:]
+        }
         weatherService.prepareForLocationChange(
             latitude: context.coordinate.latitude,
             longitude: context.coordinate.longitude,
@@ -253,13 +275,28 @@ final class AppController: ObservableObject {
         await refreshLightPollution()
     }
 
+    private func publishObservationStateIfNeeded() {
+        guard observationStateBatchDepth == 0 else { return }
+        publishObservationState()
+    }
+
     private func publishObservationState() {
         observationState = ObservationState(appController: self)
     }
 
+    private func performObservationStateBatchUpdate(_ updates: () -> Void) {
+        observationStateBatchDepth += 1
+        updates()
+        observationStateBatchDepth -= 1
+        guard observationStateBatchDepth == 0 else { return }
+        publishObservationState()
+    }
+
     private func recomputeAllIndexes() {
-        recomputeStarGazingIndex()
-        recomputeUpcomingIndexes()
+        performObservationStateBatchUpdate {
+            recomputeStarGazingIndex()
+            recomputeUpcomingIndexes()
+        }
     }
 
     /// 観測地の変更に追従して、ローカル日付補正と関連データの一括再取得を行います。
@@ -272,8 +309,10 @@ final class AppController: ObservableObject {
             to: timeZone
         )
         lastObservedTimeZone = timeZone
-        selectedDate = ObservationTimeZone.startOfDay(for: normalizedDate, timeZone: timeZone)
-        prepareForLocationChange(using: context)
+        performObservationStateBatchUpdate {
+            selectedDate = ObservationTimeZone.startOfDay(for: normalizedDate, timeZone: timeZone)
+            prepareForLocationChange(using: context)
+        }
         let request = makeLocationRefreshRequest(selectedDate: selectedDate, context: context)
 
         async let summaryTask = calculationService.calculateNightSummary(
@@ -387,22 +426,28 @@ final class AppController: ObservableObject {
         isApplyingLocationRefresh = true
         weatherService.applyFetchResult(payload.weatherResult)
         lightPollutionService.applyFetchResult(payload.lightPollutionResult)
-        upcomingNights = payload.upcomingNights
-        upcomingIndexes = payload.upcomingIndexes
+        performObservationStateBatchUpdate {
+            upcomingNights = payload.upcomingNights
+            upcomingIndexes = payload.upcomingIndexes
+            isUpcomingLoading = false
+        }
         isApplyingLocationRefresh = false
-        isUpcomingLoading = false
 
         switch disposition {
         case .discard:
             return
         case .applyAll:
-            nightSummary = payload.nightSummary
-            starGazingIndex = payload.starGazingIndex
-            isCalculating = false
+            performObservationStateBatchUpdate {
+                nightSummary = payload.nightSummary
+                starGazingIndex = payload.starGazingIndex
+                isCalculating = false
+            }
         case .applyLocationDataOnly:
             if hasCurrentNightSummaryForSelection() {
-                recomputeStarGazingIndex()
-                isCalculating = false
+                performObservationStateBatchUpdate {
+                    recomputeStarGazingIndex()
+                    isCalculating = false
+                }
             } else {
                 isCalculating = false
                 recalculateCurrentNightIfNeeded()

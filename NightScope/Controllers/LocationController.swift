@@ -4,11 +4,17 @@ import MapKit
 
 @MainActor
 final class LocationController: NSObject, ObservableObject, LocationProviding {
+    private enum TimeZoneSelectionSource: Equatable {
+        case confirmed
+        case provisional
+    }
+
     private struct SelectionRequest {
         let coordinate: CLLocationCoordinate2D
         let fallbackName: String?
         let preferredDetails: ResolvedLocationDetails
         let preferredTimeZoneIdentifierForResolution: String?
+        let provisionalTimeZoneIdentifier: String?
         let incrementsCenterTrigger: Bool
     }
 
@@ -25,9 +31,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
     }
     @Published private(set) var selectedTimeZoneIdentifier = TimeZone.current.identifier {
-        didSet {
-            storage.timeZoneIdentifier = selectedTimeZoneIdentifier
-        }
+        didSet { persistSelectedTimeZone() }
     }
     /// 再計算が必要な場所変更が起きるたびに更新される ID（View 側での onChange 検知用）
     @Published private(set) var locationUpdateID: UUID = UUID()
@@ -129,6 +133,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private var searchTask: Task<Void, Never>?
     private var locationNameTask: Task<Void, Never>?
     private var latestSearchQuery = ""
+    private var selectedTimeZoneSelectionSource: TimeZoneSelectionSource = .confirmed
     private static let searchFailureMessage = "場所を検索できませんでした。通信状況を確認して、もう一度お試しください。"
 
     // MARK: - Init
@@ -156,8 +161,16 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
                 locationName = name
             }
             if let timeZoneIdentifier = storage.timeZoneIdentifier,
-               TimeZone(identifier: timeZoneIdentifier) != nil {
-                selectedTimeZoneIdentifier = timeZoneIdentifier
+               TimeZone(identifier: timeZoneIdentifier) != nil,
+               !ApproximateTimeZoneResolver.isProvisionalIdentifier(timeZoneIdentifier) {
+                _ = applySelectedTimeZone(identifier: timeZoneIdentifier, source: .confirmed)
+            } else if let exactIdentifier = ApproximateTimeZoneResolver.exactIdentifier(for: coordinate) {
+                _ = applySelectedTimeZone(identifier: exactIdentifier, source: .confirmed)
+            } else {
+                _ = applySelectedTimeZone(
+                    identifier: ApproximateTimeZoneResolver.approximateIdentifier(for: coordinate),
+                    source: .provisional
+                )
             }
         case .none:
             if storage.latitude != nil || storage.longitude != nil {
@@ -266,6 +279,9 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
                 fallbackName: mapItem.name,
                 preferredDetails: preferredDetails,
                 preferredTimeZoneIdentifierForResolution: preferredDetails.timeZoneIdentifier,
+                provisionalTimeZoneIdentifier: preferredDetails.timeZoneIdentifier == nil
+                    ? ApproximateTimeZoneResolver.approximateIdentifier(for: mapItem.location.coordinate)
+                    : nil,
                 incrementsCenterTrigger: true
             )
         )
@@ -277,16 +293,19 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     }
 
     private func selectCoordinate(_ coordinate: CLLocationCoordinate2D, provisionalName: String) {
-        let approximateTimeZoneIdentifier = approximateTimeZoneIdentifier(for: coordinate)
+        let exactTimeZoneIdentifier = exactTimeZoneIdentifier(for: coordinate)
         applySelection(
             SelectionRequest(
                 coordinate: coordinate,
                 fallbackName: provisionalName,
                 preferredDetails: ResolvedLocationDetails(
                     name: provisionalName,
-                    timeZoneIdentifier: approximateTimeZoneIdentifier
+                    timeZoneIdentifier: exactTimeZoneIdentifier
                 ),
-                preferredTimeZoneIdentifierForResolution: approximateTimeZoneIdentifier,
+                preferredTimeZoneIdentifierForResolution: exactTimeZoneIdentifier,
+                provisionalTimeZoneIdentifier: exactTimeZoneIdentifier == nil
+                    ? ApproximateTimeZoneResolver.approximateIdentifier(for: coordinate)
+                    : nil,
                 incrementsCenterTrigger: false
             )
         )
@@ -302,7 +321,8 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         let didChangeTimeZone = applyResolvedLocationDetails(
             for: request.coordinate,
             details: request.preferredDetails,
-            fallbackName: request.fallbackName
+            fallbackName: request.fallbackName,
+            provisionalTimeZoneIdentifier: request.provisionalTimeZoneIdentifier
         )
         if didChangeCoordinate || didChangeTimeZone {
             commitLocationUpdate()
@@ -359,16 +379,20 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private func applyResolvedLocationDetails(
         for coordinate: CLLocationCoordinate2D,
         details: ResolvedLocationDetails,
-        fallbackName: String?
+        fallbackName: String?,
+        provisionalTimeZoneIdentifier: String? = nil
     ) -> Bool {
         locationName = resolvedLocationName(details.name, fallbackName: fallbackName)
-        let timeZoneIdentifier = resolvedTimeZoneIdentifier(
+        if let timeZoneIdentifier = resolvedTimeZoneIdentifier(
             for: coordinate,
             preferredIdentifier: details.timeZoneIdentifier
-        )
-        let didChangeTimeZone = selectedTimeZoneIdentifier != timeZoneIdentifier
-        selectedTimeZoneIdentifier = timeZoneIdentifier
-        return didChangeTimeZone
+        ) {
+            return applySelectedTimeZone(identifier: timeZoneIdentifier, source: .confirmed)
+        }
+        if let provisionalTimeZoneIdentifier {
+            return applySelectedTimeZone(identifier: provisionalTimeZoneIdentifier, source: .provisional)
+        }
+        return false
     }
 
     private func resolveLocationDetails(
@@ -415,15 +439,38 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private func resolvedTimeZoneIdentifier(
         for coordinate: CLLocationCoordinate2D,
         preferredIdentifier: String?
-    ) -> String {
-        ApproximateTimeZoneResolver.bestIdentifier(
+    ) -> String? {
+        ApproximateTimeZoneResolver.exactIdentifier(
             for: coordinate,
             preferredIdentifier: preferredIdentifier
         )
     }
 
-    private func approximateTimeZoneIdentifier(for coordinate: CLLocationCoordinate2D) -> String {
-        ApproximateTimeZoneResolver.identifier(for: coordinate)
+    private func exactTimeZoneIdentifier(for coordinate: CLLocationCoordinate2D) -> String? {
+        ApproximateTimeZoneResolver.exactIdentifier(for: coordinate)
+    }
+
+    private func applySelectedTimeZone(identifier: String, source: TimeZoneSelectionSource) -> Bool {
+        let didChangeIdentifier = selectedTimeZoneIdentifier != identifier
+        let didChangeSource = selectedTimeZoneSelectionSource != source
+        selectedTimeZoneSelectionSource = source
+
+        if didChangeIdentifier {
+            selectedTimeZoneIdentifier = identifier
+        } else if didChangeSource {
+            persistSelectedTimeZone()
+        }
+
+        return didChangeIdentifier || didChangeSource
+    }
+
+    private func persistSelectedTimeZone() {
+        switch selectedTimeZoneSelectionSource {
+        case .confirmed:
+            storage.timeZoneIdentifier = selectedTimeZoneIdentifier
+        case .provisional:
+            storage.timeZoneIdentifier = nil
+        }
     }
 
     private var effectiveSearchQuery: String {

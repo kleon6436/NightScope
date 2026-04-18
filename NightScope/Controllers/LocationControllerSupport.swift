@@ -61,7 +61,7 @@ struct ResolvedLocationDetails: Sendable, Equatable {
 
 enum MapItemLocationDetailsExtractor {
     static func details(from item: MKMapItem) -> ResolvedLocationDetails {
-        let timeZoneIdentifier = ApproximateTimeZoneResolver.bestIdentifier(
+        let timeZoneIdentifier = ApproximateTimeZoneResolver.exactIdentifier(
             for: item.location.coordinate,
             preferredIdentifier: item.timeZone?.identifier,
             regionIdentifier: item.addressRepresentations?.region?.identifier
@@ -93,18 +93,24 @@ enum ApproximateTimeZoneResolver {
         preferredIdentifier: String?,
         regionIdentifier: String? = nil
     ) -> String {
+        exactIdentifier(
+            for: coordinate,
+            preferredIdentifier: preferredIdentifier,
+            regionIdentifier: regionIdentifier
+        ) ?? provisionalIdentifier(for: coordinate)
+    }
+
+    static func exactIdentifier(
+        for coordinate: CLLocationCoordinate2D,
+        preferredIdentifier: String? = nil,
+        regionIdentifier: String? = nil
+    ) -> String? {
         if let preferredIdentifier,
-           TimeZone(identifier: preferredIdentifier) != nil {
+           TimeZone(identifier: preferredIdentifier) != nil,
+           !isProvisionalIdentifier(preferredIdentifier) {
             return preferredIdentifier
         }
 
-        return identifier(for: coordinate, regionIdentifier: regionIdentifier)
-    }
-
-    static func identifier(
-        for coordinate: CLLocationCoordinate2D,
-        regionIdentifier: String? = nil
-    ) -> String {
         if let regionIdentifier,
            let regionBackedIdentifier = regionBackedIdentifier(
             for: coordinate,
@@ -112,12 +118,27 @@ enum ApproximateTimeZoneResolver {
            ) {
             return regionBackedIdentifier
         }
+        return nil
+    }
 
-        if let heuristicIdentifier = heuristicIdentifier(for: coordinate) {
-            return heuristicIdentifier
-        }
+    static func identifier(
+        for coordinate: CLLocationCoordinate2D,
+        regionIdentifier: String? = nil
+    ) -> String {
+        exactIdentifier(for: coordinate, regionIdentifier: regionIdentifier)
+            ?? approximateIdentifier(for: coordinate)
+    }
 
-        return fixedOffsetTimeZoneIdentifier(forHoursFromGMT: wholeHourOffset(for: coordinate))
+    static func approximateIdentifier(for coordinate: CLLocationCoordinate2D) -> String {
+        heuristicIdentifier(for: coordinate) ?? provisionalIdentifier(for: coordinate)
+    }
+
+    static func provisionalIdentifier(for coordinate: CLLocationCoordinate2D) -> String {
+        fixedOffsetTimeZoneIdentifier(forHoursFromGMT: wholeHourOffset(for: coordinate))
+    }
+
+    static func isProvisionalIdentifier(_ identifier: String) -> Bool {
+        identifier == "Etc/GMT" || identifier.hasPrefix("Etc/GMT+") || identifier.hasPrefix("Etc/GMT-")
     }
 
     private static func regionBackedIdentifier(
@@ -157,15 +178,18 @@ enum ApproximateTimeZoneResolver {
     private static let singleRegionTimeZoneIdentifiers = [
         "AF": "Asia/Kabul",
         "AT": "Europe/Vienna",
+        "AE": "Asia/Dubai",
         "BD": "Asia/Dhaka",
         "BE": "Europe/Brussels",
         "BG": "Europe/Sofia",
         "BH": "Asia/Bahrain",
+        "AR": "America/Argentina/Buenos_Aires",
         "CH": "Europe/Zurich",
         "CN": "Asia/Shanghai",
         "CZ": "Europe/Prague",
         "DE": "Europe/Berlin",
         "DK": "Europe/Copenhagen",
+        "EG": "Africa/Cairo",
         "EE": "Europe/Tallinn",
         "FI": "Europe/Helsinki",
         "GR": "Europe/Athens",
@@ -176,6 +200,7 @@ enum ApproximateTimeZoneResolver {
         "IR": "Asia/Tehran",
         "IS": "Atlantic/Reykjavik",
         "IT": "Europe/Rome",
+        "IL": "Asia/Jerusalem",
         "JP": "Asia/Tokyo",
         "KR": "Asia/Seoul",
         "KW": "Asia/Kuwait",
@@ -202,7 +227,9 @@ enum ApproximateTimeZoneResolver {
         "TR": "Europe/Istanbul",
         "TW": "Asia/Taipei",
         "UA": "Europe/Kyiv",
-        "VN": "Asia/Ho_Chi_Minh"
+        "UY": "America/Montevideo",
+        "VN": "Asia/Ho_Chi_Minh",
+        "ZA": "Africa/Johannesburg"
     ]
 
     private static let timeZoneHeuristics = [
@@ -229,7 +256,14 @@ enum ApproximateTimeZoneResolver {
         TimeZoneHeuristic(latitudeRange: 35...72, longitudeRange: 20...36, identifier: "Europe/Athens"),
         TimeZoneHeuristic(latitudeRange: -44 ... -28, longitudeRange: 141...154.5, identifier: "Australia/Sydney"),
         TimeZoneHeuristic(latitudeRange: -48 ... -33, longitudeRange: 166...179.9, identifier: "Pacific/Auckland"),
-        TimeZoneHeuristic(latitudeRange: -56 ... -17, longitudeRange: -76 ... -65, identifier: "America/Santiago")
+        TimeZoneHeuristic(latitudeRange: -56 ... -17, longitudeRange: -76 ... -65, identifier: "America/Santiago"),
+        TimeZoneHeuristic(latitudeRange: -56 ... -21, longitudeRange: -73 ... -52, identifier: "America/Argentina/Buenos_Aires"),
+        TimeZoneHeuristic(latitudeRange: -35 ... 7, longitudeRange: -51 ... -34, identifier: "America/Sao_Paulo"),
+        TimeZoneHeuristic(latitudeRange: -14 ... 6, longitudeRange: -75 ... -58, identifier: "America/Bogota"),
+        TimeZoneHeuristic(latitudeRange: 22 ... 32, longitudeRange: 24 ... 37, identifier: "Africa/Cairo"),
+        TimeZoneHeuristic(latitudeRange: 20 ... 34, longitudeRange: 34 ... 36.5, identifier: "Asia/Jerusalem"),
+        TimeZoneHeuristic(latitudeRange: 22 ... 27, longitudeRange: 51 ... 56.5, identifier: "Asia/Dubai"),
+        TimeZoneHeuristic(latitudeRange: -35 ... -21, longitudeRange: 16 ... 33, identifier: "Africa/Johannesburg")
     ]
 }
 

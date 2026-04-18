@@ -36,5 +36,6 @@ build/
 # Claude Code
 .claude/
 
-# VS Code
+# VS CodeとGitHub Copilotの設定ファイル
 .vscode/
+.github/

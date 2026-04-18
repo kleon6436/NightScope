@@ -603,14 +603,56 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(displayComponents.minute, 7)
     }
 
+    func test_StarMapViewModel_setObservationDate_triggersNightRecalculation() async {
+        let calculationService = MockNightCalculationService()
+        let storage = InMemoryLocationStorage()
+        storage.latitude = 35.6762
+        storage.longitude = 139.6503
+        storage.name = "東京"
+        storage.timeZoneIdentifier = "Asia/Tokyo"
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                resolvedName: "東京",
+                timeZoneIdentifier: "Asia/Tokyo"
+            )
+        )
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: calculationService
+        )
+        let viewModel = StarMapViewModel(appController: appController)
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: tokyo)
+        let nextDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 13))!
+
+        viewModel.setObservationDate(nextDate)
+
+        await waitUntil {
+            appController.selectedDate == nextDate
+        }
+
+        for _ in 0..<30 {
+            let nightCalls = await calculationService.getNightSummaryCallCount()
+            if nightCalls > 0 {
+                break
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        let nightCallCount = await calculationService.getNightSummaryCallCount()
+        XCTAssertGreaterThanOrEqual(nightCallCount, 1)
+    }
+
     func test_StarMapViewModel_terrainCacheKey_roundsCoordinatesConsistently() {
         XCTAssertEqual(
             StarMapViewModel.terrainCacheKey(latitude: 35.1234, longitude: 139.5678),
-            "35.12,139.57"
+            "35.125,139.57"
         )
         XCTAssertEqual(
             StarMapViewModel.terrainCacheKey(latitude: -35.1251, longitude: -139.5651),
-            "-35.13,-139.57"
+            "-35.125,-139.565"
         )
     }
 }

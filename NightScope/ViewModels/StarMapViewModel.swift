@@ -421,7 +421,7 @@ final class StarMapViewModel: ObservableObject {
         ) else {
             return
         }
-        appController.selectedDate = normalizedDate
+        appController.selectObservationDate(normalizedDate, timeZone: timeZone)
         syncWithSelectedDate(referenceDate: displayDate)
     }
 
@@ -658,9 +658,7 @@ final class StarMapViewModel: ObservableObject {
     }
 
     nonisolated static func terrainCacheKey(latitude: Double, longitude: Double) -> String {
-        let roundedLatitude = (latitude * 100).rounded() / 100
-        let roundedLongitude = (longitude * 100).rounded() / 100
-        return "\(roundedLatitude),\(roundedLongitude)"
+        TerrainService.cacheKey(latitude: latitude, longitude: longitude)
     }
 }
 

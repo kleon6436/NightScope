@@ -97,8 +97,10 @@ final class DetailViewModel: ObservableObject {
                 ) else {
                     return
                 }
-                self.appController.selectedDate = normalizedDate
-                self.appController.recalculate()
+                self.appController.selectObservationDate(
+                    normalizedDate,
+                    timeZone: self.selectedTimeZone
+                )
             }
             .store(in: &cancellables)
 

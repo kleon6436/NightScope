@@ -94,13 +94,29 @@ struct ElevationGridData {
 
     /// 指定座標の標高 (m) を返す。データ範囲外の場合は 0m を返す。
     func elevation(latitude: Double, longitude: Double) -> Double {
+        let normalizedLongitude = normalizedLongitudeIfNeeded(longitude)
         guard latitude >= latMin, latitude <= latMax,
-              longitude >= lonMin, longitude <= lonMax else { return 0.0 }
+              normalizedLongitude >= lonMin, normalizedLongitude <= lonMax else { return 0.0 }
         let latIdx = Int((latitude - latMin) / (latMax - latMin) * Double(latCells))
             .clamped(to: 0..<latCells)
-        let lonIdx = Int((longitude - lonMin) / (lonMax - lonMin) * Double(lonCells))
+        let lonIdx = Int((normalizedLongitude - lonMin) / (lonMax - lonMin) * Double(lonCells))
             .clamped(to: 0..<lonCells)
         return Double(data[latIdx * lonCells + lonIdx])
+    }
+
+    private func normalizedLongitudeIfNeeded(_ longitude: Double) -> Double {
+        guard (lonMax - lonMin) >= 359 else { return longitude }
+        return Self.normalizedLongitude(longitude)
+    }
+
+    private static func normalizedLongitude(_ longitude: Double) -> Double {
+        var normalized = longitude.truncatingRemainder(dividingBy: 360.0)
+        if normalized <= -180.0 {
+            normalized += 360.0
+        } else if normalized > 180.0 {
+            normalized -= 360.0
+        }
+        return normalized
     }
 }
 
@@ -117,8 +133,9 @@ private extension Int {
 /// 地平仰角プロファイルを構築する。バンドルデータが存在しない場合は nil を返す（平坦地扱い）。
 actor TerrainService {
     private enum Constants {
-        static let sampleDistanceMeters = 10_000.0
+        static let sampleDistancesMeters: [Double] = [1_000.0, 2_500.0, 5_000.0, 7_500.0, 10_000.0]
         static let sampleCount = 72
+        static let cachePrecisionDegrees = 0.005
     }
 
     static let shared = TerrainService()
@@ -141,7 +158,7 @@ actor TerrainService {
     /// 観測地座標に対するプロファイルを返す。キャッシュがあればそれを使う。
     /// バンドルデータが存在しない場合は nil を返す（呼び出し元は平坦地として扱う）。
     func fetchProfile(latitude: Double, longitude: Double) async -> TerrainProfile? {
-        let key = cacheKey(lat: latitude, lon: longitude) as NSString
+        let key = Self.cacheKey(latitude: latitude, longitude: longitude) as NSString
         if let cached = cache.object(forKey: key) as? [Double] {
             return TerrainProfile(horizonAngles: cached)
         }
@@ -154,9 +171,9 @@ actor TerrainService {
 
     // MARK: - Private
 
-    private func cacheKey(lat: Double, lon: Double) -> String {
-        let rLat = (lat * 100).rounded() / 100
-        let rLon = (lon * 100).rounded() / 100
+    nonisolated static func cacheKey(latitude: Double, longitude: Double) -> String {
+        let rLat = roundedCoordinateComponent(latitude)
+        let rLon = roundedCoordinateComponent(normalizedLongitude(longitude))
         return "\(rLat),\(rLon)"
     }
 
@@ -165,13 +182,32 @@ actor TerrainService {
         let obsElev = grid.elevation(latitude: latitude, longitude: longitude)
         return (0..<Constants.sampleCount).map { index in
             let bearing = Double(index) * 5.0
-            let (lat2, lon2) = destinationPoint(
-                lat: latitude, lon: longitude,
-                bearing: bearing, distanceM: Constants.sampleDistanceMeters
-            )
-            let elev = grid.elevation(latitude: lat2, longitude: lon2)
-            return atan2(elev - obsElev, Constants.sampleDistanceMeters) * 180.0 / .pi
+            return Constants.sampleDistancesMeters.reduce(-90.0) { highestAngle, sampleDistance in
+                let (lat2, lon2) = destinationPoint(
+                    lat: latitude,
+                    lon: longitude,
+                    bearing: bearing,
+                    distanceM: sampleDistance
+                )
+                let elev = grid.elevation(latitude: lat2, longitude: lon2)
+                let angle = atan2(elev - obsElev, sampleDistance) * 180.0 / .pi
+                return max(highestAngle, angle)
+            }
         }
+    }
+
+    private nonisolated static func roundedCoordinateComponent(_ value: Double) -> Double {
+        (value / Constants.cachePrecisionDegrees).rounded() * Constants.cachePrecisionDegrees
+    }
+
+    private nonisolated static func normalizedLongitude(_ longitude: Double) -> Double {
+        var normalized = longitude.truncatingRemainder(dividingBy: 360.0)
+        if normalized <= -180.0 {
+            normalized += 360.0
+        } else if normalized > 180.0 {
+            normalized -= 360.0
+        }
+        return normalized
     }
 
     /// Haversine 公式: 距離 distanceM 先の方位 bearing にある座標を返す。
@@ -185,6 +221,6 @@ actor TerrainService {
         let lat2 = asin(sin(lat1) * cos(d) + cos(lat1) * sin(d) * cos(brng))
         let lon2 = lon1 + atan2(sin(brng) * sin(d) * cos(lat1),
                                 cos(d) - sin(lat1) * sin(lat2))
-        return (lat2 * 180 / .pi, lon2 * 180 / .pi)
+        return (lat2 * 180 / .pi, Self.normalizedLongitude(lon2 * 180 / .pi))
     }
 }

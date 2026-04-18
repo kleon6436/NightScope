@@ -132,7 +132,7 @@ struct iOSTodayView: View {
     private var headerSection: some View {
         iOSTabHeaderView(
             title: viewModel.headerTitle(
-                for: detailViewModel.selectedDate,
+                for: detailViewModel.displayedDate,
                 timeZone: detailViewModel.selectedTimeZone
             )
         ) {
