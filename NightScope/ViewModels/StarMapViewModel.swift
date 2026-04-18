@@ -411,8 +411,9 @@ final class StarMapViewModel: ObservableObject {
     /// 天文薄明 (太陽高度 < -18°) 以上の暗さか
     var isAstronomicalDark: Bool { sunAltitude < -18 }
 
-    /// 現在時刻にリセット
+    /// 現在の観測日と時刻にリセット
     func resetToNow(referenceDate: Date = Date()) {
+        appController.selectObservationDate(referenceDate, timeZone: selectedTimeZone)
         syncWithSelectedDate(referenceDate: referenceDate)
     }
 

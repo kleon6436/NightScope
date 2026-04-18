@@ -266,6 +266,38 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
     }
 
+    func test_StarMapViewModel_resetToNow_updatesObservationDateAndDisplayDate() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let timeZone = appController.locationController.selectedTimeZone
+        let calendar = observationCalendar(for: timeZone)
+        let previousDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 21,
+            minute: 7
+        ))!
+
+        appController.selectedDate = previousDate
+        viewModel.syncWithSelectedDate(referenceDate: previousDate)
+
+        viewModel.resetToNow(referenceDate: referenceDate)
+
+        let selectedComponents = calendar.dateComponents([.year, .month, .day], from: appController.selectedDate)
+        let displayComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: viewModel.displayDate)
+
+        XCTAssertEqual(selectedComponents.year, 2025)
+        XCTAssertEqual(selectedComponents.month, 1)
+        XCTAssertEqual(selectedComponents.day, 1)
+        XCTAssertEqual(displayComponents.year, 2025)
+        XCTAssertEqual(displayComponents.month, 1)
+        XCTAssertEqual(displayComponents.day, 1)
+        XCTAssertEqual(displayComponents.hour, 21)
+        XCTAssertEqual(displayComponents.minute, 7)
+    }
+
     func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
         let appController = makeTokyoAppController()
         let viewModel = StarMapViewModel(appController: appController)
