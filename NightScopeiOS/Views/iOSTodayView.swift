@@ -63,6 +63,14 @@ struct iOSTodayView: View {
             .sheet(item: $presentedSheet) { sheet in
                 sheetView(for: sheet)
             }
+            .overlay(alignment: .bottom) {
+                DetailErrorOverlay(
+                    weatherErrorMessage: detailViewModel.weatherErrorMessage,
+                    hasLightPollutionError: detailViewModel.hasLightPollutionError,
+                    retryWeatherAction: detailViewModel.retryWeatherInBackground,
+                    retryLightPollutionAction: detailViewModel.retryLightPollutionInBackground
+                )
+            }
         }
     }
 
@@ -109,6 +117,7 @@ struct iOSTodayView: View {
                 isLoading: detailViewModel.isWeatherLoading,
                 isForecastOutOfRange: detailViewModel.isCurrentWeatherForecastOutOfRange,
                 isCoverageIncomplete: detailViewModel.isCurrentWeatherCoverageIncomplete,
+                errorMessage: weather == nil ? detailViewModel.weatherErrorMessage : nil,
                 viewModel: weatherViewModel
             )
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
@@ -199,7 +208,7 @@ struct iOSTodayView: View {
                     }
                 }
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
         case .settings:
             iOSSettingsSheetView()
         }

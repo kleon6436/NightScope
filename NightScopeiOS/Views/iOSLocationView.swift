@@ -1,8 +1,10 @@
 import SwiftUI
 import MapKit
 import Combine
+import UIKit
 
 struct iOSLocationView: View {
+    @Environment(\.openURL) private var openURL
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var locationInputMode: LocationInputMode = .map
@@ -35,7 +37,10 @@ struct iOSLocationView: View {
                 "位置情報エラー",
                 isPresented: locationErrorAlertBinding,
                 presenting: sidebarViewModel.locationError
-            ) { _ in
+            ) { error in
+                if error == .denied {
+                    Button("設定を開く", action: openAppSettings)
+                }
                 Button("OK") {
                     sidebarViewModel.clearLocationError()
                 }
@@ -138,7 +143,7 @@ struct iOSLocationView: View {
                 titleFont: .body,
                 subtitleFont: .caption,
                 lineSpacing: IOSDesignTokens.Location.searchResultLineSpacing,
-                titleFallback: "",
+                titleFallback: "不明な場所",
                 iconWidth: 18
             )
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,6 +171,8 @@ struct iOSLocationView: View {
             )
             .ignoresSafeArea(edges: .horizontal)
         }
+        .frame(minHeight: Layout.mapMinHeight)
+        .layoutPriority(1)
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous))
     }
 
@@ -215,9 +222,12 @@ struct iOSLocationView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if sidebarViewModel.hasLightPollutionFetchFailed {
-                    Text("取得失敗")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Button("再試行") {
+                        sidebarViewModel.retryLightPollution()
+                    }
+                    .font(.caption)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
                 }
             }
         }
@@ -247,6 +257,11 @@ struct iOSLocationView: View {
         sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
         isSearchFocused = false
     }
+
+    private func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(settingsURL)
+    }
 }
 
 private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
@@ -257,8 +272,29 @@ private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
     @ViewBuilder
     var body: some View {
         switch presentation {
-        case .hidden, .loading:
+        case .hidden:
             EmptyView()
+        case .loading(let previousResults):
+            if previousResults.isEmpty {
+                HStack(spacing: Spacing.xs) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("検索中…")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .iOSMaterialPanel()
+            } else {
+                searchResultsContent(previousResults)
+                    .redacted(reason: .placeholder)
+                    .overlay(alignment: .topTrailing) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(Spacing.xs)
+                    }
+                    .opacity(0.75)
+            }
         case .results(let results):
             searchResultsContent(results)
         case .empty(let query):

@@ -366,17 +366,19 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(queries, ["tokyo"])
     }
 
-    func test_LocationController_search_newQueryImmediatelyClearsPreviousResults() {
+    func test_LocationController_search_newQueryKeepsPreviousResultsWhileLoading() {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))
         let resolver = MockLocationNameResolver(resolvedName: "東京")
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-        sut.searchResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0), name: "Tokyo")]
+        let previousResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0), name: "Tokyo")]
+        sut.searchResults = previousResults
 
         sut.search(query: "Osaka")
 
         XCTAssertTrue(sut.isSearching)
-        XCTAssertTrue(sut.searchResults.isEmpty)
+        XCTAssertEqual(sut.searchResults.count, previousResults.count)
+        XCTAssertEqual(sut.searchResults.first?.name, previousResults.first?.name)
         XCTAssertEqual(sut.searchState.phase, .loading)
         XCTAssertEqual(sut.searchState.query, "Osaka")
     }
@@ -726,6 +728,14 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(identifier, "America/Halifax")
     }
 
+    func test_ApproximateTimeZoneResolver_usesProvisionalOffsetForAmbiguousUSBorderCoordinate() {
+        let coordinate = CLLocationCoordinate2D(latitude: 34.8481, longitude: -114.6141)
+
+        let identifier = ApproximateTimeZoneResolver.approximateIdentifier(for: coordinate)
+
+        XCTAssertEqual(identifier, "Etc/GMT+8")
+    }
+
     func test_ApproximateTimeZoneResolver_usesRegionBackedTimeZoneForBerlinWithDST() {
         let coordinate = CLLocationCoordinate2D(latitude: 52.5200, longitude: 13.4050)
         let summerDate = DateComponents(
@@ -754,6 +764,23 @@ final class LocationControllerTests: XCTestCase {
 
         XCTAssertEqual(identifier, "America/Argentina/Buenos_Aires")
         XCTAssertEqual(TimeZone(identifier: identifier)?.secondsFromGMT(for: date), -3 * 3_600)
+    }
+
+    func test_LocationController_selectCoordinate_usesProvisionalOffsetForAmbiguousBorderCoordinate() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "Needles", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 34.8481, longitude: -114.6141)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "Needles"
+        }
+
+        XCTAssertEqual(sut.selectedTimeZone.identifier, "Etc/GMT+8")
+        XCTAssertNil(storage.timeZoneIdentifier)
     }
 
     func test_LocationController_didUpdateLocations_usesLatestLocation() async {

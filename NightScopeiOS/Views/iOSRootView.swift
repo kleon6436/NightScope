@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct iOSRootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var rootStore: AppRootStore
     @State private var selectedTab = 0
 
@@ -37,7 +38,11 @@ struct iOSRootView: View {
                 .tag(3)
         }
         .onAppear {
-            rootStore.appController.onStart()
+            rootStore.appController.handleSceneDidBecomeActive()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            rootStore.appController.handleSceneDidBecomeActive()
         }
     }
 }

@@ -267,6 +267,20 @@ final class NightWeatherCardViewModelTests: XCTestCase {
         )
     }
 
+    func test_accessibilityDescription_error() {
+        let vm = NightWeatherCardViewModel()
+        XCTAssertEqual(
+            vm.accessibilityDescription(
+                weather: nil,
+                isLoading: false,
+                isForecastOutOfRange: false,
+                isCoverageIncomplete: false,
+                errorMessage: "通信に失敗しました"
+            ),
+            "天気 夜間: 取得失敗、通信に失敗しました、再試行してください"
+        )
+    }
+
     func test_accessibilityDescription_withData() {
         let vm = NightWeatherCardViewModel()
         let weather = makeDayWeatherSummary(cloudCover: 20, windSpeed: 10)
@@ -311,7 +325,8 @@ final class ForecastCardPresentationTests: XCTestCase {
             timeZone: night.timeZone,
             isReliableWeather: true,
             hasPartialWeather: false,
-            isForecastOutOfRange: false
+            isForecastOutOfRange: false,
+            hasWeatherLoadError: false
         )
 
         XCTAssertEqual(sut.weatherDetailText, "小雨")
@@ -325,10 +340,26 @@ final class ForecastCardPresentationTests: XCTestCase {
             timeZone: night.timeZone,
             isReliableWeather: false,
             hasPartialWeather: true,
-            isForecastOutOfRange: false
+            isForecastOutOfRange: false,
+            hasWeatherLoadError: false
         )
 
         XCTAssertEqual(sut.weatherDetailText, "夜間予報は一部のみ")
+    }
+
+    func test_weatherDetailText_returnsFailureMessageWhenLoadFailed() {
+        let night = makeNightSummary()
+        let sut = ForecastCardPresentation(
+            night: night,
+            weather: nil,
+            timeZone: night.timeZone,
+            isReliableWeather: false,
+            hasPartialWeather: false,
+            isForecastOutOfRange: false,
+            hasWeatherLoadError: true
+        )
+
+        XCTAssertEqual(sut.weatherDetailText, "取得失敗")
     }
 }
 

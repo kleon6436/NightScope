@@ -14,16 +14,23 @@ struct StarGazingIndexCard: View {
     var body: some View {
         let color = index.tier.color
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack {
-                CardHeader(icon: AppIcons.Astronomy.starFill, iconColor: color, title: "星空指数")
-                Spacer()
-                Image(systemName: AppIcons.Controls.chevronDown)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                    .animation(reduceMotion ? .none : .standard, value: isExpanded)
-                    .accessibilityHidden(true)
+            Button(action: toggleExpanded) {
+                HStack {
+                    CardHeader(icon: AppIcons.Astronomy.starFill, iconColor: color, title: "星空指数")
+                    Spacer()
+                    Image(systemName: AppIcons.Controls.chevronDown)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                        .animation(reduceMotion ? .none : .standard, value: isExpanded)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("星空指数 \(index.score)点、\(index.label)")
+            .accessibilityValue(isExpanded ? "展開中" : "折り畳み中")
+            .accessibilityHint(isExpanded ? "ダブルタップで折り畳む" : "ダブルタップで詳細を表示")
 
             HStack(alignment: .center, spacing: Spacing.md) {
                 scoreVisual(color: color)
@@ -40,17 +47,7 @@ struct StarGazingIndexCard: View {
             }
         }
         .glassCard()
-        .contentShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
-        .onTapGesture {
-            withAnimation(reduceMotion ? .none : .standard) {
-                isExpanded.toggle()
-            }
-        }
         .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityLabel("星空指数 \(index.score)点、\(index.label)")
-        .accessibilityValue(isExpanded ? "展開中" : "折り畳み中")
-        .accessibilityHint(isExpanded ? "タップして折り畳む" : "タップして詳細を表示")
     }
 
     // MARK: - Shared Components
@@ -119,6 +116,12 @@ struct StarGazingIndexCard: View {
                 .font(.body.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
+        }
+    }
+
+    private func toggleExpanded() {
+        withAnimation(reduceMotion ? .none : .standard) {
+            isExpanded.toggle()
         }
     }
 }

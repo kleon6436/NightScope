@@ -8,6 +8,7 @@ struct iOSNightCardRow: View {
     let isReliableWeather: Bool
     let hasPartialWeather: Bool
     let isForecastOutOfRange: Bool
+    let hasWeatherLoadError: Bool
     let isSelected: Bool
 
     private var presentation: ForecastCardPresentation {
@@ -17,7 +18,8 @@ struct iOSNightCardRow: View {
             timeZone: night.timeZone,
             isReliableWeather: isReliableWeather,
             hasPartialWeather: hasPartialWeather,
-            isForecastOutOfRange: isForecastOutOfRange
+            isForecastOutOfRange: isForecastOutOfRange,
+            hasWeatherLoadError: hasWeatherLoadError
         )
     }
 

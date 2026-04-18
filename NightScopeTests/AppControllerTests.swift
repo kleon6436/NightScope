@@ -309,7 +309,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertFalse(appController.starGazingIndex?.hasWeatherData ?? true)
     }
 
-    func test_recalculate_keepsDisplayedNightSummaryUntilNewDateCompletes() async {
+    func test_recalculate_clearsDisplayedNightSummaryUntilNewDateCompletes() async {
         let baseDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
         let oldSummary = makeNightSummary(date: baseDate)
@@ -329,9 +329,99 @@ final class AppControllerTests: XCTestCase {
 
         appController.recalculate()
 
-        XCTAssertEqual(appController.nightSummary?.date, oldSummary.date)
-        XCTAssertEqual(appController.starGazingIndex?.score, oldIndex.score)
+        XCTAssertNil(appController.nightSummary)
+        XCTAssertNil(appController.starGazingIndex)
         XCTAssertTrue(appController.isCalculating)
+    }
+
+    func test_handleSceneDidBecomeActive_advancesSelectedDateWhenTrackingTodayAcrossDayBoundary() async {
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let storage = InMemoryLocationStorage()
+        storage.timeZoneIdentifier = tokyo.identifier
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(name: "東京", timeZoneIdentifier: tokyo.identifier)
+            )
+        )
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: tokyo)
+        let firstActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12, hour: 21))!
+        let secondActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 13, hour: 7))!
+        let firstDay = ObservationTimeZone.startOfDay(for: firstActiveDate, timeZone: tokyo)
+        let secondDay = ObservationTimeZone.startOfDay(for: secondActiveDate, timeZone: tokyo)
+
+        let mockCalculationService = MockNightCalculationService()
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: firstDay, timeZoneIdentifier: tokyo.identifier))
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: firstDay, timeZoneIdentifier: tokyo.identifier)])
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: secondDay, timeZoneIdentifier: tokyo.identifier))
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: secondDay, timeZoneIdentifier: tokyo.identifier)])
+
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: mockCalculationService
+        )
+
+        appController.onStart(referenceDate: firstActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.nightSummary?.date == firstDay && appController.isUpcomingLoading == false
+        }
+
+        appController.handleSceneDidBecomeActive(referenceDate: secondActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.selectedDate == secondDay
+                && appController.nightSummary?.date == secondDay
+                && appController.upcomingNights.first?.date == secondDay
+        }
+
+        XCTAssertEqual(appController.selectedDate, secondDay)
+        XCTAssertEqual(appController.nightSummary?.date, secondDay)
+        XCTAssertEqual(appController.upcomingNights.first?.date, secondDay)
+    }
+
+    func test_handleSceneDidBecomeActive_preservesCustomSelectedDateAcrossDayBoundary() async {
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let storage = InMemoryLocationStorage()
+        storage.timeZoneIdentifier = tokyo.identifier
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(name: "東京", timeZoneIdentifier: tokyo.identifier)
+            )
+        )
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: tokyo)
+        let firstActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12, hour: 21))!
+        let secondActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 13, hour: 7))!
+        let trackedDay = ObservationTimeZone.startOfDay(for: firstActiveDate, timeZone: tokyo)
+        let customDay = ObservationTimeZone.date(byAdding: .day, value: 3, to: trackedDay, timeZone: tokyo) ?? trackedDay
+
+        let mockCalculationService = MockNightCalculationService()
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: trackedDay, timeZoneIdentifier: tokyo.identifier))
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: trackedDay, timeZoneIdentifier: tokyo.identifier)])
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: trackedDay, timeZoneIdentifier: tokyo.identifier)])
+
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: mockCalculationService
+        )
+
+        appController.onStart(referenceDate: firstActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.nightSummary?.date == trackedDay && appController.isUpcomingLoading == false
+        }
+
+        appController.selectedDate = customDay
+        appController.handleSceneDidBecomeActive(referenceDate: secondActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.isUpcomingLoading == false
+        }
+
+        XCTAssertEqual(appController.selectedDate, customDay)
     }
 
     func test_locationRefreshDisposition_appliesAll_whenSelectionStillMatches() {

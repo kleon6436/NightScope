@@ -9,6 +9,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     @Published private(set) var selectedDate: Date
     @Published private(set) var upcomingIndexes: [Date: StarGazingIndex]
     @Published private(set) var weatherByDate: [String: DayWeatherSummary]
+    @Published private(set) var weatherErrorMessage: String?
     @Published private(set) var selectedTimeZone: TimeZone
 
     private let detailViewModel: DetailViewModel
@@ -19,6 +20,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         self.selectedDate = detailViewModel.selectedDate
         self.upcomingIndexes = detailViewModel.upcomingIndexes
         self.weatherByDate = detailViewModel.weatherService.weatherByDate
+        self.weatherErrorMessage = detailViewModel.weatherErrorMessage
         self.selectedTimeZone = detailViewModel.selectedTimeZone
         setupBindings()
     }
@@ -36,6 +38,9 @@ final class UpcomingNightsGridViewModel: ObservableObject {
 
         detailViewModel.weatherService.$weatherByDate
             .assign(to: &$weatherByDate)
+
+        detailViewModel.$weatherErrorMessage
+            .assign(to: &$weatherErrorMessage)
 
         detailViewModel.$selectedTimeZone
             .assign(to: &$selectedTimeZone)

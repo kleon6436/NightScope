@@ -70,15 +70,31 @@ final class NightWeatherCardViewModel: ObservableObject {
         "星空指数には反映していません"
     }
 
+    func errorTitle() -> String {
+        "取得失敗"
+    }
+
+    func errorPrimaryText(_ message: String) -> String {
+        message
+    }
+
+    func errorSecondaryText() -> String {
+        "再試行してください"
+    }
+
     func accessibilityDescription(
         weather: DayWeatherSummary?,
         isLoading: Bool,
         isForecastOutOfRange: Bool,
-        isCoverageIncomplete: Bool
+        isCoverageIncomplete: Bool,
+        errorMessage: String? = nil
     ) -> String {
         if isLoading { return "天気 夜間: 取得中" }
         if isCoverageIncomplete {
             return "天気 夜間: 予報一部のみ、夜間を最後まで評価できません、星空指数には反映していません"
+        }
+        if let errorMessage, weather == nil {
+            return "天気 夜間: 取得失敗、\(errorMessage)、再試行してください"
         }
         guard let w = weather else {
             return isForecastOutOfRange

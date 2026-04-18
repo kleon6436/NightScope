@@ -78,6 +78,7 @@ final class AppController: ObservableObject {
     private var isApplyingLocationRefresh = false
     private var hasStarted = false
     private var lastObservedTimeZone: TimeZone
+    private var lastActiveReferenceDate: Date
     private var observationStateBatchDepth = 0
 
     // MARK: - Init
@@ -94,6 +95,7 @@ final class AppController: ObservableObject {
             for: Date(),
             timeZone: self.locationController.selectedTimeZone
         )
+        self.lastActiveReferenceDate = Date()
         publishObservationState()
         setupObservers()
         // 星カタログ（JSON 693KB）と色テーブルをバックグラウンドでプリウォーム。
@@ -112,12 +114,53 @@ final class AppController: ObservableObject {
     // MARK: - Public Methods
 
     /// 初期表示に必要な計算と外部データ取得を一度だけ開始します。
-    func onStart() {
+    func onStart(referenceDate: Date = Date(), refreshExternalData: Bool = true) {
         guard !hasStarted else { return }
         hasStarted = true
+        lastActiveReferenceDate = referenceDate
+        selectedDate = ObservationTimeZone.startOfDay(for: referenceDate, timeZone: selectedTimeZone)
         recalculate()
-        recalculateUpcoming()
-        refreshExternalDataInBackground()
+        recalculateUpcoming(referenceDate: referenceDate)
+        if refreshExternalData {
+            refreshExternalDataInBackground()
+        }
+    }
+
+    /// アプリが前景へ戻ったときに、日付跨ぎと外部データ更新を反映します。
+    func handleSceneDidBecomeActive(referenceDate: Date = Date(), refreshExternalData: Bool = true) {
+        guard hasStarted else {
+            onStart(referenceDate: referenceDate, refreshExternalData: refreshExternalData)
+            return
+        }
+
+        let timeZone = selectedTimeZone
+        let previousActiveDay = ObservationTimeZone.startOfDay(
+            for: lastActiveReferenceDate,
+            timeZone: timeZone
+        )
+        let currentActiveDay = ObservationTimeZone.startOfDay(for: referenceDate, timeZone: timeZone)
+        let wasTrackingToday = ObservationTimeZone.isDate(
+            selectedDate,
+            inSameDayAs: previousActiveDay,
+            timeZone: timeZone
+        )
+        let dayDidChange = !ObservationTimeZone.isDate(
+            previousActiveDay,
+            inSameDayAs: currentActiveDay,
+            timeZone: timeZone
+        )
+
+        lastActiveReferenceDate = referenceDate
+
+        if dayDidChange && wasTrackingToday {
+            selectedDate = currentActiveDay
+            recalculate()
+        }
+
+        recalculateUpcoming(referenceDate: referenceDate)
+        if refreshExternalData {
+            refreshExternalDataInBackground()
+        }
     }
 
     /// 選択中の観測地に対応する天気予報を更新します。
@@ -166,7 +209,11 @@ final class AppController: ObservableObject {
     /// 選択中の観測日・観測地で当夜の集計を再計算します。
     func recalculate() {
         calculationTask?.cancel()
-        isCalculating = true
+        performObservationStateBatchUpdate {
+            isCalculating = true
+            nightSummary = nil
+            starGazingIndex = nil
+        }
         let context = selectedLocationContext
         let date = selectedDate
         calculationTask = Task {
@@ -185,11 +232,11 @@ final class AppController: ObservableObject {
     }
 
     /// 選択中の観測地に対する今後 14 日分の集計を再計算します。
-    func recalculateUpcoming() {
+    func recalculateUpcoming(referenceDate: Date = Date()) {
         upcomingTask?.cancel()
         isUpcomingLoading = true
         let context = selectedLocationContext
-        let today = ObservationTimeZone.startOfDay(for: Date(), timeZone: context.timeZone)
+        let today = ObservationTimeZone.startOfDay(for: referenceDate, timeZone: context.timeZone)
         upcomingTask = Task {
             let upcoming = await calculationService.calculateUpcomingNights(
                 from: today,

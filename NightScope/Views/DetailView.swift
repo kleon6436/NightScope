@@ -40,7 +40,14 @@ struct DetailView: View {
                 starMapViewModel.syncWithSelectedDate()
             }
         }
-        .overlay(alignment: .bottom, content: errorOverlay)
+        .overlay(alignment: .bottom) {
+            DetailErrorOverlay(
+                weatherErrorMessage: viewModel.weatherErrorMessage,
+                hasLightPollutionError: viewModel.hasLightPollutionError,
+                retryWeatherAction: viewModel.retryWeatherInBackground,
+                retryLightPollutionAction: viewModel.retryLightPollutionInBackground
+            )
+        }
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasWeatherError)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasLightPollutionError)
     }
@@ -86,47 +93,6 @@ struct DetailView: View {
             systemImage: AppIcons.Astronomy.moonStars,
             description: Text("場所と日付を選択してください")
         )
-    }
-
-    @ViewBuilder
-    private func errorOverlay() -> some View {
-        VStack(spacing: Spacing.xs) {
-            if viewModel.hasLightPollutionError {
-                errorBanner(
-                    message: "光害データの取得に失敗しました",
-                    retryAction: viewModel.retryLightPollutionInBackground
-                )
-            }
-            if let error = viewModel.weatherErrorMessage {
-                errorBanner(
-                    message: error,
-                    retryAction: viewModel.retryWeatherInBackground
-                )
-            }
-        }
-        .padding(.bottom, Spacing.sm)
-    }
-
-    // MARK: - Error Banner
-
-    private func errorBanner(message: String, retryAction: @escaping () -> Void) -> some View {
-        HStack(spacing: Spacing.xs) {
-            Image(systemName: AppIcons.Status.warning)
-                .foregroundStyle(.orange)
-                .accessibilityHidden(true)
-            Text(message)
-                .font(.body)
-            Spacer()
-            Button("再試行", action: retryAction)
-                .buttonStyle(.glass)
-                .controlSize(.small)
-        }
-        .padding(.horizontal, Spacing.sm)
-        .padding(.vertical, Spacing.xs)
-        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
-        .shadow(radius: 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("エラー: \(message)")
     }
 
     // MARK: - Header
@@ -229,6 +195,7 @@ private struct MacSummaryCardsWide: View {
                 isLoading: isWeatherLoading,
                 isForecastOutOfRange: isForecastOutOfRange,
                 isCoverageIncomplete: isCoverageIncomplete,
+                errorMessage: nil,
                 viewModel: weatherViewModel
             )
             MoonPhaseCard(summary: summary)
@@ -259,6 +226,7 @@ private struct MacSummaryCardsWrapped: View {
                 isLoading: isWeatherLoading,
                 isForecastOutOfRange: isForecastOutOfRange,
                 isCoverageIncomplete: isCoverageIncomplete,
+                errorMessage: nil,
                 viewModel: weatherViewModel
             )
             MoonPhaseCard(summary: summary)

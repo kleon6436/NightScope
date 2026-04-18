@@ -99,7 +99,7 @@ final class MockLocationController: LocationProviding {
         get { searchState.isSearching }
         set {
             if newValue {
-                searchState = .loading(query: normalizedSearchQuery)
+                searchState = .loading(query: normalizedSearchQuery, previousResults: searchState.results)
             } else {
                 let query = normalizedSearchQuery
                 searchState = query.isEmpty ? .idle : .empty(query: query)
@@ -159,7 +159,7 @@ final class MockLocationController: LocationProviding {
             return
         }
         searchQuery = query
-        searchState = .loading(query: normalizedQuery)
+        searchState = .loading(query: normalizedQuery, previousResults: searchState.results)
     }
 
     func clearSearch() {

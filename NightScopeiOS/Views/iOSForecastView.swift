@@ -9,6 +9,7 @@ struct iOSForecastRowModel {
     let isReliableWeather: Bool
     let hasPartialWeather: Bool
     let isForecastOutOfRange: Bool
+    let hasWeatherLoadError: Bool
     let isSelected: Bool
     let accessibilityLabel: String
 }
@@ -40,6 +41,7 @@ struct iOSForecastViewModel {
             isReliableWeather: isReliableWeather,
             hasPartialWeather: hasPartialWeather,
             isForecastOutOfRange: isForecastOutOfRange,
+            hasWeatherLoadError: gridViewModel.weatherErrorMessage != nil,
             isSelected: gridViewModel.isDateSelected(night.date),
             accessibilityLabel: gridViewModel.cardAccessibilityLabel(night: night, weather: weather, index: index)
         )
@@ -79,6 +81,9 @@ struct iOSForecastView: View {
                 }
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, Spacing.sm)
+            }
+            .refreshable {
+                await detailViewModel.refreshWeather()
             }
             .toolbarBackground(.hidden, for: .navigationBar)
         }
@@ -144,22 +149,36 @@ struct iOSForecastView: View {
     private func forecastRow(for night: NightSummary) -> some View {
         let rowModel = viewModel.rowModel(for: night, using: gridViewModel)
 
-        return iOSNightCardRow(
-            night: rowModel.night,
-            index: rowModel.index,
-            weather: rowModel.weather,
-            rangeText: rowModel.rangeText,
-            isReliableWeather: rowModel.isReliableWeather,
-            hasPartialWeather: rowModel.hasPartialWeather,
-            isForecastOutOfRange: rowModel.isForecastOutOfRange,
-            isSelected: rowModel.isSelected
-        )
-        .onTapGesture {
+        return Button {
             viewModel.selectNight(rowModel.night.date, using: gridViewModel, selectedTab: $selectedTab)
+        } label: {
+            iOSNightCardRow(
+                night: rowModel.night,
+                index: rowModel.index,
+                weather: rowModel.weather,
+                rangeText: rowModel.rangeText,
+                isReliableWeather: rowModel.isReliableWeather,
+                hasPartialWeather: rowModel.hasPartialWeather,
+                isForecastOutOfRange: rowModel.isForecastOutOfRange,
+                hasWeatherLoadError: rowModel.hasWeatherLoadError,
+                isSelected: rowModel.isSelected
+            )
         }
+        .buttonStyle(ForecastRowButtonStyle())
         .accessibilityLabel(rowModel.accessibilityLabel)
-        .accessibilityAddTraits(.isButton)
         .accessibilityHint("タップして今夜タブで詳細を表示")
+        .accessibilityAddTraits(rowModel.isSelected ? .isSelected : [])
+    }
+}
+
+private struct ForecastRowButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(reduceMotion ? .none : .spring(duration: 0.2), value: configuration.isPressed)
     }
 }
 

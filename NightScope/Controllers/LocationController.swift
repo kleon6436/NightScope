@@ -103,7 +103,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         set {
             guard newValue != searchState.isSearching else { return }
             if newValue {
-                searchState = .loading(query: effectiveSearchQuery)
+                searchState = .loading(query: effectiveSearchQuery, previousResults: searchState.results)
             } else {
                 let query = effectiveSearchQuery
                 searchState = query.isEmpty ? .idle : .empty(query: query)
@@ -113,14 +113,18 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     // MARK: - Error
 
-    enum LocationError: LocalizedError {
+    enum LocationError: LocalizedError, Equatable {
         case denied
         case failed
 
         var errorDescription: String? {
             switch self {
             case .denied:
+                #if os(iOS)
+                return "位置情報のアクセスが拒否されています。設定アプリで NightScope の位置情報を許可してください。"
+                #else
                 return "位置情報のアクセスが拒否されています。システム設定 > プライバシーとセキュリティ > 位置情報サービスで許可してください。"
+                #endif
             case .failed:
                 return "現在地を取得できませんでした。しばらく待ってから再試行してください。"
             }
@@ -134,6 +138,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private var searchTask: Task<Void, Never>?
     private var locationNameTask: Task<Void, Never>?
     private var latestSearchQuery = ""
+    private var shouldResumeLocationAfterAuthorization = false
     private var selectedTimeZoneSelectionSource: TimeZoneSelectionSource = .confirmed
     private static let searchFailureMessage = "場所を検索できませんでした。通信状況を確認して、もう一度お試しください。"
 
@@ -204,6 +209,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     func requestCurrentLocation() {
         let status = locationManager.authorizationStatus
         guard status != .denied, status != .restricted else {
+            shouldResumeLocationAfterAuthorization = false
             locationError = .denied
             return
         }
@@ -217,8 +223,10 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         alreadyAuthorized = status == .authorized || status == .authorizedAlways
         #endif
         if alreadyAuthorized {
+            shouldResumeLocationAfterAuthorization = false
             startLocationUpdatesWithTimeout()
         } else {
+            shouldResumeLocationAfterAuthorization = true
             // .notDetermined: 権限ダイアログへの応答を待機中。
             // ユーザーがダイアログを長時間無視した場合でも isLocating が残らないよう
             // タイムアウトだけを開始する（位置情報更新は権限確定後に始める）。
@@ -246,7 +254,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
         latestSearchQuery = normalizedQuery
         searchTask?.cancel()
-        searchState = .loading(query: normalizedQuery)
+        searchState = .loading(query: normalizedQuery, previousResults: searchState.results)
 
         searchTask = Task { [normalizedQuery] in
             // デバウンス: 150ms 以内に次の入力があればキャンセルされる
@@ -345,10 +353,13 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         )
     }
 
-    private func stopLocating() {
+    private func stopLocating(clearPendingAuthorizationRequest: Bool = true) {
         cancelLocationTimeout()
         isLocating = false
         locationManager.stopUpdatingLocation()
+        if clearPendingAuthorizationRequest {
+            shouldResumeLocationAfterAuthorization = false
+        }
     }
 
     /// タイムアウトタスクのみを開始する（位置情報更新は開始しない）。
@@ -360,7 +371,10 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             try? await Task.sleep(for: timeout)
             guard !Task.isCancelled, let self else { return }
             if self.isLocating {
-                self.stopLocating()
+                let isAwaitingAuthorizationDecision =
+                    self.shouldResumeLocationAfterAuthorization
+                    && self.locationManager.authorizationStatus == .notDetermined
+                self.stopLocating(clearPendingAuthorizationRequest: !isAwaitingAuthorizationDecision)
                 self.locationError = .failed
             }
         }
@@ -532,12 +546,15 @@ extension LocationController: CLLocationManagerDelegate {
             isAuthorized = status == .authorized || status == .authorizedAlways
             #endif
             if isAuthorized {
-                if self.isLocating { self.startLocationUpdatesWithTimeout() }
-            } else if status == .denied || status == .restricted {
-                if self.isLocating {
-                    self.stopLocating()
-                    self.locationError = .denied
+                if self.isLocating || self.shouldResumeLocationAfterAuthorization {
+                    self.shouldResumeLocationAfterAuthorization = false
+                    self.locationError = nil
+                    self.isLocating = true
+                    self.startLocationUpdatesWithTimeout()
                 }
+            } else if status == .denied || status == .restricted {
+                self.stopLocating()
+                self.locationError = .denied
             }
         }
     }
