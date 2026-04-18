@@ -31,6 +31,10 @@ enum IOSDesignTokens {
         static let starSpacing: CGFloat = 2
         static let inactiveStarOpacity: Double = 0.4
         static let selectionBorderWidth: CGFloat = 2
+        static let metadataIconWidth: CGFloat = 14
+        static let metadataIconSpacing: CGFloat = 4
+        static let metadataGroupSpacing: CGFloat = Spacing.sm
+        static let metadataLineSpacing: CGFloat = Spacing.xs / 2
     }
 }
 

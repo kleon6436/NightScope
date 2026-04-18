@@ -23,57 +23,8 @@ struct iOSNightCardRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(presentation.shortDateLabel)
-                    .font(.headline)
-                if let label = presentation.relativeNightLabel {
-                    Text(label)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, IOSDesignTokens.NightRow.relativeLabelHorizontalPadding)
-                        .padding(.vertical, IOSDesignTokens.NightRow.relativeLabelVerticalPadding)
-                        .background(.tertiary, in: Capsule())
-                }
-                Spacer()
-                if let index {
-                    HStack(spacing: IOSDesignTokens.NightRow.starSpacing) {
-                        ForEach(0..<5) { i in
-                            Image(systemName: i < index.starCount ? AppIcons.Astronomy.starFill : AppIcons.Astronomy.star)
-                                .foregroundStyle(
-                                    i < index.starCount
-                                    ? index.tier.color
-                                    : Color.secondary.opacity(IOSDesignTokens.NightRow.inactiveStarOpacity)
-                                )
-                                .font(.caption)
-                        }
-                    }
-                    Text(index.label)
-                        .font(.caption.bold())
-                        .foregroundStyle(index.tier.color)
-                }
-            }
-
-            HStack(spacing: Spacing.sm) {
-                Label(night.moonPhaseName, systemImage: night.moonPhaseIcon)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                if isReliableWeather {
-                    Label(presentation.cloudCoverText, systemImage: AppIcons.Weather.cloud)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if let detailText = presentation.weatherDetailText {
-                    Label(detailText, systemImage: "questionmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Label(rangeText, systemImage: AppIcons.Observation.clock)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            headerRow
+            metadataSection
         }
         .padding(Layout.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -82,5 +33,103 @@ struct iOSNightCardRow: View {
             RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: IOSDesignTokens.NightRow.selectionBorderWidth)
         )
+    }
+
+    private var headerRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(presentation.shortDateLabel)
+                .font(.headline)
+            if let label = presentation.relativeNightLabel {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, IOSDesignTokens.NightRow.relativeLabelHorizontalPadding)
+                    .padding(.vertical, IOSDesignTokens.NightRow.relativeLabelVerticalPadding)
+                    .background(.tertiary, in: Capsule())
+            }
+            Spacer()
+            if let index {
+                HStack(spacing: IOSDesignTokens.NightRow.starSpacing) {
+                    ForEach(0..<5) { i in
+                        Image(systemName: i < index.starCount ? AppIcons.Astronomy.starFill : AppIcons.Astronomy.star)
+                            .foregroundStyle(
+                                i < index.starCount
+                                ? index.tier.color
+                                : Color.secondary.opacity(IOSDesignTokens.NightRow.inactiveStarOpacity)
+                            )
+                            .font(.caption)
+                    }
+                }
+                Text(index.label)
+                    .font(.caption.bold())
+                    .foregroundStyle(index.tier.color)
+            }
+        }
+    }
+
+    private var metadataSection: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: IOSDesignTokens.NightRow.metadataGroupSpacing) {
+                moonMetadataItem
+                weatherMetadataItem
+                rangeMetadataItem
+            }
+            VStack(alignment: .leading, spacing: IOSDesignTokens.NightRow.metadataLineSpacing) {
+                HStack(spacing: IOSDesignTokens.NightRow.metadataGroupSpacing) {
+                    moonMetadataItem
+                    weatherMetadataItem
+                }
+                rangeMetadataItem
+            }
+        }
+    }
+
+    private var moonMetadataItem: some View {
+        metadataItem(
+            text: night.moonPhaseName,
+            systemImage: night.moonPhaseIcon
+        )
+    }
+
+    @ViewBuilder
+    private var weatherMetadataItem: some View {
+        if isReliableWeather, let weather, let detailText = presentation.weatherDetailText {
+            metadataItem(
+                text: detailText,
+                systemImage: weather.weatherIconName,
+                iconTint: WeatherPresentation.color(forWeatherCode: weather.representativeWeatherCode)
+            )
+        } else if let detailText = presentation.weatherDetailText {
+            metadataItem(
+                text: detailText,
+                systemImage: "questionmark.circle"
+            )
+        }
+    }
+
+    private var rangeMetadataItem: some View {
+        metadataItem(
+            text: rangeText,
+            systemImage: AppIcons.Observation.clock
+        )
+    }
+
+    private func metadataItem(
+        text: String,
+        systemImage: String,
+        iconTint: Color = .secondary
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: IOSDesignTokens.NightRow.metadataIconSpacing) {
+            Image(systemName: systemImage)
+                .font(.caption)
+                .foregroundStyle(iconTint)
+                .frame(width: IOSDesignTokens.NightRow.metadataIconWidth, alignment: .center)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
     }
 }

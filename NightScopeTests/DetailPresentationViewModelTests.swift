@@ -301,6 +301,37 @@ final class WeatherPresentationTests: XCTestCase {
     }
 }
 
+final class ForecastCardPresentationTests: XCTestCase {
+    func test_weatherDetailText_usesWeatherLabelForReliableForecast() {
+        let night = makeNightSummary()
+        let weather = makeDayWeatherSummary(cloudCover: 18, weatherCode: 61)
+        let sut = ForecastCardPresentation(
+            night: night,
+            weather: weather,
+            timeZone: night.timeZone,
+            isReliableWeather: true,
+            hasPartialWeather: false,
+            isForecastOutOfRange: false
+        )
+
+        XCTAssertEqual(sut.weatherDetailText, "小雨")
+    }
+
+    func test_weatherDetailText_returnsPartialMessageWhenCoverageIsIncomplete() {
+        let night = makeNightSummary()
+        let sut = ForecastCardPresentation(
+            night: night,
+            weather: nil,
+            timeZone: night.timeZone,
+            isReliableWeather: false,
+            hasPartialWeather: true,
+            isForecastOutOfRange: false
+        )
+
+        XCTAssertEqual(sut.weatherDetailText, "夜間予報は一部のみ")
+    }
+}
+
 @MainActor
 final class DarkTimeCardViewModelTests: XCTestCase {
     func test_noWeather_emptyDarkRange_unavailable() {
