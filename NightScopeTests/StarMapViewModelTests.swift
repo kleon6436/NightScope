@@ -238,9 +238,9 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapMotionPose_make_convertsBackVectorToSkyPose() {
         let northHorizon = StarMapMotionPose.make(
             rotationMatrix: StarMapMotionMatrix(
-                m11: 1, m12: 0, m13: 0,
+                m11: 0, m12: -1, m13: 0,
                 m21: 0, m22: 0, m23: 1,
-                m31: 0, m32: -1, m33: 0
+                m31: -1, m32: 0, m33: 0
             )
         )
         XCTAssertEqual(northHorizon.azimuth, 0, accuracy: 0.001)
@@ -248,21 +248,31 @@ final class StarMapViewModelTests: XCTestCase {
 
         let eastHorizon = StarMapMotionPose.make(
             rotationMatrix: StarMapMotionMatrix(
-                m11: 0, m12: -1, m13: 0,
+                m11: -1, m12: 0, m13: 0,
                 m21: 0, m22: 0, m23: 1,
-                m31: -1, m32: 0, m33: 0
+                m31: 0, m32: 1, m33: 0
             )
         )
         XCTAssertEqual(eastHorizon.azimuth, 90, accuracy: 0.001)
         XCTAssertEqual(eastHorizon.altitude, 0, accuracy: 0.001)
+
+        let southEastHorizon = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: -0.707_107, m12: 0.707_107, m13: 0,
+                m21: 0, m22: 0, m23: 1,
+                m31: 0.707_107, m32: 0.707_107, m33: 0
+            )
+        )
+        XCTAssertEqual(southEastHorizon.azimuth, 135, accuracy: 0.001)
+        XCTAssertEqual(southEastHorizon.altitude, 0, accuracy: 0.001)
     }
 
     func test_StarMapMotionPose_make_tracksUpwardAndDownwardTilt() {
         let northUpward = StarMapMotionPose.make(
             rotationMatrix: StarMapMotionMatrix(
-                m11: 1, m12: 0, m13: 0,
-                m21: 0, m22: -0.5, m23: 0.866_025,
-                m31: 0, m32: -0.866_025, m33: -0.5
+                m11: 0, m12: -1, m13: 0,
+                m21: -0.5, m22: 0, m23: 0.866_025,
+                m31: -0.866_025, m32: 0, m33: -0.5
             )
         )
         XCTAssertEqual(northUpward.azimuth, 0, accuracy: 0.001)
@@ -270,9 +280,9 @@ final class StarMapViewModelTests: XCTestCase {
 
         let northDownward = StarMapMotionPose.make(
             rotationMatrix: StarMapMotionMatrix(
-                m11: 1, m12: 0, m13: 0,
-                m21: 0, m22: 0.5, m23: 0.866_025,
-                m31: 0, m32: -0.866_025, m33: 0.5
+                m11: 0, m12: -1, m13: 0,
+                m21: 0.5, m22: 0, m23: 0.866_025,
+                m31: -0.866_025, m32: 0, m33: 0.5
             )
         )
         XCTAssertEqual(northDownward.azimuth, 0, accuracy: 0.001)
@@ -282,9 +292,9 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapMotionPose_make_tracksScreenRollInPortrait() {
         let rolledPose = StarMapMotionPose.make(
             rotationMatrix: StarMapMotionMatrix(
-                m11: 0, m12: 0, m13: -1,
-                m21: 1, m22: 0, m23: 0,
-                m31: 0, m32: -1, m33: 0
+                m11: 0, m12: 0, m13: 1,
+                m21: 0, m22: -1, m23: 0,
+                m31: -1, m32: 0, m33: 0
             )
         )
 
@@ -296,9 +306,9 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapMotionPose_make_appliesInterfaceOrientationToRoll() {
         let landscapePose = StarMapMotionPose.make(
             rotationMatrix: StarMapMotionMatrix(
-                m11: 1, m12: 0, m13: 0,
+                m11: 0, m12: -1, m13: 0,
                 m21: 0, m22: 0, m23: 1,
-                m31: 0, m32: -1, m33: 0
+                m31: -1, m32: 0, m33: 0
             ),
             screenOrientation: .landscapeLeft
         )

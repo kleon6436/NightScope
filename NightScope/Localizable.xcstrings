@@ -3579,6 +3579,17 @@
         }
       }
     },
+    "検索語を消去" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear search text"
+          }
+        }
+      }
+    },
     "場所を検索できませんでした" : {
       "extractionState" : "manual",
       "localizations" : {

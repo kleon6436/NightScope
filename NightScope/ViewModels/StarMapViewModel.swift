@@ -206,9 +206,14 @@ struct StarMapMotionMatrix {
     let m33: Double
 
     func referenceVector(forDeviceVectorX x: Double, y: Double, z: Double) -> (east: Double, north: Double, up: Double) {
-        (
-            east: (m11 * x) + (m21 * y) + (m31 * z),
-            north: (m12 * x) + (m22 * y) + (m32 * z),
+        // Core Motion の xTrueNorth / xMagneticNorth 系は基準座標が north-west-up なので、
+        // 画面描画で使う east-north-up に変換してから扱う。
+        let north = (m11 * x) + (m21 * y) + (m31 * z)
+        let west = (m12 * x) + (m22 * y) + (m32 * z)
+
+        return (
+            east: -west,
+            north: north,
             up: (m13 * x) + (m23 * y) + (m33 * z)
         )
     }
