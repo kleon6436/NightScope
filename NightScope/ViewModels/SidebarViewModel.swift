@@ -199,6 +199,10 @@ final class SidebarViewModel: ObservableObject {
 
     func requestCurrentLocation() {
         pendingLocationUpdateBehavior = .clearSearch
+        // 同一座標が返ると selectedLocation が変化せず applyPendingLocationUpdateBehavior()
+        // が呼ばれない経路があるため、ここで即時リセットする。
+        // pendingLocationUpdateBehavior は座標変更経路でも再度 .clearSearch を適用するため保持。
+        resetSearchPresentation()
         locationController.requestCurrentLocation()
     }
 

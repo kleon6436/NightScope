@@ -10,7 +10,6 @@ struct SidebarView: View {
     @State private var highlightedIndex = SidebarSearchInteraction.noSelectionIndex
     @FocusState private var isSearchFocused: Bool
     @State private var locationInputMode: LocationInputMode = .map
-    @State private var mapViewportSyncTrigger = 0
 
     init(
         viewModel: SidebarViewModel,
@@ -88,9 +87,6 @@ struct SidebarView: View {
             isLoadingLightPollution: viewModel.isLightPollutionLoading,
             bortleClass: viewModel.lightPollutionBortleClass
         )
-        .onChange(of: locationInputMode) {
-            mapViewportSyncTrigger += 1
-        }
     }
 
     private var searchField: some View {
@@ -152,8 +148,10 @@ struct SidebarView: View {
     }
 
     private var mapSyncState: MapKitSyncState {
+        // 地図と光害オーバーレイは同じ MKMapView を使い続けるため、
+        // モード切り替え時に viewModel 側の古い viewport を再適用しない。
         MapKitSyncState(
-            trigger: mapViewportSyncTrigger,
+            trigger: 0,
             center: viewModel.viewport.center,
             span: viewModel.viewport.span
         )

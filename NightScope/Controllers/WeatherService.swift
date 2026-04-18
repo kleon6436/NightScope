@@ -4,6 +4,20 @@ import CoreLocation
 
 @MainActor
 final class WeatherService: ObservableObject, WeatherProviding {
+    private struct LocationContext {
+        let latitude: Double
+        let longitude: Double
+        let timeZone: TimeZone
+
+        var locationKey: String {
+            WeatherService.locationKey(
+                latitude: latitude,
+                longitude: longitude,
+                timeZone: timeZone
+            )
+        }
+    }
+
     struct FetchResult {
         let weatherByDate: [String: DayWeatherSummary]
         let errorMessage: String?
@@ -37,21 +51,18 @@ final class WeatherService: ObservableObject, WeatherProviding {
     }
 
     func fetchWeather(latitude: Double, longitude: Double, timeZone: TimeZone) async {
-        let locationKey = Self.locationKey(latitude: latitude, longitude: longitude, timeZone: timeZone)
-        let fallbackWeatherByDate = cachedWeatherByDate(for: locationKey)
-        if activeLocationKey != locationKey {
-            prepareForLocationChange(latitude: latitude, longitude: longitude, timeZone: timeZone)
+        let context = LocationContext(latitude: latitude, longitude: longitude, timeZone: timeZone)
+        let fallbackWeatherByDate = cachedWeatherByDate(for: context.locationKey)
+        if activeLocationKey != context.locationKey {
+            prepareForLocationChange(context)
         }
         currentTask?.cancel()
         isLoading = true
         errorMessage = nil
         currentTask = Task {
             let result = await loadWeather(
-                latitude: latitude,
-                longitude: longitude,
-                locationKey: locationKey,
-                fallbackWeatherByDate: fallbackWeatherByDate,
-                timeZone: timeZone
+                context: context,
+                fallbackWeatherByDate: fallbackWeatherByDate
             )
             guard !Task.isCancelled else { return }
             applyFetchResult(result)
@@ -60,13 +71,10 @@ final class WeatherService: ObservableObject, WeatherProviding {
     }
 
     func fetchWeatherSnapshot(latitude: Double, longitude: Double, timeZone: TimeZone) async -> FetchResult {
-        let locationKey = Self.locationKey(latitude: latitude, longitude: longitude, timeZone: timeZone)
+        let context = LocationContext(latitude: latitude, longitude: longitude, timeZone: timeZone)
         return await loadWeather(
-            latitude: latitude,
-            longitude: longitude,
-            locationKey: locationKey,
-            fallbackWeatherByDate: weatherByDateByLocation[locationKey] ?? [:],
-            timeZone: timeZone
+            context: context,
+            fallbackWeatherByDate: weatherByDateByLocation[context.locationKey] ?? [:]
         )
     }
 
@@ -111,34 +119,37 @@ final class WeatherService: ObservableObject, WeatherProviding {
 
     func prepareForLocationChange(latitude: Double, longitude: Double, timeZone: TimeZone) {
         currentTask?.cancel()
-        activeLocationKey = Self.locationKey(latitude: latitude, longitude: longitude, timeZone: timeZone)
-        activeTimeZoneIdentifier = timeZone.identifier
+        prepareForLocationChange(
+            LocationContext(latitude: latitude, longitude: longitude, timeZone: timeZone)
+        )
+    }
+
+    private func prepareForLocationChange(_ context: LocationContext) {
+        activeLocationKey = context.locationKey
+        activeTimeZoneIdentifier = context.timeZone.identifier
         weatherByDate = weatherByDateByLocation[activeLocationKey ?? ""] ?? [:]
         errorMessage = nil
         isLoading = false
     }
 
     private func loadWeather(
-        latitude: Double,
-        longitude: Double,
-        locationKey: String,
-        fallbackWeatherByDate: [String: DayWeatherSummary],
-        timeZone: TimeZone
+        context: LocationContext,
+        fallbackWeatherByDate: [String: DayWeatherSummary]
     ) async -> FetchResult {
         do {
             let request = try requestFactory.makeRequest(
-                latitude: latitude,
-                longitude: longitude,
-                lastModifiedDate: lastModifiedDatesByLocation[locationKey]
+                latitude: context.latitude,
+                longitude: context.longitude,
+                lastModifiedDate: lastModifiedDatesByLocation[context.locationKey]
             )
             let (data, response) = try await urlSession.data(for: request)
             if Task.isCancelled {
                 return FetchResult(
                     weatherByDate: fallbackWeatherByDate,
                     errorMessage: nil,
-                    lastModifiedDate: lastModifiedDatesByLocation[locationKey],
-                    locationKey: locationKey,
-                    timeZoneIdentifier: timeZone.identifier
+                    lastModifiedDate: lastModifiedDatesByLocation[context.locationKey],
+                    locationKey: context.locationKey,
+                    timeZoneIdentifier: context.timeZone.identifier
                 )
             }
 
@@ -150,9 +161,9 @@ final class WeatherService: ObservableObject, WeatherProviding {
                 return FetchResult(
                     weatherByDate: fallbackWeatherByDate,
                     errorMessage: nil,
-                    lastModifiedDate: lastModifiedDatesByLocation[locationKey],
-                    locationKey: locationKey,
-                    timeZoneIdentifier: timeZone.identifier
+                    lastModifiedDate: lastModifiedDatesByLocation[context.locationKey],
+                    locationKey: context.locationKey,
+                    timeZoneIdentifier: context.timeZone.identifier
                 )
             }
 
@@ -171,15 +182,18 @@ final class WeatherService: ObservableObject, WeatherProviding {
                 let weatherByDate = try await Self.decodeForecast(
                     data: data,
                     forecastParser: forecastParser,
-                    location: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-                    timeZone: timeZone
+                    location: CLLocationCoordinate2D(
+                        latitude: context.latitude,
+                        longitude: context.longitude
+                    ),
+                    timeZone: context.timeZone
                 )
                 return FetchResult(
                     weatherByDate: weatherByDate,
                     errorMessage: nil,
                     lastModifiedDate: lastModifiedDate,
-                    locationKey: locationKey,
-                    timeZoneIdentifier: timeZone.identifier
+                    locationKey: context.locationKey,
+                    timeZoneIdentifier: context.timeZone.identifier
                 )
             } catch {
                 throw WeatherServiceError.decodingError(underlying: error)
@@ -189,9 +203,9 @@ final class WeatherService: ObservableObject, WeatherProviding {
             return FetchResult(
                 weatherByDate: fallbackWeatherByDate,
                 errorMessage: serviceError.localizedDescription,
-                lastModifiedDate: lastModifiedDatesByLocation[locationKey],
-                locationKey: locationKey,
-                timeZoneIdentifier: timeZone.identifier
+                lastModifiedDate: lastModifiedDatesByLocation[context.locationKey],
+                locationKey: context.locationKey,
+                timeZoneIdentifier: context.timeZone.identifier
             )
         }
     }
@@ -220,8 +234,13 @@ final class WeatherService: ObservableObject, WeatherProviding {
         TimeZone(identifier: activeTimeZoneIdentifier) ?? .current
     }
 
-    private static func locationKey(latitude: Double, longitude: Double, timeZone: TimeZone) -> String {
-        String(format: "%.4f,%.4f|%@", latitude, longitude, timeZone.identifier)
+    private nonisolated static func locationKey(latitude: Double, longitude: Double, timeZone: TimeZone) -> String {
+        // 天気データは ~1km スケールで変わらないため、小数点以下2桁（約1.1km）に丸める。
+        // printf の暗黙丸めではなく明示的 rounded() を使うことで
+        // 境界値付近の浮動小数点ブレによるキャッシュ不一致を防ぐ。
+        let lat = (latitude  * 100).rounded() / 100
+        let lon = (longitude * 100).rounded() / 100
+        return String(format: "%.2f,%.2f|%@", lat, lon, timeZone.identifier)
     }
 
     private func cachedWeatherByDate(for locationKey: String) -> [String: DayWeatherSummary] {

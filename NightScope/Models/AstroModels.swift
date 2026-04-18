@@ -154,7 +154,7 @@ struct NightSummary {
     var morningDarkEnd: Date? {
         let cal = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         return darkEvents.last { cal.component(.hour, from: $0.date) < 12 }.map {
-            $0.date.addingTimeInterval(15 * 60)
+            $0.date.addingTimeInterval(MilkyWayCalculator.Constants.sampleIntervalSeconds)
         }
     }
 
@@ -331,7 +331,7 @@ struct NightSummary {
             bestEnd = currentEnd
         }
 
-        return (start: bestStart, end: bestEnd.addingTimeInterval(15 * 60))
+        return (start: bestStart, end: bestEnd.addingTimeInterval(MilkyWayCalculator.Constants.sampleIntervalSeconds))
     }
 
     /// 暗い観測時間帯の範囲文字列（例: "21:00 〜 03:30"）

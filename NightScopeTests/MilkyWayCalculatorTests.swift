@@ -192,6 +192,16 @@ final class MilkyWayCalculatorTests: XCTestCase {
         }
         let windows = MilkyWayCalculator.findViewingWindows(events: events)
         XCTAssertEqual(windows.count, 1)
+        XCTAssertEqual(windows[0].start, base)
+        XCTAssertEqual(
+            windows[0].end,
+            base.addingTimeInterval(4 * MilkyWayCalculator.Constants.sampleIntervalSeconds)
+        )
+        XCTAssertEqual(
+            windows[0].duration,
+            4 * MilkyWayCalculator.Constants.sampleIntervalSeconds,
+            accuracy: 0.001
+        )
     }
 
     /// galacticCenterVisible なイベントが0件なら空リスト
@@ -210,6 +220,48 @@ final class MilkyWayCalculatorTests: XCTestCase {
         }
         let windows = MilkyWayCalculator.findViewingWindows(events: events)
         XCTAssertTrue(windows.isEmpty)
+    }
+
+    /// 連続する N サンプルのウィンドウ duration は N × sampleInterval になる
+    func test_findViewingWindows_windowDurationEqualsNTimesSampleInterval() {
+        let base = Date(timeIntervalSince1970: 0)
+        let interval = Double(MilkyWayCalculator.Constants.sampleIntervalMinutes) * 60  // 900s
+        // 4 サンプル (t=0, 900, 1800, 2700) が可視
+        let events = (0..<4).map { i in
+            AstroEvent(
+                date: base.addingTimeInterval(Double(i) * interval),
+                galacticCenterAltitude: 15.0,
+                galacticCenterAzimuth: 180.0,
+                sunAltitude: -20.0,
+                moonAltitude: -5.0,
+                moonPhase: 0.1
+            )
+        }
+        let windows = MilkyWayCalculator.findViewingWindows(events: events)
+        XCTAssertEqual(windows.count, 1)
+        // start = t=0, end = t=2700 + 900 = 3600
+        XCTAssertEqual(windows[0].start, base)
+        XCTAssertEqual(windows[0].end,   base.addingTimeInterval(interval * 4))
+        XCTAssertEqual(windows[0].duration, interval * 4, accuracy: 0.001)
+    }
+
+    /// 単一サンプルのウィンドウ duration は sampleInterval と等しい
+    func test_findViewingWindows_singleSampleWindow_durationEqualsSampleInterval() {
+        let base = Date(timeIntervalSince1970: 0)
+        let interval = Double(MilkyWayCalculator.Constants.sampleIntervalMinutes) * 60
+        let events = [
+            AstroEvent(
+                date: base,
+                galacticCenterAltitude: 15.0,
+                galacticCenterAzimuth: 180.0,
+                sunAltitude: -20.0,
+                moonAltitude: -5.0,
+                moonPhase: 0.1
+            )
+        ]
+        let windows = MilkyWayCalculator.findViewingWindows(events: events)
+        XCTAssertEqual(windows.count, 1)
+        XCTAssertEqual(windows[0].duration, interval, accuracy: 0.001)
     }
 
     func test_calculateNightSummary_usesNextLocalMidnightAcrossDstBoundary() {

@@ -300,6 +300,29 @@ final class AppController: ObservableObject {
     private func handleLocationChanged() async {
         let context = selectedLocationContext
         let timeZone = context.timeZone
+        let request = prepareLocationRefreshRequest(context: context, timeZone: timeZone)
+        let refreshResults = await fetchLocationRefreshResults(for: request, timeZone: timeZone)
+        guard !Task.isCancelled else { return }
+        let disposition = locationRefreshDisposition(for: request)
+        guard disposition != .discard else { return }
+
+        applyLocationRefresh(
+            makeLocationRefreshPayload(
+                selectedDate: request.selectedDate,
+                context: context,
+                nightSummary: refreshResults.nightSummary,
+                upcomingNights: refreshResults.upcomingNights,
+                weatherResult: refreshResults.weatherResult,
+                lightPollutionResult: refreshResults.lightPollutionResult
+            ),
+            disposition: disposition
+        )
+    }
+
+    private func prepareLocationRefreshRequest(
+        context: SelectedLocationContext,
+        timeZone: TimeZone
+    ) -> LocationRefreshRequest {
         let normalizedDate = ObservationTimeZone.preservingCalendarDay(
             selectedDate,
             from: lastObservedTimeZone,
@@ -310,8 +333,18 @@ final class AppController: ObservableObject {
             selectedDate = ObservationTimeZone.startOfDay(for: normalizedDate, timeZone: timeZone)
             prepareForLocationChange(using: context)
         }
-        let request = makeLocationRefreshRequest(selectedDate: selectedDate, context: context)
+        return makeLocationRefreshRequest(selectedDate: selectedDate, context: context)
+    }
 
+    private func fetchLocationRefreshResults(
+        for request: LocationRefreshRequest,
+        timeZone: TimeZone
+    ) async -> (
+        nightSummary: NightSummary,
+        upcomingNights: [NightSummary],
+        weatherResult: WeatherService.FetchResult,
+        lightPollutionResult: LightPollutionService.FetchResult
+    ) {
         async let summaryTask = calculationService.calculateNightSummary(
             date: request.selectedDate,
             location: request.coordinate,
@@ -333,24 +366,11 @@ final class AppController: ObservableObject {
             longitude: request.coordinate.longitude
         )
 
-        let summary = await summaryTask
-        let upcoming = await upcomingTask
-        let weatherResult = await weatherTask
-        let lightPollutionResult = await lightPollutionTask
-        guard !Task.isCancelled else { return }
-        let disposition = locationRefreshDisposition(for: request)
-        guard disposition != .discard else { return }
-
-        applyLocationRefresh(
-            makeLocationRefreshPayload(
-                selectedDate: request.selectedDate,
-                context: context,
-                nightSummary: summary,
-                upcomingNights: upcoming,
-                weatherResult: weatherResult,
-                lightPollutionResult: lightPollutionResult
-            ),
-            disposition: disposition
+        return await (
+            nightSummary: summaryTask,
+            upcomingNights: upcomingTask,
+            weatherResult: weatherTask,
+            lightPollutionResult: lightPollutionTask
         )
     }
 

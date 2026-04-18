@@ -775,6 +775,68 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.selectedLocation.longitude, latest.coordinate.longitude, accuracy: 0.000001)
     }
 
+    // MARK: - Bug fix: 権限未決定時に isLocating が残る
+
+    /// 権限取得後に didUpdateLocations が呼ばれると isLocating が解消される。
+    /// requestCurrentLocation() → (権限応答待ち) → 許可 → 位置取得 の流れを模倣。
+    func test_LocationController_locationReceivedAfterAuthorization_clearsIsLocating() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "現在地")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        // notDetermined → requestCurrentLocation() → isLocating=true の状態を模倣
+        sut.isLocating = true
+        let loc = CLLocation(latitude: 35.6762, longitude: 139.6503)
+
+        sut.locationManager(CLLocationManager(), didUpdateLocations: [loc])
+
+        await waitUntil {
+            !sut.isLocating
+        }
+
+        XCTAssertFalse(sut.isLocating)
+        XCTAssertNil(sut.locationError)
+    }
+
+    /// select() 呼び出しは、isLocating 中でも確実に isLocating を解消する。
+    /// これは権限未決定の状態でユーザーが手動で場所を選択した場合のカバー。
+    func test_LocationController_select_whileLocating_clearsIsLocating() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "新宿")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        sut.isLocating = true
+
+        let item = makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034), name: "新宿")
+        sut.select(item)
+
+        await waitUntil { !sut.isLocating }
+
+        XCTAssertFalse(sut.isLocating)
+    }
+
+    func test_LocationController_startLocatingTimeout_marksFailureWhenNoUpdateArrives() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "東京")
+        let sut = LocationController(
+            storage: storage,
+            searchService: searchService,
+            locationNameResolver: resolver,
+            locationRequestTimeout: .milliseconds(20)
+        )
+        sut.isLocating = true
+
+        sut.startLocatingTimeout()
+
+        await waitUntil(timeout: 1.0) {
+            !sut.isLocating
+        }
+
+        XCTAssertFalse(sut.isLocating)
+        XCTAssertEqual(sut.locationError, .failed)
+    }
+
     func test_LocationController_selectCoordinate_latestResolutionWins() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))

@@ -67,6 +67,23 @@ final class SidebarViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isShowingCommittedSelection)
     }
 
+    func test_requestCurrentLocation_clearsSearchPresentationImmediately() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+        vm.searchText = "富士山"
+        locationController.searchState = .results(
+            query: "富士山",
+            items: [MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)]
+        )
+
+        vm.requestCurrentLocation()
+
+        XCTAssertTrue(locationController.requestCurrentLocationCalled)
+        XCTAssertTrue(vm.searchText.isEmpty)
+        XCTAssertFalse(vm.isShowingCommittedSelection)
+    }
+
     func test_selectSearchResult_fillSelectionName_selectsItem() {
         let locationController = MockLocationController()
         let lightService = MockLightPollutionService()
@@ -191,6 +208,43 @@ final class SidebarViewModelTests: XCTestCase {
         XCTAssertTrue((store.sidebarViewModel.locationController as AnyObject) === store.appController.locationController)
         XCTAssertTrue(store.detailViewModel.weatherService === store.appController.weatherService)
         XCTAssertTrue(store.detailViewModel.lightPollutionService === store.appController.lightPollutionService)
+    }
+
+    // MARK: - Bug fix: 同一座標の現在地再選択で検索UIが残る
+
+    /// requestCurrentLocation() 呼び出し直後に searchText が空になり isShowingCommittedSelection が false になる。
+    /// これにより同一座標が返った場合でも検索UIが確実にクリアされる。
+    func test_requestCurrentLocation_immediatelyClearsSearchUI() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        // 検索済み・確定表示の状態を作る
+        vm.searchText = "富士山"
+        vm.updateSearchText("富士山") // isShowingCommittedSelection はここでは false だがテキストは残る
+
+        vm.requestCurrentLocation()
+
+        XCTAssertTrue(vm.searchText.isEmpty, "requestCurrentLocation() 後は searchText が空であること")
+        XCTAssertFalse(vm.isShowingCommittedSelection, "requestCurrentLocation() 後は isShowingCommittedSelection が false であること")
+        XCTAssertTrue(locationController.requestCurrentLocationCalled)
+    }
+
+    /// 検索候補を確定表示した後に requestCurrentLocation() を呼んでも UI がクリアされる。
+    func test_requestCurrentLocation_clearsCommittedSelectionState() {
+        let locationController = MockLocationController()
+        let lightService = MockLightPollutionService()
+        let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
+
+        let item = MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)
+        item.name = "御嶽山"
+        vm.selectSearchResult(item, searchTextBehavior: .fillSelectionName)
+        // この時点で searchText="御嶽山", isShowingCommittedSelection=true
+
+        vm.requestCurrentLocation()
+
+        XCTAssertTrue(vm.searchText.isEmpty)
+        XCTAssertFalse(vm.isShowingCommittedSelection)
     }
 }
 

@@ -6,7 +6,6 @@ struct iOSLocationView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var locationInputMode: LocationInputMode = .map
-    @State private var mapViewportSyncTrigger = 0
 
     private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
     private var showLightPollutionBinding: Binding<Bool> {
@@ -43,9 +42,6 @@ struct iOSLocationView: View {
             } message: { error in
                 Text(error.localizedDescription)
             }
-        }
-        .onChange(of: locationInputMode) {
-            mapViewportSyncTrigger += 1
         }
     }
 
@@ -170,11 +166,7 @@ struct iOSLocationView: View {
             iOSMapView(
                 pinCoordinate: sidebarViewModel.selectedCoordinate,
                 onTap: handleMapTap,
-                syncState: MapKitSyncState(
-                    trigger: mapViewportSyncTrigger,
-                    center: sidebarViewModel.viewport.center,
-                    span: sidebarViewModel.viewport.span
-                ),
+                syncState: mapSyncState,
                 onRegionChange: { center, span in
                     sidebarViewModel.updateViewportIfNeeded(center: center, span: span)
                 },
@@ -184,6 +176,16 @@ struct iOSLocationView: View {
             .ignoresSafeArea(edges: .horizontal)
         }
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous))
+    }
+
+    private var mapSyncState: MapKitSyncState {
+        // 地図と光害オーバーレイは同じ MKMapView を再利用するので、
+        // モード切り替えで古い viewport を押し戻さない。
+        MapKitSyncState(
+            trigger: 0,
+            center: sidebarViewModel.viewport.center,
+            span: sidebarViewModel.viewport.span
+        )
     }
 
     // MARK: - Bottom Bar

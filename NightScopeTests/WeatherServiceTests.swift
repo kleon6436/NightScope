@@ -437,6 +437,83 @@ final class WeatherServiceTests: XCTestCase {
         XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 75, accuracy: 0.001)
     }
 
+    func test_fetchWeather_differentCellCoordinatesUseDistinctCacheKeys() async throws {
+        let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
+        var requestCount = 0
+        let session = makeMockSession { request in
+            requestCount += 1
+            let url = try XCTUnwrap(request.url)
+
+            if requestCount == 1 {
+                XCTAssertNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Last-Modified": "Wed, 01 Jan 2025 00:00:00 GMT"]
+                )!
+                return (response, self.makePayload(times: [t21], cloud: 15))
+            }
+
+            XCTAssertNil(request.value(forHTTPHeaderField: "If-Modified-Since"))
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Last-Modified": "Thu, 02 Jan 2025 00:00:00 GMT"]
+            )!
+            return (response, self.makePayload(times: [t21], cloud: 65))
+        }
+
+        // Fix 4 後: 異なる1.1kmセル（0.01度超の差）に属する座標は別キー
+        let service = WeatherService(urlSession: session)
+        await service.fetchWeather(latitude: 35.676200, longitude: 139.650300, timeZone: tokyoTimeZone)
+        await service.fetchWeather(latitude: 35.690000, longitude: 139.661000, timeZone: tokyoTimeZone)
+
+        XCTAssertEqual(requestCount, 2)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 65, accuracy: 0.001)
+    }
+
+    func test_fetchWeather_switchingLocationDuringInFlightRequest_keepsLatestWeather() async throws {
+        let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
+        var requestCount = 0
+        let session = makeMockSession { request in
+            requestCount += 1
+            let url = try XCTUnwrap(request.url)
+
+            if requestCount == 1 {
+                Thread.sleep(forTimeInterval: 0.15)
+                let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Last-Modified": "Wed, 01 Jan 2025 00:00:00 GMT"]
+                )!
+                return (response, self.makePayload(times: [t21], cloud: 15))
+            }
+
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Last-Modified": "Thu, 02 Jan 2025 00:00:00 GMT"]
+            )!
+            return (response, self.makePayload(times: [t21], cloud: 65))
+        }
+
+        let service = WeatherService(urlSession: session)
+        let firstFetch = Task {
+            await service.fetchWeather(latitude: 35.6762, longitude: 139.6503, timeZone: tokyoTimeZone)
+        }
+
+        try? await Task.sleep(nanoseconds: 20_000_000)
+        await service.fetchWeather(latitude: 34.6937, longitude: 135.5023, timeZone: tokyoTimeZone)
+        await firstFetch.value
+
+        XCTAssertEqual(requestCount, 2)
+        XCTAssertEqual(service.weatherByDate["2024-06-15"]?.avgCloudCover ?? -1, 65, accuracy: 0.001)
+    }
+
     func test_fetchWeather_returningToPreviousLocation_304_restoresCachedWeatherForThatLocation() async throws {
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
         var requestCount = 0
@@ -568,7 +645,83 @@ final class WeatherServiceTests: XCTestCase {
     func test_symbolCodeToWMO_nil_returnsZero() {
         XCTAssertEqual(WeatherService.symbolCodeToWMO(nil), 0)
     }
-    
+
+    // MARK: - Bug fix: locationKey 粒度
+
+    /// 同一1.1kmセル内の2座標は同一 locationKey を返すこと（Fix 4: %.2f 粒度）。
+    func test_fetchWeatherSnapshot_nearbyCoordinates_returnSameLocationKey() async {
+        // 0.01度 = 約1.1km。セル (35.68, 139.65) の範囲内に収まる2点
+        let service1 = WeatherService(urlSession: makeNetworkErrorSession())
+        let service2 = WeatherService(urlSession: makeNetworkErrorSession())
+        let tz = tokyoTimeZone
+
+        let result1 = await service1.fetchWeatherSnapshot(latitude: 35.676200, longitude: 139.650300, timeZone: tz)
+        let result2 = await service2.fetchWeatherSnapshot(latitude: 35.676249, longitude: 139.650349, timeZone: tz)
+
+        XCTAssertEqual(result1.locationKey, result2.locationKey,
+                       "1kmセル内の座標は同一キーになるはず (%.2f 粒度)")
+    }
+
+    /// 異なる1.1kmセルに属する2座標が異なる locationKey を返すこと。
+    func test_fetchWeatherSnapshot_distantCoordinates_returnDifferentLocationKeys() async {
+        let service1 = WeatherService(urlSession: makeNetworkErrorSession())
+        let service2 = WeatherService(urlSession: makeNetworkErrorSession())
+        let tz = tokyoTimeZone
+
+        // セル (35.67, 139.65) vs セル (35.68, 139.66) — 約1.1km以上離れている
+        let result1 = await service1.fetchWeatherSnapshot(latitude: 35.674, longitude: 139.651, timeZone: tz)
+        let result2 = await service2.fetchWeatherSnapshot(latitude: 35.685, longitude: 139.661, timeZone: tz)
+
+        XCTAssertNotEqual(result1.locationKey, result2.locationKey,
+                          "異なるセルの座標は異なるキーになるはず")
+    }
+
+    /// 同一座標でもタイムゾーンが異なれば locationKey が異なること（日サマリーの区切り保護）。
+    func test_fetchWeatherSnapshot_sameCoordinateDifferentTimeZone_returnDifferentLocationKeys() async {
+        let service = WeatherService(urlSession: makeNetworkErrorSession())
+        let tokyoTZ = tokyoTimeZone
+        let utcTZ = TimeZone(identifier: "UTC")!
+        let lat = 35.6762
+        let lon = 139.6503
+
+        let resultTokyo = await service.fetchWeatherSnapshot(latitude: lat, longitude: lon, timeZone: tokyoTZ)
+        let resultUTC   = await service.fetchWeatherSnapshot(latitude: lat, longitude: lon, timeZone: utcTZ)
+
+        XCTAssertNotEqual(resultTokyo.locationKey, resultUTC.locationKey,
+                          "タイムゾーンが異なれば locationKey も異なるはず")
+    }
+
+    /// 同一座標は常に同一 locationKey を返すこと。
+    func test_fetchWeatherSnapshot_sameCoordinate_returnSameLocationKey() async {
+        let service1 = WeatherService(urlSession: makeNetworkErrorSession())
+        let service2 = WeatherService(urlSession: makeNetworkErrorSession())
+        let tz = tokyoTimeZone
+
+        let result1 = await service1.fetchWeatherSnapshot(latitude: 35.6762, longitude: 139.6503, timeZone: tz)
+        let result2 = await service2.fetchWeatherSnapshot(latitude: 35.6762, longitude: 139.6503, timeZone: tz)
+
+        XCTAssertEqual(result1.locationKey, result2.locationKey)
+    }
+
+    /// 境界値付近の座標でも locationKey が決定的（揺れない）こと。
+    func test_fetchWeatherSnapshot_boundaryCoordinate_deterministicKey() async {
+        let service1 = WeatherService(urlSession: makeNetworkErrorSession())
+        let service2 = WeatherService(urlSession: makeNetworkErrorSession())
+        let tz = tokyoTimeZone
+
+        let result1 = await service1.fetchWeatherSnapshot(latitude: 35.005000, longitude: 139.005000, timeZone: tz)
+        let result2 = await service2.fetchWeatherSnapshot(latitude: 35.005000, longitude: 139.005000, timeZone: tz)
+
+        XCTAssertEqual(result1.locationKey, result2.locationKey,
+                       "同一境界値座標は同一キーを返すはず")
+    }
+
+    /// makeNetworkErrorSession: ネットワーク呼び出しを即失敗させるセッション。
+    /// FetchResult.locationKey はネットワーク結果に関わらず常に正しく設定される。
+    private func makeNetworkErrorSession() -> URLSession {
+        makeMockSession { _ in throw URLError(.notConnectedToInternet) }
+    }
+
     private func makeMockSession(
         handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data)
     ) -> URLSession {

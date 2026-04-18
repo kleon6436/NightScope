@@ -534,8 +534,7 @@ final class StarMapViewModel: ObservableObject {
     func endTimeSliderInteraction() {
         guard isTimeSliderScrubbing else { return }
         isTimeSliderScrubbing = false
-        timeSliderCommitTask?.cancel()
-        timeSliderCommitTask = nil
+        cancelTimeSliderCommitTask()
         commitPendingTimeSliderDate()
     }
 
@@ -547,7 +546,7 @@ final class StarMapViewModel: ObservableObject {
             return
         }
 
-        timeSliderCommitTask?.cancel()
+        cancelTimeSliderCommitTask()
         let remaining = Self.timeSliderCommitInterval - elapsed
         timeSliderCommitTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
@@ -559,8 +558,7 @@ final class StarMapViewModel: ObservableObject {
     private func commitPendingTimeSliderDate() {
         guard let date = pendingTimeSliderDate else { return }
         pendingTimeSliderDate = nil
-        timeSliderCommitTask?.cancel()
-        timeSliderCommitTask = nil
+        cancelTimeSliderCommitTask()
         lastTimeSliderCommitTime = Date.timeIntervalSinceReferenceDate
         setDisplayDate(
             date,
@@ -574,13 +572,11 @@ final class StarMapViewModel: ObservableObject {
     }
 
     private func handleSelectedTimeZoneChanged() {
-        discardPendingTimeSliderDate()
-        syncWithSelectedDate(referenceDate: displayDate)
+        resyncAfterSelectionChange()
     }
 
     private func handleSelectedLocationChanged() {
-        discardPendingTimeSliderDate()
-        syncWithSelectedDate(referenceDate: displayDate)
+        resyncAfterSelectionChange()
     }
 
     private func handleSelectedDateChanged() {
@@ -603,8 +599,17 @@ final class StarMapViewModel: ObservableObject {
 
     private func discardPendingTimeSliderDate() {
         pendingTimeSliderDate = nil
+        cancelTimeSliderCommitTask()
+    }
+
+    private func cancelTimeSliderCommitTask() {
         timeSliderCommitTask?.cancel()
         timeSliderCommitTask = nil
+    }
+
+    private func resyncAfterSelectionChange() {
+        discardPendingTimeSliderDate()
+        syncWithSelectedDate(referenceDate: displayDate)
     }
 
     private func setDisplayDate(

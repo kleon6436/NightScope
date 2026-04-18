@@ -10,6 +10,7 @@ enum MapKitViewSharedLogic {
         static let initialPinLongitudeDelta: CLLocationDegrees = 0.05
         static let currentLocationLatitudeDelta: CLLocationDegrees = 0.5
         static let currentLocationLongitudeDelta: CLLocationDegrees = 0.5
+        static let minimumLongitudeMetersPerDegree = 5_000.0
     }
 
     struct UpdateConfiguration {
@@ -199,6 +200,7 @@ enum MapKitViewSharedLogic {
               let center = pinCoordinate else { return }
 
         var coords = sectorCoordinates(center: center, azimuth: dir.azimuth, fov: dir.fov)
+        guard coords.count >= 3 else { return }
         let overlay = ViewingDirectionOverlay(coordinates: &coords, count: coords.count)
         mapView.addOverlay(overlay, level: .aboveRoads)
     }
@@ -209,20 +211,27 @@ enum MapKitViewSharedLogic {
         fov: Double,
         radius: Double = 2000
     ) -> [CLLocationCoordinate2D] {
-        let lat = center.latitude
+        guard let sanitizedCenter = GeoStateValidator.sanitizedCoordinate(center) else { return [] }
+        let lat = sanitizedCenter.latitude
         let steps = 20
         var coords = [CLLocationCoordinate2D]()
-        coords.append(center)
+        coords.append(sanitizedCenter)
         for i in 0...steps {
             let angle = (azimuth - fov / 2) + Double(i) * fov / Double(steps)
             let angleRad = angle * .pi / 180
             let latOffset  = radius * cos(angleRad) / 111_000
-            let cosLat = max(abs(cos(lat * .pi / 180)), 1e-6)
-            let lonOffset  = radius * sin(angleRad) / (111_000 * cosLat)
-            coords.append(CLLocationCoordinate2D(
+            let metersPerLongitudeDegree = max(
+                111_000 * abs(cos(lat * .pi / 180)),
+                Config.minimumLongitudeMetersPerDegree
+            )
+            let lonOffset  = radius * sin(angleRad) / metersPerLongitudeDegree
+            let coordinate = CLLocationCoordinate2D(
                 latitude:  lat + latOffset,
-                longitude: center.longitude + lonOffset
-            ))
+                longitude: sanitizedCenter.longitude + lonOffset
+            )
+            if let sanitizedCoordinate = GeoStateValidator.sanitizedCoordinate(coordinate) {
+                coords.append(sanitizedCoordinate)
+            }
         }
         return coords
     }
@@ -237,6 +246,7 @@ final class ViewingDirectionOverlay: MKPolygon {}
 @MainActor
 final class MapKitCoordinatorState {
     private static let pendingIgnoreResetDelay: Duration = .milliseconds(500)
+    private static let animatedPendingIgnoreResetDelay: Duration = .seconds(2)
 
     private var lastSyncTrigger: Int
     private var lastCenterTrigger: Int
@@ -288,7 +298,7 @@ final class MapKitCoordinatorState {
                 return
             }
             self.pendingIgnoredRegionChanges += 1
-            self.schedulePendingIgnoreReset()
+            self.schedulePendingIgnoreReset(animated: animated)
             mapView.setRegion(sanitizedRegion, animated: animated)
         }
     }
@@ -319,10 +329,11 @@ final class MapKitCoordinatorState {
         }
     }
 
-    private func schedulePendingIgnoreReset() {
+    private func schedulePendingIgnoreReset(animated: Bool) {
         pendingIgnoreResetTask?.cancel()
+        let resetDelay = animated ? Self.animatedPendingIgnoreResetDelay : Self.pendingIgnoreResetDelay
         pendingIgnoreResetTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: Self.pendingIgnoreResetDelay)
+            try? await Task.sleep(for: resetDelay)
             guard !Task.isCancelled else { return }
             guard let self else { return }
             self.pendingIgnoredRegionChanges = 0

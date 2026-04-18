@@ -6,6 +6,7 @@ import CoreLocation
 enum MilkyWayCalculator {
     enum Constants {
         static let sampleIntervalMinutes = 15
+        static let sampleIntervalSeconds = TimeInterval(sampleIntervalMinutes * 60)
         static let secondsPerDay: TimeInterval = 86400
         /// 近接ウィンドウをマージするギャップ許容値（秒）
         /// 根拠: 銀河系中心が高度10°以下に短時間沈むケースや一時的な雲の通過を
@@ -302,9 +303,11 @@ enum MilkyWayCalculator {
                    let bestAlt = windowSamples.max(by: { $0.galacticCenterAltitude < $1.galacticCenterAltitude }),
                    let bestViewing = windowSamples.max(by: { viewingScore($0) < viewingScore($1) }),
                    let lastSample = windowSamples.last {
+                    // 各サンプルは sampleIntervalMinutes 分の区間を代表するため、
+                    // ウィンドウ終端は最終サンプル時刻 + 1 インターバル。
                     windows.append(ViewingWindow(
                         start: start,
-                        end: lastSample.date,
+                        end: lastSample.date.addingTimeInterval(Constants.sampleIntervalSeconds),
                         peakTime: bestViewing.date,
                         peakAltitude: bestAlt.galacticCenterAltitude,
                         peakAzimuth: bestViewing.galacticCenterAzimuth
@@ -322,7 +325,7 @@ enum MilkyWayCalculator {
            let lastSample = windowSamples.last {
             windows.append(ViewingWindow(
                 start: start,
-                end: lastSample.date,
+                end: lastSample.date.addingTimeInterval(Constants.sampleIntervalSeconds),
                 peakTime: bestViewing.date,
                 peakAltitude: bestAlt.galacticCenterAltitude,
                 peakAzimuth: bestViewing.galacticCenterAzimuth

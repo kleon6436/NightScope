@@ -23,6 +23,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private let storage: LocationStorage
     private let searchService: LocationSearchServicing
     private let locationNameResolver: LocationNameResolving
+    private let locationRequestTimeout: Duration
 
     @Published var selectedLocation: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503) {
         didSet {
@@ -141,11 +142,13 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     init(
         storage: LocationStorage = UserDefaultsLocationStorage(),
         searchService: LocationSearchServicing = MKLocationSearchService(),
-        locationNameResolver: LocationNameResolving = ReverseGeocodingLocationNameResolver()
+        locationNameResolver: LocationNameResolving = ReverseGeocodingLocationNameResolver(),
+        locationRequestTimeout: Duration = .seconds(60)
     ) {
         self.storage = storage
         self.searchService = searchService
         self.locationNameResolver = locationNameResolver
+        self.locationRequestTimeout = locationRequestTimeout
         super.init()
         restorePersistedLocation()
         locationManager.delegate = self
@@ -206,11 +209,6 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
         isLocating = true
         locationError = nil
-        #if os(iOS)
-        locationManager.requestWhenInUseAuthorization()
-        #else
-        locationManager.requestAlwaysAuthorization()
-        #endif
         // 既に許可済みなら即開始、未決定なら locationManagerDidChangeAuthorization で開始する
         let alreadyAuthorized: Bool
         #if os(iOS)
@@ -220,6 +218,16 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         #endif
         if alreadyAuthorized {
             startLocationUpdatesWithTimeout()
+        } else {
+            // .notDetermined: 権限ダイアログへの応答を待機中。
+            // ユーザーがダイアログを長時間無視した場合でも isLocating が残らないよう
+            // タイムアウトだけを開始する（位置情報更新は権限確定後に始める）。
+            startLocatingTimeout()
+            #if os(iOS)
+            locationManager.requestWhenInUseAuthorization()
+            #else
+            locationManager.requestAlwaysAuthorization()
+            #endif
         }
     }
 
@@ -343,17 +351,24 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         locationManager.stopUpdatingLocation()
     }
 
-    private func startLocationUpdatesWithTimeout() {
+    /// タイムアウトタスクのみを開始する（位置情報更新は開始しない）。
+    /// 権限未決定で応答待ちの場合や startLocationUpdatesWithTimeout() の内部から使用する。
+    func startLocatingTimeout() {
         cancelLocationTimeout()
-        locationManager.startUpdatingLocation()
+        let timeout = locationRequestTimeout
         locationTimeoutTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(60))
+            try? await Task.sleep(for: timeout)
             guard !Task.isCancelled, let self else { return }
             if self.isLocating {
                 self.stopLocating()
                 self.locationError = .failed
             }
         }
+    }
+
+    private func startLocationUpdatesWithTimeout() {
+        startLocatingTimeout()
+        locationManager.startUpdatingLocation()
     }
 
     private func cancelLocationTimeout() {

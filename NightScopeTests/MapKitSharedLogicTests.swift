@@ -171,4 +171,28 @@ final class MapKitSharedLogicTests: XCTestCase {
             )
         )
     }
+
+    func test_updateViewingDirectionOverlay_highLatitudeProducesSanitizedCoordinates() {
+        let mapView = MKMapView()
+        let center = CLLocationCoordinate2D(latitude: 89.999, longitude: 135.0)
+
+        MapKitViewSharedLogic.updateViewingDirectionOverlay(
+            on: mapView,
+            pinCoordinate: center,
+            viewingDirection: ViewingDirection(azimuth: 90, fov: 60, isActive: true)
+        )
+
+        guard let overlay = mapView.overlays.first as? MKPolygon else {
+            return XCTFail("視野オーバーレイが追加されませんでした")
+        }
+
+        var coordinates = Array(
+            repeating: CLLocationCoordinate2D(latitude: 0, longitude: 0),
+            count: overlay.pointCount
+        )
+        overlay.getCoordinates(&coordinates, range: NSRange(location: 0, length: overlay.pointCount))
+
+        XCTAssertTrue(coordinates.count >= 3)
+        XCTAssertTrue(coordinates.allSatisfy { GeoStateValidator.sanitizedCoordinate($0) != nil })
+    }
 }
