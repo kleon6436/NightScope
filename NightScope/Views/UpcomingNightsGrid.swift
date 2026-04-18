@@ -53,7 +53,8 @@ struct UpcomingNightsGrid: View {
             timeZone: viewModel.selectedTimeZone,
             isReliableWeather: viewModel.hasReliableWeatherData(for: night, weather: weather),
             hasPartialWeather: viewModel.hasPartialWeatherData(for: night, weather: weather),
-            isForecastOutOfRange: viewModel.isForecastOutOfRange(for: night, weather: weather)
+            isForecastOutOfRange: viewModel.isForecastOutOfRange(for: night, weather: weather),
+            hasWeatherLoadError: viewModel.weatherErrorMessage != nil
         )
         let isSelected = viewModel.isDateSelected(night.date)
         let index = viewModel.starGazingIndex(for: night.date)

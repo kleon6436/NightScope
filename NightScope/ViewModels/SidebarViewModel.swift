@@ -18,7 +18,7 @@ final class SidebarViewModel: ObservableObject {
 
     enum SearchPresentation {
         case hidden
-        case loading
+        case loading([MKMapItem])
         case results([MKMapItem])
         case empty(String)
         case error(query: String, message: String)
@@ -69,7 +69,7 @@ final class SidebarViewModel: ObservableObject {
         case .idle:
             return .hidden
         case .loading:
-            return .loading
+            return .loading(searchState.results)
         case .results:
             return searchState.results.isEmpty ? .hidden : .results(searchState.results)
         case .empty:
@@ -206,6 +206,14 @@ final class SidebarViewModel: ObservableObject {
         locationController.requestCurrentLocation()
     }
 
+    func prepareForLocationSettingsRecovery() {
+        locationController.prepareForSettingsRecovery()
+    }
+
+    func refreshLocationAuthorizationState() {
+        locationController.refreshAuthorizationState()
+    }
+
     func updateViewportIfNeeded(center: CLLocationCoordinate2D, span: MKCoordinateSpan) {
         let currentCenter = viewport.center
         let currentSpan = viewport.span
@@ -231,6 +239,15 @@ final class SidebarViewModel: ObservableObject {
         guard !normalizedQuery.isEmpty else { return }
         isShowingCommittedSelection = false
         locationController.search(query: normalizedQuery)
+    }
+
+    func retryLightPollution() {
+        Task {
+            await lightPollutionService.fetch(
+                latitude: selectedCoordinate.latitude,
+                longitude: selectedCoordinate.longitude
+            )
+        }
     }
 
     private func applyPendingLocationUpdateBehavior() {

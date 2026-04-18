@@ -37,6 +37,7 @@ extension StarMapCanvasView {
                         .allowsHitTesting(false)
                 }
             }
+            .accessibilityHidden(true)
         }
     }
 

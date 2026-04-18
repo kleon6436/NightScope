@@ -17,8 +17,7 @@ struct iOSTodayViewModel {
     }
 
     func refreshAll(using detailViewModel: DetailViewModel) async {
-        await detailViewModel.refreshWeather()
-        await detailViewModel.refreshLightPollution()
+        await detailViewModel.refreshExternalData()
     }
 }
 
@@ -27,7 +26,8 @@ struct iOSTodayView: View {
     private let viewModel = iOSTodayViewModel()
     @StateObject private var lightPollutionViewModel: StarGazingIndexCardViewModel
     @StateObject private var weatherViewModel = NightWeatherCardViewModel()
-    @State private var showCalendar = false
+    @State private var presentedSheet: PresentedSheet?
+    @State private var calendarDraftDate = Date()
 
     init(detailViewModel: DetailViewModel) {
         self.detailViewModel = detailViewModel
@@ -60,21 +60,16 @@ struct iOSTodayView: View {
                 await viewModel.refreshAll(using: detailViewModel)
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showCalendar) {
-                NavigationStack {
-                    CalendarView(
-                        selectedDate: $detailViewModel.selectedDate,
-                        timeZone: detailViewModel.selectedTimeZone
-                    )
-                        .navigationTitle("日付を選択")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("完了") { showCalendar = false }
-                            }
-                        }
-                }
-                .presentationDetents([.medium])
+            .sheet(item: $presentedSheet) { sheet in
+                sheetView(for: sheet)
+            }
+            .safeAreaInset(edge: .bottom) {
+                DetailErrorOverlay(
+                    weatherErrorMessage: detailViewModel.weatherErrorMessage,
+                    hasLightPollutionError: detailViewModel.hasLightPollutionError,
+                    retryWeatherAction: detailViewModel.retryWeatherInBackground,
+                    retryLightPollutionAction: detailViewModel.retryLightPollutionInBackground
+                )
             }
         }
     }
@@ -122,6 +117,7 @@ struct iOSTodayView: View {
                 isLoading: detailViewModel.isWeatherLoading,
                 isForecastOutOfRange: detailViewModel.isCurrentWeatherForecastOutOfRange,
                 isCoverageIncomplete: detailViewModel.isCurrentWeatherCoverageIncomplete,
+                errorMessage: weather == nil ? detailViewModel.weatherErrorMessage : nil,
                 viewModel: weatherViewModel
             )
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
@@ -131,7 +127,6 @@ struct iOSTodayView: View {
 
             MilkyWaySummaryCard(summary: summary)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight, alignment: .top)
-                .padding(.top, Spacing.xs)
         }
     }
 
@@ -140,7 +135,10 @@ struct iOSTodayView: View {
             title: viewModel.headerTitle(
                 for: detailViewModel.displayedDate,
                 timeZone: detailViewModel.selectedTimeZone
-            )
+            ),
+            titleLineLimit: 1,
+            titleMinimumScaleFactor: 0.9,
+            horizontalPadding: Spacing.xs
         ) {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcons.Navigation.locationPin)
@@ -150,16 +148,34 @@ struct iOSTodayView: View {
                     .lineLimit(1)
             }
         } trailing: {
-            Button {
-                showCalendar = true
-            } label: {
-                Image(systemName: "calendar")
-                    .font(.headline)
-                    .frame(width: 44, height: 44)
+            HStack(spacing: Spacing.xs / 2) {
+                Button {
+                    calendarDraftDate = detailViewModel.selectedDate
+                    presentedSheet = .calendar
+                } label: {
+                    Image(systemName: "calendar")
+                        .font(.headline)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.glass)
+                .accessibilityLabel("日付を選択")
+
+                settingsButton
             }
-            .buttonStyle(.glass)
-            .accessibilityLabel("日付を選択")
         }
+    }
+
+    private var settingsButton: some View {
+        Button {
+            presentedSheet = .settings
+        } label: {
+            Image(systemName: "gearshape.fill")
+                .font(.headline)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.glass)
+        .accessibilityLabel("設定を開く")
+        .accessibilityHint("アプリ全体の表示設定を変更します")
     }
 
     private var loadingPlaceholder: some View {
@@ -174,6 +190,57 @@ struct iOSTodayView: View {
         .redacted(reason: .placeholder)
     }
 
+    @ViewBuilder
+    private func sheetView(for sheet: PresentedSheet) -> some View {
+        switch sheet {
+        case .calendar:
+            NavigationStack {
+                CalendarView(
+                    selectedDate: $calendarDraftDate,
+                    timeZone: detailViewModel.selectedTimeZone
+                )
+                .navigationTitle("日付を選択")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") {
+                            detailViewModel.selectedDate = calendarDraftDate
+                            presentedSheet = nil
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        case .settings:
+            iOSSettingsSheetView()
+        }
+    }
+}
+
+private extension iOSTodayView {
+    enum PresentedSheet: String, Identifiable {
+        case calendar
+        case settings
+
+        var id: String { rawValue }
+    }
+}
+
+private struct iOSSettingsSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            SettingsView()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") {
+                            dismiss()
+                        }
+                    }
+                }
+        }
+    }
 }
 
 #Preview("Today - Loading") {

@@ -72,6 +72,8 @@ protocol LocationProviding: AnyObject, ObservableObject {
     var selectedTimeZonePublisher: AnyPublisher<TimeZone, Never> { get }
 
     func requestCurrentLocation()
+    func prepareForSettingsRecovery()
+    func refreshAuthorizationState()
     func search(query: String)
     func clearSearch()
     func select(_ mapItem: MKMapItem)

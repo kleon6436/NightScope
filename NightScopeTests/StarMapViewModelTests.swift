@@ -128,6 +128,14 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(StarMapLayout.clampedFOV(160), StarMapLayout.maxFOV)
     }
 
+    func test_StarMapViewModel_initialFOV_usesNaturalDefaultFieldOfView() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+
+        XCTAssertEqual(StarMapLayout.defaultFOV, 60, accuracy: 0.001)
+        XCTAssertEqual(viewModel.fov, StarMapLayout.defaultFOV, accuracy: 0.001)
+    }
+
     func test_StarMapCanvasView_zoomedFOV_clampsAndFollowsScrollDirection() {
         XCTAssertEqual(
             StarMapCanvasView.zoomedFOV(currentFOV: 90, scrollDeltaY: 1, preciseScrolling: false),
@@ -153,6 +161,11 @@ final class StarMapViewModelTests: XCTestCase {
             accuracy: 0.0001
         )
         XCTAssertEqual(
+            StarMapCanvasView.cardinalOverlayY(sizeHeight: 400, bottomInset: 140),
+            260,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
             StarMapCanvasView.clampedCardinalLabelX(-5, sizeWidth: 320),
             Double(StarMapLayout.cardinalLabelSidePadding),
             accuracy: 0.0001
@@ -167,9 +180,47 @@ final class StarMapViewModelTests: XCTestCase {
             size: CGSize(width: 320, height: 400),
             centerAlt: 30,
             centerAz: 0,
+            roll: 0,
             fov: 90
         )
         XCTAssertEqual(placements.map(\.label), ["北", "北東", "北西"])
+    }
+
+    func test_StarMapCanvasView_horizonProjection_matchesProjectedAltitudeZeroPoints() {
+        let size = CGSize(width: 390, height: 844)
+        let centerAlt = 10.0
+        let centerAz = 0.0
+        let fov = 60.0
+
+        for roll in [0.0, 25.0] {
+            for azimuth in stride(from: -20.0, through: 20.0, by: 10.0) {
+                let point = StarMapCanvasView.projectPoint(
+                    size: size,
+                    centerAlt: centerAlt,
+                    centerAz: centerAz,
+                    roll: roll,
+                    fov: fov,
+                    altitudeDegrees: 0,
+                    azimuthDegrees: azimuth
+                )
+
+                XCTAssertNotNil(point)
+                if let point {
+                    XCTAssertEqual(
+                        StarMapCanvasView.horizonLineValue(
+                            size: size,
+                            centerAlt: centerAlt,
+                            centerAz: centerAz,
+                            roll: roll,
+                            fov: fov,
+                            point: point
+                        ),
+                        0,
+                        accuracy: 0.001
+                    )
+                }
+            }
+        }
     }
 
     func test_StarDisplayDensity_usesExpectedThresholdsAndLabels() {
@@ -182,6 +233,205 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(StarDisplayDensity.large.maxMagnitude, 6.8, accuracy: 0.0001)
         XCTAssertEqual(StarDisplayDensity.medium.maxMagnitude, 6.0, accuracy: 0.0001)
         XCTAssertEqual(StarDisplayDensity.small.maxMagnitude, 5.0, accuracy: 0.0001)
+    }
+
+    func test_StarMapMotionPose_make_convertsBackVectorToSkyPose() {
+        let northHorizon = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: 0, m23: 1,
+                m31: 0, m32: -1, m33: 0
+            )
+        )
+        XCTAssertEqual(northHorizon.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(northHorizon.altitude, 0, accuracy: 0.001)
+
+        let eastHorizon = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 0, m12: -1, m13: 0,
+                m21: 0, m22: 0, m23: 1,
+                m31: -1, m32: 0, m33: 0
+            )
+        )
+        XCTAssertEqual(eastHorizon.azimuth, 90, accuracy: 0.001)
+        XCTAssertEqual(eastHorizon.altitude, 0, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_make_tracksUpwardAndDownwardTilt() {
+        let northUpward = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: -0.5, m23: 0.866_025,
+                m31: 0, m32: -0.866_025, m33: -0.5
+            )
+        )
+        XCTAssertEqual(northUpward.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(northUpward.altitude, 30, accuracy: 0.001)
+
+        let northDownward = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: 0.5, m23: 0.866_025,
+                m31: 0, m32: -0.866_025, m33: 0.5
+            )
+        )
+        XCTAssertEqual(northDownward.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(northDownward.altitude, -10, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_make_tracksScreenRollInPortrait() {
+        let rolledPose = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 0, m12: 0, m13: -1,
+                m21: 1, m22: 0, m23: 0,
+                m31: 0, m32: -1, m33: 0
+            )
+        )
+
+        XCTAssertEqual(rolledPose.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(rolledPose.altitude, 0, accuracy: 0.001)
+        XCTAssertEqual(rolledPose.roll, 90, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_make_appliesInterfaceOrientationToRoll() {
+        let landscapePose = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: 0, m23: 1,
+                m31: 0, m32: -1, m33: 0
+            ),
+            screenOrientation: .landscapeLeft
+        )
+
+        XCTAssertEqual(landscapePose.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(landscapePose.altitude, 0, accuracy: 0.001)
+        XCTAssertEqual(landscapePose.roll, -90, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_smoothed_wrapsAzimuthAcrossNorthWithoutJump() {
+        let previous = StarMapMotionPose(azimuth: 359, altitude: 44)
+        let next = StarMapMotionPose(azimuth: 1, altitude: 46)
+
+        let smoothed = StarMapMotionPose.smoothed(previous: previous, next: next)
+
+        XCTAssertEqual(smoothed.azimuth, 359.36, accuracy: 0.001)
+        XCTAssertEqual(smoothed.altitude, 44.36, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_smoothed_respondsFasterToLargeMovement() {
+        let previous = StarMapMotionPose(azimuth: 10, altitude: 20)
+        let next = StarMapMotionPose(azimuth: 50, altitude: 45)
+
+        let smoothed = StarMapMotionPose.smoothed(previous: previous, next: next)
+
+        XCTAssertEqual(smoothed.azimuth, 23.6, accuracy: 0.001)
+        XCTAssertEqual(smoothed.altitude, 27.5, accuracy: 0.001)
+    }
+
+    func test_StarMapCameraFieldOfView_visibleHorizontalDegrees_matchesViewportAndOrientation() {
+        let fieldOfView = StarMapCameraFieldOfView(
+            diagonalDegrees: 90,
+            sensorWidth: 4_000,
+            sensorHeight: 3_000
+        )
+        let landscapeDegrees = fieldOfView.visibleHorizontalDegrees(
+            viewportSize: CGSize(width: 400, height: 300),
+            screenOrientation: .landscapeRight
+        )
+        let portraitDegrees = fieldOfView.visibleHorizontalDegrees(
+            viewportSize: CGSize(width: 300, height: 400),
+            screenOrientation: .portrait
+        )
+        let narrowPortraitDegrees = fieldOfView.visibleHorizontalDegrees(
+            viewportSize: CGSize(width: 390, height: 844),
+            screenOrientation: .portrait
+        )
+
+        XCTAssertNotNil(landscapeDegrees)
+        XCTAssertNotNil(portraitDegrees)
+        XCTAssertNotNil(narrowPortraitDegrees)
+        XCTAssertEqual(landscapeDegrees ?? 0, 77.3196, accuracy: 0.001)
+        XCTAssertEqual(portraitDegrees ?? 0, 61.9275, accuracy: 0.001)
+        XCTAssertEqual(narrowPortraitDegrees ?? 0, 40.5759, accuracy: 0.001)
+    }
+
+    func test_StarMapCameraSessionActivationState_rejectsStaleRequests() {
+        var state = StarMapCameraSessionActivationState()
+
+        let firstOnGeneration = state.update(isActive: true)
+        let offGeneration = state.update(isActive: false)
+        let secondOnGeneration = state.update(isActive: true)
+
+        XCTAssertFalse(state.matches(generation: firstOnGeneration, isActive: true))
+        XCTAssertFalse(state.matches(generation: offGeneration, isActive: false))
+        XCTAssertTrue(state.matches(generation: secondOnGeneration, isActive: true))
+    }
+
+    func test_StarMapCameraSessionState_derivesVisibilityAndRunState() {
+        let activeState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: true,
+            isAuthorized: true,
+            hasCameraHardware: true,
+            isSceneActive: true
+        )
+        let hiddenButPreparedState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: false,
+            isAuthorized: true,
+            hasCameraHardware: true,
+            isSceneActive: true
+        )
+        let backgroundedState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: true,
+            isAuthorized: true,
+            hasCameraHardware: true,
+            isSceneActive: false
+        )
+        let unauthorizedState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: true,
+            isAuthorized: false,
+            hasCameraHardware: true,
+            isSceneActive: true
+        )
+
+        XCTAssertTrue(activeState.shouldKeepPreviewAttached)
+        XCTAssertTrue(activeState.isCameraBackgroundVisible)
+        XCTAssertTrue(activeState.shouldRunSession)
+        XCTAssertTrue(hiddenButPreparedState.shouldKeepPreviewAttached)
+        XCTAssertFalse(hiddenButPreparedState.isCameraBackgroundVisible)
+        XCTAssertFalse(hiddenButPreparedState.shouldRunSession)
+        XCTAssertTrue(backgroundedState.shouldKeepPreviewAttached)
+        XCTAssertTrue(backgroundedState.isCameraBackgroundVisible)
+        XCTAssertFalse(backgroundedState.shouldRunSession)
+        XCTAssertFalse(unauthorizedState.shouldKeepPreviewAttached)
+        XCTAssertFalse(unauthorizedState.isCameraBackgroundVisible)
+        XCTAssertFalse(unauthorizedState.shouldRunSession)
+    }
+
+    func test_StarMapCameraPreviewRotation_fallbackAngle_matchesExpectedOrientations() {
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .portrait),
+            90,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .portraitUpsideDown),
+            270,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .landscapeLeft),
+            180,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .landscapeRight),
+            0,
+            accuracy: 0.001
+        )
     }
 
     func test_StarMapViewModel_recomputesWhenStarDisplayDensityChanges() {
@@ -241,12 +491,68 @@ final class StarMapViewModelTests: XCTestCase {
 
         viewModel.viewAzimuth = 123
         viewModel.viewAltitude = 10
+        viewModel.viewRoll = 25
         viewModel.updateCanvasSize(size)
         viewModel.prepareForStarMapPresentation()
         viewModel.applyInitialPoseIfNeeded()
 
         XCTAssertEqual(viewModel.viewAzimuth, 0)
         XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewRoll, 0, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_prepareForStarMapPresentation_onlyAppliesInitialPoseOnce() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let size = CGSize(width: 860, height: 620)
+
+        viewModel.updateCanvasSize(size)
+        viewModel.prepareForStarMapPresentation()
+        viewModel.applyInitialPoseIfNeeded()
+        viewModel.viewAzimuth = 148
+        viewModel.viewAltitude = 33
+        viewModel.viewRoll = 5
+
+        viewModel.prepareForStarMapPresentation()
+        viewModel.applyInitialPoseIfNeeded()
+
+        XCTAssertEqual(viewModel.viewAzimuth, 148, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewAltitude, 33, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewRoll, 5, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_activatePresentationIfNeeded_syncsOnlyOnFirstActivation() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let timeZone = appController.locationController.selectedTimeZone
+        let calendar = observationCalendar(for: timeZone)
+        let firstReferenceDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 21,
+            minute: 15
+        ))!
+        let secondReferenceDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 11,
+            hour: 23,
+            minute: 45
+        ))!
+
+        appController.selectedDate = ObservationTimeZone.startOfDay(
+            for: firstReferenceDate,
+            timeZone: timeZone
+        )
+        viewModel.activatePresentationIfNeeded(referenceDate: firstReferenceDate)
+        let firstDisplayDate = viewModel.displayDate
+
+        viewModel.displayDate = secondReferenceDate
+        viewModel.activatePresentationIfNeeded(referenceDate: secondReferenceDate)
+
+        XCTAssertEqual(firstDisplayDate, firstReferenceDate)
+        XCTAssertEqual(viewModel.displayDate, secondReferenceDate)
     }
 
     func test_StarMapViewModel_resetToNorth_usesResetAltitude() {
@@ -255,10 +561,44 @@ final class StarMapViewModelTests: XCTestCase {
 
         viewModel.viewAzimuth = 180
         viewModel.viewAltitude = 60
+        viewModel.viewRoll = -40
         viewModel.resetToNorth()
 
         XCTAssertEqual(viewModel.viewAzimuth, 0)
         XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewRoll, 0, accuracy: 0.001)
+    }
+
+    func test_StarMapViewModel_resetToNow_updatesObservationDateAndDisplayDate() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let timeZone = appController.locationController.selectedTimeZone
+        let calendar = observationCalendar(for: timeZone)
+        let previousDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 1,
+            hour: 21,
+            minute: 7
+        ))!
+
+        appController.selectedDate = previousDate
+        viewModel.syncWithSelectedDate(referenceDate: previousDate)
+
+        viewModel.resetToNow(referenceDate: referenceDate)
+
+        let selectedComponents = calendar.dateComponents([.year, .month, .day], from: appController.selectedDate)
+        let displayComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: viewModel.displayDate)
+
+        XCTAssertEqual(selectedComponents.year, 2025)
+        XCTAssertEqual(selectedComponents.month, 1)
+        XCTAssertEqual(selectedComponents.day, 1)
+        XCTAssertEqual(displayComponents.year, 2025)
+        XCTAssertEqual(displayComponents.month, 1)
+        XCTAssertEqual(displayComponents.day, 1)
+        XCTAssertEqual(displayComponents.hour, 21)
+        XCTAssertEqual(displayComponents.minute, 7)
     }
 
     func test_StarMapViewModel_displayDate_updatesTimeSliderMinutes() {
@@ -342,6 +682,38 @@ final class StarMapViewModelTests: XCTestCase {
             from: viewModel.displayDate
         )
         let expectedRealMinutes = (viewModel.nightStartMinutes + 90)
+            .truncatingRemainder(dividingBy: 1_440)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 4)
+        XCTAssertEqual(components.day, 10)
+        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
+        XCTAssertFalse(viewModel.isTimeSliderScrubbing)
+    }
+
+    func test_StarMapViewModel_finalizeTransientInteractionState_commitsPendingSliderDate() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
+        let baseDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 20,
+            minute: 0
+        ))!
+        appController.selectedDate = baseDate
+        viewModel.displayDate = baseDate
+
+        viewModel.beginTimeSliderInteraction()
+        viewModel.setTimeSliderMinutes(120)
+        viewModel.finalizeTransientInteractionState()
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        let expectedRealMinutes = (viewModel.nightStartMinutes + 120)
             .truncatingRemainder(dividingBy: 1_440)
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 4)

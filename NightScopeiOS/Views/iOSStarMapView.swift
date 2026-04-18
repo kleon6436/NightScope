@@ -1,110 +1,152 @@
 import SwiftUI
-import CoreMotion
-import CoreLocation
+@preconcurrency import AVFoundation
+import UIKit
 
 // MARK: - iOSStarMapView
 
 struct iOSStarMapView: View {
     @ObservedObject var viewModel: StarMapViewModel
+    @AppStorage(StarDisplayDensity.defaultsKey) private var starDisplayDensityRaw = StarDisplayDensity.defaultValue.rawValue
 
-    @State private var motionManager = CMMotionManager()
-    @State private var headingController = StarMapHeadingController()
+    @StateObject private var motionController = StarMapMotionController()
+    @StateObject private var cameraController = StarMapCameraController()
+    @State private var isCameraBackgroundEnabled = false
+    @State private var isRequestingCameraPermission = false
+    @State private var cameraNotice: CameraNotice?
+    @State private var cameraPermissionRequestID = 0
+    @State private var bottomControlPanelHeight: CGFloat = 0
+    @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .topLeading) {
-                Color.black.ignoresSafeArea()
+            GeometryReader { proxy in
+                ZStack(alignment: .topLeading) {
+                    backgroundLayer
 
-                StarMapCanvasView(
-                    viewModel: viewModel,
-                    showsCardinalOverlay: false
-                )
-                    .ignoresSafeArea(edges: .top)
+                    StarMapCanvasView(
+                        viewModel: viewModel,
+                        showsCardinalOverlay: true,
+                        cardinalOverlayBottomInset: cardinalOverlayBottomInset + proxy.safeAreaInsets.bottom,
+                        backgroundColor: controlState.isCameraBackgroundVisible ? .clear : StarMapPalette.canvasBackground,
+                        horizonOverlayStyle: IOSDesignTokens.StarMap.horizonOverlayStyle,
+                        fovOverride: cameraAlignedHorizontalFOV
+                    )
+                        .ignoresSafeArea(edges: [.top, .bottom])
 
-                headerSection
-                bottomControlPanel
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            }
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    gyroToggleButton
+                    topOverlaySection
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.top, Spacing.sm)
+                    bottomControlPanel
+                        .onGeometryChange(for: CGFloat.self) { proxy in
+                            proxy.size.height
+                        } action: { newHeight in
+                            bottomControlPanelHeight = newHeight
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
             }
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
         .onAppear {
-            viewModel.prepareForStarMapPresentation()
-            viewModel.syncWithSelectedDate()
-            handleGyroChange()
+            viewModel.activatePresentationIfNeeded()
+            updateInterfaceOrientation()
+            cameraController.refreshAuthorizationStatus()
+            syncMotionState()
+            syncCameraSession()
         }
         .onDisappear {
+            invalidatePendingCameraPermissionRequest()
+            viewModel.finalizeTransientInteractionState()
             stopMotion()
+            cameraController.setSessionActive(false)
         }
         .onChange(of: viewModel.isGyroMode) { handleGyroChange() }
+        .onChange(of: isCameraBackgroundEnabled) { syncCameraSession() }
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            updateInterfaceOrientation()
+        }
+        .onChange(of: cameraController.authorizationStatus) { _, newStatus in
+            handleCameraAuthorizationChange(newStatus)
+        }
+        .onChange(of: cameraController.lastErrorMessage) { _, newMessage in
+            handleCameraErrorChange(newMessage)
+        }
     }
 
-    private var headerSection: some View {
-        iOSTabHeaderView(
-            title: "星空マップ",
-            titleColor: .white,
-            subtitleColor: .white.opacity(0.75)
-        ) {
-            Text("視野と時刻を調整します")
-                .font(.caption)
-                .lineLimit(2)
-        } trailing: {
-            EmptyView()
+    private var backgroundLayer: some View {
+        ZStack {
+            if cameraSessionState.shouldKeepPreviewAttached {
+                ZStack {
+                    StarMapCameraPreviewView(
+                        session: cameraController.session,
+                        screenOrientation: screenOrientation,
+                        videoDevice: cameraController.previewDevice
+                    )
+                    .opacity(controlState.isCameraBackgroundVisible ? 1 : 0)
+                    .accessibilityHidden(true)
+
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.52),
+                            Color.black.opacity(0.18),
+                            Color.black.opacity(0.42)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .opacity(controlState.isCameraBackgroundVisible ? 1 : 0)
+                }
+            }
+            Color.black.opacity(controlState.isCameraBackgroundVisible ? 0.14 : 1)
         }
+        .ignoresSafeArea()
+    }
+
+    private var topOverlaySection: some View {
+        iOSStarMapHeaderOverlay(
+            starDisplayDensityRaw: $starDisplayDensityRaw,
+            controlState: controlState,
+            onToggleCameraBackground: toggleCameraBackground,
+            onToggleGyroMode: toggleGyroMode,
+            onOpenSettings: openAppSettings
+        )
     }
 
     // MARK: - Bottom Control Panel
 
     private var bottomControlPanel: some View {
         VStack(spacing: Spacing.xs) {
-            cardinalLegend
             dateControlRow
             timeSliderRow
             locationLabel
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.sm)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
+        .iOSMaterialPanel(
+            material: .ultraThinMaterial,
+            cornerRadius: Layout.cardCornerRadius,
+            style: .continuous,
+            showsBorder: false
+        )
         .padding(.horizontal, Spacing.sm)
         .padding(.bottom, bottomControlBottomPadding)
     }
 
     private var bottomControlBottomPadding: CGFloat {
-        Spacing.lg
+        Spacing.sm
     }
 
-    private var cardinalLegend: some View {
-        let directions: [(Double, String)] = [
-            (0, StarMapPresentation.azimuthName(for: 0)),
-            (45, StarMapPresentation.azimuthName(for: 45)),
-            (90, StarMapPresentation.azimuthName(for: 90)),
-            (135, StarMapPresentation.azimuthName(for: 135)),
-            (180, StarMapPresentation.azimuthName(for: 180)),
-            (225, StarMapPresentation.azimuthName(for: 225)),
-            (270, StarMapPresentation.azimuthName(for: 270)),
-            (315, StarMapPresentation.azimuthName(for: 315))
-        ]
-
-        return LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs), count: 4),
-            spacing: Spacing.xs
-        ) {
-            ForEach(directions, id: \.0) { _, label in
-                Text(label)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, StarMapLayout.cardinalLabelVerticalPadding)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
-            }
-        }
+    private var cardinalOverlayBottomInset: CGFloat {
+        max(
+            StarMapLayout.cardinalLabelBottomInset,
+            bottomControlPanelHeight + bottomControlBottomPadding
+        )
     }
 
     private var dateControlRow: some View {
@@ -197,65 +239,248 @@ struct iOSStarMapView: View {
         }
     }
 
-    // MARK: - Gyroscope Toggle
+    private var controlState: iOSStarMapControlState {
+        let isCameraBackgroundVisible = cameraSessionState.isCameraBackgroundVisible
 
-    private var gyroToggleButton: some View {
-        Button {
-            withAnimation(reduceMotion ? .none : .standard) {
-                viewModel.isGyroMode.toggle()
+        let displayedCameraNotice: CameraNotice? = {
+            guard viewModel.isGyroMode else { return nil }
+            if !cameraController.hasCameraHardware {
+                return .cameraUnavailable
             }
-        } label: {
-            Image(systemName: viewModel.isGyroMode ? "gyroscope" : "hand.draw")
-                .symbolEffect(.bounce, value: viewModel.isGyroMode)
+            return cameraNotice
+        }()
+
+        let cameraButtonHelpText: String = {
+            if isRequestingCameraPermission {
+                return "カメラ権限の確認中です"
+            }
+            if !viewModel.isGyroMode {
+                return "カメラ背景はジャイロ操作中のみ利用できます"
+            }
+            if !cameraController.hasCameraHardware {
+                return "この環境ではカメラ背景を利用できません"
+            }
+            return isCameraBackgroundVisible ? "カメラ背景をオフにします" : "カメラ背景をオンにします"
+        }()
+
+        let cameraButtonHintText: String = {
+            if isRequestingCameraPermission {
+                return "権限ダイアログの完了後に背景を切り替えます"
+            }
+            if !viewModel.isGyroMode {
+                return "ジャイロ操作をオンにすると利用できます"
+            }
+            if !cameraController.hasCameraHardware {
+                return "カメラを利用できるデバイスで使用してください"
+            }
+            return "実際の空の映像を背景に重ねて表示します"
+        }()
+
+        return iOSStarMapControlState(
+            selectedStarDisplayDensity: StarDisplayDensity(rawValue: starDisplayDensityRaw) ?? .defaultValue,
+            canEnableGyroMode: motionController.canEnableGyroMode,
+            isGyroMode: viewModel.isGyroMode,
+            isCameraBackgroundVisible: isCameraBackgroundVisible,
+            canToggleCameraBackground: viewModel.isGyroMode && cameraController.hasCameraHardware && !isRequestingCameraPermission,
+            cameraButtonHelpText: cameraButtonHelpText,
+            cameraButtonHintText: cameraButtonHintText,
+            displayedCameraNotice: displayedCameraNotice
+        )
+    }
+
+    private var cameraSessionState: StarMapCameraSessionState {
+        StarMapCameraSessionState(
+            isGyroMode: viewModel.isGyroMode,
+            isBackgroundEnabled: isCameraBackgroundEnabled,
+            isAuthorized: cameraController.authorizationStatus == .authorized,
+            hasCameraHardware: cameraController.hasCameraHardware,
+            isSceneActive: scenePhase == .active
+        )
+    }
+
+    private var screenOrientation: StarMapScreenOrientation {
+        interfaceOrientation.starMapScreenOrientation
+    }
+
+    private var cameraAlignedHorizontalFOV: Double? {
+        guard cameraSessionState.isCameraBackgroundVisible,
+              let cameraFieldOfView = cameraController.cameraFieldOfView else {
+            return nil
         }
-        .help(viewModel.isGyroMode ? "タッチ操作に切替" : "ジャイロ操作に切替")
-        .accessibilityLabel(viewModel.isGyroMode ? "タッチ操作に切り替える" : "ジャイロ操作に切り替える")
-        .disabled(!canEnableGyroMode)
+        return cameraFieldOfView.visibleHorizontalDegrees(
+            viewportSize: viewModel.canvasSize,
+            screenOrientation: screenOrientation
+        )
+    }
+
+    private func toggleGyroMode() {
+        withAnimation(reduceMotion ? .none : .standard) {
+            viewModel.isGyroMode.toggle()
+        }
     }
 
     // MARK: - CoreMotion
 
     private func handleGyroChange() {
-        if viewModel.isGyroMode {
-            startMotion()
-        } else {
+        syncMotionState()
+        if !viewModel.isGyroMode {
             stopMotion()
+            disableCameraBackground(clearNotice: true)
         }
+        syncCameraSession()
     }
 
     private func startMotion() {
-        guard canEnableGyroMode else {
-            viewModel.isGyroMode = false
-            return
-        }
-
-        // xArbitraryZVertical: Z 軸 = 鉛直上方 (重力方向)
-        // pitch のみで仰角を取得。方位角は CLHeading から取得する。
-        motionManager.deviceMotionUpdateInterval = 1.0 / 30
-        motionManager.startDeviceMotionUpdates(
-            using: .xArbitraryZVertical,
-            to: .main
-        ) { motion, _ in
-            guard let motion else { return }
-            // pitch: 0 = フラット (天頂向き), π/2 = 垂直 (地平線向き)
-            let pitchDeg = motion.attitude.pitch * 180 / .pi
-            viewModel.viewAltitude = max(0, min(90, 90 - pitchDeg))
-        }
-
-        // 方位角は CLLocationManager の heading から取得
-        headingController.start(
-            onHeading: { heading in
-            viewModel.viewAzimuth = heading
-        },
-            onAuthorizationUnavailable: {
+        motionController.updateScreenOrientation(screenOrientation)
+        motionController.start(
+            onPoseUpdate: { pose in
+                viewModel.viewAzimuth = pose.azimuth
+                viewModel.viewAltitude = pose.altitude
+                viewModel.viewRoll = pose.roll
+            },
+            onFailure: {
                 viewModel.isGyroMode = false
             }
         )
     }
 
     private func stopMotion() {
-        motionManager.stopDeviceMotionUpdates()
-        headingController.stop()
+        motionController.stop()
+    }
+
+    private func toggleCameraBackground() {
+        guard viewModel.isGyroMode else { return }
+        guard !isRequestingCameraPermission else { return }
+        guard cameraController.hasCameraHardware else {
+            cameraNotice = .cameraUnavailable
+            return
+        }
+
+        if isCameraBackgroundEnabled {
+            disableCameraBackground(clearNotice: true)
+            return
+        }
+
+        cameraNotice = nil
+
+        switch cameraController.authorizationStatus {
+        case .authorized:
+            isCameraBackgroundEnabled = true
+        case .notDetermined:
+            invalidatePendingCameraPermissionRequest()
+            isRequestingCameraPermission = true
+            let requestID = cameraPermissionRequestID
+            Task { @MainActor in
+                let granted = await cameraController.requestAccess()
+                guard requestID == cameraPermissionRequestID else { return }
+                isRequestingCameraPermission = false
+
+                if granted, viewModel.isGyroMode {
+                    cameraNotice = nil
+                    isCameraBackgroundEnabled = true
+                } else if granted {
+                    disableCameraBackground(clearNotice: true)
+                } else {
+                    disableCameraBackground(clearNotice: false)
+                    cameraNotice = .cameraPermissionDenied
+                }
+            }
+        case .denied:
+            disableCameraBackground(clearNotice: false)
+            cameraNotice = .cameraPermissionDenied
+        case .restricted:
+            disableCameraBackground(clearNotice: false)
+            cameraNotice = .cameraRestricted
+        @unknown default:
+            disableCameraBackground(clearNotice: false)
+            cameraNotice = .cameraUnexpectedFailure("カメラの利用状況を判定できませんでした。")
+        }
+    }
+
+    private func disableCameraBackground(clearNotice: Bool) {
+        invalidatePendingCameraPermissionRequest()
+        isCameraBackgroundEnabled = false
+        syncCameraSession()
+        if clearNotice {
+            cameraNotice = nil
+        }
+    }
+
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        if phase == .active {
+            updateInterfaceOrientation()
+            cameraController.refreshAuthorizationStatus()
+        } else {
+            viewModel.finalizeTransientInteractionState()
+        }
+        syncMotionState()
+        syncCameraSession()
+    }
+
+    private func syncCameraSession() {
+        cameraController.setSessionActive(cameraSessionState.shouldRunSession)
+    }
+
+    private func syncMotionState() {
+        let shouldRunMotion = viewModel.isGyroMode && scenePhase == .active
+        if shouldRunMotion {
+            startMotion()
+        } else {
+            stopMotion()
+        }
+    }
+
+    private func handleCameraAuthorizationChange(_ status: AVAuthorizationStatus) {
+        if status != .notDetermined {
+            isRequestingCameraPermission = false
+        }
+        if status == .authorized {
+            cameraNotice = nil
+        }
+        if status != .authorized && isCameraBackgroundEnabled {
+            disableCameraBackground(clearNotice: false)
+            switch status {
+            case .denied:
+                cameraNotice = .cameraPermissionDenied
+            case .restricted:
+                cameraNotice = .cameraRestricted
+            default:
+                break
+            }
+        }
+        syncCameraSession()
+    }
+
+    private func handleCameraErrorChange(_ message: String?) {
+        guard let message else { return }
+        disableCameraBackground(clearNotice: false)
+        cameraNotice = .cameraUnexpectedFailure(message)
+    }
+
+    private func invalidatePendingCameraPermissionRequest() {
+        cameraPermissionRequestID &+= 1
+        isRequestingCameraPermission = false
+    }
+
+    private func updateInterfaceOrientation() {
+        let resolvedOrientation: UIInterfaceOrientation
+
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            resolvedOrientation = .portrait
+        } else {
+            resolvedOrientation = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first(where: { $0.activationState == .foregroundActive })?
+                .effectiveGeometry.interfaceOrientation ?? interfaceOrientation
+        }
+
+        interfaceOrientation = resolvedOrientation
+        motionController.updateScreenOrientation(resolvedOrientation.starMapScreenOrientation)
+    }
+
+    private func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(settingsURL)
     }
 
     private var timeSliderBinding: Binding<Double> {
@@ -271,86 +496,6 @@ struct iOSStarMapView: View {
         } else {
             viewModel.endTimeSliderInteraction()
         }
-    }
-
-    private var canEnableGyroMode: Bool {
-        motionManager.isDeviceMotionAvailable && headingController.canStartHeadingUpdates
-    }
-}
-
-// MARK: - StarMapHeadingController
-
-/// CLLocationManager のラッパー。StarMapViewModel に NSObject 継承を持ち込まないための分離クラス。
-@Observable
-final class StarMapHeadingController: NSObject, CLLocationManagerDelegate {
-    private let locationManager = CLLocationManager()
-    private var onHeading: ((Double) -> Void)?
-    private var onAuthorizationUnavailable: (() -> Void)?
-
-    override init() {
-        super.init()
-        locationManager.delegate = self
-    }
-
-    var canStartHeadingUpdates: Bool {
-        guard CLLocationManager.headingAvailable() else {
-            return false
-        }
-        switch locationManager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways, .notDetermined:
-            return true
-        default:
-            return false
-        }
-    }
-
-    func start(
-        onHeading: @escaping (Double) -> Void,
-        onAuthorizationUnavailable: @escaping () -> Void
-    ) {
-        self.onHeading = onHeading
-        self.onAuthorizationUnavailable = onAuthorizationUnavailable
-        guard CLLocationManager.headingAvailable() else {
-            onAuthorizationUnavailable()
-            return
-        }
-        let status = locationManager.authorizationStatus
-        switch status {
-        case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
-        case .authorizedWhenInUse, .authorizedAlways:
-            locationManager.startUpdatingHeading()
-        default:
-            onAuthorizationUnavailable()
-        }
-    }
-
-    func stop() {
-        locationManager.stopUpdatingHeading()
-        onHeading = nil
-        onAuthorizationUnavailable = nil
-    }
-
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        switch manager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways:
-            if onHeading != nil {
-                manager.startUpdatingHeading()
-            }
-        default:
-            manager.stopUpdatingHeading()
-            if onHeading != nil {
-                onAuthorizationUnavailable?()
-            }
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
-        // trueHeading が有効なら使用 (GPSなし環境では -1 になる場合あり)
-        let heading = newHeading.trueHeading >= 0
-            ? newHeading.trueHeading
-            : newHeading.magneticHeading
-        onHeading?(heading)
     }
 }
 

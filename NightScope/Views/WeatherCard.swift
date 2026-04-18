@@ -5,6 +5,7 @@ struct NightWeatherCard: View {
     let isLoading: Bool
     let isForecastOutOfRange: Bool
     let isCoverageIncomplete: Bool
+    let errorMessage: String?
     @ObservedObject var viewModel: NightWeatherCardViewModel
 
     var body: some View {
@@ -23,7 +24,8 @@ struct NightWeatherCard: View {
                 weather: weather,
                 isLoading: isLoading,
                 isForecastOutOfRange: isForecastOutOfRange,
-                isCoverageIncomplete: isCoverageIncomplete
+                isCoverageIncomplete: isCoverageIncomplete,
+                errorMessage: errorMessage
             )
         )
     }
@@ -73,6 +75,19 @@ struct NightWeatherCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Text("しばらくお待ちください")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else if let errorMessage {
+                Text(viewModel.errorTitle())
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(viewModel.errorPrimaryText(errorMessage))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(viewModel.errorSecondaryText())
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

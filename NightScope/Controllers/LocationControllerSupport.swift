@@ -33,8 +33,8 @@ struct LocationSearchState {
         LocationSearchState(phase: .idle, query: "", results: [], errorMessage: nil)
     }
 
-    static func loading(query: String) -> LocationSearchState {
-        LocationSearchState(phase: .loading, query: query, results: [], errorMessage: nil)
+    static func loading(query: String, previousResults: [MKMapItem] = []) -> LocationSearchState {
+        LocationSearchState(phase: .loading, query: query, results: previousResults, errorMessage: nil)
     }
 
     static func results(query: String, items: [MKMapItem]) -> LocationSearchState {
@@ -158,11 +158,14 @@ enum ApproximateTimeZoneResolver {
     }
 
     private static func heuristicIdentifier(for coordinate: CLLocationCoordinate2D) -> String? {
-        for heuristic in timeZoneHeuristics where heuristic.contains(coordinate: coordinate) {
-            return heuristic.identifier
-        }
+        let matches = timeZoneHeuristics.filter { $0.contains(coordinate: coordinate) }
+        guard let firstMatch = matches.first else { return nil }
 
-        return nil
+        let ambiguousContinentalUSMatches = Set(matches.map(\.identifier))
+            .intersection(continentalUSHeuristicIdentifiers)
+        guard ambiguousContinentalUSMatches.count <= 1 else { return nil }
+
+        return firstMatch.identifier
     }
 
     private static func wholeHourOffset(for coordinate: CLLocationCoordinate2D) -> Int {
@@ -265,6 +268,14 @@ enum ApproximateTimeZoneResolver {
         TimeZoneHeuristic(latitudeRange: 20 ... 34, longitudeRange: 34 ... 36.5, identifier: "Asia/Jerusalem"),
         TimeZoneHeuristic(latitudeRange: 22 ... 27, longitudeRange: 51 ... 56.5, identifier: "Asia/Dubai"),
         TimeZoneHeuristic(latitudeRange: -35 ... -21, longitudeRange: 16 ... 33, identifier: "Africa/Johannesburg")
+    ]
+
+    private static let continentalUSHeuristicIdentifiers: Set<String> = [
+        "America/Los_Angeles",
+        "America/Denver",
+        "America/Chicago",
+        "America/New_York",
+        "America/Phoenix"
     ]
 }
 

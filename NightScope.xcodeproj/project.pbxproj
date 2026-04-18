@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00162992377780D5DE3995BD /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
 		0E941BCFCB628A2CECE6A32C /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F06 /* WeatherService.swift */; };
+		1A2B3C4D5E6F708192A3B4C5 /* iOSStarMapSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F708192A3B4C4 /* iOSStarMapSupport.swift */; };
 		12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */; };
 		29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E51B35725701CA2DB51488 /* iOSMapView.swift */; };
 		2F634825E4145753F51108E9 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
@@ -85,6 +86,7 @@
 		AA000000000000000000TB11 /* MapKitSharedLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */; };
 		AA000000000000000000TB12 /* DetailPresentationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */; };
 		AA000000000000000000TB13 /* UpcomingNightsGridViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */; };
+		AA000000000000000000TB14 /* SearchResultsLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF14 /* SearchResultsLayoutTests.swift */; };
 		B66ECDD7AD401F013891BF8E /* StarGazingIndexCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */; };
 		BB0000000000000000002B21 /* StarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F21 /* StarCatalog.swift */; };
 		BB0000000000000000002B22 /* StarMapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F22 /* StarMapCanvasView.swift */; };
@@ -110,6 +112,7 @@
 		BB0000000000000000005B05 /* ConstellationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F23 /* ConstellationData.swift */; };
 		BB0000000000000000005B06 /* MeteorShowerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F25 /* MeteorShowerData.swift */; };
 		BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F02 /* iOSDesignTokens.swift */; };
+		E1A0B1000000000000000002 /* iOSPreviewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0B1000000000000000001 /* iOSPreviewSupport.swift */; };
 		BB0000000000000000005B08 /* StarMapPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F09 /* StarMapPresentation.swift */; };
 		BB0000000000000000005B09 /* StarDisplayDensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0A /* StarDisplayDensity.swift */; };
 		BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F10 /* iOSTabHeaderView.swift */; };
@@ -155,11 +158,13 @@
 		6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapTileOverlay.swift; sourceTree = "<group>"; };
 		6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NightScope.icon; sourceTree = "<group>"; };
 		6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSForecastView.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F708192A3B4C4 /* iOSStarMapSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSStarMapSupport.swift; sourceTree = "<group>"; };
 		79E10951ADCBC5CEF800EE18 /* NightScopeiOSApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightScopeiOSApp.swift; sourceTree = "<group>"; };
 		7E945580091B1E2051F32062 /* NightScopeiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightScopeiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		816BFE2E87B5441281342EF9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94893EBD94DD9539C7C86561 /* iOSNightCardRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSNightCardRow.swift; sourceTree = "<group>"; };
 		9645065BBBF802A955B5582A /* NightScopeiOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NightScopeiOS.entitlements; sourceTree = "<group>"; };
+		E1A0B1000000000000000001 /* iOSPreviewSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSPreviewSupport.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeoStateValidator.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F01 /* NightScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F03 /* MilkyWayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculator.swift; sourceTree = "<group>"; };
@@ -210,6 +215,7 @@
 		AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitSharedLogicTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPresentationViewModelTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModelTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF14 /* SearchResultsLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsLayoutTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB0000000000000000002F21 /* StarCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarCatalog.swift; sourceTree = "<group>"; };
 		BB0000000000000000002F22 /* StarMapCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasView.swift; sourceTree = "<group>"; };
@@ -284,10 +290,12 @@
 				ED567DB71258EB139EE02CA1 /* Components */,
 				E874E471E7767792A4000D47 /* iOSRootView.swift */,
 				BB0000000000000000004F02 /* iOSDesignTokens.swift */,
+				E1A0B1000000000000000001 /* iOSPreviewSupport.swift */,
 				3C88010FC1657FBB75579A3E /* iOSTodayView.swift */,
 				6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */,
 				2C4FF1AF217AF56546E11BB3 /* iOSLocationView.swift */,
 				BB0000000000000000004F01 /* iOSStarMapView.swift */,
+				1A2B3C4D5E6F708192A3B4C4 /* iOSStarMapSupport.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -405,6 +413,7 @@
 				AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */,
 				AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */,
 				AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */,
+				AA000000000000000000TF14 /* SearchResultsLayoutTests.swift */,
 			);
 			path = NightScopeTests;
 			sourceTree = "<group>";
@@ -574,9 +583,11 @@
 				D75EF08B6B443B5D2CE817E5 /* NightScopeiOSApp.swift in Sources */,
 				CAE750591596DC8A81611119 /* iOSRootView.swift in Sources */,
 				BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */,
+				E1A0B1000000000000000002 /* iOSPreviewSupport.swift in Sources */,
 				91F8C0F8D6AA500B2E697662 /* iOSTodayView.swift in Sources */,
 				12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */,
 				C3624AC873043476C6CD9CD9 /* iOSLocationView.swift in Sources */,
+				1A2B3C4D5E6F708192A3B4C5 /* iOSStarMapSupport.swift in Sources */,
 				BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */,
 				E60A49CD1BC946E763B3AAC6 /* iOSNightCardRow.swift in Sources */,
 				29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */,
@@ -701,6 +712,7 @@
 				AA000000000000000000TB11 /* MapKitSharedLogicTests.swift in Sources */,
 				AA000000000000000000TB12 /* DetailPresentationViewModelTests.swift in Sources */,
 				AA000000000000000000TB13 /* UpcomingNightsGridViewModelTests.swift in Sources */,
+				AA000000000000000000TB14 /* SearchResultsLayoutTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -728,6 +740,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCameraUsageDescription = "実際の空と星図を重ねて表示するためにカメラを使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "星空観測の計画に現在地を使用します。";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -766,6 +779,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCameraUsageDescription = "実際の空と星図を重ねて表示するためにカメラを使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "星空観測の計画に現在地を使用します。";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

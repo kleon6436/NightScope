@@ -45,7 +45,8 @@ final class SidebarViewModelTests: XCTestCase {
         }
 
         XCTAssertEqual(vm.searchState.phase, .loading)
-        if case .loading = vm.searchPresentation {
+        if case .loading(let previousResults) = vm.searchPresentation {
+            XCTAssertTrue(previousResults.isEmpty)
             XCTAssertTrue(vm.isSearching)
         } else {
             XCTFail("検索中表示になっていません")

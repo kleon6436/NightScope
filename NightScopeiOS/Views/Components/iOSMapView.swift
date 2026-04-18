@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import UIKit
 
 // MARK: - UIViewRepresentable wrapper for MKMapView (iOS)
 
@@ -25,6 +26,7 @@ struct iOSMapView: UIViewRepresentable {
         MapKitViewSharedLogic.setInitialRegionIfNeeded(on: mapView, pinCoordinate: pinCoordinate)
 
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
+        tap.delegate = context.coordinator
         mapView.addGestureRecognizer(tap)
         return mapView
     }
@@ -46,7 +48,7 @@ struct iOSMapView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    final class Coordinator: NSObject, MKMapViewDelegate {
+    final class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         var parent: iOSMapView
         let state: MapKitCoordinatorState
 
@@ -59,10 +61,15 @@ struct iOSMapView: UIViewRepresentable {
         }
 
         @objc func handleTap(_ gr: UITapGestureRecognizer) {
+            guard gr.state == .ended else { return }
             guard let mapView = gr.view as? MKMapView else { return }
             let point = gr.location(in: mapView)
             let coord = mapView.convert(point, toCoordinateFrom: mapView)
             parent.onTap(coord)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            true
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {

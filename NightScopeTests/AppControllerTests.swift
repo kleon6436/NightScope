@@ -45,6 +45,11 @@ final class AppControllerTests: XCTestCase {
         }
     }
 
+    override func tearDown() {
+        MockURLProtocol.requestHandler = nil
+        super.tearDown()
+    }
+
     func test_init_usesLaunchDateAndIgnoresPersistedSelectedDate() {
         let key = "selectedDate"
         let userDefaults = UserDefaults.standard
@@ -152,6 +157,46 @@ final class AppControllerTests: XCTestCase {
         XCTFail("条件を満たすまでにタイムアウトしました", file: file, line: line)
     }
 
+    private func makeMockWeatherService(
+        handler: @escaping (URLRequest) throws -> (HTTPURLResponse, Data)
+    ) -> WeatherService {
+        MockURLProtocol.requestHandler = handler
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockURLProtocol.self]
+        return WeatherService(urlSession: URLSession(configuration: configuration))
+    }
+
+    private func makeTwoByTwoLightPollutionGrid(
+        southWestBrightness: Double = 0.001,
+        southEastBrightness: Double = 0.001,
+        northWestBrightness: Double,
+        northEastBrightness: Double
+    ) -> BortleGridData? {
+        var data = Data()
+        data.append(contentsOf: [0x42, 0x4F, 0x52, 0x54])
+
+        var version = Int32(1).littleEndian
+        data.append(contentsOf: withUnsafeBytes(of: &version) { Array($0) })
+
+        var latCells = Int32(2).littleEndian
+        data.append(contentsOf: withUnsafeBytes(of: &latCells) { Array($0) })
+
+        var lonCells = Int32(2).littleEndian
+        data.append(contentsOf: withUnsafeBytes(of: &lonCells) { Array($0) })
+
+        for brightness in [
+            Float(southWestBrightness),
+            Float(southEastBrightness),
+            Float(northWestBrightness),
+            Float(northEastBrightness)
+        ] {
+            var value = brightness.bitPattern.littleEndian
+            data.append(contentsOf: withUnsafeBytes(of: &value) { Array($0) })
+        }
+
+        return BortleGridData(data: data)
+    }
+
     func test_recalculate_latestTaskWinsAfterCancellation() async {
         let calendar = Calendar.current
         let firstDate = calendar.startOfDay(for: Date())
@@ -223,6 +268,60 @@ final class AppControllerTests: XCTestCase {
         }
 
         XCTAssertEqual(appController.upcomingIndexes[dayKey]?.hasWeatherData, true)
+    }
+
+    func test_refreshExternalData_skipsStaleLightPollutionAfterLocationChangesMidRefresh() async {
+        let tokyo = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+        let losAngeles = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        let storage = InMemoryLocationStorage()
+        storage.latitude = tokyo.latitude
+        storage.longitude = tokyo.longitude
+        storage.name = "東京"
+        storage.timeZoneIdentifier = "Asia/Tokyo"
+
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(name: "東京", timeZoneIdentifier: "Asia/Tokyo")
+            )
+        )
+        let weatherService = makeMockWeatherService { request in
+            let url = try XCTUnwrap(request.url)
+            let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+            let latitude = components.queryItems?.first(where: { $0.name == "lat" })?.value
+            let longitude = components.queryItems?.first(where: { $0.name == "lon" })?.value
+
+            XCTAssertEqual(latitude, "35.6762")
+            XCTAssertEqual(longitude, "139.6503")
+
+            Thread.sleep(forTimeInterval: 0.2)
+            let response = try XCTUnwrap(
+                HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+            )
+            return (response, Data(#"{"properties":{"timeseries":[]}}"#.utf8))
+        }
+        let grid = makeTwoByTwoLightPollutionGrid(
+            northWestBrightness: 0.0172,
+            northEastBrightness: 0.172
+        )
+        let lightPollutionService = LightPollutionService(gridData: grid)
+        let appController = AppController(
+            locationController: locationController,
+            weatherService: weatherService,
+            lightPollutionService: lightPollutionService,
+            calculationService: MockNightCalculationService()
+        )
+
+        let refreshTask = Task {
+            await appController.refreshExternalData()
+        }
+
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        locationController.selectedLocation = losAngeles
+        await refreshTask.value
+
+        XCTAssertNil(appController.lightPollutionService.bortleClass)
     }
 
     func test_makeStarGazingIndex_usesProvidedWeatherSnapshotAndTimeZone() {
@@ -309,7 +408,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertFalse(appController.starGazingIndex?.hasWeatherData ?? true)
     }
 
-    func test_recalculate_keepsDisplayedNightSummaryUntilNewDateCompletes() async {
+    func test_recalculate_clearsDisplayedNightSummaryUntilNewDateCompletes() async {
         let baseDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: baseDate) ?? baseDate
         let oldSummary = makeNightSummary(date: baseDate)
@@ -329,9 +428,99 @@ final class AppControllerTests: XCTestCase {
 
         appController.recalculate()
 
-        XCTAssertEqual(appController.nightSummary?.date, oldSummary.date)
-        XCTAssertEqual(appController.starGazingIndex?.score, oldIndex.score)
+        XCTAssertNil(appController.nightSummary)
+        XCTAssertNil(appController.starGazingIndex)
         XCTAssertTrue(appController.isCalculating)
+    }
+
+    func test_handleSceneDidBecomeActive_advancesSelectedDateWhenTrackingTodayAcrossDayBoundary() async {
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let storage = InMemoryLocationStorage()
+        storage.timeZoneIdentifier = tokyo.identifier
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(name: "東京", timeZoneIdentifier: tokyo.identifier)
+            )
+        )
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: tokyo)
+        let firstActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12, hour: 21))!
+        let secondActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 13, hour: 7))!
+        let firstDay = ObservationTimeZone.startOfDay(for: firstActiveDate, timeZone: tokyo)
+        let secondDay = ObservationTimeZone.startOfDay(for: secondActiveDate, timeZone: tokyo)
+
+        let mockCalculationService = MockNightCalculationService()
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: firstDay, timeZoneIdentifier: tokyo.identifier))
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: firstDay, timeZoneIdentifier: tokyo.identifier)])
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: secondDay, timeZoneIdentifier: tokyo.identifier))
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: secondDay, timeZoneIdentifier: tokyo.identifier)])
+
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: mockCalculationService
+        )
+
+        appController.onStart(referenceDate: firstActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.nightSummary?.date == firstDay && appController.isUpcomingLoading == false
+        }
+
+        appController.handleSceneDidBecomeActive(referenceDate: secondActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.selectedDate == secondDay
+                && appController.nightSummary?.date == secondDay
+                && appController.upcomingNights.first?.date == secondDay
+        }
+
+        XCTAssertEqual(appController.selectedDate, secondDay)
+        XCTAssertEqual(appController.nightSummary?.date, secondDay)
+        XCTAssertEqual(appController.upcomingNights.first?.date, secondDay)
+    }
+
+    func test_handleSceneDidBecomeActive_preservesCustomSelectedDateAcrossDayBoundary() async {
+        let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+        let storage = InMemoryLocationStorage()
+        storage.timeZoneIdentifier = tokyo.identifier
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(name: "東京", timeZoneIdentifier: tokyo.identifier)
+            )
+        )
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: tokyo)
+        let firstActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12, hour: 21))!
+        let secondActiveDate = calendar.date(from: DateComponents(year: 2026, month: 8, day: 13, hour: 7))!
+        let trackedDay = ObservationTimeZone.startOfDay(for: firstActiveDate, timeZone: tokyo)
+        let customDay = ObservationTimeZone.date(byAdding: .day, value: 3, to: trackedDay, timeZone: tokyo) ?? trackedDay
+
+        let mockCalculationService = MockNightCalculationService()
+        await mockCalculationService.enqueueNightSummary(makeNightSummary(date: trackedDay, timeZoneIdentifier: tokyo.identifier))
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: trackedDay, timeZoneIdentifier: tokyo.identifier)])
+        await mockCalculationService.enqueueUpcomingNights([makeNightSummary(date: trackedDay, timeZoneIdentifier: tokyo.identifier)])
+
+        let appController = AppController(
+            locationController: locationController,
+            calculationService: mockCalculationService
+        )
+
+        appController.onStart(referenceDate: firstActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.nightSummary?.date == trackedDay && appController.isUpcomingLoading == false
+        }
+
+        appController.selectedDate = customDay
+        appController.handleSceneDidBecomeActive(referenceDate: secondActiveDate, refreshExternalData: false)
+
+        await waitUntil(timeout: 1.0) {
+            appController.isUpcomingLoading == false
+        }
+
+        XCTAssertEqual(appController.selectedDate, customDay)
     }
 
     func test_locationRefreshDisposition_appliesAll_whenSelectionStillMatches() {

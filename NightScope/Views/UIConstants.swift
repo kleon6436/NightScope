@@ -51,6 +51,64 @@ enum Layout {
     static let gridIconWidth: CGFloat = 14
 }
 
+enum SearchResultsLayout {
+    static func needsScroll(resultCount: Int, visibleRowCapacity: CGFloat) -> Bool {
+        CGFloat(resultCount) > floor(visibleRowCapacity)
+    }
+}
+
+struct DetailErrorOverlay: View {
+    let weatherErrorMessage: String?
+    let hasLightPollutionError: Bool
+    let retryWeatherAction: () -> Void
+    let retryLightPollutionAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: Spacing.xs) {
+            if hasLightPollutionError {
+                DetailErrorBanner(
+                    message: "光害データの取得に失敗しました",
+                    retryAction: retryLightPollutionAction
+                )
+            }
+            if let weatherErrorMessage {
+                DetailErrorBanner(
+                    message: weatherErrorMessage,
+                    retryAction: retryWeatherAction
+                )
+            }
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.bottom, Spacing.sm)
+    }
+}
+
+private struct DetailErrorBanner: View {
+    let message: String
+    let retryAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: AppIcons.Status.warning)
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            Text(message)
+                .font(.body)
+                .lineLimit(2)
+            Spacer()
+            Button("再試行", action: retryAction)
+                .buttonStyle(.glass)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        .shadow(radius: 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("エラー: \(message)")
+    }
+}
+
 struct LocationSearchResultContent: View {
     let item: MKMapItem
     let iconSystemName: String
@@ -151,7 +209,7 @@ struct SelectedLocationSummaryContent: View {
 enum StarMapLayout {
     static let minFOV: Double = 30
     static let maxFOV: Double = 150
-    static let defaultFOV: Double = 90
+    static let defaultFOV: Double = 60
     static let resetAltitude: Double = 30
     static let directionStep: Double = 5
     static let zoomStep: Double = 10
@@ -401,6 +459,7 @@ struct ForecastCardPresentation {
     let isReliableWeather: Bool
     let hasPartialWeather: Bool
     let isForecastOutOfRange: Bool
+    let hasWeatherLoadError: Bool
 
     var shortDateLabel: String {
         FormatterFactory.localizedDate(
@@ -432,6 +491,9 @@ struct ForecastCardPresentation {
         }
         if isForecastOutOfRange {
             return "天気予報対象外"
+        }
+        if hasWeatherLoadError {
+            return "取得失敗"
         }
         return nil
     }

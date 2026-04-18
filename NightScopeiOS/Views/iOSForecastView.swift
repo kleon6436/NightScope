@@ -1,6 +1,20 @@
 import SwiftUI
 
 @MainActor
+struct iOSForecastRowModel {
+    let night: NightSummary
+    let index: StarGazingIndex?
+    let weather: DayWeatherSummary?
+    let rangeText: String
+    let isReliableWeather: Bool
+    let hasPartialWeather: Bool
+    let isForecastOutOfRange: Bool
+    let hasWeatherLoadError: Bool
+    let isSelected: Bool
+    let accessibilityLabel: String
+}
+
+@MainActor
 struct iOSForecastViewModel {
     private let stateResolver = DetailContentStateResolver()
 
@@ -8,6 +22,28 @@ struct iOSForecastViewModel {
         stateResolver.forecastState(
             hasDisplayNights: hasDisplayNights,
             isUpcomingLoading: isUpcomingLoading
+        )
+    }
+
+    func rowModel(for night: NightSummary, using gridViewModel: UpcomingNightsGridViewModel) -> iOSForecastRowModel {
+        let index = gridViewModel.starGazingIndex(for: night.date)
+        let weather = gridViewModel.weatherSummary(for: night.date)
+        let rangeText = gridViewModel.observableRangeText(night: night, weather: weather)
+        let isReliableWeather = gridViewModel.hasReliableWeatherData(for: night, weather: weather)
+        let hasPartialWeather = gridViewModel.hasPartialWeatherData(for: night, weather: weather)
+        let isForecastOutOfRange = gridViewModel.isForecastOutOfRange(for: night, weather: weather)
+
+        return iOSForecastRowModel(
+            night: night,
+            index: index,
+            weather: weather,
+            rangeText: rangeText,
+            isReliableWeather: isReliableWeather,
+            hasPartialWeather: hasPartialWeather,
+            isForecastOutOfRange: isForecastOutOfRange,
+            hasWeatherLoadError: gridViewModel.weatherErrorMessage != nil,
+            isSelected: gridViewModel.isDateSelected(night.date),
+            accessibilityLabel: gridViewModel.cardAccessibilityLabel(night: night, weather: weather, index: index)
         )
     }
 
@@ -38,18 +74,26 @@ struct iOSForecastView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                headerSection
-                contentByState
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    headerSection
+                    contentByState
+                }
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.sm)
             }
-            .padding(.vertical, Spacing.sm)
+            .refreshable {
+                await detailViewModel.refreshWeather()
+                await detailViewModel.refreshForecast()
+            }
             .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
 
     private var headerSection: some View {
         iOSTabHeaderView(
-            title: "14日予報"
+            title: "14日予報",
+            horizontalPadding: Spacing.xs
         ) {
             VStack(alignment: .leading, spacing: Spacing.xs / 2) {
                 HStack(spacing: Spacing.xs) {
@@ -65,7 +109,11 @@ struct iOSForecastView: View {
                     .lineLimit(1)
             }
         } trailing: {
-            EmptyView()
+            if detailViewModel.isUpcomingLoading || gridViewModel.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("14日予報を更新中")
+            }
         }
     }
 
@@ -82,54 +130,71 @@ struct iOSForecastView: View {
     }
 
     private var loadingView: some View {
-        ProgressView("予報を計算中...")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: Spacing.sm) {
+            ProgressView()
+            Text("予報を計算中...")
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: IOSDesignTokens.Forecast.loadingMinHeight)
+        .iOSMaterialPanel()
     }
 
     private var emptyStateView: some View {
-        ContentUnavailableView(
-            "予報データがありません",
-            systemImage: "calendar.badge.exclamationmark",
-            description: Text("14日間の予報データを計算できませんでした")
-        )
+        ContentUnavailableView {
+            Label("予報データがありません", systemImage: "calendar.badge.exclamationmark")
+        } description: {
+            Text("14日間の予報データを計算できませんでした")
+        } actions: {
+            Button("再試行") {
+                detailViewModel.retryForecastInBackground()
+            }
+        }
     }
 
     private var forecastList: some View {
-        List {
+        LazyVStack(alignment: .leading, spacing: IOSDesignTokens.Forecast.rowSpacing) {
             ForEach(gridViewModel.displayNights, id: \.date) { night in
                 forecastRow(for: night)
             }
         }
-        .listStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func forecastRow(for night: NightSummary) -> some View {
-        let index = gridViewModel.starGazingIndex(for: night.date)
-        let weather = gridViewModel.weatherSummary(for: night.date)
-        let rangeText = gridViewModel.observableRangeText(night: night, weather: weather)
-        let isReliableWeather = gridViewModel.hasReliableWeatherData(for: night, weather: weather)
-        let hasPartialWeather = gridViewModel.hasPartialWeatherData(for: night, weather: weather)
-        let isForecastOutOfRange = gridViewModel.isForecastOutOfRange(for: night, weather: weather)
+        let rowModel = viewModel.rowModel(for: night, using: gridViewModel)
 
-        return iOSNightCardRow(
-            night: night,
-            index: index,
-            weather: weather,
-            rangeText: rangeText,
-            isReliableWeather: isReliableWeather,
-            hasPartialWeather: hasPartialWeather,
-            isForecastOutOfRange: isForecastOutOfRange,
-            isSelected: gridViewModel.isDateSelected(night.date)
-        )
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
-        .listRowInsets(IOSDesignTokens.Forecast.rowInsets)
-        .onTapGesture {
-            viewModel.selectNight(night.date, using: gridViewModel, selectedTab: $selectedTab)
+        return Button {
+            viewModel.selectNight(rowModel.night.date, using: gridViewModel, selectedTab: $selectedTab)
+        } label: {
+            iOSNightCardRow(
+                night: rowModel.night,
+                index: rowModel.index,
+                weather: rowModel.weather,
+                rangeText: rowModel.rangeText,
+                isReliableWeather: rowModel.isReliableWeather,
+                hasPartialWeather: rowModel.hasPartialWeather,
+                isForecastOutOfRange: rowModel.isForecastOutOfRange,
+                hasWeatherLoadError: rowModel.hasWeatherLoadError,
+                isSelected: rowModel.isSelected
+            )
         }
-        .accessibilityLabel(gridViewModel.cardAccessibilityLabel(night: night, weather: weather, index: index))
-        .accessibilityAddTraits(.isButton)
+        .buttonStyle(ForecastRowButtonStyle())
+        .accessibilityLabel(rowModel.accessibilityLabel)
         .accessibilityHint("タップして今夜タブで詳細を表示")
+        .accessibilityAddTraits(rowModel.isSelected ? .isSelected : [])
+    }
+}
+
+private struct ForecastRowButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(reduceMotion ? .none : .spring(duration: 0.2), value: configuration.isPressed)
     }
 }
 

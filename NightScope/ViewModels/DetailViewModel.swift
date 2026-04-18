@@ -9,7 +9,7 @@ enum LoadableContentState: Equatable {
 
 struct DetailContentStateResolver {
     func forecastState(hasDisplayNights: Bool, isUpcomingLoading: Bool) -> LoadableContentState {
-        if isUpcomingLoading {
+        if isUpcomingLoading && !hasDisplayNights {
             return .loading
         }
         if !hasDisplayNights {
@@ -54,18 +54,27 @@ final class DetailViewModel: ObservableObject {
 
     init(appController: AppController) {
         self.appController = appController
-        self.selectedDate = appController.selectedDate
-        self.displayedDate = appController.selectedDate
+        let initialState = appController.observationState
+        self.nightSummary = initialState.nightSummary
+        self.starGazingIndex = initialState.starGazingIndex
+        self.isCalculating = initialState.isCalculating
+        self.upcomingNights = initialState.upcomingNights
+        self.upcomingIndexes = initialState.upcomingIndexes
+        self.selectedDate = initialState.selectedDate
+        self.displayedDate = initialState.selectedDate
         self.selectedTimeZone = appController.locationController.selectedTimeZone
         bind()
+        updateDisplayedContentState()
     }
 
     private func bind() {
         appController.$observationState
             .sink { [weak self] state in
                 guard let self else { return }
-                self.nightSummary = state.nightSummary
-                self.starGazingIndex = state.starGazingIndex
+                if !self.shouldPreserveDisplayedSummary(during: state) {
+                    self.nightSummary = state.nightSummary
+                    self.starGazingIndex = state.starGazingIndex
+                }
                 self.upcomingNights = state.upcomingNights
                 self.upcomingIndexes = state.upcomingIndexes
                 self.isCalculating = state.isCalculating
@@ -147,6 +156,14 @@ final class DetailViewModel: ObservableObject {
         await appController.refreshLightPollution()
     }
 
+    func refreshExternalData() async {
+        await appController.refreshExternalData()
+    }
+
+    func refreshForecast() async {
+        await appController.recalculateUpcomingAndWait()
+    }
+
     func retryWeatherInBackground() {
         Task {
             await refreshWeather()
@@ -156,6 +173,12 @@ final class DetailViewModel: ObservableObject {
     func retryLightPollutionInBackground() {
         Task {
             await refreshLightPollution()
+        }
+    }
+
+    func retryForecastInBackground() {
+        Task {
+            await refreshForecast()
         }
     }
 
@@ -171,6 +194,29 @@ final class DetailViewModel: ObservableObject {
         }
 
         return nightSummary.date
+    }
+
+    private func shouldPreserveDisplayedSummary(
+        during state: AppController.ObservationState
+    ) -> Bool {
+        guard state.isCalculating,
+              state.nightSummary == nil,
+              let displayedSummary = nightSummary else {
+            return false
+        }
+
+        let selectedCoordinate = appController.locationController.selectedLocation
+        let isSameLocation =
+            displayedSummary.location.latitude == selectedCoordinate.latitude
+            && displayedSummary.location.longitude == selectedCoordinate.longitude
+        let isSameTimeZone = displayedSummary.timeZoneIdentifier == selectedTimeZone.identifier
+        let isRefreshingDifferentDay = !ObservationTimeZone.isDate(
+            displayedSummary.date,
+            inSameDayAs: state.selectedDate,
+            timeZone: selectedTimeZone
+        )
+
+        return isSameLocation && isSameTimeZone && isRefreshingDifferentDay
     }
 
     private func updateDisplayedContentState() {

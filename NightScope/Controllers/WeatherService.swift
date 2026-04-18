@@ -235,12 +235,13 @@ final class WeatherService: ObservableObject, WeatherProviding {
     }
 
     private nonisolated static func locationKey(latitude: Double, longitude: Double, timeZone: TimeZone) -> String {
-        // 天気データは ~1km スケールで変わらないため、小数点以下2桁（約1.1km）に丸める。
+        // requestFactory と同じ小数点4桁（約11m）で揃えて、
+        // 検索で近接した別地点へ移動したときも古い天気キャッシュを再利用しない。
         // printf の暗黙丸めではなく明示的 rounded() を使うことで
         // 境界値付近の浮動小数点ブレによるキャッシュ不一致を防ぐ。
-        let lat = (latitude  * 100).rounded() / 100
-        let lon = (longitude * 100).rounded() / 100
-        return String(format: "%.2f,%.2f|%@", lat, lon, timeZone.identifier)
+        let lat = (latitude  * 10_000).rounded() / 10_000
+        let lon = (longitude * 10_000).rounded() / 10_000
+        return String(format: "%.4f,%.4f|%@", lat, lon, timeZone.identifier)
     }
 
     private func cachedWeatherByDate(for locationKey: String) -> [String: DayWeatherSummary] {

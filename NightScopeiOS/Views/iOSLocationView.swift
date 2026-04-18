@@ -1,19 +1,13 @@
 import SwiftUI
 import MapKit
-import Combine
+import UIKit
 
 struct iOSLocationView: View {
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var locationInputMode: LocationInputMode = .map
-
-    private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
-    private var showLightPollutionBinding: Binding<Bool> {
-        Binding(
-            get: { locationInputMode == .lightPollutionMap },
-            set: { locationInputMode = $0 ? .lightPollutionMap : .map }
-        )
-    }
 
     private var showLightPollution: Bool {
         locationInputMode == .lightPollutionMap
@@ -21,42 +15,51 @@ struct iOSLocationView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                headerSection
-                searchSection
-                searchResultsList
-                mapArea
-                bottomBar
-            }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.sm)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .alert(
-                "位置情報エラー",
-                isPresented: locationErrorAlertBinding,
-                presenting: sidebarViewModel.locationError
-            ) { _ in
-                Button("OK") {
-                    sidebarViewModel.clearLocationError()
+            GeometryReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        headerSection
+                        searchSection
+                        searchResultsList
+                        mapArea
+                        bottomBar
+                    }
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.top, Spacing.sm)
+                    .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .topLeading)
                 }
-            } message: { error in
-                Text(error.localizedDescription)
+                .scrollDismissesKeyboard(.interactively)
+                .toolbarBackground(.hidden, for: .navigationBar)
+                .alert(
+                    "位置情報エラー",
+                    isPresented: locationErrorAlertBinding,
+                    presenting: sidebarViewModel.locationError
+                ) { error in
+                    if error == .denied {
+                        Button("設定を開く", action: openAppSettings)
+                    }
+                    Button("OK") {
+                        sidebarViewModel.clearLocationError()
+                    }
+                } message: { error in
+                    Text(error.localizedDescription)
+                }
             }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            sidebarViewModel.refreshLocationAuthorizationState()
         }
     }
 
     private var headerSection: some View {
         iOSTabHeaderView(
             title: "場所",
-            verticalPadding: Spacing.xs,
-            bottomPadding: Spacing.xs / 2,
-            subtitleSpacing: Spacing.xs / 2
+            horizontalPadding: Spacing.xs
         ) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("検索して観測地点を選択します")
-                    .font(.subheadline)
-                    .lineLimit(1)
-            }
+            Text("観測地点を検索")
+                .font(.subheadline)
+                .lineLimit(1)
         } trailing: {
             Button {
                 isSearchFocused = false
@@ -96,67 +99,62 @@ struct iOSLocationView: View {
 
     // MARK: - Search Results
 
-    @ViewBuilder
     private var searchResultsList: some View {
-        switch sidebarViewModel.searchPresentation {
-        case .hidden, .loading:
-            EmptyView()
-        case .results(let results):
-            searchResultsCard(results)
-        case .empty(let query):
-            ContentUnavailableView.search(text: query)
-                .padding(.vertical, Spacing.xs)
-        case .error(let query, let message):
-            ContentUnavailableView {
-                Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
-            } description: {
-                Text("\"\(query)\" の検索に失敗しました。\(message)")
-            } actions: {
-                Button("再試行") {
-                    sidebarViewModel.retrySearch()
-                }
-            }
-            .padding(.vertical, Spacing.xs)
-        }
+        iOSLocationSearchResultsSection(
+            presentation: sidebarViewModel.searchPresentation,
+            searchResultsContent: searchResultsCard,
+            onRetry: sidebarViewModel.retrySearch
+        )
     }
 
     private func searchResultsCard(_ results: [MKMapItem]) -> some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(Array(results.enumerated()), id: \.offset) { index, item in
-                    searchResultRow(item)
-                    if index < results.count - 1 {
-                        Divider()
-                    }
+        Group {
+            if SearchResultsLayout.needsScroll(
+                resultCount: results.count,
+                visibleRowCapacity: IOSDesignTokens.Location.searchResultsVisibleRowCapacity
+            ) {
+                ScrollView {
+                    searchResultsContent(results)
+                }
+                .scrollIndicators(.hidden)
+                .frame(maxHeight: IOSDesignTokens.Location.searchResultsMaxHeight)
+            } else {
+                searchResultsContent(results)
+            }
+        }
+        .iOSMaterialPanel()
+    }
+
+    private func searchResultsContent(_ results: [MKMapItem]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(results.enumerated()), id: \.offset) { index, item in
+                searchResultRow(item)
+                if index < results.count - 1 {
+                    Divider()
                 }
             }
         }
-        .scrollIndicators(.hidden)
-        .frame(maxHeight: IOSDesignTokens.Location.searchResultsMaxHeight)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
     }
 
     private func searchResultRow(_ item: MKMapItem) -> some View {
         Button {
-            sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
-            isSearchFocused = false
+            selectSearchResult(item)
         } label: {
             LocationSearchResultContent(
                 item: item,
                 titleFont: .body,
                 subtitleFont: .caption,
                 lineSpacing: IOSDesignTokens.Location.searchResultLineSpacing,
-                titleFallback: "",
+                titleFallback: "不明な場所",
                 iconWidth: 18
             )
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("場所を選択: \(item.name ?? "不明")")
     }
 
     // MARK: - Map
@@ -175,6 +173,8 @@ struct iOSLocationView: View {
             )
             .ignoresSafeArea(edges: .horizontal)
         }
+        .frame(minHeight: mapAreaMinHeight, maxHeight: .infinity)
+        .layoutPriority(1)
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous))
     }
 
@@ -192,20 +192,17 @@ struct iOSLocationView: View {
 
     private var bottomBar: some View {
         VStack(spacing: Spacing.sm) {
-            Picker("地図モード", selection: showLightPollutionBinding) {
-                Text("地図").tag(false)
-                Text("光害").tag(true)
+            Picker("地図モード", selection: $locationInputMode) {
+                Text("地図").tag(LocationInputMode.map)
+                Text("光害").tag(LocationInputMode.lightPollutionMap)
             }
             .pickerStyle(.segmented)
 
             infoRow
         }
         .padding(Spacing.sm)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .iOSMaterialPanel()
+        .padding(.bottom, Spacing.sm)
     }
 
     private var infoRow: some View {
@@ -228,9 +225,12 @@ struct iOSLocationView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if sidebarViewModel.hasLightPollutionFetchFailed {
-                    Text("取得失敗")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Button("再試行") {
+                        sidebarViewModel.retryLightPollution()
+                    }
+                    .font(.caption)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
                 }
             }
         }
@@ -254,6 +254,84 @@ struct iOSLocationView: View {
 
     private func clearSearchInteraction() {
         sidebarViewModel.clearSearch()
+    }
+
+    private func selectSearchResult(_ item: MKMapItem) {
+        sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
+        isSearchFocused = false
+    }
+
+    private func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        sidebarViewModel.prepareForLocationSettingsRecovery()
+        openURL(settingsURL)
+    }
+
+    private var usesCompactMapLayout: Bool {
+        isSearchFocused || isShowingSearchPresentation
+    }
+
+    private var isShowingSearchPresentation: Bool {
+        if case .hidden = sidebarViewModel.searchPresentation {
+            return false
+        }
+        return true
+    }
+
+    private var mapAreaMinHeight: CGFloat {
+        usesCompactMapLayout
+            ? IOSDesignTokens.Location.compactMapHeight
+            : IOSDesignTokens.Location.defaultMapHeight
+    }
+}
+
+private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
+    let presentation: SidebarViewModel.SearchPresentation
+    let searchResultsContent: ([MKMapItem]) -> ResultsContent
+    let onRetry: () -> Void
+
+    @ViewBuilder
+    var body: some View {
+        switch presentation {
+        case .hidden:
+            EmptyView()
+        case .loading(let previousResults):
+            if previousResults.isEmpty {
+                HStack(spacing: Spacing.xs) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("検索中…")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .iOSMaterialPanel()
+            } else {
+                searchResultsContent(previousResults)
+                    .redacted(reason: .placeholder)
+                    .allowsHitTesting(false)
+                    .overlay(alignment: .topTrailing) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(Spacing.xs)
+                    }
+                    .opacity(0.75)
+            }
+        case .results(let results):
+            searchResultsContent(results)
+        case .empty(let query):
+            ContentUnavailableView.search(text: query)
+                .padding(.vertical, Spacing.xs)
+        case .error(let query, let message):
+            ContentUnavailableView {
+                Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
+            } description: {
+                Text("\"\(query)\" の検索に失敗しました。\(message)")
+            } actions: {
+                Button("再試行", action: onRetry)
+            }
+            .padding(.vertical, Spacing.xs)
+        }
     }
 }
 
@@ -292,11 +370,7 @@ private struct LocationSearchField: View {
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .iOSMaterialPanel()
     }
 }
 

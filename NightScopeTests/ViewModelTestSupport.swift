@@ -83,6 +83,8 @@ final class MockLocationController: LocationProviding {
     private(set) var locationUpdateID = UUID()
 
     private(set) var requestCurrentLocationCalled = false
+    private(set) var prepareForSettingsRecoveryCalled = false
+    private(set) var refreshAuthorizationStateCalled = false
     private(set) var searchQuery: String?
     private(set) var selectedMapItem: MKMapItem?
     private(set) var selectedCoordinateCalls: [CLLocationCoordinate2D] = []
@@ -99,7 +101,7 @@ final class MockLocationController: LocationProviding {
         get { searchState.isSearching }
         set {
             if newValue {
-                searchState = .loading(query: normalizedSearchQuery)
+                searchState = .loading(query: normalizedSearchQuery, previousResults: searchState.results)
             } else {
                 let query = normalizedSearchQuery
                 searchState = query.isEmpty ? .idle : .empty(query: query)
@@ -151,6 +153,14 @@ final class MockLocationController: LocationProviding {
         requestCurrentLocationCalled = true
     }
 
+    func prepareForSettingsRecovery() {
+        prepareForSettingsRecoveryCalled = true
+    }
+
+    func refreshAuthorizationState() {
+        refreshAuthorizationStateCalled = true
+    }
+
     func search(query: String) {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if normalizedQuery.isEmpty {
@@ -159,7 +169,7 @@ final class MockLocationController: LocationProviding {
             return
         }
         searchQuery = query
-        searchState = .loading(query: normalizedQuery)
+        searchState = .loading(query: normalizedQuery, previousResults: searchState.results)
     }
 
     func clearSearch() {

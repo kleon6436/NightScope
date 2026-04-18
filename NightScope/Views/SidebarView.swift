@@ -379,7 +379,10 @@ private struct SidebarSearchResultsList: View {
 
     var body: some View {
         let items = Array(searchResults.prefix(SidebarSearchInteraction.maxVisibleResults).enumerated())
-        let needsScroll = searchResults.count >= 2
+        let needsScroll = SearchResultsLayout.needsScroll(
+            resultCount: items.count,
+            visibleRowCapacity: Self.maxVisibleRows
+        )
 
         Group {
             if needsScroll {
