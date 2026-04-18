@@ -149,10 +149,13 @@ struct iOSLocationView: View {
                 titleFallback: "",
                 iconWidth: 18
             )
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("場所を選択: \(item.name ?? "不明")")
     }
 
     // MARK: - Map
