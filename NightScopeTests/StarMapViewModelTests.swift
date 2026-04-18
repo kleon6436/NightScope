@@ -189,6 +189,70 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(StarDisplayDensity.small.maxMagnitude, 5.0, accuracy: 0.0001)
     }
 
+    func test_StarMapMotionPose_make_convertsBackVectorToSkyPose() {
+        let northHorizon = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: 0, m23: 1,
+                m31: 0, m32: -1, m33: 0
+            )
+        )
+        XCTAssertEqual(northHorizon.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(northHorizon.altitude, 0, accuracy: 0.001)
+
+        let eastHorizon = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 0, m12: -1, m13: 0,
+                m21: 0, m22: 0, m23: 1,
+                m31: -1, m32: 0, m33: 0
+            )
+        )
+        XCTAssertEqual(eastHorizon.azimuth, 90, accuracy: 0.001)
+        XCTAssertEqual(eastHorizon.altitude, 0, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_make_tracksUpwardAndDownwardTilt() {
+        let northUpward = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: -0.5, m23: 0.866_025,
+                m31: 0, m32: -0.866_025, m33: -0.5
+            )
+        )
+        XCTAssertEqual(northUpward.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(northUpward.altitude, 30, accuracy: 0.001)
+
+        let northDownward = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: 0.5, m23: 0.866_025,
+                m31: 0, m32: -0.866_025, m33: 0.5
+            )
+        )
+        XCTAssertEqual(northDownward.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(northDownward.altitude, -10, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_smoothed_wrapsAzimuthAcrossNorthWithoutJump() {
+        let previous = StarMapMotionPose(azimuth: 359, altitude: 44)
+        let next = StarMapMotionPose(azimuth: 1, altitude: 46)
+
+        let smoothed = StarMapMotionPose.smoothed(previous: previous, next: next)
+
+        XCTAssertEqual(smoothed.azimuth, 359.36, accuracy: 0.001)
+        XCTAssertEqual(smoothed.altitude, 44.36, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_smoothed_respondsFasterToLargeMovement() {
+        let previous = StarMapMotionPose(azimuth: 10, altitude: 20)
+        let next = StarMapMotionPose(azimuth: 50, altitude: 45)
+
+        let smoothed = StarMapMotionPose.smoothed(previous: previous, next: next)
+
+        XCTAssertEqual(smoothed.azimuth, 23.6, accuracy: 0.001)
+        XCTAssertEqual(smoothed.altitude, 27.5, accuracy: 0.001)
+    }
+
     func test_StarMapViewModel_recomputesWhenStarDisplayDensityChanges() {
         let key = StarDisplayDensity.defaultsKey
         let previousValue = UserDefaults.standard.string(forKey: key)

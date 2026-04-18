@@ -55,6 +55,95 @@ struct StarMapComputationDependency: Sendable {
     )
 }
 
+struct StarMapMotionMatrix {
+    let m11: Double
+    let m12: Double
+    let m13: Double
+    let m21: Double
+    let m22: Double
+    let m23: Double
+    let m31: Double
+    let m32: Double
+    let m33: Double
+
+    func referenceVector(forDeviceVectorX x: Double, y: Double, z: Double) -> (east: Double, north: Double, up: Double) {
+        (
+            east: (m11 * x) + (m21 * y) + (m31 * z),
+            north: (m12 * x) + (m22 * y) + (m32 * z),
+            up: (m13 * x) + (m23 * y) + (m33 * z)
+        )
+    }
+}
+
+struct StarMapMotionPose: Equatable {
+    let azimuth: Double
+    let altitude: Double
+
+    init(azimuth: Double, altitude: Double) {
+        self.azimuth = Self.normalizedAzimuth(azimuth)
+        self.altitude = Self.clampedAltitude(altitude)
+    }
+
+    static func make(rotationMatrix: StarMapMotionMatrix) -> Self {
+        let lookingVector = rotationMatrix.referenceVector(forDeviceVectorX: 0, y: 0, z: -1)
+        let azimuth = normalizedAzimuth(atan2(lookingVector.east, lookingVector.north) * 180 / .pi)
+        let altitude = atan2(
+            lookingVector.up,
+            hypot(lookingVector.east, lookingVector.north)
+        ) * 180 / .pi
+        return Self(azimuth: azimuth, altitude: altitude)
+    }
+
+    static func smoothed(previous: Self?, next: Self) -> Self {
+        guard let previous else { return next }
+
+        let azimuthDelta = wrappedAzimuthDelta(from: previous.azimuth, to: next.azimuth)
+        let altitudeDelta = next.altitude - previous.altitude
+        let azimuthFactor = smoothingFactor(for: abs(azimuthDelta), threshold: 12, base: 0.18, boosted: 0.34)
+        let altitudeFactor = smoothingFactor(for: abs(altitudeDelta), threshold: 10, base: 0.18, boosted: 0.30)
+
+        return Self(
+            azimuth: previous.azimuth + (azimuthDelta * azimuthFactor),
+            altitude: previous.altitude + (altitudeDelta * altitudeFactor)
+        )
+    }
+
+    static func normalizedAzimuth(_ azimuth: Double) -> Double {
+        let normalized = azimuth.truncatingRemainder(dividingBy: 360)
+        return normalized >= 0 ? normalized : normalized + 360
+    }
+
+    private static func clampedAltitude(_ altitude: Double) -> Double {
+        clamp(altitude, min: -10, max: 90)
+    }
+
+    private static func clamp(_ value: Double, min minimum: Double, max maximum: Double) -> Double {
+        Swift.min(Swift.max(value, minimum), maximum)
+    }
+
+    private static func smoothingFactor(
+        for deltaMagnitude: Double,
+        threshold: Double,
+        base: Double,
+        boosted: Double
+    ) -> Double {
+        deltaMagnitude >= threshold ? boosted : base
+    }
+
+    private static func wrappedAzimuthDelta(from source: Double, to target: Double) -> Double {
+        let rawDelta = normalizedAzimuth(target) - normalizedAzimuth(source)
+
+        if rawDelta > 180 {
+            return rawDelta - 360
+        }
+        if rawDelta < -180 {
+            return rawDelta + 360
+        }
+
+        return rawDelta
+    }
+}
+
 // MARK: - ViewModel
 
 @MainActor

@@ -1,6 +1,5 @@
 import SwiftUI
 import CoreMotion
-import CoreLocation
 
 // MARK: - iOSStarMapView
 
@@ -9,7 +8,7 @@ struct iOSStarMapView: View {
     @AppStorage(StarDisplayDensity.defaultsKey) private var starDisplayDensityRaw = StarDisplayDensity.defaultValue.rawValue
 
     @State private var motionManager = CMMotionManager()
-    @State private var headingController = StarMapHeadingController()
+    @State private var lastMotionPose: StarMapMotionPose?
     @State private var bottomControlPanelHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -240,38 +239,41 @@ struct iOSStarMapView: View {
     }
 
     private func startMotion() {
-        guard canEnableGyroMode else {
+        guard let referenceFrame = preferredMotionReferenceFrame else {
             viewModel.isGyroMode = false
             return
         }
-
-        // xArbitraryZVertical: Z 軸 = 鉛直上方 (重力方向)
-        // pitch のみで仰角を取得。方位角は CLHeading から取得する。
-        motionManager.deviceMotionUpdateInterval = 1.0 / 30
-        motionManager.startDeviceMotionUpdates(
-            using: .xArbitraryZVertical,
-            to: .main
-        ) { motion, _ in
-            guard let motion else { return }
-            // pitch: 0 = フラット (天頂向き), π/2 = 垂直 (地平線向き)
-            let pitchDeg = motion.attitude.pitch * 180 / .pi
-            viewModel.viewAltitude = max(0, min(90, 90 - pitchDeg))
+        guard motionManager.isDeviceMotionAvailable else {
+            viewModel.isGyroMode = false
+            return
         }
+        guard !motionManager.isDeviceMotionActive else { return }
 
-        // 方位角は CLLocationManager の heading から取得
-        headingController.start(
-            onHeading: { heading in
-            viewModel.viewAzimuth = heading
-        },
-            onAuthorizationUnavailable: {
+        lastMotionPose = nil
+        motionManager.deviceMotionUpdateInterval = 1.0 / 45
+        motionManager.startDeviceMotionUpdates(
+            using: referenceFrame,
+            to: .main
+        ) { motion, error in
+            if error != nil {
                 viewModel.isGyroMode = false
+                return
             }
-        )
+            guard let motion else { return }
+
+            let rawPose = StarMapMotionPose.make(
+                rotationMatrix: StarMapMotionMatrix(rotationMatrix: motion.attitude.rotationMatrix)
+            )
+            let smoothedPose = StarMapMotionPose.smoothed(previous: lastMotionPose, next: rawPose)
+            lastMotionPose = smoothedPose
+            viewModel.viewAzimuth = smoothedPose.azimuth
+            viewModel.viewAltitude = smoothedPose.altitude
+        }
     }
 
     private func stopMotion() {
         motionManager.stopDeviceMotionUpdates()
-        headingController.stop()
+        lastMotionPose = nil
     }
 
     private var timeSliderBinding: Binding<Double> {
@@ -289,84 +291,37 @@ struct iOSStarMapView: View {
         }
     }
 
+    private var preferredMotionReferenceFrame: CMAttitudeReferenceFrame? {
+        let availableFrames = CMMotionManager.availableAttitudeReferenceFrames()
+
+        if availableFrames.contains(.xTrueNorthZVertical) {
+            return .xTrueNorthZVertical
+        }
+        if availableFrames.contains(.xMagneticNorthZVertical) {
+            return .xMagneticNorthZVertical
+        }
+
+        return nil
+    }
+
     private var canEnableGyroMode: Bool {
-        motionManager.isDeviceMotionAvailable && headingController.canStartHeadingUpdates
+        motionManager.isDeviceMotionAvailable && preferredMotionReferenceFrame != nil
     }
 }
 
-// MARK: - StarMapHeadingController
-
-/// CLLocationManager のラッパー。StarMapViewModel に NSObject 継承を持ち込まないための分離クラス。
-@Observable
-final class StarMapHeadingController: NSObject, CLLocationManagerDelegate {
-    private let locationManager = CLLocationManager()
-    private var onHeading: ((Double) -> Void)?
-    private var onAuthorizationUnavailable: (() -> Void)?
-
-    override init() {
-        super.init()
-        locationManager.delegate = self
-    }
-
-    var canStartHeadingUpdates: Bool {
-        guard CLLocationManager.headingAvailable() else {
-            return false
-        }
-        switch locationManager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways, .notDetermined:
-            return true
-        default:
-            return false
-        }
-    }
-
-    func start(
-        onHeading: @escaping (Double) -> Void,
-        onAuthorizationUnavailable: @escaping () -> Void
-    ) {
-        self.onHeading = onHeading
-        self.onAuthorizationUnavailable = onAuthorizationUnavailable
-        guard CLLocationManager.headingAvailable() else {
-            onAuthorizationUnavailable()
-            return
-        }
-        let status = locationManager.authorizationStatus
-        switch status {
-        case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
-        case .authorizedWhenInUse, .authorizedAlways:
-            locationManager.startUpdatingHeading()
-        default:
-            onAuthorizationUnavailable()
-        }
-    }
-
-    func stop() {
-        locationManager.stopUpdatingHeading()
-        onHeading = nil
-        onAuthorizationUnavailable = nil
-    }
-
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        switch manager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways:
-            if onHeading != nil {
-                manager.startUpdatingHeading()
-            }
-        default:
-            manager.stopUpdatingHeading()
-            if onHeading != nil {
-                onAuthorizationUnavailable?()
-            }
-        }
-    }
-
-    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
-        // trueHeading が有効なら使用 (GPSなし環境では -1 になる場合あり)
-        let heading = newHeading.trueHeading >= 0
-            ? newHeading.trueHeading
-            : newHeading.magneticHeading
-        onHeading?(heading)
+private extension StarMapMotionMatrix {
+    init(rotationMatrix: CMRotationMatrix) {
+        self.init(
+            m11: rotationMatrix.m11,
+            m12: rotationMatrix.m12,
+            m13: rotationMatrix.m13,
+            m21: rotationMatrix.m21,
+            m22: rotationMatrix.m22,
+            m23: rotationMatrix.m23,
+            m31: rotationMatrix.m31,
+            m32: rotationMatrix.m32,
+            m33: rotationMatrix.m33
+        )
     }
 }
 
