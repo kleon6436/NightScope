@@ -17,6 +17,24 @@ struct StarMapCanvasView: View {
         var id: Double { azimuthDegrees }
     }
 
+    struct HorizonOverlayStyle {
+        let groundFillColor: Color
+        let groundFillOpacity: Double
+        let horizonStrokeColor: Color
+        let terrainFillColor: Color
+        let terrainFillOpacity: Double
+        let terrainStrokeColor: Color
+
+        static let `default` = HorizonOverlayStyle(
+            groundFillColor: Color(red: 0.08, green: 0.12, blue: 0.06),
+            groundFillOpacity: 0.6,
+            horizonStrokeColor: Color(red: 0.3, green: 0.5, blue: 0.3).opacity(0.5),
+            terrainFillColor: StarMapPalette.groundFill,
+            terrainFillOpacity: 1,
+            terrainStrokeColor: Color(red: 0.2, green: 0.35, blue: 0.15).opacity(0.4)
+        )
+    }
+
     private struct HorizonLineCoefficients {
         let a: Double
         let b: Double
@@ -67,6 +85,7 @@ struct StarMapCanvasView: View {
     var showsCardinalOverlay: Bool = true
     var cardinalOverlayBottomInset: CGFloat = StarMapLayout.cardinalLabelBottomInset
     var backgroundColor: Color = StarMapPalette.canvasBackground
+    var horizonOverlayStyle: HorizonOverlayStyle = .default
     var fovOverride: Double? = nil
     var rollOverride: Double? = nil
 
@@ -390,8 +409,6 @@ struct StarMapCanvasView: View {
     private func drawGnomonicGround(ctx: GraphicsContext,
                                     size: CGSize,
                                     projection: GnomonicProjectionContext) {
-        // 地面色 (暗い緑/茶)
-        let groundColor = Color(red: 0.08, green: 0.12, blue: 0.06)
         let rect = CGRect(origin: .zero, size: size)
         let coefficients = Self.horizonLineCoefficients(
             cx: projection.cx,
@@ -410,7 +427,12 @@ struct StarMapCanvasView: View {
                 groundPath.addLine(to: point)
             }
             groundPath.closeSubpath()
-            ctx.fill(groundPath, with: .color(groundColor.opacity(0.6)))
+            ctx.fill(
+                groundPath,
+                with: .color(
+                    horizonOverlayStyle.groundFillColor.opacity(horizonOverlayStyle.groundFillOpacity)
+                )
+            )
         }
 
         if let horizonSegment = Self.horizonLineSegment(in: rect, coefficients: coefficients) {
@@ -418,7 +440,7 @@ struct StarMapCanvasView: View {
             horizonPath.move(to: horizonSegment.0)
             horizonPath.addLine(to: horizonSegment.1)
             ctx.stroke(horizonPath,
-                       with: .color(Color(red: 0.3, green: 0.5, blue: 0.3).opacity(0.5)),
+                       with: .color(horizonOverlayStyle.horizonStrokeColor),
                        lineWidth: 1)
         }
     }
@@ -1106,7 +1128,6 @@ private extension StarMapCanvasView {
                                         centerAz: Double, fov: Double,
                                         size: CGSize,
                                         terrain: TerrainProfile) {
-        let fillColor = StarMapPalette.groundFill
         let sweepRange = max(fov * 1.5, 90.0)
         let steps = 120
 
@@ -1140,7 +1161,12 @@ private extension StarMapCanvasView {
         path.addLine(to: CGPoint(x: ridgePoints.last!.x, y: size.height + 10))
         path.addLine(to: CGPoint(x: ridgePoints.first!.x, y: size.height + 10))
         path.closeSubpath()
-        ctx.fill(path, with: .color(fillColor))
+        ctx.fill(
+            path,
+            with: .color(
+                horizonOverlayStyle.terrainFillColor.opacity(horizonOverlayStyle.terrainFillOpacity)
+            )
+        )
 
         var ridgePath = Path()
         ridgePath.move(to: ridgePoints[0])
@@ -1148,7 +1174,7 @@ private extension StarMapCanvasView {
             ridgePath.addLine(to: ridgePoints[i])
         }
         ctx.stroke(ridgePath,
-                   with: .color(Color(red: 0.2, green: 0.35, blue: 0.15).opacity(0.4)),
+                   with: .color(horizonOverlayStyle.terrainStrokeColor),
                    lineWidth: 1.5)
     }
 }

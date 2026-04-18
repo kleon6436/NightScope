@@ -24,28 +24,31 @@ struct iOSStarMapView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .topLeading) {
-                backgroundLayer
+            GeometryReader { proxy in
+                ZStack(alignment: .topLeading) {
+                    backgroundLayer
 
-                StarMapCanvasView(
-                    viewModel: viewModel,
-                    showsCardinalOverlay: true,
-                    cardinalOverlayBottomInset: cardinalOverlayBottomInset,
-                    backgroundColor: controlState.isCameraBackgroundVisible ? .clear : StarMapPalette.canvasBackground,
-                    fovOverride: cameraAlignedHorizontalFOV
-                )
-                    .ignoresSafeArea(edges: .top)
+                    StarMapCanvasView(
+                        viewModel: viewModel,
+                        showsCardinalOverlay: true,
+                        cardinalOverlayBottomInset: cardinalOverlayBottomInset + proxy.safeAreaInsets.bottom,
+                        backgroundColor: controlState.isCameraBackgroundVisible ? .clear : StarMapPalette.canvasBackground,
+                        horizonOverlayStyle: IOSDesignTokens.StarMap.horizonOverlayStyle,
+                        fovOverride: cameraAlignedHorizontalFOV
+                    )
+                        .ignoresSafeArea(edges: [.top, .bottom])
 
-                topOverlaySection
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.top, Spacing.sm)
-                bottomControlPanel
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.height
-                    } action: { newHeight in
-                        bottomControlPanelHeight = newHeight
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    topOverlaySection
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.top, Spacing.sm)
+                    bottomControlPanel
+                        .onGeometryChange(for: CGFloat.self) { proxy in
+                            proxy.size.height
+                        } action: { newHeight in
+                            bottomControlPanelHeight = newHeight
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
         }

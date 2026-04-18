@@ -6,6 +6,17 @@ enum IOSDesignTokens {
         static let loadingCardHeights: [CGFloat] = [summaryCardMinHeight, summaryCardMinHeight, summaryCardMinHeight]
     }
 
+    enum StarMap {
+        static let horizonOverlayStyle = StarMapCanvasView.HorizonOverlayStyle(
+            groundFillColor: Color(red: 0.31, green: 0.33, blue: 0.37),
+            groundFillOpacity: 0.54,
+            horizonStrokeColor: .white.opacity(0.18),
+            terrainFillColor: Color(red: 0.27, green: 0.29, blue: 0.33),
+            terrainFillOpacity: 0.62,
+            terrainStrokeColor: .white.opacity(0.14)
+        )
+    }
+
     enum Forecast {
         static let rowSpacing: CGFloat = Spacing.sm
         static let loadingMinHeight: CGFloat = 220
