@@ -347,6 +347,85 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(narrowPortraitDegrees ?? 0, 40.5759, accuracy: 0.001)
     }
 
+    func test_StarMapCameraSessionActivationState_rejectsStaleRequests() {
+        var state = StarMapCameraSessionActivationState()
+
+        let firstOnGeneration = state.update(isActive: true)
+        let offGeneration = state.update(isActive: false)
+        let secondOnGeneration = state.update(isActive: true)
+
+        XCTAssertFalse(state.matches(generation: firstOnGeneration, isActive: true))
+        XCTAssertFalse(state.matches(generation: offGeneration, isActive: false))
+        XCTAssertTrue(state.matches(generation: secondOnGeneration, isActive: true))
+    }
+
+    func test_StarMapCameraSessionState_derivesVisibilityAndRunState() {
+        let activeState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: true,
+            isAuthorized: true,
+            hasCameraHardware: true,
+            isSceneActive: true
+        )
+        let hiddenButPreparedState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: false,
+            isAuthorized: true,
+            hasCameraHardware: true,
+            isSceneActive: true
+        )
+        let backgroundedState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: true,
+            isAuthorized: true,
+            hasCameraHardware: true,
+            isSceneActive: false
+        )
+        let unauthorizedState = StarMapCameraSessionState(
+            isGyroMode: true,
+            isBackgroundEnabled: true,
+            isAuthorized: false,
+            hasCameraHardware: true,
+            isSceneActive: true
+        )
+
+        XCTAssertTrue(activeState.shouldKeepPreviewAttached)
+        XCTAssertTrue(activeState.isCameraBackgroundVisible)
+        XCTAssertTrue(activeState.shouldRunSession)
+        XCTAssertTrue(hiddenButPreparedState.shouldKeepPreviewAttached)
+        XCTAssertFalse(hiddenButPreparedState.isCameraBackgroundVisible)
+        XCTAssertFalse(hiddenButPreparedState.shouldRunSession)
+        XCTAssertTrue(backgroundedState.shouldKeepPreviewAttached)
+        XCTAssertTrue(backgroundedState.isCameraBackgroundVisible)
+        XCTAssertFalse(backgroundedState.shouldRunSession)
+        XCTAssertFalse(unauthorizedState.shouldKeepPreviewAttached)
+        XCTAssertFalse(unauthorizedState.isCameraBackgroundVisible)
+        XCTAssertFalse(unauthorizedState.shouldRunSession)
+    }
+
+    func test_StarMapCameraPreviewRotation_fallbackAngle_matchesExpectedOrientations() {
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .portrait),
+            90,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .portraitUpsideDown),
+            270,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .landscapeLeft),
+            180,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StarMapCameraPreviewRotation.fallbackAngle(for: .landscapeRight),
+            0,
+            accuracy: 0.001
+        )
+    }
+
     func test_StarMapViewModel_recomputesWhenStarDisplayDensityChanges() {
         let key = StarDisplayDensity.defaultsKey
         let previousValue = UserDefaults.standard.string(forKey: key)

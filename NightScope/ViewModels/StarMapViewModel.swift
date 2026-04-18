@@ -143,6 +143,57 @@ struct StarMapCameraFieldOfView: Equatable, Sendable {
     }
 }
 
+struct StarMapCameraSessionState: Equatable, Sendable {
+    let isGyroMode: Bool
+    let isBackgroundEnabled: Bool
+    let isAuthorized: Bool
+    let hasCameraHardware: Bool
+    let isSceneActive: Bool
+
+    var shouldKeepPreviewAttached: Bool {
+        isGyroMode && isAuthorized && hasCameraHardware
+    }
+
+    var isCameraBackgroundVisible: Bool {
+        isGyroMode && isBackgroundEnabled && isAuthorized && hasCameraHardware
+    }
+
+    var shouldRunSession: Bool {
+        isSceneActive && isCameraBackgroundVisible
+    }
+}
+
+enum StarMapCameraPreviewRotation {
+    static func fallbackAngle(for screenOrientation: StarMapScreenOrientation) -> CGFloat {
+        switch screenOrientation {
+        case .portrait:
+            90
+        case .portraitUpsideDown:
+            270
+        case .landscapeLeft:
+            180
+        case .landscapeRight:
+            0
+        }
+    }
+}
+
+struct StarMapCameraSessionActivationState: Sendable {
+    private(set) var generation: UInt = 0
+    private(set) var isActive = false
+
+    @discardableResult
+    mutating func update(isActive: Bool) -> UInt {
+        generation &+= 1
+        self.isActive = isActive
+        return generation
+    }
+
+    func matches(generation: UInt, isActive: Bool) -> Bool {
+        self.generation == generation && self.isActive == isActive
+    }
+}
+
 struct StarMapMotionMatrix {
     let m11: Double
     let m12: Double
