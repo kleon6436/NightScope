@@ -322,8 +322,8 @@ struct StarMapCanvasView: View {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                          altitude: pos.altitude)
-                if !simplifyDuringScrub, pos.star.magnitude < 1.5, !pos.star.name.isEmpty {
-                    drawStarLabel(ctx: ctx, at: pt, name: pos.star.name)
+                if !simplifyDuringScrub, pos.star.magnitude < 1.5, !pos.star.localizedName.isEmpty {
+                    drawStarLabel(ctx: ctx, at: pt, name: pos.star.localizedName)
                 }
             }
         }

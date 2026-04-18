@@ -3564,6 +3564,1436 @@
           }
         }
       }
+    },
+    "シリウス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sirius"
+          }
+        }
+      }
+    },
+    "カノープス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canopus"
+          }
+        }
+      }
+    },
+    "ケンタウルスα": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alpha Centauri"
+          }
+        }
+      }
+    },
+    "アークトゥルス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arcturus"
+          }
+        }
+      }
+    },
+    "ベガ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vega"
+          }
+        }
+      }
+    },
+    "カペラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capella"
+          }
+        }
+      }
+    },
+    "リゲル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rigel"
+          }
+        }
+      }
+    },
+    "プロキオン": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Procyon"
+          }
+        }
+      }
+    },
+    "アケルナル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Achernar"
+          }
+        }
+      }
+    },
+    "ベテルギウス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Betelgeuse"
+          }
+        }
+      }
+    },
+    "ハダル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hadar"
+          }
+        }
+      }
+    },
+    "アルタイル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altair"
+          }
+        }
+      }
+    },
+    "アクルックス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acrux"
+          }
+        }
+      }
+    },
+    "アルデバラン": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aldebaran"
+          }
+        }
+      }
+    },
+    "スピカ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spica"
+          }
+        }
+      }
+    },
+    "アンタレス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antares"
+          }
+        }
+      }
+    },
+    "ポルックス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pollux"
+          }
+        }
+      }
+    },
+    "フォーマルハウト": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fomalhaut"
+          }
+        }
+      }
+    },
+    "デネブ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deneb"
+          }
+        }
+      }
+    },
+    "ミモザ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mimosa"
+          }
+        }
+      }
+    },
+    "レグルス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regulus"
+          }
+        }
+      }
+    },
+    "アダラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adhara"
+          }
+        }
+      }
+    },
+    "カストル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Castor"
+          }
+        }
+      }
+    },
+    "シャウラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shaula"
+          }
+        }
+      }
+    },
+    "ガクルックス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gacrux"
+          }
+        }
+      }
+    },
+    "ベラトリックス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bellatrix"
+          }
+        }
+      }
+    },
+    "エルナト": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elnath"
+          }
+        }
+      }
+    },
+    "ミアプラキドゥス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miaplacidus"
+          }
+        }
+      }
+    },
+    "アルニラム": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alnilam"
+          }
+        }
+      }
+    },
+    "アルナイル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alnair"
+          }
+        }
+      }
+    },
+    "アリオト": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alioth"
+          }
+        }
+      }
+    },
+    "アルニタク": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alnitak"
+          }
+        }
+      }
+    },
+    "ドゥベ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dubhe"
+          }
+        }
+      }
+    },
+    "ミルファク": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mirfak"
+          }
+        }
+      }
+    },
+    "ウェゼン": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wezen"
+          }
+        }
+      }
+    },
+    "アヴィオル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avior"
+          }
+        }
+      }
+    },
+    "サルガス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sargas"
+          }
+        }
+      }
+    },
+    "アルカイド": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alkaid"
+          }
+        }
+      }
+    },
+    "カウス・オーストラリス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaus Australis"
+          }
+        }
+      }
+    },
+    "メンカリナン": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menkalinan"
+          }
+        }
+      }
+    },
+    "アトリア": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atria"
+          }
+        }
+      }
+    },
+    "アルヘナ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alhena"
+          }
+        }
+      }
+    },
+    "ピーコック": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peacock"
+          }
+        }
+      }
+    },
+    "ポラリス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Polaris"
+          }
+        }
+      }
+    },
+    "ミルザム": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mirzam"
+          }
+        }
+      }
+    },
+    "アルファルド": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alphard"
+          }
+        }
+      }
+    },
+    "アルギエバ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algieba"
+          }
+        }
+      }
+    },
+    "ハマル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hamal"
+          }
+        }
+      }
+    },
+    "デネブ・カイトス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deneb Kaitos"
+          }
+        }
+      }
+    },
+    "ミザール": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mizar"
+          }
+        }
+      }
+    },
+    "ヌンキ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nunki"
+          }
+        }
+      }
+    },
+    "アルフェラッツ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alpheratz"
+          }
+        }
+      }
+    },
+    "ミラク": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mirach"
+          }
+        }
+      }
+    },
+    "サイフ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saiph"
+          }
+        }
+      }
+    },
+    "ラスアルハゲ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rasalhague"
+          }
+        }
+      }
+    },
+    "コキャブ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kochab"
+          }
+        }
+      }
+    },
+    "アルゴル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algol"
+          }
+        }
+      }
+    },
+    "ティアキ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiaki"
+          }
+        }
+      }
+    },
+    "デネボラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Denebola"
+          }
+        }
+      }
+    },
+    "ムフルファイン": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muhlifain"
+          }
+        }
+      }
+    },
+    "タウ・スコルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tau Scorpii"
+          }
+        }
+      }
+    },
+    "サドル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sadr"
+          }
+        }
+      }
+    },
+    "イプシロン・スコルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Epsilon Scorpii"
+          }
+        }
+      }
+    },
+    "デシュッバ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dschubba"
+          }
+        }
+      }
+    },
+    "メラク": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merak"
+          }
+        }
+      }
+    },
+    "フェクダ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phecda"
+          }
+        }
+      }
+    },
+    "シェアト": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheat"
+          }
+        }
+      }
+    },
+    "ガンマ・カシオペア": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gamma Cassiopeiae"
+          }
+        }
+      }
+    },
+    "マルカブ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markab"
+          }
+        }
+      }
+    },
+    "メンカル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menkar"
+          }
+        }
+      }
+    },
+    "ゾズマ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zosma"
+          }
+        }
+      }
+    },
+    "アスケラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ascella"
+          }
+        }
+      }
+    },
+    "グラフィアス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Graffias"
+          }
+        }
+      }
+    },
+    "アルファ・ルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alpha Lupi"
+          }
+        }
+      }
+    },
+    "ルクバー": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruchbah"
+          }
+        }
+      }
+    },
+    "ムフリド": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muphrid"
+          }
+        }
+      }
+    },
+    "カウスメディア": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaus Media"
+          }
+        }
+      }
+    },
+    "タラゼド": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarazed"
+          }
+        }
+      }
+    },
+    "ポリマ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Porrima"
+          }
+        }
+      }
+    },
+    "カウスボレアリス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaus Borealis"
+          }
+        }
+      }
+    },
+    "ヴィンデミアトリックス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vindemiatrix"
+          }
+        }
+      }
+    },
+    "アルゲニブ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algenib"
+          }
+        }
+      }
+    },
+    "ギエナ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gienah"
+          }
+        }
+      }
+    },
+    "デルタ・キグヌス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delta Cygni"
+          }
+        }
+      }
+    },
+    "テジャト": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tejat"
+          }
+        }
+      }
+    },
+    "ミンタカ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mintaka"
+          }
+        }
+      }
+    },
+    "ラスアルゲティ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rasalgethi"
+          }
+        }
+      }
+    },
+    "サビク": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sabik"
+          }
+        }
+      }
+    },
+    "アルドラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aludra"
+          }
+        }
+      }
+    },
+    "エルタニン": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eltanin"
+          }
+        }
+      }
+    },
+    "シェダル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedar"
+          }
+        }
+      }
+    },
+    "カフ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caph"
+          }
+        }
+      }
+    },
+    "ゼータ・タウリ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeta Tauri"
+          }
+        }
+      }
+    },
+    "アルビレオ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Albireo"
+          }
+        }
+      }
+    },
+    "ムー・スコルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mu Scorpii"
+          }
+        }
+      }
+    },
+    "アルナスル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alnasl"
+          }
+        }
+      }
+    },
+    "ナッシュ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nash"
+          }
+        }
+      }
+    },
+    "フルカド": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pherkad"
+          }
+        }
+      }
+    },
+    "メブスダ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mebsuta"
+          }
+        }
+      }
+    },
+    "ゼータ・スコルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeta Scorpii"
+          }
+        }
+      }
+    },
+    "エータ・スコルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eta Scorpii"
+          }
+        }
+      }
+    },
+    "ウプシロン・スコルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upsilon Scorpii"
+          }
+        }
+      }
+    },
+    "ベータ・ルピ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beta Lupi"
+          }
+        }
+      }
+    },
+    "ゼータ・アクィラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeta Aquilae"
+          }
+        }
+      }
+    },
+    "スラファト": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sulafat"
+          }
+        }
+      }
+    },
+    "シェリアク": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sheliak"
+          }
+        }
+      }
+    },
+    "セギン": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segin"
+          }
+        }
+      }
+    },
+    "メグレズ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Megrez"
+          }
+        }
+      }
+    },
+    "ラス・エラセド": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rasalased"
+          }
+        }
+      }
+    },
+    "エータ・レオニス": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eta Leonis"
+          }
+        }
+      }
+    },
+    "アドハフェラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adhafera"
+          }
+        }
+      }
+    },
+    "ワサット": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wasat"
+          }
+        }
+      }
+    },
+    "アルツィル": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alzirr"
+          }
+        }
+      }
+    },
+    "イータ・タウリ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eta Tauri"
+          }
+        }
+      }
+    },
+    "シェラト": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sheratan"
+          }
+        }
+      }
+    },
+    "ガンマ・タウリ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gamma Tauri"
+          }
+        }
+      }
+    },
+    "デルタ・タウリ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delta Tauri"
+          }
+        }
+      }
+    },
+    "エプシロン・タウリ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Epsilon Tauri"
+          }
+        }
+      }
+    },
+    "アルマアズ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almaaz"
+          }
+        }
+      }
+    },
+    "テータ・アクィラ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Theta Aquilae"
+          }
+        }
+      }
+    },
+    "ファイ・スゲータリ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phi Sagittarii"
+          }
+        }
+      }
+    },
+    "ふたご座": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemini"
+          }
+        }
+      }
+    },
+    "等級": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Magnitude"
+          }
+        }
+      }
+    },
+    "仰角": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altitude"
+          }
+        }
+      }
+    },
+    "赤経 %.2f°  赤緯 %.2f°": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RA %.2f°  Dec %.2f°"
+          }
+        }
+      }
+    },
+    "%.1f 等星": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mag %.1f"
+          }
+        }
+      }
+    },
+    "視野 %.0f°": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FOV %.0f°"
+          }
+        }
+      }
+    },
+    "仰角 %.0f°": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altitude %.0f°"
+          }
+        }
+      }
+    },
+    "星空観測情報": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stargazing Overview"
+          }
+        }
+      }
+    },
+    "選択した日付の星空マップを開きます": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the star map for the selected date."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
