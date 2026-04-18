@@ -398,6 +398,9 @@ struct ForecastCardPresentation {
     let night: NightSummary
     let weather: DayWeatherSummary?
     let timeZone: TimeZone
+    let isReliableWeather: Bool
+    let hasPartialWeather: Bool
+    let isForecastOutOfRange: Bool
 
     var shortDateLabel: String {
         FormatterFactory.localizedDate(
@@ -416,11 +419,21 @@ struct ForecastCardPresentation {
     }
 
     var cloudCoverText: String {
-        weather.map { String(format: "%.0f%%", $0.avgCloudCover) } ?? "—"
+        guard isReliableWeather, let weather else { return "—" }
+        return String(format: "%.0f%%", weather.avgCloudCover)
     }
 
     var weatherDetailText: String? {
-        weather.map { WeatherPresentation.primaryLabel(for: $0) }
+        if isReliableWeather, let weather {
+            return WeatherPresentation.primaryLabel(for: weather)
+        }
+        if hasPartialWeather {
+            return "夜間予報は一部のみ"
+        }
+        if isForecastOutOfRange {
+            return "天気予報対象外"
+        }
+        return nil
     }
 }
 

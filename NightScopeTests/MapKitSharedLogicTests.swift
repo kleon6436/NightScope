@@ -100,6 +100,54 @@ final class MapKitSharedLogicTests: XCTestCase {
         XCTAssertFalse(MapKitViewSharedLogic.consumePendingRegionChangeIgnore(&pendingIgnoredRegionChanges))
     }
 
+    func test_coordinatorState_noOpScheduleDoesNotIgnoreNextUserRegionChange() async {
+        let state = MapKitCoordinatorState(syncTrigger: 0, centerTrigger: 0)
+        let mapView = MKMapView()
+        let region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503),
+            span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
+        )
+        mapView.region = region
+        let normalizedRegion = mapView.region
+
+        state.scheduleRegionChange(on: mapView, region: normalizedRegion, animated: false)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        let expectation = expectation(description: "user region change")
+        state.handleRegionDidChange(mapView: mapView) { _, _ in
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 1.0)
+    }
+
+    func test_coordinatorState_pendingIgnoreExpiresWhenCallbackDoesNotArrive() async {
+        let state = MapKitCoordinatorState(syncTrigger: 0, centerTrigger: 0)
+        let mapView = MKMapView()
+        mapView.region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503),
+            span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
+        )
+
+        state.scheduleRegionChange(
+            on: mapView,
+            region: MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437),
+                span: MKCoordinateSpan(latitudeDelta: 0.4, longitudeDelta: 0.4)
+            ),
+            animated: false
+        )
+
+        try? await Task.sleep(nanoseconds: 650_000_000)
+
+        let expectation = expectation(description: "stale ignore reset")
+        state.handleRegionDidChange(mapView: mapView) { _, _ in
+            expectation.fulfill()
+        }
+
+        await fulfillment(of: [expectation], timeout: 1.0)
+    }
+
     func test_coordinatorState_tracksViewportAndCenterTriggers() {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
         let syncState = MapKitSyncState(

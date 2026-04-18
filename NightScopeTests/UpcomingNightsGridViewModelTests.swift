@@ -86,4 +86,20 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
         XCTAssertTrue(label.contains("星空指数"))
         XCTAssertTrue(label.contains("天気"))
     }
+
+    func test_cardAccessibilityLabel_withPartialWeather_usesPartialForecastMessage() {
+        let mockCalc = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalc)
+        let detailVM = DetailViewModel(appController: appController)
+        let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
+
+        let night = makeNightSummary(withWindow: true)
+        let weather = DayWeatherSummary(date: night.date, nighttimeHours: [
+            makeHourlyWeather()
+        ])
+        let label = vm.cardAccessibilityLabel(night: night, weather: weather, index: nil)
+
+        XCTAssertTrue(label.contains("天気予報一部のみ"))
+        XCTAssertFalse(label.contains("天気快晴"))
+    }
 }

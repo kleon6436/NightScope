@@ -252,6 +252,40 @@ final class MilkyWayCalculatorTests: XCTestCase {
         XCTAssertEqual(calendar.component(.hour, from: summary.events.last?.date ?? date), 11)
     }
 
+    func test_civilDarknessInterval_returnsFullObservationWindowDuringPolarNight() throws {
+        let timeZone = TimeZone(identifier: "Europe/Oslo")!
+        let date = makeDate(year: 2026, month: 12, day: 21, timeZoneIdentifier: timeZone.identifier)
+        let location = CLLocationCoordinate2D(latitude: 78.2232, longitude: 15.6469)
+
+        let interval = try XCTUnwrap(
+            MilkyWayCalculator.civilDarknessInterval(
+                date: date,
+                location: location,
+                timeZone: timeZone
+            )
+        )
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let components = calendar.dateComponents([.hour, .minute], from: interval.start)
+
+        XCTAssertEqual(components.hour, 12)
+        XCTAssertEqual(components.minute, 0)
+        XCTAssertEqual(interval.duration, 86_400, accuracy: 60)
+    }
+
+    func test_civilDarknessInterval_returnsNilDuringMidnightSun() {
+        let timeZone = TimeZone(identifier: "Europe/Oslo")!
+        let date = makeDate(year: 2026, month: 6, day: 21, timeZoneIdentifier: timeZone.identifier)
+        let location = CLLocationCoordinate2D(latitude: 78.2232, longitude: 15.6469)
+
+        let interval = MilkyWayCalculator.civilDarknessInterval(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        )
+
+        XCTAssertNil(interval)
+    }
+
     // MARK: - galacticToEquatorial
 
     /// 銀河中心 (l=0, b=0) → RA≈266.4°, Dec≈-29.0° に近似一致する

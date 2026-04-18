@@ -59,6 +59,25 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         return weatherByDate[key]
     }
 
+    func hasReliableWeatherData(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
+        guard let weather else { return false }
+        return night.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours)
+    }
+
+    func hasPartialWeatherData(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
+        guard let weather else { return false }
+        return !night.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours)
+    }
+
+    func isForecastOutOfRange(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
+        guard weather == nil else { return false }
+        return detailViewModel.weatherService.isForecastOutOfRange(
+            for: night.date,
+            in: weatherByDate,
+            timeZone: selectedTimeZone
+        )
+    }
+
     func starGazingIndex(for date: Date) -> StarGazingIndex? {
         let startOfDay = ObservationTimeZone.startOfDay(for: date, timeZone: selectedTimeZone)
         return upcomingIndexes[startOfDay]
@@ -84,7 +103,13 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         var parts: [String] = []
         parts.append(DateFormatters.fullDateString(from: night.date, timeZone: selectedTimeZone))
         if let idx = index { parts.append("星空指数\(idx.score)") }
-        if let w = weather { parts.append("天気\(w.weatherLabel)") }
+        if hasReliableWeatherData(for: night, weather: weather), let w = weather {
+            parts.append("天気\(w.weatherLabel)")
+        } else if hasPartialWeatherData(for: night, weather: weather) {
+            parts.append("天気予報一部のみ")
+        } else if isForecastOutOfRange(for: night, weather: weather) {
+            parts.append("天気予報対象外")
+        }
         parts.append("月: \(night.moonPhaseName)")
         return parts.joined(separator: "、")
     }

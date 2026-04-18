@@ -47,14 +47,23 @@ struct UpcomingNightsGrid: View {
 
     private func upcomingNightCard(night: NightSummary) -> some View {
         let weather = viewModel.weatherSummary(for: night.date)
-        let presentation = ForecastCardPresentation(night: night, weather: weather, timeZone: viewModel.selectedTimeZone)
+        let presentation = ForecastCardPresentation(
+            night: night,
+            weather: weather,
+            timeZone: viewModel.selectedTimeZone,
+            isReliableWeather: viewModel.hasReliableWeatherData(for: night, weather: weather),
+            hasPartialWeather: viewModel.hasPartialWeatherData(for: night, weather: weather),
+            isForecastOutOfRange: viewModel.isForecastOutOfRange(for: night, weather: weather)
+        )
         let isSelected = viewModel.isDateSelected(night.date)
         let index = viewModel.starGazingIndex(for: night.date)
 
         return VStack(alignment: .leading, spacing: Spacing.xs) {
             cardHeader(night: night, presentation: presentation)
-            if let weather {
+            if presentation.weatherDetailText != nil, let weather {
                 weatherDetailRow(weather: weather, presentation: presentation)
+            } else if let detailText = presentation.weatherDetailText {
+                weatherStatusRow(detailText: detailText)
             }
             moonPhaseRow(night: night)
 
@@ -115,6 +124,18 @@ struct UpcomingNightsGrid: View {
                 .font(.body)
                 .accessibilityHidden(true)
             Text(presentation.weatherDetailText ?? weather.weatherLabel)
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func weatherStatusRow(detailText: String) -> some View {
+        HStack(spacing: Spacing.xs / 2) {
+            Image(systemName: "questionmark.circle")
+                .foregroundStyle(.secondary)
+                .font(.body)
+                .accessibilityHidden(true)
+            Text(detailText)
                 .font(.body)
                 .foregroundStyle(.secondary)
         }

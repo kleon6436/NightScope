@@ -634,6 +634,24 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertNil(storage.timeZoneIdentifier)
     }
 
+    func test_LocationController_selectCoordinate_fallsBackToApproximateTimeZoneForHalifax() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "ハリファックス", timeZoneIdentifier: nil)
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let coordinate = CLLocationCoordinate2D(latitude: 44.6488, longitude: -63.5752)
+
+        sut.selectCoordinate(coordinate)
+
+        await waitUntil {
+            sut.locationName == "ハリファックス"
+                && sut.selectedTimeZone.identifier == "America/Halifax"
+        }
+
+        XCTAssertEqual(sut.selectedTimeZone.identifier, "America/Halifax")
+        XCTAssertNil(storage.timeZoneIdentifier)
+    }
+
     func test_LocationController_selectCoordinate_fallsBackToDSTAwareTimeZoneForLosAngeles() async {
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([]))
@@ -698,6 +716,14 @@ final class LocationControllerTests: XCTestCase {
         let identifier = ApproximateTimeZoneResolver.identifier(for: coordinate, regionIdentifier: "JP")
 
         XCTAssertEqual(identifier, "Asia/Tokyo")
+    }
+
+    func test_ApproximateTimeZoneResolver_usesAtlanticHeuristicForHalifax() {
+        let coordinate = CLLocationCoordinate2D(latitude: 44.6488, longitude: -63.5752)
+
+        let identifier = ApproximateTimeZoneResolver.identifier(for: coordinate, regionIdentifier: nil)
+
+        XCTAssertEqual(identifier, "America/Halifax")
     }
 
     func test_ApproximateTimeZoneResolver_usesRegionBackedTimeZoneForBerlinWithDST() {

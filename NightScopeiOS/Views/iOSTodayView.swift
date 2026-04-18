@@ -117,7 +117,13 @@ struct iOSTodayView: View {
             DarkTimeCard(summary: summary, weather: weather)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
-            NightWeatherCard(weather: weather, isLoading: detailViewModel.isWeatherLoading, viewModel: weatherViewModel)
+            NightWeatherCard(
+                weather: weather,
+                isLoading: detailViewModel.isWeatherLoading,
+                isForecastOutOfRange: detailViewModel.isCurrentWeatherForecastOutOfRange,
+                isCoverageIncomplete: detailViewModel.isCurrentWeatherCoverageIncomplete,
+                viewModel: weatherViewModel
+            )
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
             MoonPhaseCard(summary: summary)

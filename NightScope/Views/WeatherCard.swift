@@ -3,6 +3,8 @@ import SwiftUI
 struct NightWeatherCard: View {
     let weather: DayWeatherSummary?
     let isLoading: Bool
+    let isForecastOutOfRange: Bool
+    let isCoverageIncomplete: Bool
     @ObservedObject var viewModel: NightWeatherCardViewModel
 
     var body: some View {
@@ -16,7 +18,14 @@ struct NightWeatherCard: View {
         }
         .glassCard()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(viewModel.accessibilityDescription(weather: weather, isLoading: isLoading))
+        .accessibilityLabel(
+            viewModel.accessibilityDescription(
+                weather: weather,
+                isLoading: isLoading,
+                isForecastOutOfRange: isForecastOutOfRange,
+                isCoverageIncomplete: isCoverageIncomplete
+            )
+        )
     }
 
     @ViewBuilder
@@ -29,7 +38,7 @@ struct NightWeatherCard: View {
     @ViewBuilder
     private var weatherTextContent: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            if let weather {
+            if let weather, !isCoverageIncomplete {
                 Text(viewModel.weatherLabel(weather))
                     .font(.headline)
                     .lineLimit(1)
@@ -38,6 +47,19 @@ struct NightWeatherCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Text(viewModel.formatWindSpeed(weather.avgWindSpeed))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else if isCoverageIncomplete {
+                Text(viewModel.partialCoverageTitle())
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(viewModel.partialCoveragePrimaryText())
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(viewModel.partialCoverageSecondaryText())
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -55,15 +77,15 @@ struct NightWeatherCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             } else {
-                Text("不明")
+                Text(viewModel.unavailableTitle(isForecastOutOfRange: isForecastOutOfRange))
                     .font(.headline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Text("データなし")
+                Text(viewModel.unavailablePrimaryText(isForecastOutOfRange: isForecastOutOfRange))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Text("10日以内のみ")
+                Text(viewModel.unavailableSecondaryText(isForecastOutOfRange: isForecastOutOfRange))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

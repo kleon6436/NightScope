@@ -197,7 +197,7 @@ final class WeatherServiceTests: XCTestCase {
         let lastHour = try XCTUnwrap(hours.last)
 
         XCTAssertEqual(hours.count, 6)
-        XCTAssertEqual(firstHour.precipitationMM, 0.5, accuracy: 0.001)
+        XCTAssertEqual(firstHour.precipitationMM, 0.5 / 6.0, accuracy: 0.001)
         XCTAssertEqual(firstHour.weatherCode, 63)
         XCTAssertEqual(lastHour.date, firstHour.date.addingTimeInterval(5 * 3600))
     }
@@ -212,9 +212,42 @@ final class WeatherServiceTests: XCTestCase {
         XCTAssertNotNil(result["2024-06-16"])
     }
 
+    func test_isForecastOutOfRange_returnsTrueOnlyAfterLatestForecastDay() {
+        let baseDate = Calendar(identifier: .gregorian).date(from: DateComponents(
+            timeZone: tokyoTimeZone,
+            year: 2024,
+            month: 6,
+            day: 15,
+            hour: 12
+        ))!
+        let weatherByDate = [
+            service.dateKey(baseDate, timeZone: tokyoTimeZone): DayWeatherSummary(date: baseDate, nighttimeHours: []),
+            service.dateKey(baseDate.addingTimeInterval(86_400), timeZone: tokyoTimeZone): DayWeatherSummary(
+                date: baseDate.addingTimeInterval(86_400),
+                nighttimeHours: []
+            )
+        ]
+
+        XCTAssertFalse(service.isForecastOutOfRange(for: baseDate, in: weatherByDate, timeZone: tokyoTimeZone))
+        XCTAssertFalse(
+            service.isForecastOutOfRange(
+                for: baseDate.addingTimeInterval(86_400),
+                in: weatherByDate,
+                timeZone: tokyoTimeZone
+            )
+        )
+        XCTAssertTrue(
+            service.isForecastOutOfRange(
+                for: baseDate.addingTimeInterval(2 * 86_400),
+                in: weatherByDate,
+                timeZone: tokyoTimeZone
+            )
+        )
+    }
+
     // MARK: - parse: nil 値のデフォルト処理
 
-    func test_parse_nilValues_defaultToZero() {
+    func test_parse_missingCoreValues_excludesIncompleteHour() {
         let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
         let details = MetNorwayResponse.Properties.Timeseries.Data.Instant.Details(
             air_temperature: nil,
@@ -238,14 +271,7 @@ final class WeatherServiceTests: XCTestCase {
             ])
         )
         let result = service.parse(response: response, location: tokyoLocation, timeZone: tokyoTimeZone)
-        guard let hw = result["2024-06-15"]?.nighttimeHours.first else {
-            return XCTFail("パース結果が空")
-        }
-        XCTAssertEqual(hw.cloudCoverPercent, 0)
-        XCTAssertEqual(hw.precipitationMM, 0)
-        XCTAssertEqual(hw.windSpeedKmh, 0)
-        XCTAssertEqual(hw.humidityPercent, 0)
-        XCTAssertEqual(hw.weatherCode, 0)  // nil symbol_code → 0 (clearsky)
+        XCTAssertTrue(result.isEmpty)
     }
 
     func test_parse_nilTemperature_dewpointFallsBackToTemp() {

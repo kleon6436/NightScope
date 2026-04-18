@@ -46,6 +46,8 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var isWeatherLoading: Bool = false
     @Published private(set) var isUpcomingLoading: Bool = false
     @Published private(set) var selectedTimeZone: TimeZone
+    @Published private(set) var isCurrentWeatherForecastOutOfRange = false
+    @Published private(set) var isCurrentWeatherCoverageIncomplete = false
 
     private let appController: AppController
     private var cancellables = Set<AnyCancellable>()
@@ -173,9 +175,19 @@ final class DetailViewModel: ObservableObject {
 
     private func updateDisplayedContentState() {
         displayedDate = effectiveDisplayDate
+        let weatherByDate = appController.weatherService.weatherByDate
         currentWeather = appController.weatherService.summary(
             for: displayedDate,
-            from: appController.weatherService.weatherByDate,
+            from: weatherByDate,
+            timeZone: selectedTimeZone
+        )
+        isCurrentWeatherCoverageIncomplete = {
+            guard let nightSummary, let currentWeather else { return false }
+            return !nightSummary.hasReliableWeatherData(nighttimeHours: currentWeather.nighttimeHours)
+        }()
+        isCurrentWeatherForecastOutOfRange = appController.weatherService.isForecastOutOfRange(
+            for: displayedDate,
+            in: weatherByDate,
             timeZone: selectedTimeZone
         )
     }

@@ -22,6 +22,10 @@ enum StarMapDateLogic {
         return real.truncatingRemainder(dividingBy: 1_440)
     }
 
+    static func maxSelectableNightOffset(nightDurationMinutes: Double) -> Double {
+        max(0, min(nightDurationMinutes, 1_439))
+    }
+
     static func realMinutesToNightOffset(
         _ realMinutes: Double,
         nightStartMinutes: Double,
@@ -29,29 +33,32 @@ enum StarMapDateLogic {
     ) -> Double {
         var offset = realMinutes - nightStartMinutes
         if offset < 0 { offset += 1_440 }
-        return max(0, min(nightDurationMinutes, offset))
+        return max(0, min(maxSelectableNightOffset(nightDurationMinutes: nightDurationMinutes), offset))
     }
 
     static func nightRange(
         for date: Date,
         location: CLLocationCoordinate2D,
         timeZone: TimeZone,
+        referenceDate: Date? = nil,
         fallback: NightRange
     ) -> NightRange {
-        guard let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
+        guard let interval = MilkyWayCalculator.civilDarknessInterval(
             date: date,
             location: location,
             timeZone: timeZone
         ) else {
-            return fallback
+            let startMinutes = referenceDate.map { clockMinutes(for: $0, timeZone: timeZone) } ?? fallback.startMinutes
+            return NightRange(startMinutes: startMinutes, durationMinutes: 0)
         }
 
-        var duration = twilight.morningMinutes - twilight.eveningMinutes
-        if duration < 0 { duration += 1_440 }
+        let startOfDay = ObservationTimeZone.startOfDay(for: date, timeZone: timeZone)
+        let startMinutes = interval.start.timeIntervalSince(startOfDay).truncatingRemainder(dividingBy: 1_440 * 60) / 60
+        let duration = min(1_440, max(0, interval.duration / 60))
 
         return NightRange(
-            startMinutes: twilight.eveningMinutes,
-            durationMinutes: max(60, duration)
+            startMinutes: startMinutes,
+            durationMinutes: duration
         )
     }
 

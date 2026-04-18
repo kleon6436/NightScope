@@ -108,50 +108,70 @@ enum MilkyWayCalculator {
     // MARK: - 市民薄明の計算
 
     /// 指定日・場所の市民薄明 (太陽高度 -6°) の開始/終了時刻を分単位で返す。
-    /// 正午 (12:00) を起点に探索し、日没側 → 翌朝側の順に見つける。
-    /// 白夜・極夜などで夜がない場合は nil を返す。
+    /// 観測日 12:00 から翌日 12:00 までの連続した暗区間を返す。
+    /// 極夜では 24 時間区間、白夜では nil を返す。
+    static func civilDarknessInterval(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> DateInterval? {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let observationDate = calendar.startOfDay(for: date)
+        let samplingStart = calendar.date(byAdding: .hour, value: 12, to: observationDate)
+            ?? observationDate.addingTimeInterval(12 * 60 * 60)
+        let samplingEnd = samplingStart.addingTimeInterval(Constants.secondsPerDay)
+        let latRad = location.latitude * .pi / 180.0
+        let cosLat = cos(latRad)
+        let sinLat = sin(latRad)
+        let threshold = -6.0
+
+        var darkStart: Date?
+        var previousAltitude: Double?
+
+        for minute in 0...24 * 60 {
+            let sampleDate = samplingStart.addingTimeInterval(Double(minute) * 60)
+            let jd = julianDate(from: sampleDate)
+            let lst = localSiderealTime(jd: jd, longitude: location.longitude)
+            let sun = sunRaDec(jd: jd)
+            let (sunAltitude, _) = altAzFast(
+                ra: sun.ra,
+                dec: sun.dec,
+                cosLat: cosLat,
+                sinLat: sinLat,
+                lst: lst
+            )
+
+            if previousAltitude == nil, sunAltitude < threshold {
+                darkStart = samplingStart
+            } else if let previousAltitude {
+                if darkStart == nil, previousAltitude >= threshold, sunAltitude < threshold {
+                    darkStart = sampleDate
+                } else if let darkStart, previousAltitude < threshold, sunAltitude >= threshold {
+                    return DateInterval(start: darkStart, end: sampleDate)
+                }
+            }
+
+            previousAltitude = sunAltitude
+        }
+
+        guard let darkStart else { return nil }
+        return DateInterval(start: darkStart, end: samplingEnd)
+    }
+
+    /// 正常な夜、または極夜の観測区間を返す。
     static func findCivilTwilight(
         date: Date,
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) -> (evening: Date, morning: Date)? {
-        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let startOfDay = calendar.startOfDay(for: date)
-        let latRad = location.latitude * .pi / 180.0
-        let cosLat = cos(latRad)
-        let sinLat = sin(latRad)
-        let threshold = -6.0  // 市民薄明
-
-        // 正午 (720分) から翌日正午 (2160分) まで1分刻みで太陽高度を評価
-        var eveningDate: Date?
-        var morningDate: Date?
-        var prevAlt: Double?
-
-        for m in 720...2160 {
-            let sampleDate = startOfDay.addingTimeInterval(Double(m) * 60)
-            let jd = julianDate(from: sampleDate)
-            let lst = localSiderealTime(jd: jd, longitude: location.longitude)
-            let sun = sunRaDec(jd: jd)
-            let (sunAlt, _) = altAzFast(ra: sun.ra, dec: sun.dec,
-                                         cosLat: cosLat, sinLat: sinLat, lst: lst)
-
-            if let prev = prevAlt {
-                if eveningDate == nil && prev >= threshold && sunAlt < threshold {
-                    // 太陽が閾値を下回った (夕方の薄明終了)
-                    eveningDate = sampleDate
-                } else if eveningDate != nil && morningDate == nil && prev < threshold && sunAlt >= threshold {
-                    // 太陽が閾値を上回った (朝方の薄明開始)
-                    morningDate = sampleDate
-                    break
-                }
-            }
-            prevAlt = sunAlt
+        guard let interval = civilDarknessInterval(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        ) else {
+            return nil
         }
-
-        guard let evening = eveningDate, let morning = morningDate else {
-            return nil  // 白夜または極夜
-        }
-        return (evening: evening, morning: morning)
+        return (evening: interval.start, morning: interval.end)
     }
 
     static func findCivilTwilightMinutes(
@@ -182,14 +202,14 @@ enum MilkyWayCalculator {
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) -> DateInterval? {
-        guard let twilight = findCivilTwilight(
+        guard let twilight = civilDarknessInterval(
             date: date,
             location: location,
             timeZone: timeZone
         ) else {
             return nil
         }
-        return DateInterval(start: twilight.evening, end: twilight.morning)
+        return twilight
     }
 
     // 月の赤経・赤緯・位相 (簡易計算)

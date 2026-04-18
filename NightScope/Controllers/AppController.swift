@@ -209,13 +209,10 @@ final class AppController: ObservableObject {
     /// 当夜の星空指数を最新の夜間サマリー・外部データから再構築します。
     func recomputeStarGazingIndex() {
         guard let summary = nightSummary else { return }
-        let context = selectedLocationContext
         starGazingIndex = makeStarGazingIndex(
             nightSummary: summary,
             weatherByDate: weatherService.weatherByDate,
-            bortleClass: lightPollutionService.bortleClass,
-            selectedDate: selectedDate,
-            timeZone: context.timeZone
+            bortleClass: lightPollutionService.bortleClass
         )
     }
 
@@ -479,14 +476,12 @@ final class AppController: ObservableObject {
     func makeStarGazingIndex(
         nightSummary: NightSummary,
         weatherByDate: [String: DayWeatherSummary],
-        bortleClass: Double?,
-        selectedDate: Date,
-        timeZone: TimeZone
+        bortleClass: Double?
     ) -> StarGazingIndex {
         let weather = weatherService.summary(
-            for: selectedDate,
+            for: nightSummary.date,
             from: weatherByDate,
-            timeZone: timeZone
+            timeZone: nightSummary.timeZone
         )
         return StarGazingIndex.compute(
             nightSummary: nightSummary,
@@ -574,9 +569,7 @@ final class AppController: ObservableObject {
             starGazingIndex: makeStarGazingIndex(
                 nightSummary: nightSummary,
                 weatherByDate: weatherResult.weatherByDate,
-                bortleClass: lightPollutionResult.bortleClass,
-                selectedDate: selectedDate,
-                timeZone: context.timeZone
+                bortleClass: lightPollutionResult.bortleClass
             ),
             upcomingIndexes: makeUpcomingIndexes(
                 upcomingNights: upcomingNights,

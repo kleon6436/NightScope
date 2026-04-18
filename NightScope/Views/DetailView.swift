@@ -181,12 +181,16 @@ struct DetailView: View {
                         summary: summary,
                         weather: weather,
                         isWeatherLoading: isWeatherLoading,
+                        isForecastOutOfRange: viewModel.isCurrentWeatherForecastOutOfRange,
+                        isCoverageIncomplete: viewModel.isCurrentWeatherCoverageIncomplete,
                         weatherViewModel: nightWeatherCardViewModel
                     )
                     MacSummaryCardsWrapped(
                         summary: summary,
                         weather: weather,
                         isWeatherLoading: isWeatherLoading,
+                        isForecastOutOfRange: viewModel.isCurrentWeatherForecastOutOfRange,
+                        isCoverageIncomplete: viewModel.isCurrentWeatherCoverageIncomplete,
                         weatherViewModel: nightWeatherCardViewModel
                     )
                 }
@@ -204,6 +208,8 @@ private struct MacSummaryCardsWide: View {
     let summary: NightSummary
     let weather: DayWeatherSummary?
     let isWeatherLoading: Bool
+    let isForecastOutOfRange: Bool
+    let isCoverageIncomplete: Bool
     @ObservedObject var weatherViewModel: NightWeatherCardViewModel
 
     var body: some View {
@@ -218,7 +224,13 @@ private struct MacSummaryCardsWide: View {
             spacing: Spacing.xs
         ) {
             DarkTimeCard(summary: summary, weather: weather)
-            NightWeatherCard(weather: weather, isLoading: isWeatherLoading, viewModel: weatherViewModel)
+            NightWeatherCard(
+                weather: weather,
+                isLoading: isWeatherLoading,
+                isForecastOutOfRange: isForecastOutOfRange,
+                isCoverageIncomplete: isCoverageIncomplete,
+                viewModel: weatherViewModel
+            )
             MoonPhaseCard(summary: summary)
             MilkyWaySummaryCard(summary: summary)
         }
@@ -229,6 +241,8 @@ private struct MacSummaryCardsWrapped: View {
     let summary: NightSummary
     let weather: DayWeatherSummary?
     let isWeatherLoading: Bool
+    let isForecastOutOfRange: Bool
+    let isCoverageIncomplete: Bool
     @ObservedObject var weatherViewModel: NightWeatherCardViewModel
 
     var body: some View {
@@ -240,7 +254,13 @@ private struct MacSummaryCardsWrapped: View {
             spacing: Spacing.xs
         ) {
             DarkTimeCard(summary: summary, weather: weather)
-            NightWeatherCard(weather: weather, isLoading: isWeatherLoading, viewModel: weatherViewModel)
+            NightWeatherCard(
+                weather: weather,
+                isLoading: isWeatherLoading,
+                isForecastOutOfRange: isForecastOutOfRange,
+                isCoverageIncomplete: isCoverageIncomplete,
+                viewModel: weatherViewModel
+            )
             MoonPhaseCard(summary: summary)
             MilkyWaySummaryCard(summary: summary)
         }
@@ -378,7 +398,7 @@ private struct MacStarMapSheet: View {
 
                 Slider(
                     value: timeSliderBinding,
-                    in: 0...viewModel.nightDurationMinutes,
+                    in: 0...viewModel.timeSliderMaximumMinutes,
                     step: 1,
                     onEditingChanged: timeSliderEditingChanged
                 )

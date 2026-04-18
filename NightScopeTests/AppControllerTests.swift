@@ -83,7 +83,10 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(userDefaults.double(forKey: key), sentinelDate.timeIntervalSince1970)
     }
 
-    private func makeNightSummary(date: Date) -> NightSummary {
+    private func makeNightSummary(
+        date: Date,
+        timeZoneIdentifier: String = TimeZone.current.identifier
+    ) -> NightSummary {
         let location = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
         let eventDate = Calendar.current.date(byAdding: .hour, value: 21, to: date) ?? date
         let event = AstroEvent(
@@ -106,7 +109,8 @@ final class AppControllerTests: XCTestCase {
             location: location,
             events: [event],
             viewingWindows: [window],
-            moonPhaseAtMidnight: 0.12
+            moonPhaseAtMidnight: 0.12,
+            timeZoneIdentifier: timeZoneIdentifier
         )
     }
 
@@ -234,7 +238,7 @@ final class AppControllerTests: XCTestCase {
             hour: 7,
             minute: 30
         ))!
-        let night = makeNightSummary(date: selectedDate)
+        let night = makeNightSummary(date: selectedDate, timeZoneIdentifier: losAngeles.identifier)
         let weather = makeWeatherSummary(date: selectedDate)
         let snapshot = [
             appController.weatherService.dateKey(selectedDate, timeZone: losAngeles): weather
@@ -245,9 +249,7 @@ final class AppControllerTests: XCTestCase {
         let index = appController.makeStarGazingIndex(
             nightSummary: night,
             weatherByDate: snapshot,
-            bortleClass: 4,
-            selectedDate: selectedDate,
-            timeZone: losAngeles
+            bortleClass: 4
         )
 
         XCTAssertTrue(index.hasWeatherData)
@@ -286,6 +288,25 @@ final class AppControllerTests: XCTestCase {
 
         XCTAssertEqual(indexes.count, 2)
         XCTAssertTrue(indexes.values.allSatisfy(\.hasWeatherData))
+    }
+
+    func test_recomputeStarGazingIndex_usesNightSummaryDateWhileSelectionIsChanging() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let calendar = Calendar(identifier: .gregorian)
+        let currentDate = calendar.startOfDay(for: Date())
+        let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        let summary = makeNightSummary(date: currentDate)
+        let nextWeather = makeWeatherSummary(date: nextDate)
+
+        appController.nightSummary = summary
+        appController.selectedDate = nextDate
+        appController.weatherService.weatherByDate = [
+            appController.weatherService.dateKey(nextDate): nextWeather
+        ]
+
+        appController.recomputeStarGazingIndex()
+
+        XCTAssertFalse(appController.starGazingIndex?.hasWeatherData ?? true)
     }
 
     func test_recalculate_keepsDisplayedNightSummaryUntilNewDateCompletes() async {

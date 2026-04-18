@@ -46,9 +46,45 @@ final class NightWeatherCardViewModel: ObservableObject {
         windSpeedUnit.format(value)
     }
 
-    func accessibilityDescription(weather: DayWeatherSummary?, isLoading: Bool) -> String {
+    func unavailableTitle(isForecastOutOfRange: Bool) -> String {
+        isForecastOutOfRange ? "予報対象外" : "不明"
+    }
+
+    func unavailablePrimaryText(isForecastOutOfRange: Bool) -> String {
+        isForecastOutOfRange ? "この日は天気予報の対象外です" : "データなし"
+    }
+
+    func unavailableSecondaryText(isForecastOutOfRange: Bool) -> String {
+        isForecastOutOfRange ? "天文情報のみ表示しています" : "10日以内のみ"
+    }
+
+    func partialCoverageTitle() -> String {
+        "予報一部のみ"
+    }
+
+    func partialCoveragePrimaryText() -> String {
+        "夜間を最後まで評価できません"
+    }
+
+    func partialCoverageSecondaryText() -> String {
+        "星空指数には反映していません"
+    }
+
+    func accessibilityDescription(
+        weather: DayWeatherSummary?,
+        isLoading: Bool,
+        isForecastOutOfRange: Bool,
+        isCoverageIncomplete: Bool
+    ) -> String {
         if isLoading { return "天気 夜間: 取得中" }
-        guard let w = weather else { return "天気 夜間: 不明、データなし、10日以内のみ" }
+        if isCoverageIncomplete {
+            return "天気 夜間: 予報一部のみ、夜間を最後まで評価できません、星空指数には反映していません"
+        }
+        guard let w = weather else {
+            return isForecastOutOfRange
+                ? "天気 夜間: 予報対象外、この日は天気予報の対象外です、天文情報のみ表示しています"
+                : "天気 夜間: 不明、データなし、10日以内のみ"
+        }
         return "天気 夜間: \(weatherLabel(w))、降水\(String(format: "%.1f", w.maxPrecipitation))mm、雲量\(Int(w.avgCloudCover))%、\(formatWindSpeed(w.avgWindSpeed))"
     }
 }

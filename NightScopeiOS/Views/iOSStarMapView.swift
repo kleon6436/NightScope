@@ -139,7 +139,7 @@ struct iOSStarMapView: View {
 
             Slider(
                 value: timeSliderBinding,
-                in: 0...viewModel.nightDurationMinutes,
+                in: 0...viewModel.timeSliderMaximumMinutes,
                 step: 1,
                 onEditingChanged: timeSliderEditingChanged
             )

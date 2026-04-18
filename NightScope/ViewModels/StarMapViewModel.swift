@@ -146,7 +146,7 @@ final class StarMapViewModel: ObservableObject {
         self.computationDependency = computationDependency ?? .live
         self.starDisplayDensity = self.settingsDependency.currentDensity()
         setupBindings()
-        updateNightRange()
+        updateNightRange(referenceDate: displayDate)
         syncTimeSliderWithDisplayDate()
         update()
     }
@@ -340,7 +340,12 @@ final class StarMapViewModel: ObservableObject {
     private func scheduleTerrainFetchIfNeeded(for context: UpdateContext) {
         guard context.terrainCacheKey != lastTerrainKey else { return }
         lastTerrainKey = context.terrainCacheKey
-        fetchTerrain(latitude: context.latitude, longitude: context.longitude)
+        terrainProfile = nil
+        fetchTerrain(
+            latitude: context.latitude,
+            longitude: context.longitude,
+            terrainKey: context.terrainCacheKey
+        )
     }
 
     private func apply(_ snapshot: StarMapComputation.Snapshot) {
@@ -363,12 +368,13 @@ final class StarMapViewModel: ObservableObject {
     private var lastTerrainKey: String = ""
     private var terrainFetchTask: Task<Void, Never>? = nil
 
-    private func fetchTerrain(latitude: Double, longitude: Double) {
+    private func fetchTerrain(latitude: Double, longitude: Double, terrainKey: String) {
         terrainFetchTask?.cancel()
         terrainFetchTask = Task { [weak self] in
             guard let self else { return }
             let profile = await terrainDependency.fetchProfile(latitude, longitude)
             guard !Task.isCancelled else { return }
+            guard terrainKey == lastTerrainKey else { return }
             terrainProfile = profile
         }
     }
@@ -457,7 +463,7 @@ final class StarMapViewModel: ObservableObject {
     /// 選択日へ現在の時刻を反映し、昼間なら当日夕方側の夜へ寄せて表示日時を決める。
     func syncWithSelectedDate(referenceDate: Date = Date()) {
         let context = observationContext
-        updateNightRange()
+        updateNightRange(referenceDate: referenceDate)
         if let date = resolvedPresentationDate(
             for: context.selectedDate,
             referenceDate: referenceDate,
@@ -470,7 +476,7 @@ final class StarMapViewModel: ObservableObject {
 
     /// 夜間スライダーの値を表示日時へ反映します。
     func setTimeSliderMinutes(_ minutes: Double) {
-        let clampedMinutes = max(0, min(nightDurationMinutes, minutes.rounded()))
+        let clampedMinutes = max(0, min(timeSliderMaximumMinutes, minutes.rounded()))
         guard abs(timeSliderMinutes - clampedMinutes) > 0.5 else { return }
         timeSliderMinutes = clampedMinutes
 
@@ -497,6 +503,10 @@ final class StarMapViewModel: ObservableObject {
             nightStartMinutes: nightStartMinutes
         )
         return StarMapPresentation.timeString(from: realMinutes)
+    }
+
+    var timeSliderMaximumMinutes: Double {
+        StarMapDateLogic.maxSelectableNightOffset(nightDurationMinutes: nightDurationMinutes)
     }
 
     private func syncTimeSliderWithDisplayDate() {
@@ -564,14 +574,17 @@ final class StarMapViewModel: ObservableObject {
     }
 
     private func handleSelectedTimeZoneChanged() {
+        discardPendingTimeSliderDate()
         syncWithSelectedDate(referenceDate: displayDate)
     }
 
     private func handleSelectedLocationChanged() {
+        discardPendingTimeSliderDate()
         syncWithSelectedDate(referenceDate: displayDate)
     }
 
     private func handleSelectedDateChanged() {
+        discardPendingTimeSliderDate()
         let timeZone = selectedTimeZone
         let currentObservationDate = StarMapDateLogic.observationDate(
             for: displayDate,
@@ -586,6 +599,12 @@ final class StarMapViewModel: ObservableObject {
             return
         }
         syncWithSelectedDate(referenceDate: displayDate)
+    }
+
+    private func discardPendingTimeSliderDate() {
+        pendingTimeSliderDate = nil
+        timeSliderCommitTask?.cancel()
+        timeSliderCommitTask = nil
     }
 
     private func setDisplayDate(
@@ -612,7 +631,7 @@ final class StarMapViewModel: ObservableObject {
     }
 
     /// 夜間範囲を現在の日付・場所で再計算
-    private func updateNightRange() {
+    private func updateNightRange(referenceDate: Date) {
         let context = observationContext
         let fallback = StarMapDateLogic.NightRange(
             startMinutes: nightStartMinutes,
@@ -622,6 +641,7 @@ final class StarMapViewModel: ObservableObject {
             for: context.selectedDate,
             location: context.location,
             timeZone: context.timeZone,
+            referenceDate: referenceDate,
             fallback: fallback
         )
         nightStartMinutes = range.startMinutes

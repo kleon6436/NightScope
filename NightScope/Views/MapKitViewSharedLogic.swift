@@ -168,6 +168,17 @@ enum MapKitViewSharedLogic {
         return true
     }
 
+    fileprivate static func regionsEquivalent(
+        _ lhs: MKCoordinateRegion,
+        _ rhs: MKCoordinateRegion,
+        tolerance: CLLocationDegrees = 0.000001
+    ) -> Bool {
+        abs(lhs.center.latitude - rhs.center.latitude) <= tolerance
+            && abs(lhs.center.longitude - rhs.center.longitude) <= tolerance
+            && abs(lhs.span.latitudeDelta - rhs.span.latitudeDelta) <= tolerance
+            && abs(lhs.span.longitudeDelta - rhs.span.longitudeDelta) <= tolerance
+    }
+
     private static func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
         lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
     }
@@ -225,10 +236,13 @@ final class ViewingDirectionOverlay: MKPolygon {}
 
 @MainActor
 final class MapKitCoordinatorState {
+    private static let pendingIgnoreResetDelay: Duration = .milliseconds(500)
+
     private var lastSyncTrigger: Int
     private var lastCenterTrigger: Int
     private var pendingIgnoredRegionChanges = 0
     private var latestProgrammaticRegionGeneration = 0
+    private var pendingIgnoreResetTask: Task<Void, Never>?
 
     init(syncTrigger: Int, centerTrigger: Int) {
         self.lastSyncTrigger = syncTrigger
@@ -262,16 +276,19 @@ final class MapKitCoordinatorState {
         ) else {
             return
         }
-        pendingIgnoredRegionChanges += 1
         latestProgrammaticRegionGeneration += 1
         let scheduledGeneration = latestProgrammaticRegionGeneration
 
         DispatchQueue.main.async { [weak self, weak mapView] in
             guard let self, let mapView else { return }
             guard scheduledGeneration == self.latestProgrammaticRegionGeneration else {
-                self.pendingIgnoredRegionChanges = max(0, self.pendingIgnoredRegionChanges - 1)
                 return
             }
+            guard !MapKitViewSharedLogic.regionsEquivalent(mapView.region, sanitizedRegion) else {
+                return
+            }
+            self.pendingIgnoredRegionChanges += 1
+            self.schedulePendingIgnoreReset()
             mapView.setRegion(sanitizedRegion, animated: animated)
         }
     }
@@ -281,6 +298,10 @@ final class MapKitCoordinatorState {
         onRegionChange: @escaping (CLLocationCoordinate2D, MKCoordinateSpan) -> Void
     ) {
         if MapKitViewSharedLogic.consumePendingRegionChangeIgnore(&pendingIgnoredRegionChanges) {
+            if pendingIgnoredRegionChanges == 0 {
+                pendingIgnoreResetTask?.cancel()
+                pendingIgnoreResetTask = nil
+            }
             return
         }
         let region = mapView.region
@@ -295,6 +316,17 @@ final class MapKitCoordinatorState {
             guard let self else { return }
             guard capturedGeneration == self.latestProgrammaticRegionGeneration else { return }
             onRegionChange(sanitizedRegion.center, sanitizedRegion.span)
+        }
+    }
+
+    private func schedulePendingIgnoreReset() {
+        pendingIgnoreResetTask?.cancel()
+        pendingIgnoreResetTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.pendingIgnoreResetDelay)
+            guard !Task.isCancelled else { return }
+            guard let self else { return }
+            self.pendingIgnoredRegionChanges = 0
+            self.pendingIgnoreResetTask = nil
         }
     }
 

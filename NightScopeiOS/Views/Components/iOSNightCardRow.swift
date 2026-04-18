@@ -5,10 +5,20 @@ struct iOSNightCardRow: View {
     let index: StarGazingIndex?
     let weather: DayWeatherSummary?
     let rangeText: String
+    let isReliableWeather: Bool
+    let hasPartialWeather: Bool
+    let isForecastOutOfRange: Bool
     let isSelected: Bool
 
     private var presentation: ForecastCardPresentation {
-        ForecastCardPresentation(night: night, weather: weather, timeZone: night.timeZone)
+        ForecastCardPresentation(
+            night: night,
+            weather: weather,
+            timeZone: night.timeZone,
+            isReliableWeather: isReliableWeather,
+            hasPartialWeather: hasPartialWeather,
+            isForecastOutOfRange: isForecastOutOfRange
+        )
     }
 
     var body: some View {
@@ -49,8 +59,12 @@ struct iOSNightCardRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                if weather != nil {
+                if isReliableWeather {
                     Label(presentation.cloudCoverText, systemImage: AppIcons.Weather.cloud)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let detailText = presentation.weatherDetailText {
+                    Label(detailText, systemImage: "questionmark.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

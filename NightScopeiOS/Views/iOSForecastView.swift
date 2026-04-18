@@ -107,12 +107,18 @@ struct iOSForecastView: View {
         let index = gridViewModel.starGazingIndex(for: night.date)
         let weather = gridViewModel.weatherSummary(for: night.date)
         let rangeText = gridViewModel.observableRangeText(night: night, weather: weather)
+        let isReliableWeather = gridViewModel.hasReliableWeatherData(for: night, weather: weather)
+        let hasPartialWeather = gridViewModel.hasPartialWeatherData(for: night, weather: weather)
+        let isForecastOutOfRange = gridViewModel.isForecastOutOfRange(for: night, weather: weather)
 
         return iOSNightCardRow(
             night: night,
             index: index,
             weather: weather,
             rangeText: rangeText,
+            isReliableWeather: isReliableWeather,
+            hasPartialWeather: hasPartialWeather,
+            isForecastOutOfRange: isForecastOutOfRange,
             isSelected: gridViewModel.isDateSelected(night.date)
         )
         .listRowBackground(Color.clear)

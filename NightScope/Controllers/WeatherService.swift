@@ -94,6 +94,21 @@ final class WeatherService: ObservableObject, WeatherProviding {
         weatherByDate[forecastParser.dateKey(date, timeZone: timeZone)]
     }
 
+    func isForecastOutOfRange(
+        for date: Date,
+        in weatherByDate: [String: DayWeatherSummary],
+        timeZone: TimeZone
+    ) -> Bool {
+        guard summary(for: date, from: weatherByDate, timeZone: timeZone) == nil,
+              let latestForecastDate = weatherByDate.values.map(\.date).max() else {
+            return false
+        }
+
+        let selectedDay = ObservationTimeZone.startOfDay(for: date, timeZone: timeZone)
+        let latestForecastDay = ObservationTimeZone.startOfDay(for: latestForecastDate, timeZone: timeZone)
+        return selectedDay > latestForecastDay
+    }
+
     func prepareForLocationChange(latitude: Double, longitude: Double, timeZone: TimeZone) {
         currentTask?.cancel()
         activeLocationKey = Self.locationKey(latitude: latitude, longitude: longitude, timeZone: timeZone)

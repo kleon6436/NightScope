@@ -217,18 +217,65 @@ final class NightWeatherCardViewModelTests: XCTestCase {
 
     func test_accessibilityDescription_loading() {
         let vm = NightWeatherCardViewModel()
-        XCTAssertEqual(vm.accessibilityDescription(weather: nil, isLoading: true), "天気 夜間: 取得中")
+        XCTAssertEqual(
+            vm.accessibilityDescription(
+                weather: nil,
+                isLoading: true,
+                isForecastOutOfRange: false,
+                isCoverageIncomplete: false
+            ),
+            "天気 夜間: 取得中"
+        )
     }
 
     func test_accessibilityDescription_noData() {
         let vm = NightWeatherCardViewModel()
-        XCTAssertEqual(vm.accessibilityDescription(weather: nil, isLoading: false), "天気 夜間: 不明、データなし、10日以内のみ")
+        XCTAssertEqual(
+            vm.accessibilityDescription(
+                weather: nil,
+                isLoading: false,
+                isForecastOutOfRange: false,
+                isCoverageIncomplete: false
+            ),
+            "天気 夜間: 不明、データなし、10日以内のみ"
+        )
+    }
+
+    func test_accessibilityDescription_partialCoverage() {
+        let vm = NightWeatherCardViewModel()
+        XCTAssertEqual(
+            vm.accessibilityDescription(
+                weather: makeDayWeatherSummary(),
+                isLoading: false,
+                isForecastOutOfRange: false,
+                isCoverageIncomplete: true
+            ),
+            "天気 夜間: 予報一部のみ、夜間を最後まで評価できません、星空指数には反映していません"
+        )
+    }
+
+    func test_accessibilityDescription_forecastOutOfRange() {
+        let vm = NightWeatherCardViewModel()
+        XCTAssertEqual(
+            vm.accessibilityDescription(
+                weather: nil,
+                isLoading: false,
+                isForecastOutOfRange: true,
+                isCoverageIncomplete: false
+            ),
+            "天気 夜間: 予報対象外、この日は天気予報の対象外です、天文情報のみ表示しています"
+        )
     }
 
     func test_accessibilityDescription_withData() {
         let vm = NightWeatherCardViewModel()
         let weather = makeDayWeatherSummary(cloudCover: 20, windSpeed: 10)
-        let desc = vm.accessibilityDescription(weather: weather, isLoading: false)
+        let desc = vm.accessibilityDescription(
+            weather: weather,
+            isLoading: false,
+            isForecastOutOfRange: false,
+            isCoverageIncomplete: false
+        )
         XCTAssertTrue(desc.hasPrefix("天気 夜間: "))
         XCTAssertTrue(desc.contains("雲量20%"))
         XCTAssertTrue(desc.contains("降水0.0mm"))

@@ -240,6 +240,7 @@ enum ApproximateTimeZoneResolver {
         TimeZoneHeuristic(latitudeRange: -26 ... -10, longitudeRange: 129...139.5, identifier: "Australia/Darwin"),
         TimeZoneHeuristic(latitudeRange: -39 ... -26, longitudeRange: 129...141, identifier: "Australia/Adelaide"),
         TimeZoneHeuristic(latitudeRange: 46...53, longitudeRange: -60.5 ... -52, identifier: "America/St_Johns"),
+        TimeZoneHeuristic(latitudeRange: 43...49.5, longitudeRange: -66.5 ... -56, identifier: "America/Halifax"),
         TimeZoneHeuristic(latitudeRange: -11 ... -6, longitudeRange: -142 ... -138, identifier: "Pacific/Marquesas"),
         TimeZoneHeuristic(latitudeRange: -45.5 ... -42, longitudeRange: -177.5 ... -175, identifier: "Pacific/Chatham"),
         TimeZoneHeuristic(latitudeRange: 24...40, longitudeRange: 43...64, identifier: "Asia/Tehran"),

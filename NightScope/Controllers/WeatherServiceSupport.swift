@@ -95,11 +95,11 @@ enum MetNorwayFormatting {
         return f
     }
 
-    nonisolated(unsafe) static let isoDateFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
+    static func isoDateFormatter() -> ISO8601DateFormatter {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }
 
     static let httpDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -145,13 +145,16 @@ struct MetNorwayForecastParser: Sendable {
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) -> [String: DayWeatherSummary] {
-        let hours = response.properties.timeseries.flatMap { hourlyWeatherEntries(from: $0) }
+        let formatter = MetNorwayFormatting.isoDateFormatter()
+        let hours = response.properties.timeseries.flatMap {
+            hourlyWeatherEntries(from: $0, formatter: formatter)
+        }
         let hoursByDate = groupNightHours(hours, location: location, timeZone: timeZone)
-        let formatter = MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone)
+        let dateKeyFormatter = MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone)
 
         var summaries: [String: DayWeatherSummary] = [:]
         for (key, hours) in hoursByDate {
-            guard let date = formatter.date(from: key) else {
+            guard let date = dateKeyFormatter.date(from: key) else {
                 continue
             }
             summaries[key] = DayWeatherSummary(
@@ -166,31 +169,43 @@ struct MetNorwayForecastParser: Sendable {
         MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone).string(from: date)
     }
 
-    private func hourlyWeatherEntries(from timeseries: MetNorwayResponse.Properties.Timeseries) -> [HourlyWeather] {
-        guard let date = MetNorwayFormatting.isoDateFormatter.date(from: timeseries.time) else {
+    private func hourlyWeatherEntries(
+        from timeseries: MetNorwayResponse.Properties.Timeseries,
+        formatter: ISO8601DateFormatter
+    ) -> [HourlyWeather] {
+        guard let date = formatter.date(from: timeseries.time) else {
             return []
         }
 
         let details = timeseries.data.instant.details
         let forecastStepHours = forecastStepHours(for: timeseries)
-        let temperature = details.air_temperature ?? 0
-        let precipitation = timeseries.data.next_1_hours?.details.precipitation_amount
-            ?? timeseries.data.next_6_hours?.details?.precipitation_amount
-            ?? 0
-        let symbolCode = timeseries.data.next_1_hours?.summary.symbol_code
-            ?? timeseries.data.next_6_hours?.summary?.symbol_code
+        guard let temperature = details.air_temperature,
+              let cloudCover = details.cloud_area_fraction,
+              let windSpeed = details.wind_speed,
+              let humidity = details.relative_humidity,
+              let rawPrecipitation = timeseries.data.next_1_hours?.details.precipitation_amount
+                ?? timeseries.data.next_6_hours?.details?.precipitation_amount,
+              let symbolCode = timeseries.data.next_1_hours?.summary.symbol_code
+                ?? timeseries.data.next_6_hours?.summary?.symbol_code else {
+            return []
+        }
+        let precipitation = forecastStepHours > 1
+            ? rawPrecipitation / Double(forecastStepHours)
+            : rawPrecipitation
+        let dewpoint = details.dew_point_temperature ?? temperature
 
         // MET Norway は先の日付ほど `next_6_hours` に切り替わる。
         // 夜間判定と星空指数は時間単位の被覆率を前提にするため、6時間ブロックは各1時間へ展開する。
+        // precipitation_amount は 6 時間累積なので、1 時間ごとへ均等配分して扱う。
         return (0..<forecastStepHours).map { offset in
             HourlyWeather(
                 date: date.addingTimeInterval(Double(offset) * 3600),
                 temperatureCelsius: temperature,
-                cloudCoverPercent: details.cloud_area_fraction ?? 0,
+                cloudCoverPercent: cloudCover,
                 precipitationMM: precipitation,
-                windSpeedKmh: (details.wind_speed ?? 0) * 3.6,
-                humidityPercent: details.relative_humidity ?? 0,
-                dewpointCelsius: details.dew_point_temperature ?? temperature,
+                windSpeedKmh: windSpeed * 3.6,
+                humidityPercent: humidity,
+                dewpointCelsius: dewpoint,
                 weatherCode: Self.symbolCodeToWMO(symbolCode),
                 visibilityMeters: nil,
                 windGustsKmh: details.wind_speed_of_gust.map { $0 * 3.6 },
