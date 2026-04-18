@@ -471,7 +471,7 @@ struct ForecastCardPresentation {
 
     var cloudCoverText: String {
         guard isReliableWeather, let weather else { return "—" }
-        return String(format: "%.0f%%", weather.avgCloudCover)
+        return L10n.percent(weather.avgCloudCover)
     }
 
     var weatherDetailText: String? {

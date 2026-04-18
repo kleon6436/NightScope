@@ -132,9 +132,9 @@ private struct SettingsAboutSections: View {
 }
 
 private struct DataSourceStatusRow: View {
-    let title: String
-    let detail: String
-    let note: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+    let note: LocalizedStringKey
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -152,9 +152,9 @@ private struct DataSourceStatusRow: View {
 }
 
 private struct AttributionRow: View {
-    let title: String
-    let detail: String
-    let license: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+    let license: LocalizedStringKey
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {

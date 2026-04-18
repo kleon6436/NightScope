@@ -31,7 +31,7 @@ final class NightWeatherCardViewModel: ObservableObject {
     }
 
     func formatCloudCover(_ value: Double) -> String {
-        L10n.format("雲量 %.0f%%", value)
+        L10n.format("weather.cloudCover.label", L10n.percent(value))
     }
 
     func formatPrecipitation(_ value: Double) -> String {
@@ -102,10 +102,10 @@ final class NightWeatherCardViewModel: ObservableObject {
                 : L10n.tr("天気 夜間: 不明、データなし、10日以内のみ")
         }
         return L10n.format(
-            "天気 夜間: %@、降水%.1fmm、雲量%d%%、%@",
+            "weather.night.accessibility.metrics",
             weatherLabel(w),
-            w.maxPrecipitation,
-            Int(w.avgCloudCover),
+            L10n.format("weather.precipitation.compact", L10n.number(w.maxPrecipitation, fractionDigits: 1)),
+            L10n.format("weather.cloudCover.compact", L10n.percent(w.avgCloudCover)),
             formatWindSpeed(w.avgWindSpeed)
         )
     }

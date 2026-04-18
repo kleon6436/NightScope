@@ -12,4 +12,20 @@ enum L10n {
             arguments: args
         )
     }
+
+    static func percent(_ value: Double, fractionDigits: Int = 0) -> String {
+        (value / 100).formatted(
+            .percent
+                .precision(.fractionLength(fractionDigits))
+                .locale(.autoupdatingCurrent)
+        )
+    }
+
+    static func number(_ value: Double, fractionDigits: Int) -> String {
+        value.formatted(
+            .number
+                .precision(.fractionLength(fractionDigits))
+                .locale(.autoupdatingCurrent)
+        )
+    }
 }

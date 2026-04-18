@@ -120,6 +120,19 @@
         }
       }
     },
+    "%@/%@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@/%2$@"
+          }
+        }
+      }
+    },
+    "%@/100" : {
+
+    },
     "%@から%@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -202,11 +215,50 @@
         }
       }
     },
-    "NightScope" : {
+    "CC BY 4.0" : {
 
     },
-    "NightScope について" : {
+    "Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness (GFZ Data Services)" : {
 
+    },
+    "MET Norway / Norwegian Meteorological Institute" : {
+
+    },
+    "MET Norway API を実行時に取得します。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetched from the MET Norway API at runtime."
+          }
+        }
+      }
+    },
+    "NASA Shuttle Radar Topography Mission (SRTM)" : {
+
+    },
+    "NightScope" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NightScope"
+          }
+        }
+      }
+    },
+    "NightScope について" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About NightScope"
+          }
+        }
+      }
     },
     "NightScope の設定画面を開きます" : {
       "extractionState" : "manual",
@@ -220,6 +272,17 @@
       }
     },
     "OK" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "Public Domain" : {
 
     },
     "Unknown" : {
@@ -243,6 +306,77 @@
           }
         }
       }
+    },
+    "weather.cloudCover.compact" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud cover %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雲量%@"
+          }
+        }
+      }
+    },
+    "weather.cloudCover.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cloud cover %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雲量 %@"
+          }
+        }
+      }
+    },
+    "weather.night.accessibility.metrics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Night weather: %@, %@, %@, %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天気 夜間: %@、%@、%@、%@"
+          }
+        }
+      }
+    },
+    "weather.precipitation.compact" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precipitation %@ mm"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "降水%@mm"
+          }
+        }
+      }
+    },
+    "Yale Bright Star Catalogue (BSC5) / CDS VizieR" : {
+
     },
     "アークトゥルス" : {
       "extractionState" : "manual",
@@ -1477,7 +1611,15 @@
       }
     },
     "しばらくお待ちください" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please wait a moment."
+          }
+        }
+      }
     },
     "しぶんぎ座流星群" : {
       "extractionState" : "manual",
@@ -3053,7 +3195,15 @@
       }
     },
     "最新データを取得しています" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetching the latest data."
+          }
+        }
+      }
     },
     "前の月" : {
       "extractionState" : "manual",
@@ -4221,6 +4371,17 @@
         }
       }
     },
+    "月の状態: %@、月齢%.1f日。%@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moon phase: %@, moon age %.1f days. %@"
+          }
+        }
+      }
+    },
     "月明かり" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4607,7 +4768,15 @@
       }
     },
     "翌日" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Day"
+          }
+        }
+      }
     },
     "背面カメラを利用できないため、カメラ背景を開始できません。" : {
       "extractionState" : "manual",
@@ -4819,7 +4988,15 @@
       }
     },
     "計算中…" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculating…"
+          }
+        }
+      }
     },
     "設定" : {
       "extractionState" : "manual",
@@ -4953,17 +5130,6 @@
         }
       }
     },
-    "雲量 %.0f%%" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cloud cover %.0f%%"
-          }
-        }
-      }
-    },
     "雷雨" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5042,7 +5208,15 @@
       }
     },
     "風速単位" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wind Speed Unit"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
