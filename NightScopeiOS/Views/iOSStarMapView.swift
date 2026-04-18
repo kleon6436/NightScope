@@ -26,6 +26,8 @@ struct iOSStarMapView: View {
                     .ignoresSafeArea(edges: .top)
 
                 headerSection
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.top, Spacing.sm)
                 bottomControlPanel
                     .onGeometryChange(for: CGFloat.self) { proxy in
                         proxy.size.height
@@ -51,7 +53,8 @@ struct iOSStarMapView: View {
         iOSTabHeaderView(
             title: "星空",
             titleColor: .white,
-            subtitleColor: .white.opacity(0.75)
+            subtitleColor: .white.opacity(0.75),
+            horizontalPadding: Spacing.xs
         ) {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: "sparkles")

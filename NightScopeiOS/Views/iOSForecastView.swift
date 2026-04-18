@@ -52,7 +52,8 @@ struct iOSForecastView: View {
 
     private var headerSection: some View {
         iOSTabHeaderView(
-            title: "14日予報"
+            title: "14日予報",
+            horizontalPadding: Spacing.xs
         ) {
             VStack(alignment: .leading, spacing: Spacing.xs / 2) {
                 HStack(spacing: Spacing.xs) {

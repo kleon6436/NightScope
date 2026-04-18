@@ -48,15 +48,11 @@ struct iOSLocationView: View {
     private var headerSection: some View {
         iOSTabHeaderView(
             title: "場所",
-            verticalPadding: Spacing.xs,
-            bottomPadding: Spacing.xs / 2,
-            subtitleSpacing: Spacing.xs / 2
+            horizontalPadding: Spacing.xs
         ) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("検索して観測地点を選択します")
-                    .font(.subheadline)
-                    .lineLimit(1)
-            }
+            Text("検索して観測地点を選択します")
+                .font(.subheadline)
+                .lineLimit(1)
         } trailing: {
             Button {
                 isSearchFocused = false
