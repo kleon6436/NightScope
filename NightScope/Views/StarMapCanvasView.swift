@@ -17,6 +17,16 @@ struct StarMapCanvasView: View {
         var id: Double { azimuthDegrees }
     }
 
+    private struct HorizonLineCoefficients {
+        let a: Double
+        let b: Double
+        let c: Double
+
+        func value(at point: CGPoint) -> Double {
+            a * point.x + b * point.y + c
+        }
+    }
+
     private struct GnomonicProjectionContext {
         let cx: Double
         let cy: Double
@@ -25,41 +35,31 @@ struct StarMapCanvasView: View {
         let right: (x: Double, y: Double, z: Double)
         let up: (x: Double, y: Double, z: Double)
 
-        init(size: CGSize, centerAlt: Double, centerAz: Double, fov: Double) {
+        init(size: CGSize, centerAlt: Double, centerAz: Double, rollDegrees: Double, fov: Double) {
             self.cx = size.width / 2
             self.cy = size.height / 2
-            let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
-            self.scale = min(size.width, size.height) / (2 * tan(halfFovRad))
-
-            let altitudeRadians = centerAlt * .pi / 180
-            let azimuthRadians = centerAz * .pi / 180
-            let forwardVector = StarMapCanvasView.altAzToCartesianStatic(
-                alt: altitudeRadians,
-                az: azimuthRadians
+            self.scale = StarMapCanvasView.projectionScale(size: size, horizontalFOV: fov)
+            let basis = StarMapCanvasView.cameraBasis(
+                centerAlt: centerAlt,
+                centerAz: centerAz,
+                roll: rollDegrees
             )
-            self.forward = (x: forwardVector.0, y: forwardVector.1, z: forwardVector.2)
-            self.right = (x: cos(azimuthRadians), y: -sin(azimuthRadians), z: 0)
-
-            let upCrossX = right.y * forward.z - right.z * forward.y
-            let upCrossY = right.z * forward.x - right.x * forward.z
-            let upCrossZ = right.x * forward.y - right.y * forward.x
-            let upLength = sqrt(upCrossX * upCrossX + upCrossY * upCrossY + upCrossZ * upCrossZ)
-            self.up = upLength > 1e-10
-                ? (x: upCrossX / upLength, y: upCrossY / upLength, z: upCrossZ / upLength)
-                : (x: 0, y: 0, z: 1)
+            self.forward = basis.forward
+            self.right = basis.right
+            self.up = basis.up
         }
 
         func project(altitudeRadians: Double, azimuthRadians: Double) -> CGPoint? {
-            let point = StarMapCanvasView.altAzToCartesianStatic(
-                alt: altitudeRadians,
-                az: azimuthRadians
+            StarMapCanvasView.projectPoint(
+                cx: cx,
+                cy: cy,
+                scale: scale,
+                forward: forward,
+                right: right,
+                up: up,
+                altitudeRadians: altitudeRadians,
+                azimuthRadians: azimuthRadians
             )
-            let dot = point.0 * forward.x + point.1 * forward.y + point.2 * forward.z
-            guard dot > 0.1 else { return nil }
-
-            let projectedX = (point.0 * right.x + point.1 * right.y + point.2 * right.z) / dot * scale
-            let projectedY = (point.0 * up.x + point.1 * up.y + point.2 * up.z) / dot * scale
-            return CGPoint(x: cx + projectedX, y: cy - projectedY)
         }
     }
 
@@ -67,6 +67,8 @@ struct StarMapCanvasView: View {
     var showsCardinalOverlay: Bool = true
     var cardinalOverlayBottomInset: CGFloat = StarMapLayout.cardinalLabelBottomInset
     var backgroundColor: Color = StarMapPalette.canvasBackground
+    var fovOverride: Double? = nil
+    var rollOverride: Double? = nil
 
     /// クリック/タップで天体を選択したときに呼ばれるコールバック (macOS で使用)
     var onStarSelected: ((StarPosition) -> Void)? = nil
@@ -95,7 +97,10 @@ struct StarMapCanvasView: View {
                         gnomonicDragGesture(size: size),
                         including: viewModel.isGyroMode ? .none : .all
                     )
-                    .gesture(pinchGesture)
+                    .gesture(
+                        pinchGesture,
+                        including: allowsManualFOVAdjustment ? .all : .none
+                    )
                     .onTapGesture(coordinateSpace: .local) { location in
                         handleTap(at: location, size: size)
                     }
@@ -103,7 +108,7 @@ struct StarMapCanvasView: View {
                 gyroModeIndicator
 
                 // ピンチ中のみ視野角を表示
-                if gestureScale != 1.0 {
+                if allowsManualFOVAdjustment && gestureScale != 1.0 {
                     pinchFOVOverlay
                 }
 
@@ -161,6 +166,10 @@ struct StarMapCanvasView: View {
         PinchFOVOverlayView(displayFov: StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale)))
     }
 
+    private var allowsManualFOVAdjustment: Bool {
+        fovOverride == nil
+    }
+
     private func handleTap(at location: CGPoint, size: CGSize) {
         isFocused = true
         if let star = nearestStar(at: location, size: size) {
@@ -180,6 +189,7 @@ struct StarMapCanvasView: View {
     }
 
     private func handleZoomKey(step: Double) -> KeyPress.Result {
+        guard allowsManualFOVAdjustment else { return .ignored }
         viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov + step)
         return .handled
     }
@@ -191,9 +201,10 @@ struct StarMapCanvasView: View {
             let cx = sz.width / 2
             let cy = sz.height / 2
             let (centerAlt, centerAz) = effectiveGnomonicCenter(size: sz)
+            let roll = effectiveGnomonicRoll()
             let fov = effectiveGnomonicFOV()
             drawGnomonicProjection(ctx: ctx, cx: cx, cy: cy, size: sz,
-                                   centerAlt: centerAlt, centerAz: centerAz, fov: fov)
+                                   centerAlt: centerAlt, centerAz: centerAz, roll: roll, fov: fov)
         }
     }
 
@@ -212,7 +223,17 @@ struct StarMapCanvasView: View {
 
     /// ピンチ中のライブ視野角（心射図法用）
     private func effectiveGnomonicFOV() -> Double {
-        StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
+        if let fovOverride {
+            return StarMapLayout.clampedFOV(fovOverride)
+        }
+        return StarMapLayout.clampedFOV(viewModel.fov / max(0.1, gestureScale))
+    }
+
+    private func effectiveGnomonicRoll() -> Double {
+        if let rollOverride {
+            return rollOverride
+        }
+        return viewModel.isGyroMode ? viewModel.viewRoll : 0
     }
 
     /// ドラッグ中のライブ中心方向（心射図法用）。
@@ -222,8 +243,7 @@ struct StarMapCanvasView: View {
             return (viewModel.viewAltitude, viewModel.viewAzimuth)
         }
         let fov = effectiveGnomonicFOV()
-        let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
-        let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
+        let scale = Self.projectionScale(size: size, horizontalFOV: fov)
         return Self.adjustedCenter(
             altitude: viewModel.viewAltitude,
             azimuth: viewModel.viewAzimuth,
@@ -235,22 +255,18 @@ struct StarMapCanvasView: View {
 
     private func drawGnomonicProjection(ctx: GraphicsContext,
                                         cx: Double, cy: Double, size: CGSize,
-                                        centerAlt: Double, centerAz: Double, fov: Double) {
+                                        centerAlt: Double, centerAz: Double, roll: Double, fov: Double) {
         let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
         let projection = GnomonicProjectionContext(
             size: size,
             centerAlt: centerAlt,
             centerAz: centerAz,
+            rollDegrees: roll,
             fov: fov
         )
 
         // 地平線・地面描画
-        let horizonScreenY = Self.horizonScreenY(centerAlt: centerAlt, cy: cy, scale: projection.scale)
-        drawGnomonicGround(ctx: ctx, cx: cx, cy: cy, size: size,
-                           centerAlt: centerAlt, scale: projection.scale,
-                           fwdX: projection.forward.x, fwdY: projection.forward.y, fwdZ: projection.forward.z,
-                           upX: projection.up.x, upY: projection.up.y, upZ: projection.up.z,
-                           horizonScreenY: horizonScreenY)
+        drawGnomonicGround(ctx: ctx, size: size, projection: projection)
 
         // 星座線
         var constPath = Path()
@@ -371,43 +387,39 @@ struct StarMapCanvasView: View {
 
     // MARK: - Gnomonic Ground / Horizon / Cardinals
 
-    /// 地平線と地面を解析的に描画する。
-    /// 心射図法では地平線（大円）は直線に射影されるため、
-    /// カメラの仰角から地平線の Y 座標を直接計算する。
-    nonisolated static func horizonScreenY(centerAlt: Double, cy: Double, scale: Double) -> Double {
-        let cAltRad = centerAlt * .pi / 180
-        let horizonProjY = -tan(cAltRad) * scale
-        return cy - horizonProjY
-    }
-
     private func drawGnomonicGround(ctx: GraphicsContext,
-                                    cx: Double, cy: Double, size: CGSize,
-                                    centerAlt: Double, scale: Double,
-                                    fwdX: Double, fwdY: Double, fwdZ: Double,
-                                    upX: Double, upY: Double, upZ: Double,
-                                    horizonScreenY: Double) {
-
+                                    size: CGSize,
+                                    projection: GnomonicProjectionContext) {
         // 地面色 (暗い緑/茶)
         let groundColor = Color(red: 0.08, green: 0.12, blue: 0.06)
+        let rect = CGRect(origin: .zero, size: size)
+        let coefficients = Self.horizonLineCoefficients(
+            cx: projection.cx,
+            cy: projection.cy,
+            scale: projection.scale,
+            forwardZ: projection.forward.z,
+            rightZ: projection.right.z,
+            upZ: projection.up.z
+        )
+        let groundPolygon = Self.clippedGroundPolygon(in: rect, coefficients: coefficients)
 
-        if horizonScreenY < size.height {
-            // 地平線が画面内にある場合: 地平線より下を地面色で塗る
-            let groundRect = CGRect(x: 0, y: horizonScreenY,
-                                    width: size.width,
-                                    height: size.height - horizonScreenY)
-            ctx.fill(Path(groundRect), with: .color(groundColor.opacity(0.6)))
+        if groundPolygon.count >= 3 {
+            var groundPath = Path()
+            groundPath.move(to: groundPolygon[0])
+            for point in groundPolygon.dropFirst() {
+                groundPath.addLine(to: point)
+            }
+            groundPath.closeSubpath()
+            ctx.fill(groundPath, with: .color(groundColor.opacity(0.6)))
+        }
 
-            // 地平線ライン
+        if let horizonSegment = Self.horizonLineSegment(in: rect, coefficients: coefficients) {
             var horizonPath = Path()
-            horizonPath.move(to: CGPoint(x: 0, y: horizonScreenY))
-            horizonPath.addLine(to: CGPoint(x: size.width, y: horizonScreenY))
+            horizonPath.move(to: horizonSegment.0)
+            horizonPath.addLine(to: horizonSegment.1)
             ctx.stroke(horizonPath,
                        with: .color(Color(red: 0.3, green: 0.5, blue: 0.3).opacity(0.5)),
                        lineWidth: 1)
-        } else if centerAlt < 0 {
-            // カメラが地平線より下を向いている: 全面地面
-            let groundRect = CGRect(origin: .zero, size: size)
-            ctx.fill(Path(groundRect), with: .color(groundColor.opacity(0.6)))
         }
     }
 
@@ -417,6 +429,7 @@ struct StarMapCanvasView: View {
             size: size,
             centerAlt: center.alt,
             centerAz: center.az,
+            roll: effectiveGnomonicRoll(),
             fov: effectiveGnomonicFOV()
         )
     }
@@ -426,6 +439,7 @@ struct StarMapCanvasView: View {
         size: CGSize,
         centerAlt: Double,
         centerAz: Double,
+        roll: Double,
         fov: Double
     ) -> [CardinalOverlayPlacement] {
         let cardinals: [(Double, String)] = [
@@ -445,6 +459,7 @@ struct StarMapCanvasView: View {
                 size: size,
                 centerAlt: centerAlt,
                 centerAz: centerAz,
+                roll: roll,
                 fov: fov
             ) else {
                 return nil
@@ -478,27 +493,64 @@ struct StarMapCanvasView: View {
         size: CGSize,
         centerAlt: Double,
         centerAz: Double,
+        roll: Double,
         fov: Double
     ) -> Double? {
-        let cx = size.width / 2
-        let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
-        let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
+        guard let point = projectPoint(
+            size: size,
+            centerAlt: centerAlt,
+            centerAz: centerAz,
+            roll: roll,
+            fov: fov,
+            altitudeDegrees: -1.5,
+            azimuthDegrees: azimuthDegrees
+        ) else {
+            return nil
+        }
 
-        let cAlt = centerAlt * .pi / 180
-        let cAz = centerAz * .pi / 180
-        let (fwdX, fwdY, fwdZ) = altAzToCartesianStatic(alt: cAlt, az: cAz)
-        let rightX = cos(cAz)
-        let rightY = -sin(cAz)
-        let rightZ = 0.0
+        return clampedCardinalLabelX(point.x, sizeWidth: size.width)
+    }
 
-        let alt = -1.5 * .pi / 180
-        let az = azimuthDegrees * .pi / 180
-        let (px, py, pz) = altAzToCartesianStatic(alt: alt, az: az)
-        let dot = px * fwdX + py * fwdY + pz * fwdZ
-        guard dot > 0.1 else { return nil }
+    nonisolated static func projectPoint(
+        size: CGSize,
+        centerAlt: Double,
+        centerAz: Double,
+        roll: Double,
+        fov: Double,
+        altitudeDegrees: Double,
+        azimuthDegrees: Double
+    ) -> CGPoint? {
+        let basis = cameraBasis(centerAlt: centerAlt, centerAz: centerAz, roll: roll)
+        return projectPoint(
+            cx: size.width / 2,
+            cy: size.height / 2,
+            scale: projectionScale(size: size, horizontalFOV: fov),
+            forward: basis.forward,
+            right: basis.right,
+            up: basis.up,
+            altitudeRadians: altitudeDegrees * .pi / 180,
+            azimuthRadians: azimuthDegrees * .pi / 180
+        )
+    }
 
-        let projX = (px * rightX + py * rightY + pz * rightZ) / dot * scale
-        return clampedCardinalLabelX(cx + projX, sizeWidth: size.width)
+    nonisolated static func horizonLineValue(
+        size: CGSize,
+        centerAlt: Double,
+        centerAz: Double,
+        roll: Double,
+        fov: Double,
+        point: CGPoint
+    ) -> Double {
+        let basis = cameraBasis(centerAlt: centerAlt, centerAz: centerAz, roll: roll)
+        let coefficients = horizonLineCoefficients(
+            cx: size.width / 2,
+            cy: size.height / 2,
+            scale: projectionScale(size: size, horizontalFOV: fov),
+            forwardZ: basis.forward.z,
+            rightZ: basis.right.z,
+            upZ: basis.up.z
+        )
+        return coefficients.value(at: point)
     }
 
     nonisolated private static func altAzToCartesianStatic(alt: Double, az: Double) -> (Double, Double, Double) {
@@ -506,6 +558,180 @@ struct StarMapCanvasView: View {
         let y = cos(alt) * cos(az)
         let z = sin(alt)
         return (x, y, z)
+    }
+
+    nonisolated private static func cameraBasis(
+        centerAlt: Double,
+        centerAz: Double,
+        roll: Double
+    ) -> (
+        forward: (x: Double, y: Double, z: Double),
+        right: (x: Double, y: Double, z: Double),
+        up: (x: Double, y: Double, z: Double)
+    ) {
+        let altitudeRadians = centerAlt * .pi / 180
+        let azimuthRadians = centerAz * .pi / 180
+        let rollRadians = roll * .pi / 180
+        let forwardVector = altAzToCartesianStatic(alt: altitudeRadians, az: azimuthRadians)
+        let forward = (x: forwardVector.0, y: forwardVector.1, z: forwardVector.2)
+        let baseRight = (x: cos(azimuthRadians), y: -sin(azimuthRadians), z: 0.0)
+
+        let upCrossX = baseRight.y * forward.z - baseRight.z * forward.y
+        let upCrossY = baseRight.z * forward.x - baseRight.x * forward.z
+        let upCrossZ = baseRight.x * forward.y - baseRight.y * forward.x
+        let upLength = sqrt(upCrossX * upCrossX + upCrossY * upCrossY + upCrossZ * upCrossZ)
+        let baseUp = upLength > 1e-10
+            ? (x: upCrossX / upLength, y: upCrossY / upLength, z: upCrossZ / upLength)
+            : (x: 0.0, y: 0.0, z: 1.0)
+        let right = (
+            x: baseRight.x * cos(rollRadians) - baseUp.x * sin(rollRadians),
+            y: baseRight.y * cos(rollRadians) - baseUp.y * sin(rollRadians),
+            z: baseRight.z * cos(rollRadians) - baseUp.z * sin(rollRadians)
+        )
+        let up = (
+            x: baseRight.x * sin(rollRadians) + baseUp.x * cos(rollRadians),
+            y: baseRight.y * sin(rollRadians) + baseUp.y * cos(rollRadians),
+            z: baseRight.z * sin(rollRadians) + baseUp.z * cos(rollRadians)
+        )
+        return (forward: forward, right: right, up: up)
+    }
+
+    nonisolated private static func projectionScale(size: CGSize, horizontalFOV: Double) -> Double {
+        let halfFovRad = max(0.01, (horizontalFOV / 2) * .pi / 180)
+        return size.width / (2 * tan(halfFovRad))
+    }
+
+    nonisolated private static func projectPoint(
+        cx: Double,
+        cy: Double,
+        scale: Double,
+        forward: (x: Double, y: Double, z: Double),
+        right: (x: Double, y: Double, z: Double),
+        up: (x: Double, y: Double, z: Double),
+        altitudeRadians: Double,
+        azimuthRadians: Double
+    ) -> CGPoint? {
+        let point = altAzToCartesianStatic(alt: altitudeRadians, az: azimuthRadians)
+        let dot = point.0 * forward.x + point.1 * forward.y + point.2 * forward.z
+        guard dot > 0.1 else { return nil }
+
+        let projectedX = (point.0 * right.x + point.1 * right.y + point.2 * right.z) / dot * scale
+        let projectedY = (point.0 * up.x + point.1 * up.y + point.2 * up.z) / dot * scale
+        return CGPoint(x: cx + projectedX, y: cy - projectedY)
+    }
+
+    nonisolated private static func horizonLineCoefficients(
+        cx: Double,
+        cy: Double,
+        scale: Double,
+        forwardZ: Double,
+        rightZ: Double,
+        upZ: Double
+    ) -> HorizonLineCoefficients {
+        HorizonLineCoefficients(
+            a: rightZ,
+            b: -upZ,
+            c: forwardZ * scale - rightZ * cx + upZ * cy
+        )
+    }
+
+    nonisolated private static func clippedGroundPolygon(
+        in rect: CGRect,
+        coefficients: HorizonLineCoefficients
+    ) -> [CGPoint] {
+        let corners = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.maxY),
+            CGPoint(x: rect.minX, y: rect.maxY)
+        ]
+        let epsilon = 1e-6
+        var clipped: [CGPoint] = []
+
+        for index in corners.indices {
+            let current = corners[index]
+            let next = corners[(index + 1) % corners.count]
+            let currentValue = coefficients.value(at: current)
+            let nextValue = coefficients.value(at: next)
+            let currentInside = currentValue <= epsilon
+            let nextInside = nextValue <= epsilon
+
+            if currentInside {
+                clipped.append(current)
+            }
+            if currentInside != nextInside,
+               let intersection = lineIntersection(
+                from: current,
+                to: next,
+                startValue: currentValue,
+                endValue: nextValue
+               ) {
+                clipped.append(intersection)
+            }
+        }
+
+        return clipped
+    }
+
+    nonisolated private static func horizonLineSegment(
+        in rect: CGRect,
+        coefficients: HorizonLineCoefficients
+    ) -> (CGPoint, CGPoint)? {
+        let corners = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.maxY),
+            CGPoint(x: rect.minX, y: rect.maxY)
+        ]
+        let epsilon = 1e-6
+        var intersections: [CGPoint] = []
+
+        func appendUnique(_ point: CGPoint) {
+            let alreadyIncluded = intersections.contains { existing in
+                abs(existing.x - point.x) < epsilon && abs(existing.y - point.y) < epsilon
+            }
+            if !alreadyIncluded {
+                intersections.append(point)
+            }
+        }
+
+        for index in corners.indices {
+            let current = corners[index]
+            let next = corners[(index + 1) % corners.count]
+            let currentValue = coefficients.value(at: current)
+            let nextValue = coefficients.value(at: next)
+
+            if abs(currentValue) < epsilon {
+                appendUnique(current)
+            }
+            if currentValue * nextValue < 0,
+               let intersection = lineIntersection(
+                from: current,
+                to: next,
+                startValue: currentValue,
+                endValue: nextValue
+               ) {
+                appendUnique(intersection)
+            }
+        }
+
+        guard intersections.count >= 2 else { return nil }
+        return (intersections[0], intersections[1])
+    }
+
+    nonisolated private static func lineIntersection(
+        from start: CGPoint,
+        to end: CGPoint,
+        startValue: Double,
+        endValue: Double
+    ) -> CGPoint? {
+        let denominator = startValue - endValue
+        guard abs(denominator) > 1e-10 else { return nil }
+        let t = startValue / denominator
+        return CGPoint(
+            x: start.x + (end.x - start.x) * t,
+            y: start.y + (end.y - start.y) * t
+        )
     }
 
     nonisolated private static func adjustedCenter(
@@ -634,6 +860,7 @@ struct StarMapCanvasView: View {
             size: size,
             centerAlt: centerAlt,
             centerAz: centerAz,
+            rollDegrees: 0,
             fov: fov
         )
 
@@ -669,8 +896,7 @@ struct StarMapCanvasView: View {
             }
             .onEnded { [self] value in
                 let fov = effectiveGnomonicFOV()
-                let halfFovRad = max(0.01, (fov / 2) * .pi / 180)
-                let scale = min(size.width, size.height) / (2 * tan(halfFovRad))
+                let scale = Self.projectionScale(size: size, horizontalFOV: fov)
                 let adjustedCenter = Self.adjustedCenter(
                     altitude: viewModel.viewAltitude,
                     azimuth: viewModel.viewAzimuth,
@@ -691,6 +917,7 @@ struct StarMapCanvasView: View {
                 state = value
             }
             .onEnded { [self] value in
+                guard allowsManualFOVAdjustment else { return }
                 viewModel.fov = StarMapLayout.clampedFOV(viewModel.fov / value)
             }
     }
@@ -710,7 +937,7 @@ struct StarMapCanvasView: View {
     }
 
     private func handleMacScrollWheel(_ event: NSEvent) -> NSEvent? {
-        guard isPointerOverCanvas else {
+        guard isPointerOverCanvas, allowsManualFOVAdjustment else {
             return event
         }
         let updatedFOV = Self.zoomedFOV(

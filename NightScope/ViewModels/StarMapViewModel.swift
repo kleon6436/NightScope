@@ -55,6 +55,94 @@ struct StarMapComputationDependency: Sendable {
     )
 }
 
+enum StarMapScreenOrientation: Sendable {
+    case portrait
+    case portraitUpsideDown
+    case landscapeLeft
+    case landscapeRight
+
+    var isLandscape: Bool {
+        switch self {
+        case .landscapeLeft, .landscapeRight:
+            true
+        case .portrait, .portraitUpsideDown:
+            false
+        }
+    }
+
+    var screenUpDeviceVector: (x: Double, y: Double, z: Double) {
+        switch self {
+        case .portrait:
+            (x: 0, y: 1, z: 0)
+        case .portraitUpsideDown:
+            (x: 0, y: -1, z: 0)
+        case .landscapeLeft:
+            (x: -1, y: 0, z: 0)
+        case .landscapeRight:
+            (x: 1, y: 0, z: 0)
+        }
+    }
+}
+
+struct StarMapCameraFieldOfView: Equatable, Sendable {
+    let diagonalDegrees: Double
+    let sensorWidth: Int32
+    let sensorHeight: Int32
+
+    private var sensorAspectRatio: Double? {
+        guard sensorWidth > 0, sensorHeight > 0 else { return nil }
+        return Double(sensorWidth) / Double(sensorHeight)
+    }
+
+    private var landscapeHorizontalDegrees: Double? {
+        degreesForAxis(multiplier: sensorAspectRatio)
+    }
+
+    private var landscapeVerticalDegrees: Double? {
+        guard let sensorAspectRatio else { return nil }
+        return degreesForAxis(multiplier: 1.0 / sensorAspectRatio)
+    }
+
+    func visibleHorizontalDegrees(
+        viewportSize: CGSize,
+        screenOrientation: StarMapScreenOrientation
+    ) -> Double? {
+        guard viewportSize.width > 0, viewportSize.height > 0 else { return nil }
+        guard let sensorAspectRatio,
+              let landscapeHorizontalDegrees,
+              let landscapeVerticalDegrees else {
+            return nil
+        }
+
+        let viewportAspectRatio = viewportSize.width / viewportSize.height
+        let contentAspectRatio = screenOrientation.isLandscape
+            ? sensorAspectRatio
+            : 1.0 / sensorAspectRatio
+        let contentHorizontalDegrees = screenOrientation.isLandscape
+            ? landscapeHorizontalDegrees
+            : landscapeVerticalDegrees
+        let contentVerticalDegrees = screenOrientation.isLandscape
+            ? landscapeVerticalDegrees
+            : landscapeHorizontalDegrees
+
+        if viewportAspectRatio >= contentAspectRatio {
+            return contentHorizontalDegrees
+        }
+
+        let visibleHalfHorizontalRadians = atan(
+            tan(contentVerticalDegrees * .pi / 360) * viewportAspectRatio
+        )
+        return visibleHalfHorizontalRadians * 360 / .pi
+    }
+
+    private func degreesForAxis(multiplier: Double?) -> Double? {
+        guard let multiplier else { return nil }
+        let halfDiagonalRadians = diagonalDegrees * .pi / 360
+        let base = tan(halfDiagonalRadians) / sqrt(multiplier * multiplier + 1)
+        return atan(multiplier * base) * 360 / .pi
+    }
+}
+
 struct StarMapMotionMatrix {
     let m11: Double
     let m12: Double
@@ -73,25 +161,49 @@ struct StarMapMotionMatrix {
             up: (m13 * x) + (m23 * y) + (m33 * z)
         )
     }
+
+    func referenceVector(forDeviceVector vector: (x: Double, y: Double, z: Double)) -> (east: Double, north: Double, up: Double) {
+        referenceVector(forDeviceVectorX: vector.x, y: vector.y, z: vector.z)
+    }
 }
 
 struct StarMapMotionPose: Equatable {
     let azimuth: Double
     let altitude: Double
+    let roll: Double
 
-    init(azimuth: Double, altitude: Double) {
+    init(azimuth: Double, altitude: Double, roll: Double = 0) {
         self.azimuth = Self.normalizedAzimuth(azimuth)
         self.altitude = Self.clampedAltitude(altitude)
+        self.roll = Self.normalizedRoll(roll)
     }
 
-    static func make(rotationMatrix: StarMapMotionMatrix) -> Self {
+    static func make(
+        rotationMatrix: StarMapMotionMatrix,
+        screenOrientation: StarMapScreenOrientation = .portrait
+    ) -> Self {
         let lookingVector = rotationMatrix.referenceVector(forDeviceVectorX: 0, y: 0, z: -1)
+        let screenUpVector = rotationMatrix.referenceVector(forDeviceVector: screenOrientation.screenUpDeviceVector)
         let azimuth = normalizedAzimuth(atan2(lookingVector.east, lookingVector.north) * 180 / .pi)
         let altitude = atan2(
             lookingVector.up,
             hypot(lookingVector.east, lookingVector.north)
         ) * 180 / .pi
-        return Self(azimuth: azimuth, altitude: altitude)
+        let azimuthRadians = azimuth * .pi / 180
+        let forward = normalizedVector(lookingVector)
+        let right = (
+            east: cos(azimuthRadians),
+            north: -sin(azimuthRadians),
+            up: 0.0
+        )
+        let defaultUp = normalizedVector(cross(right, forward))
+        let projectedScreenUp = normalizedVector(projectedOntoPlane(screenUpVector, normal: forward))
+        let roll = atan2(
+            dot(projectedScreenUp, right),
+            dot(projectedScreenUp, defaultUp)
+        ) * 180 / .pi
+
+        return Self(azimuth: azimuth, altitude: altitude, roll: roll)
     }
 
     static func smoothed(previous: Self?, next: Self) -> Self {
@@ -99,18 +211,26 @@ struct StarMapMotionPose: Equatable {
 
         let azimuthDelta = wrappedAzimuthDelta(from: previous.azimuth, to: next.azimuth)
         let altitudeDelta = next.altitude - previous.altitude
+        let rollDelta = wrappedSignedAngleDelta(from: previous.roll, to: next.roll)
         let azimuthFactor = smoothingFactor(for: abs(azimuthDelta), threshold: 12, base: 0.18, boosted: 0.34)
         let altitudeFactor = smoothingFactor(for: abs(altitudeDelta), threshold: 10, base: 0.18, boosted: 0.30)
+        let rollFactor = smoothingFactor(for: abs(rollDelta), threshold: 15, base: 0.20, boosted: 0.36)
 
         return Self(
             azimuth: previous.azimuth + (azimuthDelta * azimuthFactor),
-            altitude: previous.altitude + (altitudeDelta * altitudeFactor)
+            altitude: previous.altitude + (altitudeDelta * altitudeFactor),
+            roll: previous.roll + (rollDelta * rollFactor)
         )
     }
 
     static func normalizedAzimuth(_ azimuth: Double) -> Double {
         let normalized = azimuth.truncatingRemainder(dividingBy: 360)
         return normalized >= 0 ? normalized : normalized + 360
+    }
+
+    static func normalizedRoll(_ roll: Double) -> Double {
+        let normalized = normalizedAzimuth(roll)
+        return normalized > 180 ? normalized - 360 : normalized
     }
 
     private static func clampedAltitude(_ altitude: Double) -> Double {
@@ -141,6 +261,54 @@ struct StarMapMotionPose: Equatable {
         }
 
         return rawDelta
+    }
+
+    private static func wrappedSignedAngleDelta(from source: Double, to target: Double) -> Double {
+        normalizedRoll(target - source)
+    }
+
+    private static func normalizedVector(
+        _ vector: (east: Double, north: Double, up: Double)
+    ) -> (east: Double, north: Double, up: Double) {
+        let length = sqrt(vector.east * vector.east + vector.north * vector.north + vector.up * vector.up)
+        guard length > 1e-10 else {
+            return (east: 0, north: 0, up: 1)
+        }
+        return (
+            east: vector.east / length,
+            north: vector.north / length,
+            up: vector.up / length
+        )
+    }
+
+    private static func projectedOntoPlane(
+        _ vector: (east: Double, north: Double, up: Double),
+        normal: (east: Double, north: Double, up: Double)
+    ) -> (east: Double, north: Double, up: Double) {
+        let projection = dot(vector, normal)
+        return (
+            east: vector.east - normal.east * projection,
+            north: vector.north - normal.north * projection,
+            up: vector.up - normal.up * projection
+        )
+    }
+
+    private static func cross(
+        _ lhs: (east: Double, north: Double, up: Double),
+        _ rhs: (east: Double, north: Double, up: Double)
+    ) -> (east: Double, north: Double, up: Double) {
+        (
+            east: lhs.north * rhs.up - lhs.up * rhs.north,
+            north: lhs.up * rhs.east - lhs.east * rhs.up,
+            up: lhs.east * rhs.north - lhs.north * rhs.east
+        )
+    }
+
+    private static func dot(
+        _ lhs: (east: Double, north: Double, up: Double),
+        _ rhs: (east: Double, north: Double, up: Double)
+    ) -> Double {
+        lhs.east * rhs.east + lhs.north * rhs.north + lhs.up * rhs.up
     }
 }
 
@@ -189,6 +357,9 @@ final class StarMapViewModel: ObservableObject {
 
     /// 画面中心の仰角 (度, 0=地平線, 90=天頂)。ジャイロモードで使用
     @Published var viewAltitude: Double = 45
+
+    /// 画面のロール角 (度)。ジャイロモード時のみ投影へ反映する
+    @Published var viewRoll: Double = 0
 
     /// ジャイロモードの有効/無効 (iPhone のみ true にする)
     @Published var isGyroMode: Bool = false
@@ -536,6 +707,7 @@ final class StarMapViewModel: ObservableObject {
         guard shouldApplyInitialPose else { return }
         viewAzimuth = 0
         viewAltitude = StarMapLayout.resetAltitude
+        viewRoll = 0
         shouldApplyInitialPose = false
     }
 
@@ -543,6 +715,7 @@ final class StarMapViewModel: ObservableObject {
     func resetToNorth() {
         viewAzimuth = 0
         viewAltitude = StarMapLayout.resetAltitude
+        viewRoll = 0
     }
 
     /// 初期ポーズフラグをクリアする（心射図法デフォルトでは適用しない）。

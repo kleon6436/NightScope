@@ -1,5 +1,6 @@
 import SwiftUI
 @preconcurrency import AVFoundation
+import CoreMedia
 import CoreMotion
 import UIKit
 
@@ -15,6 +16,7 @@ struct iOSStarMapView: View {
     @State private var cameraNotice: CameraNotice?
     @State private var cameraPermissionRequestID = 0
     @State private var bottomControlPanelHeight: CGFloat = 0
+    @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -28,7 +30,8 @@ struct iOSStarMapView: View {
                     viewModel: viewModel,
                     showsCardinalOverlay: true,
                     cardinalOverlayBottomInset: cardinalOverlayBottomInset,
-                    backgroundColor: controlState.isCameraBackgroundVisible ? .clear : StarMapPalette.canvasBackground
+                    backgroundColor: controlState.isCameraBackgroundVisible ? .clear : StarMapPalette.canvasBackground,
+                    fovOverride: cameraAlignedHorizontalFOV
                 )
                     .ignoresSafeArea(edges: .top)
 
@@ -48,6 +51,7 @@ struct iOSStarMapView: View {
         .onAppear {
             viewModel.prepareForStarMapPresentation()
             viewModel.syncWithSelectedDate()
+            updateInterfaceOrientation()
             cameraController.refreshAuthorizationStatus()
             handleGyroChange()
             syncCameraSession()
@@ -62,6 +66,9 @@ struct iOSStarMapView: View {
         .onChange(of: scenePhase) { _, newPhase in
             handleScenePhaseChange(newPhase)
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            updateInterfaceOrientation()
+        }
         .onChange(of: cameraController.authorizationStatus) { _, newStatus in
             handleCameraAuthorizationChange(newStatus)
         }
@@ -74,7 +81,10 @@ struct iOSStarMapView: View {
         Group {
             if controlState.isCameraBackgroundVisible {
                 ZStack {
-                    StarMapCameraPreviewView(session: cameraController.session)
+                    StarMapCameraPreviewView(
+                        session: cameraController.session,
+                        interfaceOrientation: interfaceOrientation
+                    )
                     LinearGradient(
                         colors: [
                             Color.black.opacity(0.52),
@@ -271,6 +281,21 @@ struct iOSStarMapView: View {
         )
     }
 
+    private var screenOrientation: StarMapScreenOrientation {
+        interfaceOrientation.starMapScreenOrientation
+    }
+
+    private var cameraAlignedHorizontalFOV: Double? {
+        guard controlState.isCameraBackgroundVisible,
+              let cameraFieldOfView = cameraController.cameraFieldOfView else {
+            return nil
+        }
+        return cameraFieldOfView.visibleHorizontalDegrees(
+            viewportSize: viewModel.canvasSize,
+            screenOrientation: screenOrientation
+        )
+    }
+
     private func toggleGyroMode() {
         withAnimation(reduceMotion ? .none : .standard) {
             viewModel.isGyroMode.toggle()
@@ -290,10 +315,12 @@ struct iOSStarMapView: View {
     }
 
     private func startMotion() {
+        motionController.updateScreenOrientation(screenOrientation)
         motionController.start(
             onPoseUpdate: { pose in
                 viewModel.viewAzimuth = pose.azimuth
                 viewModel.viewAltitude = pose.altitude
+                viewModel.viewRoll = pose.roll
             },
             onFailure: {
                 viewModel.isGyroMode = false
@@ -362,6 +389,7 @@ struct iOSStarMapView: View {
 
     private func handleScenePhaseChange(_ phase: ScenePhase) {
         if phase == .active {
+            updateInterfaceOrientation()
             cameraController.refreshAuthorizationStatus()
         }
         syncCameraSession()
@@ -397,6 +425,15 @@ struct iOSStarMapView: View {
 
     private func invalidatePendingCameraPermissionRequest() {
         cameraPermissionRequestID &+= 1
+    }
+
+    private func updateInterfaceOrientation() {
+        let resolvedOrientation = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first(where: { $0.activationState == .foregroundActive })?
+            .effectiveGeometry.interfaceOrientation ?? interfaceOrientation
+        interfaceOrientation = resolvedOrientation
+        motionController.updateScreenOrientation(resolvedOrientation.starMapScreenOrientation)
     }
 
     private func openAppSettings() {
@@ -583,6 +620,7 @@ private struct CameraNotice: Equatable {
 private final class StarMapMotionController: ObservableObject {
     private let motionManager = CMMotionManager()
     private var lastPose: StarMapMotionPose?
+    private var screenOrientation: StarMapScreenOrientation = .portrait
 
     var canEnableGyroMode: Bool {
         motionManager.isDeviceMotionAvailable && preferredReferenceFrame != nil
@@ -628,12 +666,17 @@ private final class StarMapMotionController: ObservableObject {
             guard let motion else { return }
 
             let rawPose = StarMapMotionPose.make(
-                rotationMatrix: StarMapMotionMatrix(rotationMatrix: motion.attitude.rotationMatrix)
+                rotationMatrix: StarMapMotionMatrix(rotationMatrix: motion.attitude.rotationMatrix),
+                screenOrientation: self.screenOrientation
             )
             let smoothedPose = StarMapMotionPose.smoothed(previous: self.lastPose, next: rawPose)
             self.lastPose = smoothedPose
             onPoseUpdate(smoothedPose)
         }
+    }
+
+    func updateScreenOrientation(_ screenOrientation: StarMapScreenOrientation) {
+        self.screenOrientation = screenOrientation
     }
 
     func stop() {
@@ -644,28 +687,27 @@ private final class StarMapMotionController: ObservableObject {
 
 @MainActor
 private final class StarMapCameraController: ObservableObject {
-    private static let stopDelayNanoseconds: UInt64 = 600_000_000
-
     @Published private(set) var authorizationStatus: AVAuthorizationStatus
     @Published private(set) var hasCameraHardware: Bool
     @Published private(set) var lastErrorMessage: String?
+    @Published private(set) var cameraFieldOfView: StarMapCameraFieldOfView?
 
     let session = AVCaptureSession()
 
     private let sessionQueue = DispatchQueue(label: "NightScope.StarMapCameraSession")
     private var hasConfiguredSession = false
     private var isConfiguringSession = false
-    private var pendingStopTask: Task<Void, Never>?
-    private var pendingStopToken: UUID?
 
     init() {
         authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
-        hasCameraHardware = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) != nil
+        hasCameraHardware = Self.currentBackCameraDevice() != nil
+        cameraFieldOfView = Self.currentCameraFieldOfView()
     }
 
     func refreshAuthorizationStatus() {
         authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
-        hasCameraHardware = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) != nil
+        hasCameraHardware = Self.currentBackCameraDevice() != nil
+        cameraFieldOfView = Self.currentCameraFieldOfView()
     }
 
     func requestAccess() async -> Bool {
@@ -692,12 +734,9 @@ private final class StarMapCameraController: ObservableObject {
 
     func setSessionActive(_ isActive: Bool) {
         guard hasCameraHardware, authorizationStatus == .authorized else {
-            cancelPendingStop()
             stopSession()
             return
         }
-
-        cancelPendingStop()
 
         let session = session
         let sessionQueue = sessionQueue
@@ -711,22 +750,7 @@ private final class StarMapCameraController: ObservableObject {
                 session.startRunning()
             }
         } else {
-            let stopToken = UUID()
-            pendingStopToken = stopToken
-            pendingStopTask = Task { [session, sessionQueue] in
-                try? await Task.sleep(nanoseconds: Self.stopDelayNanoseconds)
-                guard !Task.isCancelled else { return }
-
-                let shouldStop = await MainActor.run { [weak self] in
-                    self?.pendingStopToken == stopToken
-                }
-                guard shouldStop else { return }
-
-                sessionQueue.sync {
-                    guard session.isRunning else { return }
-                    session.stopRunning()
-                }
-            }
+            stopSession()
         }
     }
 
@@ -736,11 +760,12 @@ private final class StarMapCameraController: ObservableObject {
 
         let session = session
         sessionQueue.async {
-            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+            guard let device = Self.currentBackCameraDevice() else {
                 Task { @MainActor in
                     self.hasCameraHardware = false
                     self.hasConfiguredSession = false
                     self.isConfiguringSession = false
+                    self.cameraFieldOfView = nil
                     self.lastErrorMessage = "背面カメラを利用できないため、カメラ背景を開始できません。"
                 }
                 return
@@ -765,55 +790,127 @@ private final class StarMapCameraController: ObservableObject {
                     session.addInput(input)
                 }
 
+                let cameraFieldOfView = Self.makeCameraFieldOfView(for: device)
+
                 Task { @MainActor in
                     self.hasConfiguredSession = true
                     self.isConfiguringSession = false
+                    self.cameraFieldOfView = cameraFieldOfView
                 }
             } catch {
                 Task { @MainActor in
                     self.hasConfiguredSession = false
                     self.isConfiguringSession = false
+                    self.cameraFieldOfView = nil
                     self.lastErrorMessage = "カメラの初期化に失敗しました。"
                 }
             }
         }
     }
 
+    nonisolated private static func currentBackCameraDevice() -> AVCaptureDevice? {
+        AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
+    }
+
+    nonisolated private static func currentCameraFieldOfView() -> StarMapCameraFieldOfView? {
+        guard let device = currentBackCameraDevice() else { return nil }
+        return makeCameraFieldOfView(for: device)
+    }
+
+    nonisolated private static func makeCameraFieldOfView(for device: AVCaptureDevice) -> StarMapCameraFieldOfView {
+        let dimensions = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
+        return StarMapCameraFieldOfView(
+            diagonalDegrees: Double(device.activeFormat.videoFieldOfView),
+            sensorWidth: dimensions.width,
+            sensorHeight: dimensions.height
+        )
+    }
+
     private func stopSession() {
-        cancelPendingStop()
         let session = session
         sessionQueue.async {
             guard session.isRunning else { return }
             session.stopRunning()
         }
     }
-
-    private func cancelPendingStop() {
-        pendingStopTask?.cancel()
-        pendingStopTask = nil
-        pendingStopToken = nil
-    }
 }
 
 private struct StarMapCameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
+    let interfaceOrientation: UIInterfaceOrientation
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
-        view.previewLayer.videoGravity = .resizeAspectFill
-        view.previewLayer.session = session
+        view.configure(session: session, interfaceOrientation: interfaceOrientation)
         return view
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
-        uiView.previewLayer.session = session
+        uiView.configure(session: session, interfaceOrientation: interfaceOrientation)
     }
 
     final class PreviewView: UIView {
+        private var interfaceOrientation: UIInterfaceOrientation = .portrait
+
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
 
         var previewLayer: AVCaptureVideoPreviewLayer {
             layer as! AVCaptureVideoPreviewLayer
+        }
+
+        func configure(session: AVCaptureSession, interfaceOrientation: UIInterfaceOrientation) {
+            previewLayer.videoGravity = .resizeAspectFill
+            if previewLayer.session !== session {
+                previewLayer.session = session
+            }
+            self.interfaceOrientation = interfaceOrientation
+            updatePreviewRotation()
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            updatePreviewRotation()
+        }
+
+        private func updatePreviewRotation() {
+            guard let connection = previewLayer.connection,
+                  let rotationAngle = interfaceOrientation.captureVideoRotationAngle else {
+                return
+            }
+            guard connection.isVideoRotationAngleSupported(rotationAngle) else { return }
+            connection.videoRotationAngle = rotationAngle
+        }
+    }
+}
+
+private extension UIInterfaceOrientation {
+    var starMapScreenOrientation: StarMapScreenOrientation {
+        switch self {
+        case .portrait:
+            .portrait
+        case .portraitUpsideDown:
+            .portraitUpsideDown
+        case .landscapeLeft:
+            .landscapeLeft
+        case .landscapeRight:
+            .landscapeRight
+        default:
+            .portrait
+        }
+    }
+
+    var captureVideoRotationAngle: CGFloat? {
+        switch self {
+        case .portrait:
+            0
+        case .portraitUpsideDown:
+            180
+        case .landscapeLeft:
+            90
+        case .landscapeRight:
+            270
+        default:
+            nil
         }
     }
 }

@@ -172,9 +172,47 @@ final class StarMapViewModelTests: XCTestCase {
             size: CGSize(width: 320, height: 400),
             centerAlt: 30,
             centerAz: 0,
+            roll: 0,
             fov: 90
         )
         XCTAssertEqual(placements.map(\.label), ["北", "北東", "北西"])
+    }
+
+    func test_StarMapCanvasView_horizonProjection_matchesProjectedAltitudeZeroPoints() {
+        let size = CGSize(width: 390, height: 844)
+        let centerAlt = 10.0
+        let centerAz = 0.0
+        let fov = 60.0
+
+        for roll in [0.0, 25.0] {
+            for azimuth in stride(from: -20.0, through: 20.0, by: 10.0) {
+                let point = StarMapCanvasView.projectPoint(
+                    size: size,
+                    centerAlt: centerAlt,
+                    centerAz: centerAz,
+                    roll: roll,
+                    fov: fov,
+                    altitudeDegrees: 0,
+                    azimuthDegrees: azimuth
+                )
+
+                XCTAssertNotNil(point)
+                if let point {
+                    XCTAssertEqual(
+                        StarMapCanvasView.horizonLineValue(
+                            size: size,
+                            centerAlt: centerAlt,
+                            centerAz: centerAz,
+                            roll: roll,
+                            fov: fov,
+                            point: point
+                        ),
+                        0,
+                        accuracy: 0.001
+                    )
+                }
+            }
+        }
     }
 
     func test_StarDisplayDensity_usesExpectedThresholdsAndLabels() {
@@ -233,6 +271,35 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(northDownward.altitude, -10, accuracy: 0.001)
     }
 
+    func test_StarMapMotionPose_make_tracksScreenRollInPortrait() {
+        let rolledPose = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 0, m12: 0, m13: -1,
+                m21: 1, m22: 0, m23: 0,
+                m31: 0, m32: -1, m33: 0
+            )
+        )
+
+        XCTAssertEqual(rolledPose.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(rolledPose.altitude, 0, accuracy: 0.001)
+        XCTAssertEqual(rolledPose.roll, 90, accuracy: 0.001)
+    }
+
+    func test_StarMapMotionPose_make_appliesInterfaceOrientationToRoll() {
+        let landscapePose = StarMapMotionPose.make(
+            rotationMatrix: StarMapMotionMatrix(
+                m11: 1, m12: 0, m13: 0,
+                m21: 0, m22: 0, m23: 1,
+                m31: 0, m32: -1, m33: 0
+            ),
+            screenOrientation: .landscapeLeft
+        )
+
+        XCTAssertEqual(landscapePose.azimuth, 0, accuracy: 0.001)
+        XCTAssertEqual(landscapePose.altitude, 0, accuracy: 0.001)
+        XCTAssertEqual(landscapePose.roll, -90, accuracy: 0.001)
+    }
+
     func test_StarMapMotionPose_smoothed_wrapsAzimuthAcrossNorthWithoutJump() {
         let previous = StarMapMotionPose(azimuth: 359, altitude: 44)
         let next = StarMapMotionPose(azimuth: 1, altitude: 46)
@@ -251,6 +318,33 @@ final class StarMapViewModelTests: XCTestCase {
 
         XCTAssertEqual(smoothed.azimuth, 23.6, accuracy: 0.001)
         XCTAssertEqual(smoothed.altitude, 27.5, accuracy: 0.001)
+    }
+
+    func test_StarMapCameraFieldOfView_visibleHorizontalDegrees_matchesViewportAndOrientation() {
+        let fieldOfView = StarMapCameraFieldOfView(
+            diagonalDegrees: 90,
+            sensorWidth: 4_000,
+            sensorHeight: 3_000
+        )
+        let landscapeDegrees = fieldOfView.visibleHorizontalDegrees(
+            viewportSize: CGSize(width: 400, height: 300),
+            screenOrientation: .landscapeRight
+        )
+        let portraitDegrees = fieldOfView.visibleHorizontalDegrees(
+            viewportSize: CGSize(width: 300, height: 400),
+            screenOrientation: .portrait
+        )
+        let narrowPortraitDegrees = fieldOfView.visibleHorizontalDegrees(
+            viewportSize: CGSize(width: 390, height: 844),
+            screenOrientation: .portrait
+        )
+
+        XCTAssertNotNil(landscapeDegrees)
+        XCTAssertNotNil(portraitDegrees)
+        XCTAssertNotNil(narrowPortraitDegrees)
+        XCTAssertEqual(landscapeDegrees ?? 0, 77.3196, accuracy: 0.001)
+        XCTAssertEqual(portraitDegrees ?? 0, 61.9275, accuracy: 0.001)
+        XCTAssertEqual(narrowPortraitDegrees ?? 0, 40.5759, accuracy: 0.001)
     }
 
     func test_StarMapViewModel_recomputesWhenStarDisplayDensityChanges() {
@@ -310,12 +404,14 @@ final class StarMapViewModelTests: XCTestCase {
 
         viewModel.viewAzimuth = 123
         viewModel.viewAltitude = 10
+        viewModel.viewRoll = 25
         viewModel.updateCanvasSize(size)
         viewModel.prepareForStarMapPresentation()
         viewModel.applyInitialPoseIfNeeded()
 
         XCTAssertEqual(viewModel.viewAzimuth, 0)
         XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewRoll, 0, accuracy: 0.001)
     }
 
     func test_StarMapViewModel_resetToNorth_usesResetAltitude() {
@@ -324,10 +420,12 @@ final class StarMapViewModelTests: XCTestCase {
 
         viewModel.viewAzimuth = 180
         viewModel.viewAltitude = 60
+        viewModel.viewRoll = -40
         viewModel.resetToNorth()
 
         XCTAssertEqual(viewModel.viewAzimuth, 0)
         XCTAssertEqual(viewModel.viewAltitude, StarMapLayout.resetAltitude, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewRoll, 0, accuracy: 0.001)
     }
 
     func test_StarMapViewModel_resetToNow_updatesObservationDateAndDisplayDate() {
