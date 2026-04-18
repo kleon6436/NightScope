@@ -751,6 +751,13 @@ final class StarMapViewModel: ObservableObject {
         shouldApplyInitialPose = true
     }
 
+    /// 星空マップの初回表示に必要な初期化を一度だけ実行する。
+    func activatePresentationIfNeeded(referenceDate: Date = Date()) {
+        guard !hasPreparedInitialPresentation else { return }
+        prepareForStarMapPresentation()
+        syncWithSelectedDate(referenceDate: referenceDate)
+    }
+
     /// 星空マップ描画領域の最新サイズを記録する。
     func updateCanvasSize(_ size: CGSize) {
         canvasSize = size

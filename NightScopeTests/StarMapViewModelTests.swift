@@ -521,6 +521,40 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.viewRoll, 5, accuracy: 0.001)
     }
 
+    func test_StarMapViewModel_activatePresentationIfNeeded_syncsOnlyOnFirstActivation() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let timeZone = appController.locationController.selectedTimeZone
+        let calendar = observationCalendar(for: timeZone)
+        let firstReferenceDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 21,
+            minute: 15
+        ))!
+        let secondReferenceDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 11,
+            hour: 23,
+            minute: 45
+        ))!
+
+        appController.selectedDate = ObservationTimeZone.startOfDay(
+            for: firstReferenceDate,
+            timeZone: timeZone
+        )
+        viewModel.activatePresentationIfNeeded(referenceDate: firstReferenceDate)
+        let firstDisplayDate = viewModel.displayDate
+
+        viewModel.displayDate = secondReferenceDate
+        viewModel.activatePresentationIfNeeded(referenceDate: secondReferenceDate)
+
+        XCTAssertEqual(firstDisplayDate, firstReferenceDate)
+        XCTAssertEqual(viewModel.displayDate, secondReferenceDate)
+    }
+
     func test_StarMapViewModel_resetToNorth_usesResetAltitude() {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)

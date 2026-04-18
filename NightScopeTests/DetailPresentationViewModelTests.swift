@@ -162,6 +162,56 @@ final class DetailViewModelTests: XCTestCase {
         XCTAssertEqual(vm.currentWeather?.avgCloudCover ?? -1, 88, accuracy: 0.001)
     }
 
+    func test_nightSummaryAndIndex_stayVisible_whileRecalculatingDifferentDate() async {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let currentDate = Calendar.current.startOfDay(for: Date())
+        let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        let location = appController.locationController.selectedLocation
+        let timeZoneIdentifier = appController.locationController.selectedTimeZone.identifier
+        let currentSummary = NightSummary(
+            date: currentDate,
+            location: location,
+            events: makeNightSummary(date: currentDate).events,
+            viewingWindows: makeNightSummary(date: currentDate).viewingWindows,
+            moonPhaseAtMidnight: 0.12,
+            timeZoneIdentifier: timeZoneIdentifier
+        )
+        let nextSummary = NightSummary(
+            date: nextDate,
+            location: location,
+            events: makeNightSummary(date: nextDate).events,
+            viewingWindows: makeNightSummary(date: nextDate).viewingWindows,
+            moonPhaseAtMidnight: 0.12,
+            timeZoneIdentifier: timeZoneIdentifier
+        )
+        let currentIndex = StarGazingIndex.compute(
+            nightSummary: currentSummary,
+            weather: nil,
+            bortleClass: 4
+        )
+
+        await mockCalculationService.enqueueNightSummary(nextSummary, delayMilliseconds: 250)
+
+        appController.selectedDate = currentDate
+        appController.nightSummary = currentSummary
+        appController.starGazingIndex = currentIndex
+
+        let vm = DetailViewModel(appController: appController)
+
+        for _ in 0..<30 where vm.nightSummary?.date != currentDate {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        appController.selectObservationDate(nextDate)
+
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        XCTAssertTrue(vm.isCalculating)
+        XCTAssertEqual(vm.nightSummary?.date, currentDate)
+        XCTAssertEqual(vm.starGazingIndex?.score, currentIndex.score)
+    }
+
     func test_isWeatherLoading_reflectsService() {
         let mockCalculationService = MockNightCalculationService()
         let appController = AppController(calculationService: mockCalculationService)
@@ -180,6 +230,36 @@ final class DetailViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isUpcomingLoading)
         appController.isUpcomingLoading = true
         XCTAssertTrue(vm.isUpcomingLoading)
+    }
+
+    func test_refreshForecast_triggersUpcomingRecalculation() async {
+        let mockCalculationService = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalculationService)
+        let vm = DetailViewModel(appController: appController)
+
+        vm.refreshForecast()
+
+        for _ in 0..<30 {
+            let upcomingCallCount = await mockCalculationService.getUpcomingCallCount()
+            if upcomingCallCount > 0 {
+                XCTAssertGreaterThanOrEqual(upcomingCallCount, 1)
+                return
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        XCTFail("予報再計算が開始されませんでした")
+    }
+}
+
+final class DetailContentStateResolverTests: XCTestCase {
+    func test_forecastState_keepsContentWhileRefreshingExistingNights() {
+        let resolver = DetailContentStateResolver()
+
+        XCTAssertEqual(
+            resolver.forecastState(hasDisplayNights: true, isUpcomingLoading: true),
+            .content
+        )
     }
 }
 

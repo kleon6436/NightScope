@@ -28,6 +28,7 @@ struct iOSTodayView: View {
     @StateObject private var lightPollutionViewModel: StarGazingIndexCardViewModel
     @StateObject private var weatherViewModel = NightWeatherCardViewModel()
     @State private var presentedSheet: PresentedSheet?
+    @State private var calendarDraftDate = Date()
 
     init(detailViewModel: DetailViewModel) {
         self.detailViewModel = detailViewModel
@@ -152,6 +153,7 @@ struct iOSTodayView: View {
         } trailing: {
             HStack(spacing: Spacing.xs / 2) {
                 Button {
+                    calendarDraftDate = detailViewModel.selectedDate
                     presentedSheet = .calendar
                 } label: {
                     Image(systemName: "calendar")
@@ -197,7 +199,7 @@ struct iOSTodayView: View {
         case .calendar:
             NavigationStack {
                 CalendarView(
-                    selectedDate: $detailViewModel.selectedDate,
+                    selectedDate: $calendarDraftDate,
                     timeZone: detailViewModel.selectedTimeZone
                 )
                 .navigationTitle("日付を選択")
@@ -205,6 +207,7 @@ struct iOSTodayView: View {
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("完了") {
+                            detailViewModel.selectedDate = calendarDraftDate
                             presentedSheet = nil
                         }
                     }

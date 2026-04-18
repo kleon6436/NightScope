@@ -84,6 +84,7 @@ struct iOSForecastView: View {
             }
             .refreshable {
                 await detailViewModel.refreshWeather()
+                detailViewModel.refreshForecast()
             }
             .toolbarBackground(.hidden, for: .navigationBar)
         }
@@ -108,7 +109,11 @@ struct iOSForecastView: View {
                     .lineLimit(1)
             }
         } trailing: {
-            EmptyView()
+            if detailViewModel.isUpcomingLoading || gridViewModel.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("14日予報を更新中")
+            }
         }
     }
 
@@ -137,11 +142,15 @@ struct iOSForecastView: View {
     }
 
     private var emptyStateView: some View {
-        ContentUnavailableView(
-            "予報データがありません",
-            systemImage: "calendar.badge.exclamationmark",
-            description: Text("14日間の予報データを計算できませんでした")
-        )
+        ContentUnavailableView {
+            Label("予報データがありません", systemImage: "calendar.badge.exclamationmark")
+        } description: {
+            Text("14日間の予報データを計算できませんでした")
+        } actions: {
+            Button("再試行") {
+                detailViewModel.retryForecastInBackground()
+            }
+        }
     }
 
     private var forecastList: some View {

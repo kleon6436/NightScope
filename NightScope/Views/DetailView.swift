@@ -135,6 +135,7 @@ struct DetailView: View {
                         Label("星空マップ", systemImage: AppIcons.Astronomy.sparkles)
                     }
                     .buttonStyle(.glass)
+                    .disabled(isSummaryRefreshing)
                     .help("星空マップを表示")
                     .accessibilityHint("選択した日付の星空マップを開きます")
                 }

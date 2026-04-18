@@ -1,6 +1,5 @@
 import SwiftUI
 import MapKit
-import Combine
 import UIKit
 
 struct iOSLocationView: View {
@@ -9,14 +8,6 @@ struct iOSLocationView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var locationInputMode: LocationInputMode = .map
-
-    private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
-    private var showLightPollutionBinding: Binding<Bool> {
-        Binding(
-            get: { locationInputMode == .lightPollutionMap },
-            set: { locationInputMode = $0 ? .lightPollutionMap : .map }
-        )
-    }
 
     private var showLightPollution: Bool {
         locationInputMode == .lightPollutionMap
@@ -182,10 +173,7 @@ struct iOSLocationView: View {
             )
             .ignoresSafeArea(edges: .horizontal)
         }
-        .frame(
-            minHeight: usesCompactMapLayout ? IOSDesignTokens.Location.compactMapHeight : IOSDesignTokens.Location.defaultMapHeight,
-            maxHeight: .infinity
-        )
+        .frame(minHeight: mapAreaMinHeight, maxHeight: .infinity)
         .layoutPriority(1)
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous))
     }
@@ -204,9 +192,9 @@ struct iOSLocationView: View {
 
     private var bottomBar: some View {
         VStack(spacing: Spacing.sm) {
-            Picker("地図モード", selection: showLightPollutionBinding) {
-                Text("地図").tag(false)
-                Text("光害").tag(true)
+            Picker("地図モード", selection: $locationInputMode) {
+                Text("地図").tag(LocationInputMode.map)
+                Text("光害").tag(LocationInputMode.lightPollutionMap)
             }
             .pickerStyle(.segmented)
 
@@ -280,14 +268,20 @@ struct iOSLocationView: View {
     }
 
     private var usesCompactMapLayout: Bool {
-        isSearchFocused || !isSearchPresentationHidden
+        isSearchFocused || isShowingSearchPresentation
     }
 
-    private var isSearchPresentationHidden: Bool {
+    private var isShowingSearchPresentation: Bool {
         if case .hidden = sidebarViewModel.searchPresentation {
-            return true
+            return false
         }
-        return false
+        return true
+    }
+
+    private var mapAreaMinHeight: CGFloat {
+        usesCompactMapLayout
+            ? IOSDesignTokens.Location.compactMapHeight
+            : IOSDesignTokens.Location.defaultMapHeight
     }
 }
 
