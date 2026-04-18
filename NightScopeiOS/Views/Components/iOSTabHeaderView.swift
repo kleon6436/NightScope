@@ -64,3 +64,39 @@ struct iOSTabHeaderView<Subtitle: View, Trailing: View>: View {
         .padding(.bottom, bottomPadding)
     }
 }
+
+private struct iOSMaterialPanelModifier: ViewModifier {
+    let material: Material
+    let cornerRadius: CGFloat
+    let style: RoundedCornerStyle
+    let showsBorder: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background(material, in: RoundedRectangle(cornerRadius: cornerRadius, style: style))
+            .overlay {
+                if showsBorder {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: style)
+                        .strokeBorder(.quaternary, lineWidth: 1)
+                }
+            }
+    }
+}
+
+extension View {
+    func iOSMaterialPanel(
+        material: Material = .thinMaterial,
+        cornerRadius: CGFloat = Layout.smallCornerRadius,
+        style: RoundedCornerStyle = .continuous,
+        showsBorder: Bool = true
+    ) -> some View {
+        modifier(
+            iOSMaterialPanelModifier(
+                material: material,
+                cornerRadius: cornerRadius,
+                style: style,
+                showsBorder: showsBorder
+            )
+        )
+    }
+}

@@ -92,28 +92,12 @@ struct iOSLocationView: View {
 
     // MARK: - Search Results
 
-    @ViewBuilder
     private var searchResultsList: some View {
-        switch sidebarViewModel.searchPresentation {
-        case .hidden, .loading:
-            EmptyView()
-        case .results(let results):
-            searchResultsCard(results)
-        case .empty(let query):
-            ContentUnavailableView.search(text: query)
-                .padding(.vertical, Spacing.xs)
-        case .error(let query, let message):
-            ContentUnavailableView {
-                Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
-            } description: {
-                Text("\"\(query)\" の検索に失敗しました。\(message)")
-            } actions: {
-                Button("再試行") {
-                    sidebarViewModel.retrySearch()
-                }
-            }
-            .padding(.vertical, Spacing.xs)
-        }
+        iOSLocationSearchResultsSection(
+            presentation: sidebarViewModel.searchPresentation,
+            searchResultsContent: searchResultsCard,
+            onRetry: sidebarViewModel.retrySearch
+        )
     }
 
     private func searchResultsCard(_ results: [MKMapItem]) -> some View {
@@ -131,11 +115,7 @@ struct iOSLocationView: View {
                 searchResultsContent(results)
             }
         }
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .iOSMaterialPanel()
     }
 
     private func searchResultsContent(_ results: [MKMapItem]) -> some View {
@@ -151,8 +131,7 @@ struct iOSLocationView: View {
 
     private func searchResultRow(_ item: MKMapItem) -> some View {
         Button {
-            sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
-            isSearchFocused = false
+            selectSearchResult(item)
         } label: {
             LocationSearchResultContent(
                 item: item,
@@ -213,11 +192,7 @@ struct iOSLocationView: View {
             infoRow
         }
         .padding(Spacing.sm)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .iOSMaterialPanel()
     }
 
     private var infoRow: some View {
@@ -267,6 +242,39 @@ struct iOSLocationView: View {
     private func clearSearchInteraction() {
         sidebarViewModel.clearSearch()
     }
+
+    private func selectSearchResult(_ item: MKMapItem) {
+        sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
+        isSearchFocused = false
+    }
+}
+
+private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
+    let presentation: SidebarViewModel.SearchPresentation
+    let searchResultsContent: ([MKMapItem]) -> ResultsContent
+    let onRetry: () -> Void
+
+    @ViewBuilder
+    var body: some View {
+        switch presentation {
+        case .hidden, .loading:
+            EmptyView()
+        case .results(let results):
+            searchResultsContent(results)
+        case .empty(let query):
+            ContentUnavailableView.search(text: query)
+                .padding(.vertical, Spacing.xs)
+        case .error(let query, let message):
+            ContentUnavailableView {
+                Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
+            } description: {
+                Text("\"\(query)\" の検索に失敗しました。\(message)")
+            } actions: {
+                Button("再試行", action: onRetry)
+            }
+            .padding(.vertical, Spacing.xs)
+        }
+    }
 }
 
 private struct LocationSearchField: View {
@@ -304,11 +312,7 @@ private struct LocationSearchField: View {
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .iOSMaterialPanel()
     }
 }
 

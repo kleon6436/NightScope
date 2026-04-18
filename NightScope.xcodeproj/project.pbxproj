@@ -111,6 +111,7 @@
 		BB0000000000000000005B05 /* ConstellationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F23 /* ConstellationData.swift */; };
 		BB0000000000000000005B06 /* MeteorShowerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F25 /* MeteorShowerData.swift */; };
 		BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F02 /* iOSDesignTokens.swift */; };
+		E1A0B1000000000000000002 /* iOSPreviewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0B1000000000000000001 /* iOSPreviewSupport.swift */; };
 		BB0000000000000000005B08 /* StarMapPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F09 /* StarMapPresentation.swift */; };
 		BB0000000000000000005B09 /* StarDisplayDensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0A /* StarDisplayDensity.swift */; };
 		BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F10 /* iOSTabHeaderView.swift */; };
@@ -161,6 +162,7 @@
 		816BFE2E87B5441281342EF9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94893EBD94DD9539C7C86561 /* iOSNightCardRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSNightCardRow.swift; sourceTree = "<group>"; };
 		9645065BBBF802A955B5582A /* NightScopeiOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NightScopeiOS.entitlements; sourceTree = "<group>"; };
+		E1A0B1000000000000000001 /* iOSPreviewSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSPreviewSupport.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeoStateValidator.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F01 /* NightScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F03 /* MilkyWayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculator.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 				ED567DB71258EB139EE02CA1 /* Components */,
 				E874E471E7767792A4000D47 /* iOSRootView.swift */,
 				BB0000000000000000004F02 /* iOSDesignTokens.swift */,
+				E1A0B1000000000000000001 /* iOSPreviewSupport.swift */,
 				3C88010FC1657FBB75579A3E /* iOSTodayView.swift */,
 				6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */,
 				2C4FF1AF217AF56546E11BB3 /* iOSLocationView.swift */,
@@ -577,6 +580,7 @@
 				D75EF08B6B443B5D2CE817E5 /* NightScopeiOSApp.swift in Sources */,
 				CAE750591596DC8A81611119 /* iOSRootView.swift in Sources */,
 				BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */,
+				E1A0B1000000000000000002 /* iOSPreviewSupport.swift in Sources */,
 				91F8C0F8D6AA500B2E697662 /* iOSTodayView.swift in Sources */,
 				12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */,
 				C3624AC873043476C6CD9CD9 /* iOSLocationView.swift in Sources */,

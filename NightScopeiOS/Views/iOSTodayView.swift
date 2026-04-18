@@ -27,8 +27,7 @@ struct iOSTodayView: View {
     private let viewModel = iOSTodayViewModel()
     @StateObject private var lightPollutionViewModel: StarGazingIndexCardViewModel
     @StateObject private var weatherViewModel = NightWeatherCardViewModel()
-    @State private var showCalendar = false
-    @State private var showSettings = false
+    @State private var presentedSheet: PresentedSheet?
 
     init(detailViewModel: DetailViewModel) {
         self.detailViewModel = detailViewModel
@@ -61,24 +60,8 @@ struct iOSTodayView: View {
                 await viewModel.refreshAll(using: detailViewModel)
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showCalendar) {
-                NavigationStack {
-                    CalendarView(
-                        selectedDate: $detailViewModel.selectedDate,
-                        timeZone: detailViewModel.selectedTimeZone
-                    )
-                        .navigationTitle("日付を選択")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("完了") { showCalendar = false }
-                            }
-                        }
-                }
-                .presentationDetents([.medium])
-            }
-            .sheet(isPresented: $showSettings) {
-                iOSSettingsSheetView()
+            .sheet(item: $presentedSheet) { sheet in
+                sheetView(for: sheet)
             }
         }
     }
@@ -158,7 +141,7 @@ struct iOSTodayView: View {
         } trailing: {
             HStack(spacing: Spacing.xs / 2) {
                 Button {
-                    showCalendar = true
+                    presentedSheet = .calendar
                 } label: {
                     Image(systemName: "calendar")
                         .font(.headline)
@@ -174,7 +157,7 @@ struct iOSTodayView: View {
 
     private var settingsButton: some View {
         Button {
-            showSettings = true
+            presentedSheet = .settings
         } label: {
             Image(systemName: "gearshape.fill")
                 .font(.headline)
@@ -197,6 +180,39 @@ struct iOSTodayView: View {
         .redacted(reason: .placeholder)
     }
 
+    @ViewBuilder
+    private func sheetView(for sheet: PresentedSheet) -> some View {
+        switch sheet {
+        case .calendar:
+            NavigationStack {
+                CalendarView(
+                    selectedDate: $detailViewModel.selectedDate,
+                    timeZone: detailViewModel.selectedTimeZone
+                )
+                .navigationTitle("日付を選択")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") {
+                            presentedSheet = nil
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        case .settings:
+            iOSSettingsSheetView()
+        }
+    }
+}
+
+private extension iOSTodayView {
+    enum PresentedSheet: String, Identifiable {
+        case calendar
+        case settings
+
+        var id: String { rawValue }
+    }
 }
 
 private struct iOSSettingsSheetView: View {

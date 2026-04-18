@@ -1,6 +1,19 @@
 import SwiftUI
 
 @MainActor
+struct iOSForecastRowModel {
+    let night: NightSummary
+    let index: StarGazingIndex?
+    let weather: DayWeatherSummary?
+    let rangeText: String
+    let isReliableWeather: Bool
+    let hasPartialWeather: Bool
+    let isForecastOutOfRange: Bool
+    let isSelected: Bool
+    let accessibilityLabel: String
+}
+
+@MainActor
 struct iOSForecastViewModel {
     private let stateResolver = DetailContentStateResolver()
 
@@ -8,6 +21,27 @@ struct iOSForecastViewModel {
         stateResolver.forecastState(
             hasDisplayNights: hasDisplayNights,
             isUpcomingLoading: isUpcomingLoading
+        )
+    }
+
+    func rowModel(for night: NightSummary, using gridViewModel: UpcomingNightsGridViewModel) -> iOSForecastRowModel {
+        let index = gridViewModel.starGazingIndex(for: night.date)
+        let weather = gridViewModel.weatherSummary(for: night.date)
+        let rangeText = gridViewModel.observableRangeText(night: night, weather: weather)
+        let isReliableWeather = gridViewModel.hasReliableWeatherData(for: night, weather: weather)
+        let hasPartialWeather = gridViewModel.hasPartialWeatherData(for: night, weather: weather)
+        let isForecastOutOfRange = gridViewModel.isForecastOutOfRange(for: night, weather: weather)
+
+        return iOSForecastRowModel(
+            night: night,
+            index: index,
+            weather: weather,
+            rangeText: rangeText,
+            isReliableWeather: isReliableWeather,
+            hasPartialWeather: hasPartialWeather,
+            isForecastOutOfRange: isForecastOutOfRange,
+            isSelected: gridViewModel.isDateSelected(night.date),
+            accessibilityLabel: gridViewModel.cardAccessibilityLabel(night: night, weather: weather, index: index)
         )
     }
 
@@ -108,27 +142,22 @@ struct iOSForecastView: View {
     }
 
     private func forecastRow(for night: NightSummary) -> some View {
-        let index = gridViewModel.starGazingIndex(for: night.date)
-        let weather = gridViewModel.weatherSummary(for: night.date)
-        let rangeText = gridViewModel.observableRangeText(night: night, weather: weather)
-        let isReliableWeather = gridViewModel.hasReliableWeatherData(for: night, weather: weather)
-        let hasPartialWeather = gridViewModel.hasPartialWeatherData(for: night, weather: weather)
-        let isForecastOutOfRange = gridViewModel.isForecastOutOfRange(for: night, weather: weather)
+        let rowModel = viewModel.rowModel(for: night, using: gridViewModel)
 
         return iOSNightCardRow(
-            night: night,
-            index: index,
-            weather: weather,
-            rangeText: rangeText,
-            isReliableWeather: isReliableWeather,
-            hasPartialWeather: hasPartialWeather,
-            isForecastOutOfRange: isForecastOutOfRange,
-            isSelected: gridViewModel.isDateSelected(night.date)
+            night: rowModel.night,
+            index: rowModel.index,
+            weather: rowModel.weather,
+            rangeText: rowModel.rangeText,
+            isReliableWeather: rowModel.isReliableWeather,
+            hasPartialWeather: rowModel.hasPartialWeather,
+            isForecastOutOfRange: rowModel.isForecastOutOfRange,
+            isSelected: rowModel.isSelected
         )
         .onTapGesture {
-            viewModel.selectNight(night.date, using: gridViewModel, selectedTab: $selectedTab)
+            viewModel.selectNight(rowModel.night.date, using: gridViewModel, selectedTab: $selectedTab)
         }
-        .accessibilityLabel(gridViewModel.cardAccessibilityLabel(night: night, weather: weather, index: index))
+        .accessibilityLabel(rowModel.accessibilityLabel)
         .accessibilityAddTraits(.isButton)
         .accessibilityHint("タップして今夜タブで詳細を表示")
     }
