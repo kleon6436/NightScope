@@ -9,7 +9,6 @@ struct iOSLocationView: View {
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var locationInputMode: LocationInputMode = .map
-    @State private var pendingMapSelection: PendingMapSelection?
 
     private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
     private var showLightPollutionBinding: Binding<Bool> {
@@ -25,45 +24,35 @@ struct iOSLocationView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    headerSection
-                    searchSection
-                    searchResultsList
-                    mapArea
-                    bottomBar
+            GeometryReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        headerSection
+                        searchSection
+                        searchResultsList
+                        mapArea
+                        bottomBar
+                    }
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.top, Spacing.sm)
+                    .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Spacing.sm)
-                .padding(.vertical, Spacing.sm)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .alert(
-                "位置情報エラー",
-                isPresented: locationErrorAlertBinding,
-                presenting: sidebarViewModel.locationError
-            ) { error in
-                if error == .denied {
-                    Button("設定を開く", action: openAppSettings)
+                .scrollDismissesKeyboard(.interactively)
+                .toolbarBackground(.hidden, for: .navigationBar)
+                .alert(
+                    "位置情報エラー",
+                    isPresented: locationErrorAlertBinding,
+                    presenting: sidebarViewModel.locationError
+                ) { error in
+                    if error == .denied {
+                        Button("設定を開く", action: openAppSettings)
+                    }
+                    Button("OK") {
+                        sidebarViewModel.clearLocationError()
+                    }
+                } message: { error in
+                    Text(error.localizedDescription)
                 }
-                Button("OK") {
-                    sidebarViewModel.clearLocationError()
-                }
-            } message: { error in
-                Text(error.localizedDescription)
-            }
-            .confirmationDialog(
-                "この地点を観測地に設定しますか？",
-                isPresented: pendingMapSelectionPresentedBinding,
-                titleVisibility: .visible,
-                presenting: pendingMapSelection
-            ) { selection in
-                Button("この地点を選択") {
-                    confirmMapSelection(selection.coordinate)
-                }
-            } message: { selection in
-                Text(selection.message)
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -77,7 +66,7 @@ struct iOSLocationView: View {
             title: "場所",
             horizontalPadding: Spacing.xs
         ) {
-            Text("検索して観測地点を選択します")
+            Text("観測地点を検索")
                 .font(.subheadline)
                 .lineLimit(1)
         } trailing: {
@@ -193,7 +182,10 @@ struct iOSLocationView: View {
             )
             .ignoresSafeArea(edges: .horizontal)
         }
-        .frame(height: usesCompactMapLayout ? IOSDesignTokens.Location.compactMapHeight : IOSDesignTokens.Location.defaultMapHeight)
+        .frame(
+            minHeight: usesCompactMapLayout ? IOSDesignTokens.Location.compactMapHeight : IOSDesignTokens.Location.defaultMapHeight,
+            maxHeight: .infinity
+        )
         .layoutPriority(1)
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous))
     }
@@ -222,6 +214,7 @@ struct iOSLocationView: View {
         }
         .padding(Spacing.sm)
         .iOSMaterialPanel()
+        .padding(.bottom, Spacing.sm)
     }
 
     private var infoRow: some View {
@@ -268,7 +261,7 @@ struct iOSLocationView: View {
 
     private func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
         isSearchFocused = false
-        pendingMapSelection = PendingMapSelection(coordinate: coordinate)
+        sidebarViewModel.selectCoordinate(coordinate)
     }
 
     private func clearSearchInteraction() {
@@ -295,22 +288,6 @@ struct iOSLocationView: View {
             return true
         }
         return false
-    }
-
-    private var pendingMapSelectionPresentedBinding: Binding<Bool> {
-        Binding(
-            get: { pendingMapSelection != nil },
-            set: { isPresented in
-                if !isPresented {
-                    pendingMapSelection = nil
-                }
-            }
-        )
-    }
-
-    private func confirmMapSelection(_ coordinate: CLLocationCoordinate2D) {
-        pendingMapSelection = nil
-        sidebarViewModel.selectCoordinate(coordinate)
     }
 }
 
@@ -361,18 +338,6 @@ private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
             }
             .padding(.vertical, Spacing.xs)
         }
-    }
-}
-
-private struct PendingMapSelection {
-    let coordinate: CLLocationCoordinate2D
-
-    var message: String {
-        String(
-            format: "緯度 %.4f°, 経度 %.4f° を観測地点に設定します。",
-            coordinate.latitude,
-            coordinate.longitude
-        )
     }
 }
 

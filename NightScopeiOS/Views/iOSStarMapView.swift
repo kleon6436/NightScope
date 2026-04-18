@@ -522,7 +522,7 @@ private struct iOSStarMapHeaderOverlay: View {
                 HStack(spacing: Spacing.xs) {
                     Image(systemName: "sparkles")
                         .font(.subheadline)
-                    Text("星空を表示します")
+                    Text("星空を表示")
                         .font(.subheadline)
                         .lineLimit(1)
                 }
