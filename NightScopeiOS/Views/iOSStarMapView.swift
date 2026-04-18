@@ -10,6 +10,7 @@ struct iOSStarMapView: View {
 
     @State private var motionManager = CMMotionManager()
     @State private var headingController = StarMapHeadingController()
+    @State private var bottomControlPanelHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -19,21 +20,21 @@ struct iOSStarMapView: View {
 
                 StarMapCanvasView(
                     viewModel: viewModel,
-                    showsCardinalOverlay: false
+                    showsCardinalOverlay: true,
+                    cardinalOverlayBottomInset: cardinalOverlayBottomInset
                 )
                     .ignoresSafeArea(edges: .top)
 
                 headerSection
                 bottomControlPanel
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { newHeight in
+                        bottomControlPanelHeight = newHeight
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    starDensityMenu
-                    gyroToggleButton
-                }
-            }
         }
         .onAppear {
             viewModel.prepareForStarMapPresentation()
@@ -48,15 +49,22 @@ struct iOSStarMapView: View {
 
     private var headerSection: some View {
         iOSTabHeaderView(
-            title: "星空マップ",
+            title: "星空",
             titleColor: .white,
             subtitleColor: .white.opacity(0.75)
         ) {
-            Text("視野と時刻を調整します")
-                .font(.caption)
-                .lineLimit(2)
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: "sparkles")
+                    .font(.subheadline)
+                Text("星空を表示します")
+                    .font(.subheadline)
+                    .lineLimit(1)
+            }
         } trailing: {
-            EmptyView()
+            HStack(spacing: Spacing.xs / 2) {
+                starDensityMenu
+                gyroToggleButton
+            }
         }
     }
 
@@ -64,7 +72,6 @@ struct iOSStarMapView: View {
 
     private var bottomControlPanel: some View {
         VStack(spacing: Spacing.xs) {
-            cardinalLegend
             dateControlRow
             timeSliderRow
             locationLabel
@@ -78,35 +85,14 @@ struct iOSStarMapView: View {
     }
 
     private var bottomControlBottomPadding: CGFloat {
-        Spacing.lg
+        Spacing.sm
     }
 
-    private var cardinalLegend: some View {
-        let directions: [(Double, String)] = [
-            (0, StarMapPresentation.azimuthName(for: 0)),
-            (45, StarMapPresentation.azimuthName(for: 45)),
-            (90, StarMapPresentation.azimuthName(for: 90)),
-            (135, StarMapPresentation.azimuthName(for: 135)),
-            (180, StarMapPresentation.azimuthName(for: 180)),
-            (225, StarMapPresentation.azimuthName(for: 225)),
-            (270, StarMapPresentation.azimuthName(for: 270)),
-            (315, StarMapPresentation.azimuthName(for: 315))
-        ]
-
-        return LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: Spacing.xs), count: 4),
-            spacing: Spacing.xs
-        ) {
-            ForEach(directions, id: \.0) { _, label in
-                Text(label)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, StarMapLayout.cardinalLabelVerticalPadding)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
-            }
-        }
+    private var cardinalOverlayBottomInset: CGFloat {
+        max(
+            StarMapLayout.cardinalLabelBottomInset,
+            bottomControlPanelHeight + bottomControlBottomPadding
+        )
     }
 
     private var dateControlRow: some View {
@@ -212,7 +198,10 @@ struct iOSStarMapView: View {
             }
         } label: {
             Image(systemName: "slider.horizontal.3")
+                .font(.headline)
+                .frame(width: 44, height: 44)
         }
+        .buttonStyle(.glass)
         .accessibilityLabel("星の表示数")
         .accessibilityValue(selectedStarDisplayDensity.settingsLabel)
         .accessibilityHint("表示する恒星の量を変更します")
@@ -227,8 +216,11 @@ struct iOSStarMapView: View {
             }
         } label: {
             Image(systemName: viewModel.isGyroMode ? "gyroscope" : "hand.draw")
+                .font(.headline)
+                .frame(width: 44, height: 44)
                 .symbolEffect(.bounce, value: viewModel.isGyroMode)
         }
+        .buttonStyle(.glass)
         .help(viewModel.isGyroMode ? "タッチ操作に切替" : "ジャイロ操作に切替")
         .accessibilityLabel(viewModel.isGyroMode ? "タッチ操作に切り替える" : "ジャイロ操作に切り替える")
         .disabled(!canEnableGyroMode)

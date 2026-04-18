@@ -9,13 +9,7 @@ enum IOSDesignTokens {
     }
 
     enum Forecast {
-        static let rowVerticalInset: CGFloat = Spacing.xs / 2
-        static let rowInsets = EdgeInsets(
-            top: rowVerticalInset,
-            leading: Spacing.sm,
-            bottom: rowVerticalInset,
-            trailing: Spacing.sm
-        )
+        static let rowSpacing: CGFloat = Spacing.sm
     }
 
     enum Location {
@@ -26,6 +20,10 @@ enum IOSDesignTokens {
     }
 
     enum NightRow {
+        static let cardMinHeight: CGFloat = 80
+        static let cardHorizontalPadding: CGFloat = Layout.cardPadding
+        static let cardVerticalPadding: CGFloat = Layout.cardPadding
+        static let contentSpacing: CGFloat = Spacing.sm / 2
         static let relativeLabelHorizontalPadding: CGFloat = 6
         static let relativeLabelVerticalPadding: CGFloat = 2
         static let starSpacing: CGFloat = 2
@@ -33,8 +31,8 @@ enum IOSDesignTokens {
         static let selectionBorderWidth: CGFloat = 2
         static let metadataIconWidth: CGFloat = 14
         static let metadataIconSpacing: CGFloat = 4
-        static let metadataGroupSpacing: CGFloat = Spacing.sm
-        static let metadataLineSpacing: CGFloat = Spacing.xs / 2
+        static let metadataGroupSpacing: CGFloat = Spacing.xs
+        static let metadataMinimumScaleFactor: CGFloat = 0.78
     }
 }
 

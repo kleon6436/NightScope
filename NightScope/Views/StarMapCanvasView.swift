@@ -65,6 +65,7 @@ struct StarMapCanvasView: View {
 
     @ObservedObject var viewModel: StarMapViewModel
     var showsCardinalOverlay: Bool = true
+    var cardinalOverlayBottomInset: CGFloat = StarMapLayout.cardinalLabelBottomInset
 
     /// クリック/タップで天体を選択したときに呼ばれるコールバック (macOS で使用)
     var onStarSelected: ((StarPosition) -> Void)? = nil
@@ -198,7 +199,10 @@ struct StarMapCanvasView: View {
     private func cardinalOverlay(size: CGSize) -> some View {
         CardinalOverlayView(
             placements: cardinalLabelPlacements(size: size),
-            overlayY: Self.cardinalOverlayY(sizeHeight: size.height)
+            overlayY: Self.cardinalOverlayY(
+                sizeHeight: size.height,
+                bottomInset: Double(cardinalOverlayBottomInset)
+            )
         )
     }
 
@@ -461,8 +465,11 @@ struct StarMapCanvasView: View {
     }
 
     /// 方位ラベルの固定オーバーレイ Y 座標を返します。
-    nonisolated static func cardinalOverlayY(sizeHeight: Double) -> Double {
-        sizeHeight - Double(StarMapLayout.cardinalLabelBottomInset)
+    nonisolated static func cardinalOverlayY(
+        sizeHeight: Double,
+        bottomInset: Double = Double(StarMapLayout.cardinalLabelBottomInset)
+    ) -> Double {
+        sizeHeight - bottomInset
     }
 
     nonisolated private static func projectedCardinalLabelX(

@@ -153,6 +153,11 @@ final class StarMapViewModelTests: XCTestCase {
             accuracy: 0.0001
         )
         XCTAssertEqual(
+            StarMapCanvasView.cardinalOverlayY(sizeHeight: 400, bottomInset: 140),
+            260,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
             StarMapCanvasView.clampedCardinalLabelX(-5, sizeWidth: 320),
             Double(StarMapLayout.cardinalLabelSidePadding),
             accuracy: 0.0001

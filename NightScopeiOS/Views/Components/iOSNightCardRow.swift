@@ -22,12 +22,18 @@ struct iOSNightCardRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
+        VStack(alignment: .leading, spacing: IOSDesignTokens.NightRow.contentSpacing) {
             headerRow
             metadataSection
         }
-        .padding(Layout.cardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, IOSDesignTokens.NightRow.cardHorizontalPadding)
+        .padding(.vertical, IOSDesignTokens.NightRow.cardVerticalPadding)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: IOSDesignTokens.NightRow.cardMinHeight,
+            alignment: .center
+        )
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
@@ -36,18 +42,20 @@ struct iOSNightCardRow: View {
     }
 
     private var headerRow: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
             Text(presentation.shortDateLabel)
-                .font(.headline)
+                .font(.headline.monospacedDigit())
+                .fontWeight(.semibold)
             if let label = presentation.relativeNightLabel {
                 Text(label)
-                    .font(.caption)
+                    .font(.footnote)
+                    .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, IOSDesignTokens.NightRow.relativeLabelHorizontalPadding)
                     .padding(.vertical, IOSDesignTokens.NightRow.relativeLabelVerticalPadding)
                     .background(.tertiary, in: Capsule())
             }
-            Spacer()
+            Spacer(minLength: Spacing.xs)
             if let index {
                 HStack(spacing: IOSDesignTokens.NightRow.starSpacing) {
                     ForEach(0..<5) { i in
@@ -57,30 +65,23 @@ struct iOSNightCardRow: View {
                                 ? index.tier.color
                                 : Color.secondary.opacity(IOSDesignTokens.NightRow.inactiveStarOpacity)
                             )
-                            .font(.caption)
+                            .font(.footnote)
                     }
                 }
                 Text(index.label)
-                    .font(.caption.bold())
+                    .font(.footnote)
+                    .fontWeight(.semibold)
                     .foregroundStyle(index.tier.color)
             }
         }
     }
 
     private var metadataSection: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: IOSDesignTokens.NightRow.metadataGroupSpacing) {
-                moonMetadataItem
-                weatherMetadataItem
-                rangeMetadataItem
-            }
-            VStack(alignment: .leading, spacing: IOSDesignTokens.NightRow.metadataLineSpacing) {
-                HStack(spacing: IOSDesignTokens.NightRow.metadataGroupSpacing) {
-                    moonMetadataItem
-                    weatherMetadataItem
-                }
-                rangeMetadataItem
-            }
+        HStack(alignment: .firstTextBaseline, spacing: IOSDesignTokens.NightRow.metadataGroupSpacing) {
+            moonMetadataItem
+            weatherMetadataItem
+            rangeMetadataItem
+            Spacer(minLength: 0)
         }
     }
 
@@ -121,15 +122,16 @@ struct iOSNightCardRow: View {
     ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: IOSDesignTokens.NightRow.metadataIconSpacing) {
             Image(systemName: systemImage)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(iconTint)
                 .frame(width: IOSDesignTokens.NightRow.metadataIconWidth, alignment: .center)
                 .accessibilityHidden(true)
             Text(text)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.85)
+                .minimumScaleFactor(IOSDesignTokens.NightRow.metadataMinimumScaleFactor)
+                .allowsTightening(true)
         }
     }
 }

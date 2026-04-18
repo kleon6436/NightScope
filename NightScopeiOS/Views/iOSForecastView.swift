@@ -38,11 +38,14 @@ struct iOSForecastView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                headerSection
-                contentByState
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    headerSection
+                    contentByState
+                }
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.sm)
             }
-            .padding(.vertical, Spacing.sm)
             .toolbarBackground(.hidden, for: .navigationBar)
         }
     }
@@ -95,12 +98,12 @@ struct iOSForecastView: View {
     }
 
     private var forecastList: some View {
-        List {
+        LazyVStack(alignment: .leading, spacing: IOSDesignTokens.Forecast.rowSpacing) {
             ForEach(gridViewModel.displayNights, id: \.date) { night in
                 forecastRow(for: night)
             }
         }
-        .listStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func forecastRow(for night: NightSummary) -> some View {
@@ -121,9 +124,6 @@ struct iOSForecastView: View {
             isForecastOutOfRange: isForecastOutOfRange,
             isSelected: gridViewModel.isDateSelected(night.date)
         )
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
-        .listRowInsets(IOSDesignTokens.Forecast.rowInsets)
         .onTapGesture {
             viewModel.selectNight(night.date, using: gridViewModel, selectedTab: $selectedTab)
         }

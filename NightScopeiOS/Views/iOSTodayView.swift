@@ -135,7 +135,6 @@ struct iOSTodayView: View {
 
             MilkyWaySummaryCard(summary: summary)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight, alignment: .top)
-                .padding(.top, Spacing.xs)
         }
     }
 
