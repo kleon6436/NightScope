@@ -132,7 +132,7 @@ final class StarMapViewModelTests: XCTestCase {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)
 
-        XCTAssertEqual(StarMapLayout.defaultFOV, 120, accuracy: 0.001)
+        XCTAssertEqual(StarMapLayout.defaultFOV, 60, accuracy: 0.001)
         XCTAssertEqual(viewModel.fov, StarMapLayout.defaultFOV, accuracy: 0.001)
     }
 

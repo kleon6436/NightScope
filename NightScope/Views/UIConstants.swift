@@ -209,7 +209,7 @@ struct SelectedLocationSummaryContent: View {
 enum StarMapLayout {
     static let minFOV: Double = 30
     static let maxFOV: Double = 150
-    static let defaultFOV: Double = 120
+    static let defaultFOV: Double = 60
     static let resetAltitude: Double = 30
     static let directionStep: Double = 5
     static let zoomStep: Double = 10
