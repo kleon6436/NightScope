@@ -28,6 +28,7 @@ struct iOSTodayView: View {
     @StateObject private var lightPollutionViewModel: StarGazingIndexCardViewModel
     @StateObject private var weatherViewModel = NightWeatherCardViewModel()
     @State private var showCalendar = false
+    @State private var showSettings = false
 
     init(detailViewModel: DetailViewModel) {
         self.detailViewModel = detailViewModel
@@ -75,6 +76,9 @@ struct iOSTodayView: View {
                         }
                 }
                 .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showSettings) {
+                iOSSettingsSheetView()
             }
         }
     }
@@ -140,7 +144,10 @@ struct iOSTodayView: View {
             title: viewModel.headerTitle(
                 for: detailViewModel.displayedDate,
                 timeZone: detailViewModel.selectedTimeZone
-            )
+            ),
+            titleLineLimit: 1,
+            titleMinimumScaleFactor: 0.9,
+            horizontalPadding: Spacing.xs
         ) {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcons.Navigation.locationPin)
@@ -150,16 +157,33 @@ struct iOSTodayView: View {
                     .lineLimit(1)
             }
         } trailing: {
-            Button {
-                showCalendar = true
-            } label: {
-                Image(systemName: "calendar")
-                    .font(.headline)
-                    .frame(width: 44, height: 44)
+            HStack(spacing: Spacing.xs / 2) {
+                Button {
+                    showCalendar = true
+                } label: {
+                    Image(systemName: "calendar")
+                        .font(.headline)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.glass)
+                .accessibilityLabel("日付を選択")
+
+                settingsButton
             }
-            .buttonStyle(.glass)
-            .accessibilityLabel("日付を選択")
         }
+    }
+
+    private var settingsButton: some View {
+        Button {
+            showSettings = true
+        } label: {
+            Image(systemName: "gearshape.fill")
+                .font(.headline)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.glass)
+        .accessibilityLabel("設定を開く")
+        .accessibilityHint("アプリ全体の表示設定を変更します")
     }
 
     private var loadingPlaceholder: some View {
@@ -174,6 +198,23 @@ struct iOSTodayView: View {
         .redacted(reason: .placeholder)
     }
 
+}
+
+private struct iOSSettingsSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            SettingsView()
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") {
+                            dismiss()
+                        }
+                    }
+                }
+        }
+    }
 }
 
 #Preview("Today - Loading") {

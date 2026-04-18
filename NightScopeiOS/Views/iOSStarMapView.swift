@@ -6,6 +6,7 @@ import CoreLocation
 
 struct iOSStarMapView: View {
     @ObservedObject var viewModel: StarMapViewModel
+    @AppStorage(StarDisplayDensity.defaultsKey) private var starDisplayDensityRaw = StarDisplayDensity.defaultValue.rawValue
 
     @State private var motionManager = CMMotionManager()
     @State private var headingController = StarMapHeadingController()
@@ -28,7 +29,8 @@ struct iOSStarMapView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    starDensityMenu
                     gyroToggleButton
                 }
             }
@@ -195,6 +197,25 @@ struct iOSStarMapView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var selectedStarDisplayDensity: StarDisplayDensity {
+        StarDisplayDensity(rawValue: starDisplayDensityRaw) ?? .defaultValue
+    }
+
+    private var starDensityMenu: some View {
+        Menu {
+            Picker("星の表示数", selection: $starDisplayDensityRaw) {
+                ForEach(StarDisplayDensity.allCases) { density in
+                    Text(density.settingsLabel).tag(density.rawValue)
+                }
+            }
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+        }
+        .accessibilityLabel("星の表示数")
+        .accessibilityValue(selectedStarDisplayDensity.settingsLabel)
+        .accessibilityHint("表示する恒星の量を変更します")
     }
 
     // MARK: - Gyroscope Toggle

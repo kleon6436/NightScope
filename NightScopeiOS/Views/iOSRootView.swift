@@ -35,14 +35,6 @@ struct iOSRootView: View {
                     Label("星空", systemImage: "sparkles")
                 }
                 .tag(3)
-
-            NavigationStack {
-                SettingsView()
-            }
-            .tabItem {
-                Label("設定", systemImage: "gearshape")
-            }
-                .tag(4)
         }
         .onAppear {
             rootStore.appController.onStart()

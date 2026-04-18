@@ -4,6 +4,8 @@ struct iOSTabHeaderView<Subtitle: View, Trailing: View>: View {
     let title: String
     let titleColor: Color
     let subtitleColor: Color
+    let titleLineLimit: Int
+    let titleMinimumScaleFactor: CGFloat
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
     let bottomPadding: CGFloat
@@ -15,6 +17,8 @@ struct iOSTabHeaderView<Subtitle: View, Trailing: View>: View {
         title: String,
         titleColor: Color = .primary,
         subtitleColor: Color = .secondary,
+        titleLineLimit: Int = 2,
+        titleMinimumScaleFactor: CGFloat = 1,
         horizontalPadding: CGFloat = Spacing.sm,
         verticalPadding: CGFloat = Spacing.sm,
         bottomPadding: CGFloat = Spacing.xs,
@@ -25,6 +29,8 @@ struct iOSTabHeaderView<Subtitle: View, Trailing: View>: View {
         self.title = title
         self.titleColor = titleColor
         self.subtitleColor = subtitleColor
+        self.titleLineLimit = titleLineLimit
+        self.titleMinimumScaleFactor = titleMinimumScaleFactor
         self.horizontalPadding = horizontalPadding
         self.verticalPadding = verticalPadding
         self.bottomPadding = bottomPadding
@@ -39,11 +45,14 @@ struct iOSTabHeaderView<Subtitle: View, Trailing: View>: View {
                 Text(title)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(titleColor)
-                    .lineLimit(2)
+                    .lineLimit(titleLineLimit)
+                    .minimumScaleFactor(titleMinimumScaleFactor)
+                    .allowsTightening(true)
 
                 subtitle()
                     .foregroundStyle(subtitleColor)
             }
+            .layoutPriority(1)
 
             Spacer(minLength: 0)
 
