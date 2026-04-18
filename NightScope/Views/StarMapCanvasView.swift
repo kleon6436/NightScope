@@ -66,6 +66,7 @@ struct StarMapCanvasView: View {
     @ObservedObject var viewModel: StarMapViewModel
     var showsCardinalOverlay: Bool = true
     var cardinalOverlayBottomInset: CGFloat = StarMapLayout.cardinalLabelBottomInset
+    var backgroundColor: Color = StarMapPalette.canvasBackground
 
     /// クリック/タップで天体を選択したときに呼ばれるコールバック (macOS で使用)
     var onStarSelected: ((StarPosition) -> Void)? = nil
@@ -153,7 +154,7 @@ struct StarMapCanvasView: View {
                 return .handled
             }
         }
-        .background(StarMapPalette.canvasBackground)
+        .background(backgroundColor)
     }
 
     private var pinchFOVOverlay: some View {

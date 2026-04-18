@@ -732,6 +732,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCameraUsageDescription = "実際の空と星図を重ねて表示するためにカメラを使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "星空観測の計画に現在地を使用します。";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -770,6 +771,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCameraUsageDescription = "実際の空と星図を重ねて表示するためにカメラを使用します。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "星空観測の計画に現在地を使用します。";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
