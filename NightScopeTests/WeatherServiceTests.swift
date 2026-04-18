@@ -37,7 +37,8 @@ final class WeatherServiceTests: XCTestCase {
         symbolCode: String = "clearsky_night",
         cloudLow: Double? = nil,
         cloudMid: Double? = nil,
-        cloudHigh: Double? = nil
+        cloudHigh: Double? = nil,
+        forecastStepHours: Int = 1
     ) -> MetNorwayResponse.Properties.Timeseries {
         let details = MetNorwayResponse.Properties.Timeseries.Data.Instant.Details(
             air_temperature: temp,
@@ -50,14 +51,22 @@ final class WeatherServiceTests: XCTestCase {
             relative_humidity: humidity,
             dew_point_temperature: dewpoint
         )
-        let next1 = MetNorwayResponse.Properties.Timeseries.Data.Next1Hours(
-            summary: .init(symbol_code: symbolCode),
-            details: .init(precipitation_amount: precip)
-        )
+        let next1 = forecastStepHours == 1
+            ? MetNorwayResponse.Properties.Timeseries.Data.Next1Hours(
+                summary: .init(symbol_code: symbolCode),
+                details: .init(precipitation_amount: precip)
+            )
+            : nil
+        let next6 = forecastStepHours == 6
+            ? MetNorwayResponse.Properties.Timeseries.Data.Next6Hours(
+                summary: .init(symbol_code: symbolCode),
+                details: .init(precipitation_amount: precip)
+            )
+            : nil
         let data = MetNorwayResponse.Properties.Timeseries.Data(
             instant: .init(details: details),
             next_1_hours: next1,
-            next_6_hours: nil
+            next_6_hours: next6
         )
         return MetNorwayResponse.Properties.Timeseries(time: time, data: data)
     }
@@ -168,6 +177,29 @@ final class WeatherServiceTests: XCTestCase {
         let result = service.parse(response: makeResponse(times: [t21, t02]), location: tokyoLocation, timeZone: tokyoTimeZone)
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result["2024-06-15"]?.nighttimeHours.count, 2)
+    }
+
+    func test_parse_next6Hours_expandsIntoHourlyNightCoverage() throws {
+        let t21 = makeTimeString(year: 2024, month: 6, day: 15, hour: 21)
+        let response = MetNorwayResponse(properties: .init(timeseries: [
+            makeTimeseries(
+                time: t21,
+                cloud: 30,
+                precip: 0.5,
+                symbolCode: "rain",
+                forecastStepHours: 6
+            )
+        ]))
+
+        let result = service.parse(response: response, location: tokyoLocation, timeZone: tokyoTimeZone)
+        let hours = try XCTUnwrap(result["2024-06-15"]?.nighttimeHours)
+        let firstHour = try XCTUnwrap(hours.first)
+        let lastHour = try XCTUnwrap(hours.last)
+
+        XCTAssertEqual(hours.count, 6)
+        XCTAssertEqual(firstHour.precipitationMM, 0.5, accuracy: 0.001)
+        XCTAssertEqual(firstHour.weatherCode, 63)
+        XCTAssertEqual(lastHour.date, firstHour.date.addingTimeInterval(5 * 3600))
     }
 
     func test_parse_multipleNights_separateKeys() {

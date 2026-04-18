@@ -145,7 +145,7 @@ struct MetNorwayForecastParser: Sendable {
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) -> [String: DayWeatherSummary] {
-        let hours = response.properties.timeseries.compactMap { hourlyWeather(from: $0) }
+        let hours = response.properties.timeseries.flatMap { hourlyWeatherEntries(from: $0) }
         let hoursByDate = groupNightHours(hours, location: location, timeZone: timeZone)
         let formatter = MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone)
 
@@ -166,12 +166,13 @@ struct MetNorwayForecastParser: Sendable {
         MetNorwayFormatting.dateKeyFormatter(timeZone: timeZone).string(from: date)
     }
 
-    private func hourlyWeather(from timeseries: MetNorwayResponse.Properties.Timeseries) -> HourlyWeather? {
+    private func hourlyWeatherEntries(from timeseries: MetNorwayResponse.Properties.Timeseries) -> [HourlyWeather] {
         guard let date = MetNorwayFormatting.isoDateFormatter.date(from: timeseries.time) else {
-            return nil
+            return []
         }
 
         let details = timeseries.data.instant.details
+        let forecastStepHours = forecastStepHours(for: timeseries)
         let temperature = details.air_temperature ?? 0
         let precipitation = timeseries.data.next_1_hours?.details.precipitation_amount
             ?? timeseries.data.next_6_hours?.details?.precipitation_amount
@@ -179,22 +180,36 @@ struct MetNorwayForecastParser: Sendable {
         let symbolCode = timeseries.data.next_1_hours?.summary.symbol_code
             ?? timeseries.data.next_6_hours?.summary?.symbol_code
 
-        return HourlyWeather(
-            date: date,
-            temperatureCelsius: temperature,
-            cloudCoverPercent: details.cloud_area_fraction ?? 0,
-            precipitationMM: precipitation,
-            windSpeedKmh: (details.wind_speed ?? 0) * 3.6,
-            humidityPercent: details.relative_humidity ?? 0,
-            dewpointCelsius: details.dew_point_temperature ?? temperature,
-            weatherCode: Self.symbolCodeToWMO(symbolCode),
-            visibilityMeters: nil,
-            windGustsKmh: details.wind_speed_of_gust.map { $0 * 3.6 },
-            cloudCoverLowPercent: details.cloud_area_fraction_low,
-            cloudCoverMidPercent: details.cloud_area_fraction_medium,
-            cloudCoverHighPercent: details.cloud_area_fraction_high,
-            windSpeedKmh500hpa: nil
-        )
+        // MET Norway は先の日付ほど `next_6_hours` に切り替わる。
+        // 夜間判定と星空指数は時間単位の被覆率を前提にするため、6時間ブロックは各1時間へ展開する。
+        return (0..<forecastStepHours).map { offset in
+            HourlyWeather(
+                date: date.addingTimeInterval(Double(offset) * 3600),
+                temperatureCelsius: temperature,
+                cloudCoverPercent: details.cloud_area_fraction ?? 0,
+                precipitationMM: precipitation,
+                windSpeedKmh: (details.wind_speed ?? 0) * 3.6,
+                humidityPercent: details.relative_humidity ?? 0,
+                dewpointCelsius: details.dew_point_temperature ?? temperature,
+                weatherCode: Self.symbolCodeToWMO(symbolCode),
+                visibilityMeters: nil,
+                windGustsKmh: details.wind_speed_of_gust.map { $0 * 3.6 },
+                cloudCoverLowPercent: details.cloud_area_fraction_low,
+                cloudCoverMidPercent: details.cloud_area_fraction_medium,
+                cloudCoverHighPercent: details.cloud_area_fraction_high,
+                windSpeedKmh500hpa: nil
+            )
+        }
+    }
+
+    private func forecastStepHours(for timeseries: MetNorwayResponse.Properties.Timeseries) -> Int {
+        if timeseries.data.next_1_hours != nil {
+            return 1
+        }
+        if timeseries.data.next_6_hours != nil {
+            return 6
+        }
+        return 1
     }
 
     private func groupNightHours(
