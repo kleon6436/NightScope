@@ -51,6 +51,12 @@ enum Layout {
     static let gridIconWidth: CGFloat = 14
 }
 
+enum SearchResultsLayout {
+    static func needsScroll(resultCount: Int, visibleRowCapacity: CGFloat) -> Bool {
+        CGFloat(resultCount) > floor(visibleRowCapacity)
+    }
+}
+
 struct LocationSearchResultContent: View {
     let item: MKMapItem
     let iconSystemName: String

@@ -117,23 +117,36 @@ struct iOSLocationView: View {
     }
 
     private func searchResultsCard(_ results: [MKMapItem]) -> some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(Array(results.enumerated()), id: \.offset) { index, item in
-                    searchResultRow(item)
-                    if index < results.count - 1 {
-                        Divider()
-                    }
+        Group {
+            if SearchResultsLayout.needsScroll(
+                resultCount: results.count,
+                visibleRowCapacity: IOSDesignTokens.Location.searchResultsVisibleRowCapacity
+            ) {
+                ScrollView {
+                    searchResultsContent(results)
                 }
+                .scrollIndicators(.hidden)
+                .frame(maxHeight: IOSDesignTokens.Location.searchResultsMaxHeight)
+            } else {
+                searchResultsContent(results)
             }
         }
-        .scrollIndicators(.hidden)
-        .frame(maxHeight: IOSDesignTokens.Location.searchResultsMaxHeight)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Layout.smallCornerRadius, style: .continuous)
                 .strokeBorder(.quaternary, lineWidth: 1)
         )
+    }
+
+    private func searchResultsContent(_ results: [MKMapItem]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(results.enumerated()), id: \.offset) { index, item in
+                searchResultRow(item)
+                if index < results.count - 1 {
+                    Divider()
+                }
+            }
+        }
     }
 
     private func searchResultRow(_ item: MKMapItem) -> some View {

@@ -85,6 +85,7 @@
 		AA000000000000000000TB11 /* MapKitSharedLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */; };
 		AA000000000000000000TB12 /* DetailPresentationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */; };
 		AA000000000000000000TB13 /* UpcomingNightsGridViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */; };
+		AA000000000000000000TB14 /* SearchResultsLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF14 /* SearchResultsLayoutTests.swift */; };
 		B66ECDD7AD401F013891BF8E /* StarGazingIndexCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F04 /* StarGazingIndexCardViewModel.swift */; };
 		BB0000000000000000002B21 /* StarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F21 /* StarCatalog.swift */; };
 		BB0000000000000000002B22 /* StarMapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F22 /* StarMapCanvasView.swift */; };
@@ -210,6 +211,7 @@
 		AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitSharedLogicTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPresentationViewModelTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModelTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF14 /* SearchResultsLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsLayoutTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB0000000000000000002F21 /* StarCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarCatalog.swift; sourceTree = "<group>"; };
 		BB0000000000000000002F22 /* StarMapCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasView.swift; sourceTree = "<group>"; };
@@ -405,6 +407,7 @@
 				AA000000000000000000TF11 /* MapKitSharedLogicTests.swift */,
 				AA000000000000000000TF12 /* DetailPresentationViewModelTests.swift */,
 				AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */,
+				AA000000000000000000TF14 /* SearchResultsLayoutTests.swift */,
 			);
 			path = NightScopeTests;
 			sourceTree = "<group>";
@@ -701,6 +704,7 @@
 				AA000000000000000000TB11 /* MapKitSharedLogicTests.swift in Sources */,
 				AA000000000000000000TB12 /* DetailPresentationViewModelTests.swift in Sources */,
 				AA000000000000000000TB13 /* UpcomingNightsGridViewModelTests.swift in Sources */,
+				AA000000000000000000TB14 /* SearchResultsLayoutTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

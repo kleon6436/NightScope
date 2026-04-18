@@ -14,6 +14,8 @@ enum IOSDesignTokens {
 
     enum Location {
         static let searchResultsMaxHeight: CGFloat = 176
+        static let estimatedSearchResultRowHeight: CGFloat = 52
+        static let searchResultsVisibleRowCapacity = searchResultsMaxHeight / estimatedSearchResultRowHeight
         static let searchResultLineSpacing: CGFloat = 2
         static let viewportCoordinateEpsilon = 0.00005
         static let viewportSpanEpsilon = 0.00005
