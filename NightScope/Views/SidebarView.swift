@@ -420,7 +420,7 @@ private struct SidebarSearchResultsList: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(
-            L10n.format("場所を選択: %@", item.name ?? L10n.tr("Unknown"))
+            L10n.format("場所を選択: %@", item.name ?? L10n.tr("不明"))
         )
     }
 }

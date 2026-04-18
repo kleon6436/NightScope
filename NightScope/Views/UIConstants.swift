@@ -124,7 +124,7 @@ struct LocationSearchResultContent: View {
         titleFont: Font = .body,
         subtitleFont: Font = .body,
         lineSpacing: CGFloat = 0,
-        titleFallback: String = L10n.tr("Unknown"),
+        titleFallback: String = L10n.tr("不明"),
         iconWidth: CGFloat? = nil
     ) {
         self.item = item
