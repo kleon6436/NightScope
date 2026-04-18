@@ -17,8 +17,7 @@ struct iOSTodayViewModel {
     }
 
     func refreshAll(using detailViewModel: DetailViewModel) async {
-        await detailViewModel.refreshWeather()
-        await detailViewModel.refreshLightPollution()
+        await detailViewModel.refreshExternalData()
     }
 }
 

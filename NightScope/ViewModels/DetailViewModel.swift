@@ -156,8 +156,12 @@ final class DetailViewModel: ObservableObject {
         await appController.refreshLightPollution()
     }
 
-    func refreshForecast() {
-        appController.recalculateUpcoming()
+    func refreshExternalData() async {
+        await appController.refreshExternalData()
+    }
+
+    func refreshForecast() async {
+        await appController.recalculateUpcomingAndWait()
     }
 
     func retryWeatherInBackground() {
@@ -173,7 +177,9 @@ final class DetailViewModel: ObservableObject {
     }
 
     func retryForecastInBackground() {
-        refreshForecast()
+        Task {
+            await refreshForecast()
+        }
     }
 
     private var effectiveDisplayDate: Date {

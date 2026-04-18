@@ -237,7 +237,7 @@ final class DetailViewModelTests: XCTestCase {
         let appController = AppController(calculationService: mockCalculationService)
         let vm = DetailViewModel(appController: appController)
 
-        vm.refreshForecast()
+        await vm.refreshForecast()
 
         for _ in 0..<30 {
             let upcomingCallCount = await mockCalculationService.getUpcomingCallCount()

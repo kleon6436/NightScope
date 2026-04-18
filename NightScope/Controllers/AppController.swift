@@ -71,12 +71,13 @@ final class AppController: ObservableObject {
 
     // MARK: - Private State
     private let calculationService: NightCalculating
-    private var calculationTask: Task<Void, Never>?
-    private var upcomingTask: Task<Void, Never>?
-    private var locationTask: Task<Void, Never>?
-    private var cancellables: Set<AnyCancellable> = []
-    private var isApplyingLocationRefresh = false
-    private var hasStarted = false
+     private var calculationTask: Task<Void, Never>?
+     private var upcomingTask: Task<Void, Never>?
+     private var locationTask: Task<Void, Never>?
+    private var externalDataTask: Task<Void, Never>?
+     private var cancellables: Set<AnyCancellable> = []
+     private var isApplyingLocationRefresh = false
+     private var hasStarted = false
     private var lastObservedTimeZone: TimeZone
     private var lastActiveReferenceDate: Date
     private var observationStateBatchDepth = 0
@@ -105,11 +106,12 @@ final class AppController: ObservableObject {
         }
     }
 
-    deinit {
-        calculationTask?.cancel()
-        upcomingTask?.cancel()
-        locationTask?.cancel()
-    }
+     deinit {
+         calculationTask?.cancel()
+         upcomingTask?.cancel()
+         locationTask?.cancel()
+        externalDataTask?.cancel()
+     }
 
     // MARK: - Public Methods
 
@@ -163,23 +165,19 @@ final class AppController: ObservableObject {
         }
     }
 
-    /// 選択中の観測地に対応する天気予報を更新します。
-    func refreshWeather() async {
-        let context = selectedLocationContext
-        await weatherService.fetchWeather(
-            latitude: context.coordinate.latitude,
-            longitude: context.coordinate.longitude,
-            timeZone: context.timeZone
-        )
+     /// 選択中の観測地に対応する天気予報を更新します。
+     func refreshWeather() async {
+        await refreshWeather(using: selectedLocationContext)
+     }
+
+     /// 選択中の観測地に対応する光害データを更新します。
+     func refreshLightPollution() async {
+        await refreshLightPollution(using: selectedLocationContext)
     }
 
-    /// 選択中の観測地に対応する光害データを更新します。
-    func refreshLightPollution() async {
-        let context = selectedLocationContext
-        await lightPollutionService.fetch(
-            latitude: context.coordinate.latitude,
-            longitude: context.coordinate.longitude
-        )
+    /// 選択中の観測地に対応する外部データを同一コンテキストで更新します。
+    func refreshExternalData() async {
+        await refreshExternalData(using: selectedLocationContext)
     }
 
     /// 選択日を更新し、必要な当夜再計算を開始します。
@@ -199,8 +197,11 @@ final class AppController: ObservableObject {
 
     /// 外部データ更新を fire-and-forget で開始します。
     func refreshExternalDataInBackground() {
-        Task {
-            await refreshExternalData()
+        externalDataTask?.cancel()
+        let context = selectedLocationContext
+        externalDataTask = Task { [weak self] in
+            guard let self else { return }
+            await self.refreshExternalData(using: context)
         }
     }
 
@@ -253,6 +254,12 @@ final class AppController: ObservableObject {
         }
     }
 
+    /// 予報再計算の完了まで待機します。
+    func recalculateUpcomingAndWait(referenceDate: Date = Date()) async {
+        recalculateUpcoming(referenceDate: referenceDate)
+        await upcomingTask?.value
+    }
+
     /// 当夜の星空指数を最新の夜間サマリー・外部データから再構築します。
     func recomputeStarGazingIndex() {
         guard let summary = nightSummary else { return }
@@ -297,6 +304,8 @@ final class AppController: ObservableObject {
 
     /// 場所変更後の再取得に備えて、既存の観測結果と外部データ状態を初期化します。
     private func prepareForLocationChange(using context: SelectedLocationContext) {
+        externalDataTask?.cancel()
+        externalDataTask = nil
         cancelActiveCalculationTasks()
         performObservationStateBatchUpdate {
             isCalculating = true
@@ -314,9 +323,25 @@ final class AppController: ObservableObject {
         lightPollutionService.prepareForLocationChange()
     }
 
-    private func refreshExternalData() async {
-        await refreshWeather()
-        await refreshLightPollution()
+    private func refreshWeather(using context: SelectedLocationContext) async {
+        await weatherService.fetchWeather(
+            latitude: context.coordinate.latitude,
+            longitude: context.coordinate.longitude,
+            timeZone: context.timeZone
+        )
+    }
+
+    private func refreshLightPollution(using context: SelectedLocationContext) async {
+        await lightPollutionService.fetch(
+            latitude: context.coordinate.latitude,
+            longitude: context.coordinate.longitude
+        )
+    }
+
+    private func refreshExternalData(using context: SelectedLocationContext) async {
+        await refreshWeather(using: context)
+        guard !Task.isCancelled, matchesCurrentLocationContext(context) else { return }
+        await refreshLightPollution(using: context)
     }
 
     private func publishObservationStateIfNeeded() {
@@ -594,6 +619,12 @@ final class AppController: ObservableObject {
         )
             && Self.coordinatesEqual(nightSummary.location, location)
             && nightSummary.timeZoneIdentifier == timeZone.identifier
+    }
+
+    private func matchesCurrentLocationContext(_ context: SelectedLocationContext) -> Bool {
+        let currentContext = selectedLocationContext
+        return Self.coordinatesEqual(context.coordinate, currentContext.coordinate)
+            && context.timeZone.identifier == currentContext.timeZone.identifier
     }
 
     private func recalculateCurrentNightIfNeeded() {
