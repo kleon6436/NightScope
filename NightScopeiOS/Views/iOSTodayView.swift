@@ -70,8 +70,6 @@ struct iOSTodayView: View {
                     retryWeatherAction: detailViewModel.retryWeatherInBackground,
                     retryLightPollutionAction: detailViewModel.retryLightPollutionInBackground
                 )
-                .padding(.horizontal, Spacing.sm)
-                .padding(.bottom, Spacing.xs)
             }
         }
     }
