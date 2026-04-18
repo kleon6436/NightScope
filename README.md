@@ -59,8 +59,6 @@ NightScope は以下の外部データ/サービスを利用しています。
 
 ## バンドルデータの準備手順
 
-`bortle_map.bin` と `srtm_elevation.bin` は、環境に応じて**生成するか、別途配布されたアセットを配置する**運用を想定しています。
-
 ### bortle_map.bin（光害データ）
 
 ```bash
@@ -96,16 +94,6 @@ python3 Tools/prepare_srtm.py --input-dir ~/srtm_tiles/ \
 
 > [!NOTE]
 > `srtm_elevation.bin` が存在しない場合、`TerrainService` は nil を返し地形データなし（平坦地扱い）で動作します。ビルド・実行は可能ですが、地平線障害物の計算は行われません。
-
-## バンドルデータの運用方針
-
-- `bortle_map.bin` は派生バイナリとしてサイズが大きくなりやすいため、**通常の Git 追跡を前提にしない**運用を推奨します。
-- 推奨候補は以下のいずれかです。
-  - Git LFS で管理する
-  - リリースアセット / 社内配布物として配る
-  - 開発環境ごとに `Tools/generate_bortle_map.py` で生成する
-- `srtm_elevation.bin` は `bortle_map.bin` より軽量ですが、長期的には同じ運用ポリシーに揃えると判断しやすくなります。
-- いずれの方式でも、**生成スクリプト・フォーマット仕様・README 手順はリポジトリで管理**する前提です。
 
 ## 利用上の注意（個人利用 / 将来商用）
 
