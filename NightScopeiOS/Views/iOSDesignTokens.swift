@@ -8,6 +8,7 @@ enum IOSDesignTokens {
 
     enum Forecast {
         static let rowSpacing: CGFloat = Spacing.sm
+        static let loadingMinHeight: CGFloat = 220
     }
 
     enum Location {
@@ -17,6 +18,8 @@ enum IOSDesignTokens {
         static let searchResultLineSpacing: CGFloat = 2
         static let viewportCoordinateEpsilon = 0.00005
         static let viewportSpanEpsilon = 0.00005
+        static let defaultMapHeight: CGFloat = 220
+        static let compactMapHeight: CGFloat = 160
     }
 
     enum NightRow {

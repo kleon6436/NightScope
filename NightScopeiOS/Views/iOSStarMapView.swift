@@ -17,6 +17,7 @@ struct iOSStarMapView: View {
     @State private var cameraPermissionRequestID = 0
     @State private var bottomControlPanelHeight: CGFloat = 0
     @State private var interfaceOrientation: UIInterfaceOrientation = .portrait
+    @State private var hasInitializedPresentation = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -49,15 +50,19 @@ struct iOSStarMapView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
         }
         .onAppear {
-            viewModel.prepareForStarMapPresentation()
-            viewModel.syncWithSelectedDate()
+            if !hasInitializedPresentation {
+                viewModel.prepareForStarMapPresentation()
+                viewModel.syncWithSelectedDate()
+                hasInitializedPresentation = true
+            }
             updateInterfaceOrientation()
             cameraController.refreshAuthorizationStatus()
-            handleGyroChange()
+            syncMotionState()
             syncCameraSession()
         }
         .onDisappear {
             invalidatePendingCameraPermissionRequest()
+            viewModel.finalizeTransientInteractionState()
             stopMotion()
             cameraController.setSessionActive(false)
         }
@@ -314,9 +319,8 @@ struct iOSStarMapView: View {
     // MARK: - CoreMotion
 
     private func handleGyroChange() {
-        if viewModel.isGyroMode {
-            startMotion()
-        } else {
+        syncMotionState()
+        if !viewModel.isGyroMode {
             stopMotion()
             disableCameraBackground(clearNotice: true)
         }
@@ -400,12 +404,24 @@ struct iOSStarMapView: View {
         if phase == .active {
             updateInterfaceOrientation()
             cameraController.refreshAuthorizationStatus()
+        } else {
+            viewModel.finalizeTransientInteractionState()
         }
+        syncMotionState()
         syncCameraSession()
     }
 
     private func syncCameraSession() {
         cameraController.setSessionActive(cameraSessionState.shouldRunSession)
+    }
+
+    private func syncMotionState() {
+        let shouldRunMotion = viewModel.isGyroMode && scenePhase == .active
+        if shouldRunMotion {
+            startMotion()
+        } else {
+            stopMotion()
+        }
     }
 
     private func handleCameraAuthorizationChange(_ status: AVAuthorizationStatus) {
@@ -490,6 +506,7 @@ private struct iOSStarMapHeaderOverlay: View {
     let onToggleCameraBackground: () -> Void
     let onToggleGyroMode: () -> Void
     let onOpenSettings: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -540,10 +557,10 @@ private struct iOSStarMapHeaderOverlay: View {
 
     private var cameraBackgroundButton: some View {
         Button(action: onToggleCameraBackground) {
-            Image(systemName: controlState.isCameraBackgroundVisible ? "camera.fill" : "camera")
-                .font(.headline)
-                .frame(width: 44, height: 44)
-                .symbolEffect(.bounce, value: controlState.isCameraBackgroundVisible)
+            toggleIcon(
+                systemName: controlState.isCameraBackgroundVisible ? "camera.fill" : "camera",
+                isActive: controlState.isCameraBackgroundVisible
+            )
         }
         .buttonStyle(.glass)
         .help(controlState.cameraButtonHelpText)
@@ -555,15 +572,28 @@ private struct iOSStarMapHeaderOverlay: View {
 
     private var gyroToggleButton: some View {
         Button(action: onToggleGyroMode) {
-            Image(systemName: controlState.isGyroMode ? "gyroscope" : "hand.draw")
-                .font(.headline)
-                .frame(width: 44, height: 44)
-                .symbolEffect(.bounce, value: controlState.isGyroMode)
+            toggleIcon(
+                systemName: controlState.isGyroMode ? "gyroscope" : "hand.draw",
+                isActive: controlState.isGyroMode
+            )
         }
         .buttonStyle(.glass)
         .help(controlState.isGyroMode ? "タッチ操作に切替" : "ジャイロ操作に切替")
         .accessibilityLabel(controlState.isGyroMode ? "タッチ操作に切り替える" : "ジャイロ操作に切り替える")
         .disabled(!controlState.canEnableGyroMode)
+    }
+
+    @ViewBuilder
+    private func toggleIcon(systemName: String, isActive: Bool) -> some View {
+        let icon = Image(systemName: systemName)
+            .font(.headline)
+            .frame(width: 44, height: 44)
+
+        if reduceMotion {
+            icon
+        } else {
+            icon.symbolEffect(.bounce, value: isActive)
+        }
     }
 }
 

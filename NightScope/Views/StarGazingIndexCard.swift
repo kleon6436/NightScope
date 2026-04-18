@@ -64,25 +64,20 @@ struct StarGazingIndexCard: View {
         if index.hasWeatherData {
             subScoreRow(label: "気象", score: index.weatherScore, maxScore: StarGazingIndex.maxWeatherScore, color: .cyan)
         } else {
-            HStack(spacing: Spacing.xs) {
-                Text("気象")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                subScoreLabel("気象")
                 Text("データなし")
                     .font(.body)
                     .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             }
         }
 
         if index.hasLightPollutionData {
             subScoreRow(label: "光害", score: index.lightPollutionScore, maxScore: StarGazingIndex.maxLightPollutionScore, color: .orange)
         } else {
-            HStack(spacing: Spacing.xs) {
-                Text("光害")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+                subScoreLabel("光害")
                 if lightPollutionViewModel.isLoading {
                     ProgressView()
                         .controlSize(.mini)
@@ -96,20 +91,18 @@ struct StarGazingIndexCard: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: 0)
             }
         }
     }
 
     private func subScoreRow(label: String, score: Int, maxScore: Int, color: Color) -> some View {
-        HStack(spacing: Spacing.xs) {
-            Text(label)
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .frame(width: 44, alignment: .leading)
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
+            subScoreLabel(label)
             ProgressView(value: Double(score), total: Double(maxScore))
                 .progressViewStyle(.linear)
                 .tint(color)
-                .frame(width: 100)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityLabel("\(label)")
                 .accessibilityValue("\(score)/\(maxScore)")
             Text("\(score)/\(maxScore)")
@@ -117,6 +110,13 @@ struct StarGazingIndexCard: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
         }
+    }
+
+    private func subScoreLabel(_ label: String) -> some View {
+        Text(label)
+            .font(.body)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private func toggleExpanded() {

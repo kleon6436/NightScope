@@ -493,6 +493,26 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.viewRoll, 0, accuracy: 0.001)
     }
 
+    func test_StarMapViewModel_prepareForStarMapPresentation_onlyAppliesInitialPoseOnce() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+        let size = CGSize(width: 860, height: 620)
+
+        viewModel.updateCanvasSize(size)
+        viewModel.prepareForStarMapPresentation()
+        viewModel.applyInitialPoseIfNeeded()
+        viewModel.viewAzimuth = 148
+        viewModel.viewAltitude = 33
+        viewModel.viewRoll = 5
+
+        viewModel.prepareForStarMapPresentation()
+        viewModel.applyInitialPoseIfNeeded()
+
+        XCTAssertEqual(viewModel.viewAzimuth, 148, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewAltitude, 33, accuracy: 0.001)
+        XCTAssertEqual(viewModel.viewRoll, 5, accuracy: 0.001)
+    }
+
     func test_StarMapViewModel_resetToNorth_usesResetAltitude() {
         let appController = AppController(calculationService: MockNightCalculationService())
         let viewModel = StarMapViewModel(appController: appController)
@@ -620,6 +640,38 @@ final class StarMapViewModelTests: XCTestCase {
             from: viewModel.displayDate
         )
         let expectedRealMinutes = (viewModel.nightStartMinutes + 90)
+            .truncatingRemainder(dividingBy: 1_440)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 4)
+        XCTAssertEqual(components.day, 10)
+        XCTAssertEqual(components.hour, Int(expectedRealMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(expectedRealMinutes) % 60)
+        XCTAssertFalse(viewModel.isTimeSliderScrubbing)
+    }
+
+    func test_StarMapViewModel_finalizeTransientInteractionState_commitsPendingSliderDate() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+        let calendar = observationCalendar(for: appController.locationController.selectedTimeZone)
+        let baseDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 10,
+            hour: 20,
+            minute: 0
+        ))!
+        appController.selectedDate = baseDate
+        viewModel.displayDate = baseDate
+
+        viewModel.beginTimeSliderInteraction()
+        viewModel.setTimeSliderMinutes(120)
+        viewModel.finalizeTransientInteractionState()
+
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: viewModel.displayDate
+        )
+        let expectedRealMinutes = (viewModel.nightStartMinutes + 120)
             .truncatingRemainder(dividingBy: 1_440)
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 4)

@@ -437,6 +437,7 @@ final class StarMapViewModel: ObservableObject {
     private let computationDependency: StarMapComputationDependency
     private var cancellables: Set<AnyCancellable> = []
     private var shouldApplyInitialPose = true
+    private var hasPreparedInitialPresentation = false
     private var lastTimeSliderCommitTime: TimeInterval = 0
     private var pendingTimeSliderDate: Date?
     private var timeSliderCommitTask: Task<Void, Never>?
@@ -745,6 +746,8 @@ final class StarMapViewModel: ObservableObject {
 
     /// 星空マップ表示に入る直前に、初期表示位置の再適用を要求する。
     func prepareForStarMapPresentation() {
+        guard !hasPreparedInitialPresentation else { return }
+        hasPreparedInitialPresentation = true
         shouldApplyInitialPose = true
     }
 
@@ -850,6 +853,14 @@ final class StarMapViewModel: ObservableObject {
         isTimeSliderScrubbing = false
         cancelTimeSliderCommitTask()
         commitPendingTimeSliderDate()
+    }
+
+    func finalizeTransientInteractionState() {
+        if isTimeSliderScrubbing {
+            endTimeSliderInteraction()
+        } else {
+            commitPendingTimeSliderDate()
+        }
     }
 
     private func schedulePendingTimeSliderDateCommit() {

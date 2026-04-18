@@ -239,6 +239,15 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         }
     }
 
+    func prepareForSettingsRecovery() {
+        shouldResumeLocationAfterAuthorization = true
+        locationError = nil
+    }
+
+    func refreshAuthorizationState() {
+        handleAuthorizationStatusChange(locationManager.authorizationStatus)
+    }
+
     /// クエリを正規化して場所検索を開始します。
     func search(query: String) {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -360,6 +369,21 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         if clearPendingAuthorizationRequest {
             shouldResumeLocationAfterAuthorization = false
         }
+    }
+
+    private func handleAuthorizationStatusChange(_ status: CLAuthorizationStatus) {
+        if Self.isAuthorized(status) {
+            locationError = nil
+            guard isLocating || shouldResumeLocationAfterAuthorization else { return }
+            shouldResumeLocationAfterAuthorization = false
+            isLocating = true
+            startLocationUpdatesWithTimeout()
+            return
+        }
+
+        guard status == .denied || status == .restricted else { return }
+        stopLocating()
+        locationError = .denied
     }
 
     /// タイムアウトタスクのみを開始する（位置情報更新は開始しない）。
@@ -509,6 +533,14 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         return searchState.query
     }
 
+    private static func isAuthorized(_ status: CLAuthorizationStatus) -> Bool {
+        #if os(iOS)
+        status == .authorizedWhenInUse || status == .authorizedAlways
+        #else
+        status == .authorized || status == .authorizedAlways
+        #endif
+    }
+
 }
 
 // MARK: - CLLocationManagerDelegate
@@ -518,6 +550,7 @@ extension LocationController: CLLocationManagerDelegate {
         guard let location = locations.last else { return }
         manager.stopUpdatingLocation()
         Task { @MainActor in
+            guard self.isLocating else { return }
             self.selectCoordinate(location.coordinate, provisionalName: "現在地")
             self.currentLocationCenterTrigger += 1
         }
@@ -539,23 +572,7 @@ extension LocationController: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
         Task { @MainActor in
-            let isAuthorized: Bool
-            #if os(iOS)
-            isAuthorized = status == .authorizedWhenInUse || status == .authorizedAlways
-            #else
-            isAuthorized = status == .authorized || status == .authorizedAlways
-            #endif
-            if isAuthorized {
-                if self.isLocating || self.shouldResumeLocationAfterAuthorization {
-                    self.shouldResumeLocationAfterAuthorization = false
-                    self.locationError = nil
-                    self.isLocating = true
-                    self.startLocationUpdatesWithTimeout()
-                }
-            } else if status == .denied || status == .restricted {
-                self.stopLocating()
-                self.locationError = .denied
-            }
+            self.handleAuthorizationStatusChange(status)
         }
     }
 }

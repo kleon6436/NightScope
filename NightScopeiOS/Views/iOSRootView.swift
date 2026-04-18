@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 
 struct iOSRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var rootStore: AppRootStore
     @State private var selectedTab = 0
+    @State private var hasHandledCurrentActiveState = false
 
     @MainActor
     init(dependencies: AppRootDependencies? = nil) {
@@ -38,12 +40,26 @@ struct iOSRootView: View {
                 .tag(3)
         }
         .onAppear {
-            rootStore.appController.handleSceneDidBecomeActive()
+            handleActiveSceneIfNeeded()
         }
         .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active else { return }
-            rootStore.appController.handleSceneDidBecomeActive()
+            guard newPhase == .active else {
+                hasHandledCurrentActiveState = false
+                return
+            }
+            handleActiveSceneIfNeeded()
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            guard scenePhase == .active else { return }
+            rootStore.appController.handleSceneDidBecomeActive(refreshExternalData: false)
+        }
+    }
+
+    private func handleActiveSceneIfNeeded() {
+        guard scenePhase == .active else { return }
+        guard !hasHandledCurrentActiveState else { return }
+        hasHandledCurrentActiveState = true
+        rootStore.appController.handleSceneDidBecomeActive()
     }
 }
 

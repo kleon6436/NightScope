@@ -83,6 +83,8 @@ final class MockLocationController: LocationProviding {
     private(set) var locationUpdateID = UUID()
 
     private(set) var requestCurrentLocationCalled = false
+    private(set) var prepareForSettingsRecoveryCalled = false
+    private(set) var refreshAuthorizationStateCalled = false
     private(set) var searchQuery: String?
     private(set) var selectedMapItem: MKMapItem?
     private(set) var selectedCoordinateCalls: [CLLocationCoordinate2D] = []
@@ -149,6 +151,14 @@ final class MockLocationController: LocationProviding {
 
     func requestCurrentLocation() {
         requestCurrentLocationCalled = true
+    }
+
+    func prepareForSettingsRecovery() {
+        prepareForSettingsRecoveryCalled = true
+    }
+
+    func refreshAuthorizationState() {
+        refreshAuthorizationStateCalled = true
     }
 
     func search(query: String) {

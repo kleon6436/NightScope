@@ -206,6 +206,14 @@ final class SidebarViewModel: ObservableObject {
         locationController.requestCurrentLocation()
     }
 
+    func prepareForLocationSettingsRecovery() {
+        locationController.prepareForSettingsRecovery()
+    }
+
+    func refreshLocationAuthorizationState() {
+        locationController.refreshAuthorizationState()
+    }
+
     func updateViewportIfNeeded(center: CLLocationCoordinate2D, span: MKCoordinateSpan) {
         let currentCenter = viewport.center
         let currentSpan = viewport.span

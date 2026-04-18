@@ -5,9 +5,11 @@ import UIKit
 
 struct iOSLocationView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var sidebarViewModel: SidebarViewModel
     @FocusState private var isSearchFocused: Bool
     @State private var locationInputMode: LocationInputMode = .map
+    @State private var pendingMapSelection: PendingMapSelection?
 
     private var lightPollutionService: any LightPollutionProviding { sidebarViewModel.lightPollutionService }
     private var showLightPollutionBinding: Binding<Bool> {
@@ -23,15 +25,19 @@ struct iOSLocationView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                headerSection
-                searchSection
-                searchResultsList
-                mapArea
-                bottomBar
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    headerSection
+                    searchSection
+                    searchResultsList
+                    mapArea
+                    bottomBar
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.sm)
             }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.sm)
+            .scrollDismissesKeyboard(.interactively)
             .toolbarBackground(.hidden, for: .navigationBar)
             .alert(
                 "位置情報エラー",
@@ -47,6 +53,22 @@ struct iOSLocationView: View {
             } message: { error in
                 Text(error.localizedDescription)
             }
+            .confirmationDialog(
+                "この地点を観測地に設定しますか？",
+                isPresented: pendingMapSelectionPresentedBinding,
+                titleVisibility: .visible,
+                presenting: pendingMapSelection
+            ) { selection in
+                Button("この地点を選択") {
+                    confirmMapSelection(selection.coordinate)
+                }
+            } message: { selection in
+                Text(selection.message)
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            sidebarViewModel.refreshLocationAuthorizationState()
         }
     }
 
@@ -171,7 +193,7 @@ struct iOSLocationView: View {
             )
             .ignoresSafeArea(edges: .horizontal)
         }
-        .frame(minHeight: Layout.mapMinHeight)
+        .frame(height: usesCompactMapLayout ? IOSDesignTokens.Location.compactMapHeight : IOSDesignTokens.Location.defaultMapHeight)
         .layoutPriority(1)
         .clipShape(RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous))
     }
@@ -246,7 +268,7 @@ struct iOSLocationView: View {
 
     private func handleMapTap(_ coordinate: CLLocationCoordinate2D) {
         isSearchFocused = false
-        sidebarViewModel.selectCoordinate(coordinate)
+        pendingMapSelection = PendingMapSelection(coordinate: coordinate)
     }
 
     private func clearSearchInteraction() {
@@ -260,7 +282,35 @@ struct iOSLocationView: View {
 
     private func openAppSettings() {
         guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        sidebarViewModel.prepareForLocationSettingsRecovery()
         openURL(settingsURL)
+    }
+
+    private var usesCompactMapLayout: Bool {
+        isSearchFocused || !isSearchPresentationHidden
+    }
+
+    private var isSearchPresentationHidden: Bool {
+        if case .hidden = sidebarViewModel.searchPresentation {
+            return true
+        }
+        return false
+    }
+
+    private var pendingMapSelectionPresentedBinding: Binding<Bool> {
+        Binding(
+            get: { pendingMapSelection != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingMapSelection = nil
+                }
+            }
+        )
+    }
+
+    private func confirmMapSelection(_ coordinate: CLLocationCoordinate2D) {
+        pendingMapSelection = nil
+        sidebarViewModel.selectCoordinate(coordinate)
     }
 }
 
@@ -288,6 +338,7 @@ private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
             } else {
                 searchResultsContent(previousResults)
                     .redacted(reason: .placeholder)
+                    .allowsHitTesting(false)
                     .overlay(alignment: .topTrailing) {
                         ProgressView()
                             .controlSize(.small)
@@ -310,6 +361,18 @@ private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
             }
             .padding(.vertical, Spacing.xs)
         }
+    }
+}
+
+private struct PendingMapSelection {
+    let coordinate: CLLocationCoordinate2D
+
+    var message: String {
+        String(
+            format: "緯度 %.4f°, 経度 %.4f° を観測地点に設定します。",
+            coordinate.latitude,
+            coordinate.longitude
+        )
     }
 }
 

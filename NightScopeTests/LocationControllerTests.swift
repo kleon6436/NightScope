@@ -802,6 +802,29 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.selectedLocation.longitude, latest.coordinate.longitude, accuracy: 0.000001)
     }
 
+    func test_LocationController_didUpdateLocations_ignoresLateLocationAfterManualSelection() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "現在地")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let manualCoordinate = CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034)
+        let lateLocation = CLLocation(latitude: 35.6762, longitude: 139.6503)
+
+        sut.isLocating = true
+        sut.select(makeMapItem(coordinate: manualCoordinate, name: "新宿"))
+
+        await waitUntil {
+            !sut.isLocating
+        }
+
+        sut.locationManager(CLLocationManager(), didUpdateLocations: [lateLocation])
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(sut.selectedLocation.latitude, manualCoordinate.latitude, accuracy: 0.000001)
+        XCTAssertEqual(sut.selectedLocation.longitude, manualCoordinate.longitude, accuracy: 0.000001)
+        XCTAssertEqual(sut.locationName, "新宿")
+    }
+
     // MARK: - Bug fix: 権限未決定時に isLocating が残る
 
     /// 権限取得後に didUpdateLocations が呼ばれると isLocating が解消される。

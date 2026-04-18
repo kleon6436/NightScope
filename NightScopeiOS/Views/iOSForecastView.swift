@@ -125,8 +125,15 @@ struct iOSForecastView: View {
     }
 
     private var loadingView: some View {
-        ProgressView("予報を計算中...")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: Spacing.sm) {
+            ProgressView()
+            Text("予報を計算中...")
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: IOSDesignTokens.Forecast.loadingMinHeight)
+        .iOSMaterialPanel()
     }
 
     private var emptyStateView: some View {

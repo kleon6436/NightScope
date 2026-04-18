@@ -63,13 +63,15 @@ struct iOSTodayView: View {
             .sheet(item: $presentedSheet) { sheet in
                 sheetView(for: sheet)
             }
-            .overlay(alignment: .bottom) {
+            .safeAreaInset(edge: .bottom) {
                 DetailErrorOverlay(
                     weatherErrorMessage: detailViewModel.weatherErrorMessage,
                     hasLightPollutionError: detailViewModel.hasLightPollutionError,
                     retryWeatherAction: detailViewModel.retryWeatherInBackground,
                     retryLightPollutionAction: detailViewModel.retryLightPollutionInBackground
                 )
+                .padding(.horizontal, Spacing.sm)
+                .padding(.bottom, Spacing.xs)
             }
         }
     }
