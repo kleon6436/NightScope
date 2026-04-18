@@ -121,7 +121,7 @@ enum StarMapComputation {
                 lst: localSiderealTime
             )
             guard altitude > -5 else { return nil }
-            return ConstellationLabelAltAz(alt: altitude, az: azimuth, name: entry.japaneseName)
+            return ConstellationLabelAltAz(alt: altitude, az: azimuth, name: entry.localizedName)
         }
 
         let meteorRadiants = activeMeteorShowers.map { shower in

@@ -145,7 +145,7 @@ struct iOSLocationView: View {
                 titleFont: .body,
                 subtitleFont: .caption,
                 lineSpacing: IOSDesignTokens.Location.searchResultLineSpacing,
-                titleFallback: "不明な場所",
+                titleFallback: L10n.tr("不明な場所"),
                 iconWidth: 18
             )
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -154,7 +154,9 @@ struct iOSLocationView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("場所を選択: \(item.name ?? "不明")")
+        .accessibilityLabel(
+            L10n.format("場所を選択: %@", item.name ?? L10n.tr("不明"))
+        )
     }
 
     // MARK: - Map
@@ -208,7 +210,9 @@ struct iOSLocationView: View {
     private var infoRow: some View {
         HStack(spacing: Spacing.xs) {
             SelectedLocationSummaryContent(
-                locationName: sidebarViewModel.selectedLocationName.isEmpty ? "場所が選択されていません" : sidebarViewModel.selectedLocationName,
+                locationName: sidebarViewModel.selectedLocationName.isEmpty
+                    ? L10n.tr("場所が選択されていません")
+                    : sidebarViewModel.selectedLocationName,
                 coordinate: sidebarViewModel.selectedCoordinate,
                 titleFont: .caption,
                 coordinateFont: .caption,
@@ -221,7 +225,7 @@ struct iOSLocationView: View {
                 if sidebarViewModel.isLightPollutionLoading {
                     ProgressView().controlSize(.mini)
                 } else if let bortle = sidebarViewModel.lightPollutionBortleClass {
-                    Text("ボルトル\(Int(bortle.rounded()))級")
+                    Text(L10n.format("ボルトル%d級", Int(bortle.rounded())))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if sidebarViewModel.hasLightPollutionFetchFailed {
@@ -326,7 +330,7 @@ private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
             ContentUnavailableView {
                 Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
             } description: {
-                Text("\"\(query)\" の検索に失敗しました。\(message)")
+                Text(L10n.format("\"%@\" の検索に失敗しました。%@", query, message))
             } actions: {
                 Button("再試行", action: onRetry)
             }
@@ -347,7 +351,7 @@ private struct LocationSearchField: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            TextField("場所を検索...", text: $searchText)
+            TextField("場所を検索", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused(isSearchFocused)
                 .accessibilityLabel("場所を検索")

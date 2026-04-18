@@ -81,7 +81,7 @@ enum MapItemLocationDetailsExtractor {
         }
 
         return ResolvedLocationDetails(
-            name: item.name ?? "現在地",
+            name: item.name ?? L10n.tr("現在地"),
             timeZoneIdentifier: timeZoneIdentifier
         )
     }
@@ -301,13 +301,13 @@ struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
 
     private func resolveMapItemDetails(for location: CLLocation) async -> ResolvedLocationDetails {
         guard let request = MKReverseGeocodingRequest(location: location) else {
-            return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
+            return ResolvedLocationDetails(name: L10n.tr("現在地"), timeZoneIdentifier: nil)
         }
 
-        request.preferredLocale = Locale(identifier: "ja_JP")
+        request.preferredLocale = .autoupdatingCurrent
         let mapItems = try? await request.mapItems
         guard let item = mapItems?.first else {
-            return ResolvedLocationDetails(name: "現在地", timeZoneIdentifier: nil)
+            return ResolvedLocationDetails(name: L10n.tr("現在地"), timeZoneIdentifier: nil)
         }
 
         return MapItemLocationDetailsExtractor.details(from: item)

@@ -326,11 +326,14 @@ private struct MacStarMapSheet: View {
 
             if !viewModel.meteorShowerRadiants.isEmpty {
                 let shower = viewModel.meteorShowerRadiants[0].shower
-                Label("\(shower.name) 活動中", systemImage: AppIcons.Astronomy.sparkles)
+                Label(L10n.format("%@活動中", shower.localizedName), systemImage: AppIcons.Astronomy.sparkles)
                     .font(.body)
                     .foregroundStyle(StarMapPalette.meteorAccent.opacity(0.9))
             } else if let next = viewModel.nextMeteorShower {
-                Label("\(next.shower.name) まで\(next.daysUntilPeak)日", systemImage: AppIcons.Astronomy.sparkles)
+                Label(
+                    L10n.format("%@ まで%d日", next.shower.localizedName, next.daysUntilPeak),
+                    systemImage: AppIcons.Astronomy.sparkles
+                )
                     .font(.body)
                     .foregroundStyle(.secondary)
             }

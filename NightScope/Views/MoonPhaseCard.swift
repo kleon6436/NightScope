@@ -23,7 +23,7 @@ struct MoonPhaseCard: View {
                         Text("月齢")
                             .font(.body)
                             .foregroundStyle(.secondary)
-                        Text(String(format: "%.1f日", moonAgeDays))
+                    Text(L10n.format("%.1f日", moonAgeDays))
                             .font(.body.monospacedDigit())
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
@@ -38,6 +38,13 @@ struct MoonPhaseCard: View {
         }
         .glassCard()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("月の状態: \(summary.moonPhaseName)、月齢\(String(format: "%.1f", moonAgeDays))日。\(summary.isMoonFavorable ? "撮影に適しています" : "月明かりに注意")")
+        .accessibilityLabel(
+            L10n.format(
+                "月の状態: %@、月齢%.1f日。%@",
+                summary.moonPhaseName,
+                moonAgeDays,
+                summary.isMoonFavorable ? L10n.tr("撮影に適しています") : L10n.tr("月明かりに注意")
+            )
+        )
     }
 }

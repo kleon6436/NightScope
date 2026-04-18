@@ -220,19 +220,19 @@ struct iOSStarMapView: View {
     private var skyStatusLabel: some View {
         HStack(spacing: 4) {
             if viewModel.moonAltitude > 0 {
-                Label(String(format: "月 %.0f°", viewModel.moonAltitude),
+                Label(L10n.format("月 %.0f°", viewModel.moonAltitude),
                       systemImage: "moon.fill")
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.8))
             }
             if !viewModel.meteorShowerRadiants.isEmpty {
                 let shower = viewModel.meteorShowerRadiants[0].shower
-                Label("\(shower.name)活動中", systemImage: "sparkles")
+                Label(L10n.format("%@活動中", shower.localizedName), systemImage: "sparkles")
                     .font(.caption2)
                     .foregroundStyle(Color(red: 0.4, green: 1.0, blue: 0.7))
             } else if let next = viewModel.nextMeteorShower {
-                Label("次: \(next.shower.name)(\(next.daysUntilPeak)日後)",
-                      systemImage: "sparkles")
+                Label(L10n.format("次: %@(%d日後)", next.shower.localizedName, next.daysUntilPeak),
+                       systemImage: "sparkles")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -252,28 +252,30 @@ struct iOSStarMapView: View {
 
         let cameraButtonHelpText: String = {
             if isRequestingCameraPermission {
-                return "カメラ権限の確認中です"
+                return L10n.tr("カメラ権限の確認中です")
             }
             if !viewModel.isGyroMode {
-                return "カメラ背景はジャイロ操作中のみ利用できます"
+                return L10n.tr("カメラ背景はジャイロ操作中のみ利用できます")
             }
             if !cameraController.hasCameraHardware {
-                return "この環境ではカメラ背景を利用できません"
+                return L10n.tr("この環境ではカメラ背景を利用できません")
             }
-            return isCameraBackgroundVisible ? "カメラ背景をオフにします" : "カメラ背景をオンにします"
+            return isCameraBackgroundVisible
+                ? L10n.tr("カメラ背景をオフにします")
+                : L10n.tr("カメラ背景をオンにします")
         }()
 
         let cameraButtonHintText: String = {
             if isRequestingCameraPermission {
-                return "権限ダイアログの完了後に背景を切り替えます"
+                return L10n.tr("権限ダイアログの完了後に背景を切り替えます")
             }
             if !viewModel.isGyroMode {
-                return "ジャイロ操作をオンにすると利用できます"
+                return L10n.tr("ジャイロ操作をオンにすると利用できます")
             }
             if !cameraController.hasCameraHardware {
-                return "カメラを利用できるデバイスで使用してください"
+                return L10n.tr("カメラを利用できるデバイスで使用してください")
             }
-            return "実際の空の映像を背景に重ねて表示します"
+            return L10n.tr("実際の空の映像を背景に重ねて表示します")
         }()
 
         return iOSStarMapControlState(
@@ -393,7 +395,7 @@ struct iOSStarMapView: View {
             cameraNotice = .cameraRestricted
         @unknown default:
             disableCameraBackground(clearNotice: false)
-            cameraNotice = .cameraUnexpectedFailure("カメラの利用状況を判定できませんでした。")
+            cameraNotice = .cameraUnexpectedFailure(L10n.tr("カメラの利用状況を判定できませんでした。"))
         }
     }
 

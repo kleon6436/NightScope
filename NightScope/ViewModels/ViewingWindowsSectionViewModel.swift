@@ -8,11 +8,11 @@ struct ViewingWindowsSectionViewModel {
     }
 
     func altitudeText(_ window: ViewingWindow) -> String {
-        String(format: "最大高度 %.0f°", window.peakAltitude)
+        L10n.format("最大高度 %.0f°", window.peakAltitude)
     }
 
     func peakTimeText(_ window: ViewingWindow, timeZone: TimeZone) -> String {
-        "（見頃 \(window.peakTime.nightTimeString(timeZone: timeZone))）"
+        L10n.format("（見頃 %@）", window.peakTime.nightTimeString(timeZone: timeZone))
     }
 
     func timeAndPeakText(_ window: ViewingWindow, timeZone: TimeZone) -> String {
@@ -20,7 +20,7 @@ struct ViewingWindowsSectionViewModel {
     }
 
     func directionText(_ window: ViewingWindow) -> String {
-        "方位 \(window.peakDirectionName)"
+        L10n.format("方位 %@", window.peakDirectionName)
     }
 
     func accessibilityDescription(for window: ViewingWindow, timeZone: TimeZone) -> String {

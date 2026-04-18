@@ -7,7 +7,7 @@ import MapKit
 private struct MapContainerView<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
-    private var instructionText: String { "地図をクリックして場所を選択" }
+    private var instructionText: String { L10n.tr("地図をクリックして場所を選択") }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.mapInstructionSpacing) {
@@ -165,8 +165,8 @@ struct MapLocationPicker: View, Equatable {
             .buttonStyle(.glass)
             .padding(Spacing.xs)
             .disabled(isLocating)
-            .accessibilityLabel("現在地を取得")
-            .accessibilityHint("地図を現在地へ移動します")
+            .accessibilityLabel(L10n.tr("現在地を取得"))
+            .accessibilityHint(L10n.tr("地図を現在地へ移動します"))
         }
     }
 

@@ -10,6 +10,10 @@ struct MeteorShower: Identifiable {
     let activityDays: Int     // 活動期間（ピーク前後 ±activityDays 日）
     let zhr: Int              // 極大 ZHR (Zenithal Hourly Rate)
     let symbol: String        // SF Symbol or emoji
+
+    var localizedName: String {
+        L10n.tr(name)
+    }
 }
 
 // MARK: - Major Meteor Showers Catalog

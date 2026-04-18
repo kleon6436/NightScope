@@ -67,7 +67,7 @@ struct DetailErrorOverlay: View {
         VStack(spacing: Spacing.xs) {
             if hasLightPollutionError {
                 DetailErrorBanner(
-                    message: "光害データの取得に失敗しました",
+                    message: L10n.tr("光害データの取得に失敗しました"),
                     retryAction: retryLightPollutionAction
                 )
             }
@@ -105,7 +105,7 @@ private struct DetailErrorBanner: View {
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
         .shadow(radius: 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("エラー: \(message)")
+        .accessibilityLabel(L10n.format("エラー: %@", message))
     }
 }
 
@@ -124,7 +124,7 @@ struct LocationSearchResultContent: View {
         titleFont: Font = .body,
         subtitleFont: Font = .body,
         lineSpacing: CGFloat = 0,
-        titleFallback: String = "Unknown",
+        titleFallback: String = L10n.tr("Unknown"),
         iconWidth: CGFloat? = nil
     ) {
         self.item = item
@@ -199,7 +199,9 @@ struct SelectedLocationSummaryContent: View {
             Text(String(format: "%.4f°, %.4f°", coordinate.latitude, coordinate.longitude))
                 .font(coordinateFont)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(String(format: "緯度%.4f度、経度%.4f度", coordinate.latitude, coordinate.longitude))
+                .accessibilityLabel(
+                    L10n.format("緯度%.4f度、経度%.4f度", coordinate.latitude, coordinate.longitude)
+                )
         }
     }
 }
@@ -242,7 +244,7 @@ enum StarMapPresentation {
         let normalized = (degrees.truncatingRemainder(dividingBy: 360) + 360)
             .truncatingRemainder(dividingBy: 360)
         let index = Int((normalized + 22.5) / 45) % azimuthNames.count
-        return azimuthNames[index]
+        return L10n.tr(azimuthNames[index])
     }
 
     static func timeString(from minutes: Double) -> String {
@@ -326,7 +328,7 @@ struct CardHeader: View {
                 .foregroundStyle(iconColor)
                 .font(.title3)
                 .accessibilityHidden(true)
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -363,13 +365,13 @@ private enum FormatterFactory {
     }
 
     static func localizedDate(
-        localeIdentifier: String,
-        dateFormat: String,
-        timeZone: TimeZone = .current
+        template: String,
+        timeZone: TimeZone = .current,
+        locale: Locale = .autoupdatingCurrent
     ) -> DateFormatter {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: localeIdentifier)
-        formatter.dateFormat = dateFormat
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate(template)
         formatter.timeZone = timeZone
         return formatter
     }
@@ -381,7 +383,7 @@ enum DateFormatters {
     }
 
     static func monthTitleString(from date: Date, timeZone: TimeZone = .current) -> String {
-        FormatterFactory.observationTimeZone(dateFormat: "yyyy年M月", timeZone: timeZone).string(from: date)
+        FormatterFactory.localizedDate(template: "yMMMM", timeZone: timeZone).string(from: date)
     }
 
     static func fullDateString(from date: Date, timeZone: TimeZone = .current) -> String {
@@ -394,12 +396,7 @@ enum DateFormatters {
     }
 
     static func yearMonthDayWeekdayString(from date: Date, timeZone: TimeZone = .current) -> String {
-        FormatterFactory.localizedDate(
-            localeIdentifier: "ja_JP",
-            dateFormat: "y年M月d日(E)",
-            timeZone: timeZone
-        )
-        .string(from: date)
+        FormatterFactory.localizedDate(template: "yMMMMEEEEd", timeZone: timeZone).string(from: date)
     }
 }
 
@@ -462,18 +459,13 @@ struct ForecastCardPresentation {
     let hasWeatherLoadError: Bool
 
     var shortDateLabel: String {
-        FormatterFactory.localizedDate(
-            localeIdentifier: "ja_JP",
-            dateFormat: "M/d(E)",
-            timeZone: timeZone
-        )
-        .string(from: night.date)
+        FormatterFactory.localizedDate(template: "MEd", timeZone: timeZone).string(from: night.date)
     }
 
     var relativeNightLabel: String? {
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        if ObservationTimeZone.isDateInToday(night.date, timeZone: timeZone) { return "今夜" }
-        if calendar.isDateInTomorrow(night.date) { return "明夜" }
+        if ObservationTimeZone.isDateInToday(night.date, timeZone: timeZone) { return L10n.tr("今夜") }
+        if calendar.isDateInTomorrow(night.date) { return L10n.tr("明夜") }
         return nil
     }
 
@@ -486,15 +478,9 @@ struct ForecastCardPresentation {
         if isReliableWeather, let weather {
             return WeatherPresentation.primaryLabel(for: weather)
         }
-        if hasPartialWeather {
-            return "夜間予報は一部のみ"
-        }
-        if isForecastOutOfRange {
-            return "天気予報対象外"
-        }
-        if hasWeatherLoadError {
-            return "取得失敗"
-        }
+        if hasPartialWeather { return L10n.tr("夜間予報は一部のみ") }
+        if isForecastOutOfRange { return L10n.tr("天気予報対象外") }
+        if hasWeatherLoadError { return L10n.tr("取得失敗") }
         return nil
     }
 }
@@ -577,16 +563,16 @@ enum WindSpeedUnit: String, CaseIterable, Identifiable {
         switch self {
         case .kmh:  return "km/h"
         case .ms:   return "m/s"
-        case .knot: return "ノット (kn)"
+        case .knot: return L10n.tr("ノット (kn)")
         }
     }
 
     /// WeatherService が km/h に変換済みの風速値をこの単位に変換してフォーマットする
     func format(_ kmh: Double) -> String {
         switch self {
-        case .kmh:  return String(format: "風速 %.0f km/h", kmh)
-        case .ms:   return String(format: "風速 %.1f m/s", kmh / 3.6)
-        case .knot: return String(format: "風速 %.0f kn", kmh / 1.852)
+        case .kmh:  return L10n.format("風速 %.0f km/h", kmh)
+        case .ms:   return L10n.format("風速 %.1f m/s", kmh / 3.6)
+        case .knot: return L10n.format("風速 %.0f kn", kmh / 1.852)
         }
     }
 }

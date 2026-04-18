@@ -31,11 +31,11 @@ final class NightWeatherCardViewModel: ObservableObject {
     }
 
     func formatCloudCover(_ value: Double) -> String {
-        String(format: "雲量 %.0f%%", value)
+        L10n.format("雲量 %.0f%%", value)
     }
 
     func formatPrecipitation(_ value: Double) -> String {
-        String(format: "降水 %.1f mm", value)
+        L10n.format("降水 %.1f mm", value)
     }
 
     func formatMetrics(precipitation: Double, cloudCover: Double) -> String {
@@ -47,31 +47,31 @@ final class NightWeatherCardViewModel: ObservableObject {
     }
 
     func unavailableTitle(isForecastOutOfRange: Bool) -> String {
-        isForecastOutOfRange ? "予報対象外" : "不明"
+        isForecastOutOfRange ? L10n.tr("予報対象外") : L10n.tr("不明")
     }
 
     func unavailablePrimaryText(isForecastOutOfRange: Bool) -> String {
-        isForecastOutOfRange ? "この日は天気予報の対象外です" : "データなし"
+        isForecastOutOfRange ? L10n.tr("この日は天気予報の対象外です") : L10n.tr("データなし")
     }
 
     func unavailableSecondaryText(isForecastOutOfRange: Bool) -> String {
-        isForecastOutOfRange ? "天文情報のみ表示しています" : "10日以内のみ"
+        isForecastOutOfRange ? L10n.tr("天文情報のみ表示しています") : L10n.tr("10日以内のみ")
     }
 
     func partialCoverageTitle() -> String {
-        "予報一部のみ"
+        L10n.tr("予報一部のみ")
     }
 
     func partialCoveragePrimaryText() -> String {
-        "夜間を最後まで評価できません"
+        L10n.tr("夜間を最後まで評価できません")
     }
 
     func partialCoverageSecondaryText() -> String {
-        "星空指数には反映していません"
+        L10n.tr("星空指数には反映していません")
     }
 
     func errorTitle() -> String {
-        "取得失敗"
+        L10n.tr("取得失敗")
     }
 
     func errorPrimaryText(_ message: String) -> String {
@@ -79,7 +79,7 @@ final class NightWeatherCardViewModel: ObservableObject {
     }
 
     func errorSecondaryText() -> String {
-        "再試行してください"
+        L10n.tr("再試行してください")
     }
 
     func accessibilityDescription(
@@ -89,18 +89,24 @@ final class NightWeatherCardViewModel: ObservableObject {
         isCoverageIncomplete: Bool,
         errorMessage: String? = nil
     ) -> String {
-        if isLoading { return "天気 夜間: 取得中" }
+        if isLoading { return L10n.tr("天気 夜間: 取得中") }
         if isCoverageIncomplete {
-            return "天気 夜間: 予報一部のみ、夜間を最後まで評価できません、星空指数には反映していません"
+            return L10n.tr("天気 夜間: 予報一部のみ、夜間を最後まで評価できません、星空指数には反映していません")
         }
         if let errorMessage, weather == nil {
-            return "天気 夜間: 取得失敗、\(errorMessage)、再試行してください"
+            return L10n.format("天気 夜間: 取得失敗、%@、再試行してください", errorMessage)
         }
         guard let w = weather else {
             return isForecastOutOfRange
-                ? "天気 夜間: 予報対象外、この日は天気予報の対象外です、天文情報のみ表示しています"
-                : "天気 夜間: 不明、データなし、10日以内のみ"
+                ? L10n.tr("天気 夜間: 予報対象外、この日は天気予報の対象外です、天文情報のみ表示しています")
+                : L10n.tr("天気 夜間: 不明、データなし、10日以内のみ")
         }
-        return "天気 夜間: \(weatherLabel(w))、降水\(String(format: "%.1f", w.maxPrecipitation))mm、雲量\(Int(w.avgCloudCover))%、\(formatWindSpeed(w.avgWindSpeed))"
+        return L10n.format(
+            "天気 夜間: %@、降水%.1fmm、雲量%d%%、%@",
+            weatherLabel(w),
+            w.maxPrecipitation,
+            Int(w.avgCloudCover),
+            formatWindSpeed(w.avgWindSpeed)
+        )
     }
 }

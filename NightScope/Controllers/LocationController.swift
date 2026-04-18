@@ -76,7 +76,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         TimeZone(identifier: selectedTimeZoneIdentifier) ?? .current
     }
 
-    @Published var locationName: String = "東京" {
+    @Published var locationName: String = L10n.tr("東京") {
         didSet { storage.name = locationName }
     }
     @Published var searchState: LocationSearchState = .idle
@@ -121,12 +121,12 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             switch self {
             case .denied:
                 #if os(iOS)
-                return "位置情報のアクセスが拒否されています。設定アプリで NightScope の位置情報を許可してください。"
+                return L10n.tr("位置情報のアクセスが拒否されています。設定アプリで NightScope の位置情報を許可してください。")
                 #else
-                return "位置情報のアクセスが拒否されています。システム設定 > プライバシーとセキュリティ > 位置情報サービスで許可してください。"
+                return L10n.tr("位置情報のアクセスが拒否されています。システム設定 > プライバシーとセキュリティ > 位置情報サービスで許可してください。")
                 #endif
             case .failed:
-                return "現在地を取得できませんでした。しばらく待ってから再試行してください。"
+                return L10n.tr("現在地を取得できませんでした。しばらく待ってから再試行してください。")
             }
         }
     }
@@ -140,7 +140,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private var latestSearchQuery = ""
     private var shouldResumeLocationAfterAuthorization = false
     private var selectedTimeZoneSelectionSource: TimeZoneSelectionSource = .confirmed
-    private static let searchFailureMessage = "場所を検索できませんでした。通信状況を確認して、もう一度お試しください。"
+    private static let searchFailureMessage = L10n.tr("場所を検索できませんでした。通信状況を確認して、もう一度お試しください。")
 
     // MARK: - Init
 
@@ -314,7 +314,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     /// マップタップなど座標から場所を選択する（センタリングしない）
     func selectCoordinate(_ coordinate: CLLocationCoordinate2D) {
-        selectCoordinate(coordinate, provisionalName: "選択した地点")
+        selectCoordinate(coordinate, provisionalName: L10n.tr("選択した地点"))
     }
 
     private func selectCoordinate(_ coordinate: CLLocationCoordinate2D, provisionalName: String) {
@@ -477,8 +477,10 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     private func resolvedLocationName(_ preferredName: String, fallbackName: String?) -> String {
         let trimmedPreferredName = preferredName.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedFallbackName = fallbackName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let currentLocationName = L10n.tr("現在地")
 
-        if trimmedPreferredName == "現在地", !trimmedFallbackName.isEmpty {
+        if (trimmedPreferredName == "現在地" || trimmedPreferredName == currentLocationName),
+           !trimmedFallbackName.isEmpty {
             return trimmedFallbackName
         }
 
@@ -486,7 +488,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
             return trimmedPreferredName
         }
 
-        return trimmedFallbackName.isEmpty ? "選択した地点" : trimmedFallbackName
+        return trimmedFallbackName.isEmpty ? L10n.tr("選択した地点") : trimmedFallbackName
     }
 
     private func resolvedTimeZoneIdentifier(
@@ -551,7 +553,7 @@ extension LocationController: CLLocationManagerDelegate {
         manager.stopUpdatingLocation()
         Task { @MainActor in
             guard self.isLocating else { return }
-            self.selectCoordinate(location.coordinate, provisionalName: "現在地")
+            self.selectCoordinate(location.coordinate, provisionalName: L10n.tr("現在地"))
             self.currentLocationCenterTrigger += 1
         }
     }

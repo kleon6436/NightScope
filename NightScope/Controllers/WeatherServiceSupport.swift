@@ -12,15 +12,15 @@ enum WeatherServiceError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "URLの生成に失敗しました。"
+            return L10n.tr("URLの生成に失敗しました。")
         case .invalidResponse(let statusCode):
-            return "天気APIのステータスコードが不正です: \(statusCode)"
+            return L10n.format("天気APIのステータスコードが不正です: %d", statusCode)
         case .invalidData:
-            return "天気APIの取得データが不正です。"
+            return L10n.tr("天気APIの取得データが不正です。")
         case .decodingError(let underlying):
-            return "天気データの解析に失敗しました: \(underlying.localizedDescription)"
+            return L10n.format("天気データの解析に失敗しました: %@", underlying.localizedDescription)
         case .networkError(let underlying):
-            return "ネットワークエラーが発生しました: \(underlying.localizedDescription)"
+            return L10n.format("ネットワークエラーが発生しました: %@", underlying.localizedDescription)
         }
     }
 }

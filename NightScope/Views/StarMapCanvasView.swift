@@ -1026,7 +1026,7 @@ private extension StarMapCanvasView {
 
         // Label
         ctx.draw(
-            Text(planet.name)
+            Text(planet.localizedName)
                 .font(.system(size: 11))
                 .foregroundColor(color.opacity(0.75)),
             at: CGPoint(x: point.x + radius + 5, y: point.y + 4))
@@ -1058,7 +1058,7 @@ private extension StarMapCanvasView {
         }
         // ラベル
         ctx.draw(
-            Text(shower.name)
+            Text(shower.localizedName)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(color.opacity(0.85)),
             at: CGPoint(x: point.x + radius + 4, y: point.y + 4))

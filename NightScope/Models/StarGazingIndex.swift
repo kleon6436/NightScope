@@ -215,11 +215,11 @@ struct StarGazingIndex {
 
     var label: String {
         switch tier {
-        case .excellent: return "絶好の星空"
-        case .good:      return "良い星空"
-        case .fair:      return "普通"
-        case .poor:      return "不向き"
-        case .bad:       return "観測困難"
+        case .excellent: return L10n.tr("絶好の星空")
+        case .good:      return L10n.tr("良い星空")
+        case .fair:      return L10n.tr("普通")
+        case .poor:      return L10n.tr("不向き")
+        case .bad:       return L10n.tr("観測困難")
         }
     }
 

@@ -52,7 +52,7 @@ struct MilkyWaySummaryCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             bestWindow.map { viewModel.accessibilityDescription(for: $0, timeZone: summary.timeZone) }
-                ?? "観測に適した時間帯がありません"
+                ?? L10n.tr("観測に適した時間帯がありません")
         )
     }
 }

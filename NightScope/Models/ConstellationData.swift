@@ -16,6 +16,10 @@ struct ConstellationEntry {
     let centerRA: Double   // 星座名ラベルの表示位置
     let centerDec: Double
     let segments: [ConstellationSegment]
+
+    var localizedName: String {
+        L10n.tr(japaneseName)
+    }
 }
 
 // MARK: - Constellation Catalog
