@@ -66,7 +66,7 @@ struct NightWeatherCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             } else if isLoading {
-                Text("取得中…")
+                Text(L10n.tr("取得中..."))
                     .font(.headline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

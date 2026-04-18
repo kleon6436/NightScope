@@ -11,9 +11,14 @@ struct CalendarView: View {
         _displayMonth = State(initialValue: selectedDate.wrappedValue)
     }
 
-    private let weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"]
     private var calendar: Calendar {
         ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+    }
+
+    private var weekdayLabels: [String] {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        return formatter.veryShortStandaloneWeekdaySymbols
     }
 
     var body: some View {
@@ -126,8 +131,8 @@ struct CalendarDayCell: View {
 
     private var accessibilityDateLabel: String {
         var label = DateFormatters.fullDateString(from: date, timeZone: timeZone)
-        if isSelected { label += "、選択中" }
-        if isToday { label += "、今日" }
+        if isSelected { label += "、" + L10n.tr("選択中") }
+        if isToday { label += "、" + L10n.tr("今日") }
         return label
     }
 

@@ -221,7 +221,11 @@ struct UpcomingNightsGrid: View {
                     Image(systemName: AppIcons.Astronomy.star)
                         .frame(width: Layout.gridIconWidth, alignment: .center)
                         .accessibilityHidden(true)
-                    Text(night.bestViewingTime.map { "見頃 \($0.nightTimeString(timeZone: night.timeZone))" } ?? "見頃 —")
+                    Text(
+                        night.bestViewingTime.map {
+                            L10n.format("見頃 %@", $0.nightTimeString(timeZone: night.timeZone))
+                        } ?? L10n.tr("見頃 —")
+                    )
                         .font(.body)
                         .lineLimit(1)
                 }
@@ -229,7 +233,7 @@ struct UpcomingNightsGrid: View {
                     Image(systemName: AppIcons.Observation.clock)
                         .frame(width: Layout.gridIconWidth, alignment: .center)
                         .accessibilityHidden(true)
-                    Text(String(format: "観測 %.1f時間", night.totalViewingHours))
+                    Text(L10n.format("観測 %.1f時間", night.totalViewingHours))
                         .font(.body)
                         .lineLimit(1)
                 }

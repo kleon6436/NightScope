@@ -122,7 +122,7 @@ struct SidebarView: View {
             ContentUnavailableView {
                 Label("場所を検索できませんでした", systemImage: "exclamationmark.magnifyingglass")
             } description: {
-                Text("\"\(query)\" の検索に失敗しました。\(message)")
+                Text(L10n.format("\"%@\" の検索に失敗しました。%@", query, message))
             } actions: {
                 Button("再試行") {
                     viewModel.retrySearch()
@@ -240,7 +240,7 @@ private struct SidebarSearchField: View {
     let onEscape: () -> KeyPress.Result
 
     var body: some View {
-        TextField("場所を検索...", text: $searchText)
+        TextField("場所を検索", text: $searchText)
             .textFieldStyle(.roundedBorder)
             .focused(isSearchFocused)
             .accessibilityLabel("場所を検索")
@@ -419,6 +419,8 @@ private struct SidebarSearchResultsList: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("場所を選択: \(item.name ?? "Unknown")")
+        .accessibilityLabel(
+            L10n.format("場所を選択: %@", item.name ?? L10n.tr("不明"))
+        )
     }
 }

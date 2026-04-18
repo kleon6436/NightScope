@@ -13,9 +13,9 @@ struct DarkTimeCardViewModel {
         if let w = weather,
            hasReliableWeatherCoverage,
            let text = summary.weatherAwareRangeText(nighttimeHours: w.nighttimeHours) {
-            return text.isEmpty ? "天候不良" : text
+            return text.isEmpty ? L10n.tr("天候不良") : text
         }
-        return summary.darkRangeText.isEmpty ? "暗い時間なし" : summary.darkRangeText
+        return summary.darkRangeText.isEmpty ? L10n.tr("暗い時間なし") : summary.darkRangeText
     }
 
     var isUnavailable: Bool {
@@ -26,13 +26,15 @@ struct DarkTimeCardViewModel {
     }
 
     var accessibilityLabel: String {
-        "観測可能時間: \(displayText)"
+        L10n.format("観測可能時間: %@", displayText)
     }
 
     var supportingText: String {
         if weather == nil {
-            return "天文学的な暗夜時間"
+            return L10n.tr("天文学的な暗夜時間")
         }
-        return hasReliableWeatherCoverage ? "天候・月明かりを考慮" : "天気データ不足のため暗夜時間を表示"
+        return hasReliableWeatherCoverage
+            ? L10n.tr("天候・月明かりを考慮")
+            : L10n.tr("天気データ不足のため暗夜時間を表示")
     }
 }

@@ -7,7 +7,7 @@ extension StarMapCanvasView {
         var body: some View {
             VStack {
                 Spacer()
-                Text(String(format: "視野 %.0f°", displayFov))
+                Text(L10n.format("視野 %.0f°", displayFov))
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
                     .padding(.horizontal, 10)
@@ -49,7 +49,7 @@ extension StarMapCanvasView {
             VStack {
                 HStack {
                     Spacer()
-                    Text(String(format: "方位 %.0f° 仰角 %.0f°", azimuth, altitude))
+                    Text(L10n.format("方位 %.0f° 仰角 %.0f°", azimuth, altitude))
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.6))
                         .padding(.horizontal, 10)

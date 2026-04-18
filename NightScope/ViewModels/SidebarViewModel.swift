@@ -77,7 +77,7 @@ final class SidebarViewModel: ObservableObject {
         case .failure:
             return .error(
                 query: searchState.query,
-                message: searchState.errorMessage ?? "場所を検索できませんでした。"
+                message: searchState.errorMessage ?? L10n.tr("場所を検索できませんでした")
             )
         }
     }

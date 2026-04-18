@@ -28,9 +28,9 @@ struct StarGazingIndexCard: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("星空指数 \(index.score)点、\(index.label)")
-            .accessibilityValue(isExpanded ? "展開中" : "折り畳み中")
-            .accessibilityHint(isExpanded ? "ダブルタップで折り畳む" : "ダブルタップで詳細を表示")
+            .accessibilityLabel(L10n.format("星空指数 %d点、%@。", index.score, index.label))
+            .accessibilityValue(isExpanded ? L10n.tr("展開中") : L10n.tr("折り畳み中"))
+            .accessibilityHint(isExpanded ? L10n.tr("ダブルタップで折り畳む") : L10n.tr("ダブルタップで詳細を表示"))
 
             HStack(alignment: .center, spacing: Spacing.md) {
                 scoreVisual(color: color)
@@ -81,13 +81,13 @@ struct StarGazingIndexCard: View {
                 if lightPollutionViewModel.isLoading {
                     ProgressView()
                         .controlSize(.mini)
-                        .accessibilityLabel("光害データを取得中")
+                        .accessibilityLabel(L10n.tr("光害データを取得中"))
                 } else if lightPollutionViewModel.fetchFailed {
-                    Text("取得失敗")
+                    Text(L10n.tr("取得失敗"))
                         .font(.body)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("取得中...")
+                    Text(L10n.tr("取得中..."))
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
@@ -178,7 +178,7 @@ struct MacStarGazingIndexCard: View {
 
     private var weatherValue: String {
         guard index.hasWeatherData else {
-            return "データなし"
+            return L10n.tr("データなし")
         }
         return "\(index.weatherScore)/\(StarGazingIndex.maxWeatherScore)"
     }
@@ -188,19 +188,19 @@ struct MacStarGazingIndexCard: View {
             return "\(index.lightPollutionScore)/\(StarGazingIndex.maxLightPollutionScore)"
         }
         if lightPollutionViewModel.isLoading {
-            return "取得中..."
+            return L10n.tr("取得中...")
         }
         if lightPollutionViewModel.fetchFailed {
-            return "取得失敗"
+            return L10n.tr("取得失敗")
         }
-        return "取得中..."
+        return L10n.tr("取得中...")
     }
 
     private var accessibilityLabel: String {
-        "星空指数 \(index.score)点、\(index.label)。" +
-        "星空 \(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)。" +
-        "気象 \(weatherValue)。" +
-        "光害 \(lightPollutionValue)。"
+        L10n.format("星空指数 %d点、%@。", index.score, index.label)
+        + L10n.format("星空 %d/%d。", index.constellationScore, StarGazingIndex.maxConstellationScore)
+        + L10n.format("気象 %@。", weatherValue)
+        + L10n.format("光害 %@。", lightPollutionValue)
     }
 
     private func inlineScore(label: String, value: String) -> some View {
@@ -232,7 +232,7 @@ private struct StarTierSummary: View {
                 }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("評価: 星\(index.starCount)つ（5段階）")
+            .accessibilityLabel(L10n.format("評価: 星%dつ（5段階）", index.starCount))
 
             Text(index.label)
                 .font(.subheadline.weight(.regular))

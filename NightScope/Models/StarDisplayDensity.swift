@@ -12,24 +12,19 @@ enum StarDisplayDensity: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .maximum: "最大"
-        case .large: "大"
-        case .medium: "中"
-        case .small: "小"
+        case .maximum: L10n.tr("最大")
+        case .large: L10n.tr("大")
+        case .medium: L10n.tr("中")
+        case .small: L10n.tr("小")
         }
     }
 
     var magnitudeLabel: String {
-        switch self {
-        case .maximum: "7.5等級まで"
-        case .large: "6.8等級まで"
-        case .medium: "6.0等級まで"
-        case .small: "5.0等級まで"
-        }
+        L10n.format("%.1f等級まで", maxMagnitude)
     }
 
     var settingsLabel: String {
-        "\(title)（\(magnitudeLabel)）"
+        L10n.format("%@（%@）", title, magnitudeLabel)
     }
 
     var maxMagnitude: Double {

@@ -293,21 +293,22 @@ private struct MacStarMapSheet: View {
     private var statusSection: some View {
         HStack(spacing: Spacing.md) {
             Label(
-                String(format: "%@ %.0f°", StarMapPresentation.azimuthName(for: viewModel.viewAzimuth), viewModel.viewAzimuth),
+                StarMapPresentation.azimuthName(for: viewModel.viewAzimuth)
+                    + String(format: " %.0f°", viewModel.viewAzimuth),
                 systemImage: "location.north.circle"
             )
             .font(.body)
             .foregroundStyle(.secondary)
 
             Label(
-                String(format: "仰角 %.0f°", viewModel.viewAltitude),
+                L10n.format("仰角 %.0f°", viewModel.viewAltitude),
                 systemImage: "arrow.up.circle"
             )
             .font(.body)
             .foregroundStyle(.secondary)
 
             Label(
-                String(format: "視野 %.0f°", viewModel.fov),
+                L10n.format("視野 %.0f°", viewModel.fov),
                 systemImage: "viewfinder"
             )
             .font(.body)
@@ -316,21 +317,21 @@ private struct MacStarMapSheet: View {
             Spacer()
 
             if viewModel.moonAltitude > 0 {
-                Label(
-                    String(format: "月 %.0f°", viewModel.moonAltitude),
-                    systemImage: "moon.fill"
-                )
-                .font(.body)
-                .foregroundStyle(.white.opacity(0.8))
+                Label(L10n.format("月 %.0f°", viewModel.moonAltitude), systemImage: "moon.fill")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.8))
             }
 
             if !viewModel.meteorShowerRadiants.isEmpty {
                 let shower = viewModel.meteorShowerRadiants[0].shower
-                Label("\(shower.name) 活動中", systemImage: AppIcons.Astronomy.sparkles)
+                Label(L10n.format("%@活動中", shower.localizedName), systemImage: AppIcons.Astronomy.sparkles)
                     .font(.body)
                     .foregroundStyle(StarMapPalette.meteorAccent.opacity(0.9))
             } else if let next = viewModel.nextMeteorShower {
-                Label("\(next.shower.name) まで\(next.daysUntilPeak)日", systemImage: AppIcons.Astronomy.sparkles)
+                Label(
+                    L10n.format("%@ まで%d日", next.shower.localizedName, next.daysUntilPeak),
+                    systemImage: AppIcons.Astronomy.sparkles
+                )
                     .font(.body)
                     .foregroundStyle(.secondary)
             }

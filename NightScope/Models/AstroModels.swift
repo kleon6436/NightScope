@@ -43,15 +43,15 @@ struct ViewingWindow {
     var peakDirectionName: String {
         let directions = ["北","北北東","北東","東北東","東","東南東","南東","南南東","南","南南西","南西","西南西","西","西北西","北西","北北西"]
         let index = Int((peakAzimuth + 11.25) / 22.5) % 16
-        return directions[index]
+        return L10n.tr(directions[index])
     }
 
     func accessibilityDescription(timeZone: TimeZone = .current) -> String {
-        let timeRange = "\(start.nightTimeString(timeZone: timeZone))から\(end.nightTimeString(timeZone: timeZone))"
-        let altitude = String(format: "最大高度%.0f度", peakAltitude)
-        let peak = "見頃\(peakTime.nightTimeString(timeZone: timeZone))"
-        let direction = "方角\(peakDirectionName)"
-        return "観測窓: \(timeRange)、\(altitude)、\(peak)、\(direction)"
+        let timeRange = L10n.format("%@から%@", start.nightTimeString(timeZone: timeZone), end.nightTimeString(timeZone: timeZone))
+        let altitude = L10n.format("最大高度%.0f度", peakAltitude)
+        let peak = L10n.format("見頃 %@", peakTime.nightTimeString(timeZone: timeZone))
+        let direction = L10n.format("方角%@", peakDirectionName)
+        return L10n.format("観測窓: %@、%@、%@、%@", timeRange, altitude, peak, direction)
     }
 }
 
@@ -98,15 +98,15 @@ struct NightSummary {
 
     var moonPhaseName: String {
         switch moonPhaseAtMidnight {
-        case 0..<0.04, 0.96...1: return "新月"
-        case 0.04..<0.12: return "繊月"
-        case 0.12..<0.22: return "三日月"
-        case 0.22..<0.30: return "上弦の月"
-        case 0.30..<0.46: return "十日月"
-        case 0.46..<0.54: return "満月"
-        case 0.54..<0.70: return "十六夜"
-        case 0.70..<0.80: return "下弦の月"
-        case 0.80..<0.96: return "有明月"
+        case 0..<0.04, 0.96...1: return L10n.tr("新月")
+        case 0.04..<0.12: return L10n.tr("繊月")
+        case 0.12..<0.22: return L10n.tr("三日月")
+        case 0.22..<0.30: return L10n.tr("上弦の月")
+        case 0.30..<0.46: return L10n.tr("十日月")
+        case 0.46..<0.54: return L10n.tr("満月")
+        case 0.54..<0.70: return L10n.tr("十六夜")
+        case 0.70..<0.80: return L10n.tr("下弦の月")
+        case 0.80..<0.96: return L10n.tr("有明月")
         default: return ""
         }
     }
@@ -201,7 +201,7 @@ struct NightSummary {
             calendar: calendar,
             includeMoonFilter: false
         ).isEmpty
-        return hasWeatherClearDarkHour ? "月明かり" : ""
+        return hasWeatherClearDarkHour ? L10n.tr("月明かり") : ""
     }
 
     func hasReliableWeatherData(nighttimeHours: [HourlyWeather]) -> Bool {
@@ -339,9 +339,9 @@ struct NightSummary {
         if let eStart = eveningDarkStart, let mEnd = morningDarkEnd {
             return "\(eStart.nightTimeString(timeZone: timeZone)) 〜 \(mEnd.nightTimeString(timeZone: timeZone))"
         } else if let eStart = eveningDarkStart {
-            return "\(eStart.nightTimeString(timeZone: timeZone)) 〜 翌朝"
+            return L10n.format("%@ 〜 翌朝", eStart.nightTimeString(timeZone: timeZone))
         } else if let mEnd = morningDarkEnd {
-            return "深夜 〜 \(mEnd.nightTimeString(timeZone: timeZone))"
+            return L10n.format("深夜 〜 %@", mEnd.nightTimeString(timeZone: timeZone))
         } else {
             return ""
         }
@@ -368,4 +368,8 @@ struct PlanetPosition: Identifiable {
     let magnitude: Double         // apparent magnitude
     let geocentricDistAU: Double  // geocentric distance in AU
     var id: String { name }
+
+    var localizedName: String {
+        L10n.tr(name)
+    }
 }

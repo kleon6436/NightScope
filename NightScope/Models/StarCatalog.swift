@@ -8,6 +8,11 @@ struct Star {
     let dec: Double         // 赤緯 (度, J2000.0)
     let magnitude: Double   // 実視等級
     let colorIndex: Double? // B-V色指数 (nil = 白)
+
+    var localizedName: String {
+        guard !name.isEmpty else { return "" }
+        return L10n.tr(name)
+    }
 }
 
 // MARK: - Star Catalog

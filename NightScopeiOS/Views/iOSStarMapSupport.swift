@@ -65,9 +65,9 @@ struct iOSStarMapHeaderOverlay: View {
                 .frame(width: 44, height: 44)
         }
         .buttonStyle(.glass)
-        .accessibilityLabel("星の表示数")
+        .accessibilityLabel(L10n.tr("星の表示数"))
         .accessibilityValue(controlState.selectedStarDisplayDensity.settingsLabel)
-        .accessibilityHint("表示する恒星の量を変更します")
+        .accessibilityHint(L10n.tr("表示する恒星の量を変更します"))
     }
 
     private var cameraBackgroundButton: some View {
@@ -79,8 +79,12 @@ struct iOSStarMapHeaderOverlay: View {
         }
         .buttonStyle(.glass)
         .help(controlState.cameraButtonHelpText)
-        .accessibilityLabel(controlState.isCameraBackgroundVisible ? "カメラ背景をオフにする" : "カメラ背景をオンにする")
-        .accessibilityValue(controlState.isCameraBackgroundVisible ? "オン" : "オフ")
+        .accessibilityLabel(
+            controlState.isCameraBackgroundVisible
+                ? L10n.tr("カメラ背景をオフにする")
+                : L10n.tr("カメラ背景をオンにする")
+        )
+        .accessibilityValue(controlState.isCameraBackgroundVisible ? L10n.tr("オン") : L10n.tr("オフ"))
         .accessibilityHint(controlState.cameraButtonHintText)
         .disabled(!controlState.canToggleCameraBackground)
     }
@@ -93,8 +97,12 @@ struct iOSStarMapHeaderOverlay: View {
             )
         }
         .buttonStyle(.glass)
-        .help(controlState.isGyroMode ? "タッチ操作に切替" : "ジャイロ操作に切替")
-        .accessibilityLabel(controlState.isGyroMode ? "タッチ操作に切り替える" : "ジャイロ操作に切り替える")
+        .help(controlState.isGyroMode ? L10n.tr("タッチ操作に切替") : L10n.tr("ジャイロ操作に切替"))
+        .accessibilityLabel(
+            controlState.isGyroMode
+                ? L10n.tr("タッチ操作に切り替える")
+                : L10n.tr("ジャイロ操作に切り替える")
+        )
         .disabled(!controlState.canEnableGyroMode)
     }
 
@@ -125,9 +133,9 @@ private struct iOSStarMapNoticeCard: View {
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.82))
             if notice.showsSettingsButton {
-                Button("設定を開く", action: onOpenSettings)
+                Button(L10n.tr("設定を開く"), action: onOpenSettings)
                     .buttonStyle(.glass)
-                    .accessibilityHint("NightScope の設定画面を開きます")
+                    .accessibilityHint(L10n.tr("NightScope の設定画面を開きます"))
             }
         }
         .padding(.horizontal, Spacing.sm)
@@ -148,29 +156,29 @@ struct CameraNotice: Equatable {
 
     static let cameraUnavailable = CameraNotice(
         symbolName: "camera.slash",
-        title: "カメラ背景を利用できません",
-        message: "この環境では背面カメラを利用できないため、星空マップの通常背景を表示しています。",
+        title: L10n.tr("カメラ背景を利用できません"),
+        message: L10n.tr("この環境では背面カメラを利用できないため、星空マップの通常背景を表示しています。"),
         showsSettingsButton: false
     )
 
     static let cameraRestricted = CameraNotice(
         symbolName: "hand.raised.fill",
-        title: "カメラの使用が制限されています",
-        message: "スクリーンタイムやデバイス設定の制限により、この機能は利用できません。",
+        title: L10n.tr("カメラの使用が制限されています"),
+        message: L10n.tr("スクリーンタイムやデバイス設定の制限により、この機能は利用できません。"),
         showsSettingsButton: false
     )
 
     static let cameraPermissionDenied = CameraNotice(
         symbolName: "camera.badge.ellipsis",
-        title: "カメラのアクセスが必要です",
-        message: "ジャイロモード中に実景と星図を重ねるには、設定から NightScope のカメラアクセスを許可してください。",
+        title: L10n.tr("カメラのアクセスが必要です"),
+        message: L10n.tr("ジャイロモード中に実景と星図を重ねるには、設定から NightScope のカメラアクセスを許可してください。"),
         showsSettingsButton: true
     )
 
     static func cameraUnexpectedFailure(_ message: String) -> CameraNotice {
         CameraNotice(
             symbolName: "exclamationmark.triangle.fill",
-            title: "カメラを開始できませんでした",
+            title: L10n.tr("カメラを開始できませんでした"),
             message: message,
             showsSettingsButton: false
         )
@@ -335,7 +343,7 @@ final class StarMapCameraController: NSObject, ObservableObject {
                     self.hasConfiguredSession = false
                     self.isConfiguringSession = false
                     self.cameraFieldOfView = nil
-                    self.lastErrorMessage = "背面カメラを利用できないため、カメラ背景を開始できません。"
+                    self.lastErrorMessage = L10n.tr("背面カメラを利用できないため、カメラ背景を開始できません。")
                 }
                 return
             }
@@ -351,7 +359,7 @@ final class StarMapCameraController: NSObject, ObservableObject {
                         Task { @MainActor in
                             self.hasConfiguredSession = false
                             self.isConfiguringSession = false
-                            self.lastErrorMessage = "カメラ入力を追加できませんでした。"
+                            self.lastErrorMessage = L10n.tr("カメラ入力を追加できませんでした。")
                         }
                         return
                     }
@@ -372,7 +380,7 @@ final class StarMapCameraController: NSObject, ObservableObject {
                     self.hasConfiguredSession = false
                     self.isConfiguringSession = false
                     self.cameraFieldOfView = nil
-                    self.lastErrorMessage = "カメラの初期化に失敗しました。"
+                    self.lastErrorMessage = L10n.tr("カメラの初期化に失敗しました。")
                 }
             }
         }
@@ -481,7 +489,7 @@ final class StarMapCameraController: NSObject, ObservableObject {
 
         guard let errorCode else {
             guard currentActivationGenerationIfActive() != nil else { return }
-            lastErrorMessage = "カメラの実行中にエラーが発生しました。"
+            lastErrorMessage = L10n.tr("カメラの実行中にエラーが発生しました。")
             return
         }
 
@@ -493,7 +501,7 @@ final class StarMapCameraController: NSObject, ObservableObject {
         }
 
         guard currentActivationGenerationIfActive() != nil else { return }
-        lastErrorMessage = "カメラの実行中にエラーが発生しました。"
+        lastErrorMessage = L10n.tr("カメラの実行中にエラーが発生しました。")
     }
 
     private func handleSessionInterruptionEnded() {

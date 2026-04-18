@@ -11,7 +11,7 @@ enum LightPollutionServiceError: Error, LocalizedError {
     case noData
 
     var errorDescription: String? {
-        "現在地の光害データが取得できませんでした。"
+        L10n.tr("現在地の光害データが取得できませんでした。")
     }
 }
 
