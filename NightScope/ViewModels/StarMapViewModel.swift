@@ -415,7 +415,7 @@ final class StarMapViewModel: ObservableObject {
     /// ジャイロモードの有効/無効 (iPhone のみ true にする)
     @Published var isGyroMode: Bool = false
 
-    /// 水平視野角 (度): 30°〜150°, デフォルト 90°
+    /// 水平視野角 (度): 30°〜150°, デフォルト 120°
     @Published var fov: Double = StarMapLayout.defaultFOV
 
     /// 星空マップ描画領域の最新サイズ

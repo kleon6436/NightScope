@@ -128,6 +128,14 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(StarMapLayout.clampedFOV(160), StarMapLayout.maxFOV)
     }
 
+    func test_StarMapViewModel_initialFOV_usesNaturalDefaultFieldOfView() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+
+        XCTAssertEqual(StarMapLayout.defaultFOV, 120, accuracy: 0.001)
+        XCTAssertEqual(viewModel.fov, StarMapLayout.defaultFOV, accuracy: 0.001)
+    }
+
     func test_StarMapCanvasView_zoomedFOV_clampsAndFollowsScrollDirection() {
         XCTAssertEqual(
             StarMapCanvasView.zoomedFOV(currentFOV: 90, scrollDeltaY: 1, preciseScrolling: false),
