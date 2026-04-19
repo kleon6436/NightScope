@@ -950,39 +950,6 @@
         }
       }
     },
-    "お気に入り" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favorites"
-          }
-        }
-      }
-    },
-    "お気に入りに追加" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add to Favorites"
-          }
-        }
-      }
-    },
-    "お気に入りの場所: %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favorite location: %@"
-          }
-        }
-      }
-    },
     "オフ" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1023,6 +990,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "On"
+          }
+        }
+      }
+    },
+    "お気に入り" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorites"
+          }
+        }
+      }
+    },
+    "お気に入りから削除" : {
+
+    },
+    "お気に入りに追加" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Favorites"
+          }
+        }
+      }
+    },
+    "お気に入りの場所: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorite location: %@"
           }
         }
       }
@@ -3238,6 +3241,17 @@
         }
       }
     },
+    "削除" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
     "前の月" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3256,17 +3270,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Previous day"
-          }
-        }
-      }
-    },
-    "削除" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete"
           }
         }
       }
@@ -3619,17 +3622,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search places"
-          }
-        }
-      }
-    },
-    "検索語を消去" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clear search text"
           }
         }
       }
@@ -4558,6 +4550,17 @@
         }
       }
     },
+    "検索語を消去" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear search text"
+          }
+        }
+      }
+    },
     "権限ダイアログの完了後に背景を切り替えます" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4679,6 +4682,17 @@
         }
       }
     },
+    "現在の場所をお気に入りに保存します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the current location to favorites"
+          }
+        }
+      }
+    },
     "現在地" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4730,17 +4744,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not get your current location. Please wait a moment and try again."
-          }
-        }
-      }
-    },
-    "現在の場所をお気に入りに保存します" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save the current location to favorites"
           }
         }
       }

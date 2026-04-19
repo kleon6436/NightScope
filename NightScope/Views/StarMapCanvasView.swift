@@ -1073,49 +1073,73 @@ private extension StarMapCanvasView {
         let bandPoints = viewModel.milkyWayBandPoints
         guard bandPoints.count > 1 else { return }
 
-        for i in 0..<bandPoints.count - 1 {
-            let bp0 = bandPoints[i]
-            let bp1 = bandPoints[i + 1]
+        // マルチレイヤー定義: (幅倍率, 不透明度倍率)
+        // 外側から描画し、中心ほど狭く明るくすることでガウシアン的フォールオフを再現
+        let layers: [(widthScale: Double, opacityScale: Double)] = [
+            (1.4, 0.25),   // 外側グロー — 広く薄い
+            (1.0, 0.50),   // 中間層
+            (0.6, 1.00),   // コア — 狭く明るい
+        ]
 
-            // ラップアラウンドの不連続をスキップ
-            let azDiff = atan2(
-                sin((bp0.az - bp1.az) * .pi / 180),
-                cos((bp0.az - bp1.az) * .pi / 180)
-            ) * 180 / .pi
-            guard abs(azDiff) < 40 else { continue }
+        // 天の川レイヤーをサブコンテキストに描画し、ブラーで柔らかくする
+        var milkyWayCtx = ctx
+        milkyWayCtx.addFilter(.blur(radius: 6))
 
-            let a0 = bp0.alt * .pi / 180
-            let z0 = bp0.az * .pi / 180
-            let h0 = bp0.halfH * .pi / 180
-            let a1 = bp1.alt * .pi / 180
-            let z1 = bp1.az * .pi / 180
-            let h1 = bp1.halfH * .pi / 180
+        for layer in layers {
+            for i in 0..<bandPoints.count - 1 {
+                let bp0 = bandPoints[i]
+                let bp1 = bandPoints[i + 1]
 
-            guard let p0Top = project(a0 + h0, z0),
-                  let p0Bot = project(a0 - h0, z0),
-                  let p1Top = project(a1 + h1, z1),
-                  let p1Bot = project(a1 - h1, z1) else { continue }
+                // ラップアラウンドの不連続をスキップ
+                let azDiff = atan2(
+                    sin((bp0.az - bp1.az) * .pi / 180),
+                    cos((bp0.az - bp1.az) * .pi / 180)
+                ) * 180 / .pi
+                guard abs(azDiff) < 40 else { continue }
 
-            // スクリーン上の大きなジャンプをスキップ（投影の不連続対策）
-            let maxJump: Double = 800
-            guard abs(p0Top.x - p1Top.x) < maxJump,
-                  abs(p0Top.y - p1Top.y) < maxJump,
-                  abs(p0Bot.x - p1Bot.x) < maxJump,
-                  abs(p0Bot.y - p1Bot.y) < maxJump else { continue }
+                let a0 = bp0.alt * .pi / 180
+                let z0 = bp0.az * .pi / 180
+                let h0 = bp0.halfH * .pi / 180 * layer.widthScale
+                let a1 = bp1.alt * .pi / 180
+                let z1 = bp1.az * .pi / 180
+                let h1 = bp1.halfH * .pi / 180 * layer.widthScale
 
-            var slab = Path()
-            slab.move(to: p0Top)
-            slab.addLine(to: p1Top)
-            slab.addLine(to: p1Bot)
-            slab.addLine(to: p0Bot)
-            slab.closeSubpath()
+                guard let p0Top = project(a0 + h0, z0),
+                      let p0Bot = project(a0 - h0, z0),
+                      let p1Top = project(a1 + h1, z1),
+                      let p1Bot = project(a1 - h1, z1) else { continue }
 
-            let lDeg = bp0.li <= 180 ? bp0.li : 360 - bp0.li
-            let tCenter = 1.0 - lDeg / 180.0
-            let slabColor = Color(red: 0.50 + 0.20 * tCenter,
-                                  green: 0.55,
-                                  blue: 0.85 - 0.25 * tCenter)
-            ctx.fill(slab, with: .color(slabColor.opacity(0.10)))
+                // スクリーン上の大きなジャンプをスキップ（投影の不連続対策）
+                let maxJump: Double = 800
+                guard abs(p0Top.x - p1Top.x) < maxJump,
+                      abs(p0Top.y - p1Top.y) < maxJump,
+                      abs(p0Bot.x - p1Bot.x) < maxJump,
+                      abs(p0Bot.y - p1Bot.y) < maxJump else { continue }
+
+                var slab = Path()
+                slab.move(to: p0Top)
+                slab.addLine(to: p1Top)
+                slab.addLine(to: p1Bot)
+                slab.addLine(to: p0Bot)
+                slab.closeSubpath()
+
+                // 銀河中心（銀経 0°/360°）からの角距離で輝度を計算
+                let lDeg = bp0.li <= 180 ? bp0.li : 360 - bp0.li
+                let tCenter = 1.0 - lDeg / 180.0  // 1.0 = 銀河中心, 0.0 = 反銀心
+
+                // 銀河中心付近: 暖色（淡いアンバー/ゴールド）
+                // 反銀心付近: 冷色（淡いブルー）
+                let red   = 0.55 + 0.30 * tCenter
+                let green = 0.55 + 0.15 * tCenter
+                let blue  = 0.85 - 0.35 * tCenter
+                let slabColor = Color(red: red, green: green, blue: blue)
+
+                // 銀河中心方向を明るくし、反銀心は暗くする
+                let brightnessBoost = 0.6 + 0.4 * tCenter
+                let baseOpacity = 0.08 * layer.opacityScale * brightnessBoost
+
+                milkyWayCtx.fill(slab, with: .color(slabColor.opacity(baseOpacity)))
+            }
         }
     }
 
