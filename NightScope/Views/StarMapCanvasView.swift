@@ -275,7 +275,6 @@ struct StarMapCanvasView: View {
     private func drawGnomonicProjection(ctx: GraphicsContext,
                                         cx: Double, cy: Double, size: CGSize,
                                         centerAlt: Double, centerAz: Double, roll: Double, fov: Double) {
-        let simplifyDuringScrub = viewModel.isTimeSliderScrubbing
         let projection = GnomonicProjectionContext(
             size: size,
             centerAlt: centerAlt,
@@ -322,24 +321,22 @@ struct StarMapCanvasView: View {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
                          altitude: pos.altitude)
-                if !simplifyDuringScrub, pos.star.magnitude < 1.5, !pos.star.localizedName.isEmpty {
+                if pos.star.magnitude < 1.5, !pos.star.localizedName.isEmpty {
                     drawStarLabel(ctx: ctx, at: pt, name: pos.star.localizedName)
                 }
             }
         }
 
         // 星座名ラベル
-        if !simplifyDuringScrub {
-            for label in viewModel.constellationLabels {
-                let alt = label.alt * .pi / 180
-                let az  = label.az  * .pi / 180
-                if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
-                    ctx.draw(
-                        Text(label.name)
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
-                        at: pt)
-                }
+        for label in viewModel.constellationLabels {
+            let alt = label.alt * .pi / 180
+            let az  = label.az  * .pi / 180
+            if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
+                ctx.draw(
+                    Text(label.name)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
+                    at: pt)
             }
         }
 
