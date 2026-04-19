@@ -58,9 +58,6 @@ final class StarGazingIndexTests: XCTestCase {
         dewpointSpread: Double,
         visibility: Double? = nil,
         windGusts: Double? = nil,
-        cloudLow: Double? = nil,
-        cloudMid: Double? = nil,
-        cloudHigh: Double? = nil,
         weatherCode: Int = 0,
         windSpeed500hpa: Double? = nil
     ) -> DayWeatherSummary {
@@ -79,9 +76,6 @@ final class StarGazingIndexTests: XCTestCase {
             weatherCode: weatherCode,
             visibilityMeters: visibility,
             windGustsKmh: windGusts,
-            cloudCoverLowPercent: cloudLow,
-            cloudCoverMidPercent: cloudMid,
-            cloudCoverHighPercent: cloudHigh,
             windSpeedKmh500hpa: windSpeed500hpa
         )
         return DayWeatherSummary(date: base, nighttimeHours: [hour])
@@ -108,9 +102,6 @@ final class StarGazingIndexTests: XCTestCase {
             weatherCode: weatherCode,
             visibilityMeters: nil,
             windGustsKmh: nil,
-            cloudCoverLowPercent: nil,
-            cloudCoverMidPercent: nil,
-            cloudCoverHighPercent: nil,
             windSpeedKmh500hpa: nil
         )
     }
@@ -172,9 +163,6 @@ final class StarGazingIndexTests: XCTestCase {
                 weatherCode: template.weatherCode,
                 visibilityMeters: template.visibilityMeters,
                 windGustsKmh: template.windGustsKmh,
-                cloudCoverLowPercent: template.cloudCoverLowPercent,
-                cloudCoverMidPercent: template.cloudCoverMidPercent,
-                cloudCoverHighPercent: template.cloudCoverHighPercent,
                 windSpeedKmh500hpa: template.windSpeedKmh500hpa
             )
         }
@@ -360,24 +348,6 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     // MARK: - Weather Score: 新指標テスト
-
-    func test_weatherScore_layeredClouds_highOnly_lowsEffectiveCloud() {
-        // low=0, mid=0, high=60 → effectiveCloud = 0×1.0 + 0×0.7 + 60×0.3 = 18
-        // 総合雲量60%なら+7だが、実効雲量18%(<35)なら+13 になることを確認
-        let summary = makeNightSummary(darkEventCount: 1)
-        let weatherLayered = makeWeather(
-            cloud: 60, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
-            cloudLow: 0, cloudMid: 0, cloudHigh: 60
-        )
-        let weatherTotal = makeWeather(
-            cloud: 60, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20
-        )
-        let idxLayered = computeIndex(nightSummary: summary, weather: weatherLayered)
-        let idxTotal = computeIndex(nightSummary: summary, weather: weatherTotal)
-        // 層別データありの方が高いスコアになる（高層雲は半透明で遮断率低いため）
-        XCTAssertGreaterThan(idxLayered.weatherScore, idxTotal.weatherScore,
-            "高層雲のみの場合、層別加重の方が総合雲量より高スコアになるべき")
-    }
 
     func test_weatherScore_transparencyScore_withExcellentVisibility() {
         // visibility=25km(≥20)→+8, spread=20(>15)→+2, 透明度 = 10点
@@ -965,21 +935,5 @@ final class StarGazingIndexTests: XCTestCase {
         // total = 5 + 10 = 15
         XCTAssertEqual(idx.constellationScore, 15,
             "暗時間1.25h(>1h)は darkHoursScore=5 + moonScore=10 = 15 になるべき")
-    }
-
-    // MARK: - #5 多層雲の実効雲量クランプ
-
-    func test_effectiveCloudCover_clamped() {
-        // low=50, mid=50, high=50 → 50*1.0 + 50*0.7 + 50*0.3 = 100 → min(100, 100)
-        // low=60, mid=60, high=60 → 60*1.0 + 60*0.7 + 60*0.3 = 120 → min(100, 120) = 100
-        let summary = makeNightSummary(darkEventCount: 1)
-        let weather = makeWeather(
-            cloud: 80, precip: 0, wind: 5, humidity: 60, dewpointSpread: 10,
-            cloudLow: 60, cloudMid: 60, cloudHigh: 60
-        )
-        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
-        // 実効雲量が100にクランプされ、120にならないことを確認
-        // 雲量100%→cloudScore=0 は変わらないが、isObservationBlocked の判定が安定する
-        XCTAssertEqual(idx.weatherScore, idx.weatherScore)  // 計算自体がクラッシュしないことを確認
     }
 }

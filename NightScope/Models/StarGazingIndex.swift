@@ -448,11 +448,9 @@ struct StarGazingIndex {
     }
 
     // a. 雲量 (0–18 pts)
-    // 根拠: 低層雲(< 2km)は不透明で星を完全遮断。高層雲(> 6km)は巻雲等の氷晶雲で半透明。
-    //       層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3 で精度向上。
-    //       層別データなし時は総合雲量にフォールバック。
+    // 根拠: 総合雲量で星空観測条件を評価する。
     private static func computeCloudScore(weather: DayWeatherSummary) -> Int {
-        let effectiveCloud = weather.effectiveCloudCover ?? weather.avgCloudCover
+        let effectiveCloud = weather.avgCloudCover
         return scoreByLessThan(effectiveCloud, thresholds: Constants.cloudThresholds, defaultScore: 0)
     }
 
@@ -674,7 +672,7 @@ struct StarGazingIndex {
     /// 根拠: 観測可能時間帯表示と同じ判定基準を用いることで、
     ///       「時間帯表示あり」と「星空指数のキャップ」の整合性を保つ。
     private static func isObservationBlocked(_ hour: HourlyWeather) -> Bool {
-        return hour.effectiveCloudCover >= 75
+        return hour.cloudCoverPercent >= 75
             || hour.precipitationMM >= 0.1
             || hour.weatherCode >= 45
     }

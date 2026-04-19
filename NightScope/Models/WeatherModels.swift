@@ -1,15 +1,5 @@
 import Foundation
 
-private enum CloudCoverWeight {
-    static let low = 1.0
-    static let mid = 0.7
-    static let high = 0.3
-
-    static func effective(low: Double, mid: Double, high: Double) -> Double {
-        min(100, low * Self.low + mid * Self.mid + high * Self.high)
-    }
-}
-
 // MARK: - Models
 
 struct HourlyWeather {
@@ -25,25 +15,8 @@ struct HourlyWeather {
     let visibilityMeters: Double?
     /// 瞬間最大風速（km/h）。シーイング評価に使用。nil = データなし
     let windGustsKmh: Double?
-    /// 低層雲量（< 2km）0-100%。nil = データなし
-    let cloudCoverLowPercent: Double?
-    /// 中層雲量（2-6km）0-100%。nil = データなし
-    let cloudCoverMidPercent: Double?
-    /// 高層雲量（> 6km）0-100%。nil = データなし
-    let cloudCoverHighPercent: Double?
     /// 500hPa 高度（≈ 5.5km）の風速（km/h）。シーイング評価に使用。nil = データなし
     let windSpeedKmh500hpa: Double?
-
-    /// 層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3
-    /// 3層データが揃わない場合は総合雲量にフォールバック
-    var effectiveCloudCover: Double {
-        guard let low = cloudCoverLowPercent,
-              let mid = cloudCoverMidPercent,
-              let high = cloudCoverHighPercent else {
-            return cloudCoverPercent
-        }
-        return CloudCoverWeight.effective(low: low, mid: mid, high: high)
-    }
 }
 
 struct DayWeatherSummary {
@@ -60,13 +33,6 @@ struct DayWeatherSummary {
         let visibilityCount: Int
         let maxWindGusts: Double?
 
-        let cloudLowSum: Double
-        let cloudLowCount: Int
-        let cloudMidSum: Double
-        let cloudMidCount: Int
-        let cloudHighSum: Double
-        let cloudHighCount: Int
-
         let wind500Sum: Double
         let wind500Count: Int
 
@@ -82,13 +48,6 @@ struct DayWeatherSummary {
             var visibilitySum = 0.0
             var visibilityCount = 0
             var maxWindGusts: Double?
-
-            var cloudLowSum = 0.0
-            var cloudLowCount = 0
-            var cloudMidSum = 0.0
-            var cloudMidCount = 0
-            var cloudHighSum = 0.0
-            var cloudHighCount = 0
 
             var wind500Sum = 0.0
             var wind500Count = 0
@@ -109,18 +68,6 @@ struct DayWeatherSummary {
                 if let gust = hour.windGustsKmh {
                     maxWindGusts = max(maxWindGusts ?? -Double.infinity, gust)
                 }
-                if let low = hour.cloudCoverLowPercent {
-                    cloudLowSum += low
-                    cloudLowCount += 1
-                }
-                if let mid = hour.cloudCoverMidPercent {
-                    cloudMidSum += mid
-                    cloudMidCount += 1
-                }
-                if let high = hour.cloudCoverHighPercent {
-                    cloudHighSum += high
-                    cloudHighCount += 1
-                }
                 if let wind500 = hour.windSpeedKmh500hpa {
                     wind500Sum += wind500
                     wind500Count += 1
@@ -138,12 +85,6 @@ struct DayWeatherSummary {
                 visibilitySum: visibilitySum,
                 visibilityCount: visibilityCount,
                 maxWindGusts: maxWindGusts,
-                cloudLowSum: cloudLowSum,
-                cloudLowCount: cloudLowCount,
-                cloudMidSum: cloudMidSum,
-                cloudMidCount: cloudMidCount,
-                cloudHighSum: cloudHighSum,
-                cloudHighCount: cloudHighCount,
                 wind500Sum: wind500Sum,
                 wind500Count: wind500Count
             )
@@ -190,34 +131,6 @@ struct DayWeatherSummary {
     var avgDewpointSpread: Double {
         guard !nighttimeHours.isEmpty else { return 0 }
         return aggregates.dewpointSpreadSum / Double(nighttimeHours.count)
-    }
-
-    /// 低層雲量（< 2km）の夜間平均。データなし時は nil
-    var avgCloudCoverLow: Double? {
-        guard aggregates.cloudLowCount > 0 else { return nil }
-        return aggregates.cloudLowSum / Double(aggregates.cloudLowCount)
-    }
-
-    /// 中層雲量（2-6km）の夜間平均。データなし時は nil
-    var avgCloudCoverMid: Double? {
-        guard aggregates.cloudMidCount > 0 else { return nil }
-        return aggregates.cloudMidSum / Double(aggregates.cloudMidCount)
-    }
-
-    /// 高層雲量（> 6km）の夜間平均。データなし時は nil
-    var avgCloudCoverHigh: Double? {
-        guard aggregates.cloudHighCount > 0 else { return nil }
-        return aggregates.cloudHighSum / Double(aggregates.cloudHighCount)
-    }
-
-    /// 層別加重実効雲量 = low×1.0 + mid×0.7 + high×0.3
-    /// 根拠: 低層雲は不透明（遮断率1.0）、高層雲は半透明（遮断率0.3）
-    /// 3層すべてのデータが揃わない場合は nil（フォールバック用）
-    var effectiveCloudCover: Double? {
-        guard let low = avgCloudCoverLow,
-              let mid = avgCloudCoverMid,
-              let high = avgCloudCoverHigh else { return nil }
-        return CloudCoverWeight.effective(low: low, mid: mid, high: high)
     }
 
     /// 視程の夜間平均（メートル）。データなし時は nil

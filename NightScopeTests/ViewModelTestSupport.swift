@@ -20,9 +20,6 @@ func makeHourlyWeather(
         weatherCode: weatherCode,
         visibilityMeters: 20_000,
         windGustsKmh: nil,
-        cloudCoverLowPercent: nil,
-        cloudCoverMidPercent: nil,
-        cloudCoverHighPercent: nil,
         windSpeedKmh500hpa: nil
     )
 }

@@ -587,9 +587,6 @@ final class WeatherServiceTests: XCTestCase {
                         weatherCode: 0,
                         visibilityMeters: nil,
                         windGustsKmh: nil,
-                        cloudCoverLowPercent: nil,
-                        cloudCoverMidPercent: nil,
-                        cloudCoverHighPercent: nil,
                         windSpeedKmh500hpa: nil
                     )
                 ]

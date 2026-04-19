@@ -133,9 +133,6 @@ final class AppControllerTests: XCTestCase {
             weatherCode: 0,
             visibilityMeters: 20000,
             windGustsKmh: 10,
-            cloudCoverLowPercent: 10,
-            cloudCoverMidPercent: 10,
-            cloudCoverHighPercent: 20,
             windSpeedKmh500hpa: 20
         )
         return DayWeatherSummary(date: date, nighttimeHours: [hourly])

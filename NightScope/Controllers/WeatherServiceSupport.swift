@@ -209,9 +209,6 @@ struct MetNorwayForecastParser: Sendable {
                 weatherCode: Self.symbolCodeToWMO(symbolCode),
                 visibilityMeters: nil,
                 windGustsKmh: details.wind_speed_of_gust.map { $0 * 3.6 },
-                cloudCoverLowPercent: details.cloud_area_fraction_low,
-                cloudCoverMidPercent: details.cloud_area_fraction_medium,
-                cloudCoverHighPercent: details.cloud_area_fraction_high,
                 windSpeedKmh500hpa: nil
             )
         }

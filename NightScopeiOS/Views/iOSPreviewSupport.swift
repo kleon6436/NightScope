@@ -199,9 +199,6 @@ enum IOSPreviewFactory {
                 weatherCode: weatherCode,
                 visibilityMeters: 22000,
                 windGustsKmh: 15,
-                cloudCoverLowPercent: max(0, avgCloudCover - 8),
-                cloudCoverMidPercent: avgCloudCover,
-                cloudCoverHighPercent: min(100, avgCloudCover + 6),
                 windSpeedKmh500hpa: 28
             ),
             HourlyWeather(
@@ -215,9 +212,6 @@ enum IOSPreviewFactory {
                 weatherCode: weatherCode,
                 visibilityMeters: 24000,
                 windGustsKmh: 14,
-                cloudCoverLowPercent: max(0, avgCloudCover - 8),
-                cloudCoverMidPercent: avgCloudCover,
-                cloudCoverHighPercent: min(100, avgCloudCover + 6),
                 windSpeedKmh500hpa: 26
             )
         ]

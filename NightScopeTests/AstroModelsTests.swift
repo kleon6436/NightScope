@@ -58,9 +58,6 @@ final class AstroModelsTests: XCTestCase {
             weatherCode: weatherCode,
             visibilityMeters: 20000,
             windGustsKmh: 10,
-            cloudCoverLowPercent: nil,
-            cloudCoverMidPercent: nil,
-            cloudCoverHighPercent: nil,
             windSpeedKmh500hpa: nil
         )
     }

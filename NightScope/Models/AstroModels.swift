@@ -280,11 +280,10 @@ struct NightSummary {
         guard let weather = weatherByHour[hourStart] else {
             return true
         }
-        // 実効雲量: 層別データがあれば加重計算（星空指数と同一ロジック）、なければ総合雲量
         // 根拠: 75% 未満が星空指数の雲量スコアで 0点 超（≥75% = 完全不可）の境界
         //       星空指数は夜間全体の平均を使うが、ここは1時間ごとのチェックのため
         //       より緩い 75% を適用して一貫性を保つ
-        return weather.effectiveCloudCover < 75
+        return weather.cloudCoverPercent < 75
         && weather.precipitationMM < 0.1
         && weather.weatherCode < 45
     }
