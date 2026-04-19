@@ -709,7 +709,7 @@ struct StarGazingIndex {
            moonFraction >= Constants.moonCapHardFractionThreshold {
             return min(score, Constants.moonCapHardScore)
         }
-        // Soft cap: 上弦以降 + 暗時間の60%以上
+        // Soft cap: 上弦以降 + 暗時間の65%以上
         if illumination >= Constants.moonCapSoftIlluminationThreshold,
            moonFraction >= Constants.moonCapSoftFractionThreshold {
             return min(score, Constants.moonCapSoftScore)

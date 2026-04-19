@@ -892,7 +892,7 @@ final class StarGazingIndexTests: XCTestCase {
         // phase=0.167 → illumination = (1-cos(0.334π))/2 ≈ 0.25 < 0.30 → Soft cap 不発動
         // phase=0.196 → illumination ≈ 0.30 に近い値
         // 正確に illumination=0.30 を生むには phase≈0.196
-        // ここでは fraction が 0.60 未満であることで不発動を確認
+        // ここでは fraction が 0.65 未満であることで不発動を確認
         let summary = makeNightSummary(
             darkEventCount: 25,
             moonPhase: 0.196,  // illumination ≈ 0.30
