@@ -31,6 +31,7 @@ struct iOSStarMapView: View {
                         showsCardinalOverlay: true,
                         cardinalOverlayBottomInset: cardinalOverlayBottomInset + proxy.safeAreaInsets.bottom,
                         backgroundColor: controlState.isCameraBackgroundVisible ? .clear : StarMapPalette.canvasBackground,
+                        drawsDynamicSky: !controlState.isCameraBackgroundVisible,
                         horizonOverlayStyle: IOSDesignTokens.StarMap.horizonOverlayStyle,
                         fovOverride: cameraAlignedHorizontalFOV
                     )

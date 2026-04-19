@@ -85,6 +85,7 @@ struct StarMapCanvasView: View {
     var showsCardinalOverlay: Bool = true
     var cardinalOverlayBottomInset: CGFloat = StarMapLayout.cardinalLabelBottomInset
     var backgroundColor: Color = StarMapPalette.canvasBackground
+    var drawsDynamicSky: Bool = true
     var horizonOverlayStyle: HorizonOverlayStyle = .default
     var fovOverride: Double? = nil
     var rollOverride: Double? = nil
@@ -96,6 +97,8 @@ struct StarMapCanvasView: View {
     @GestureState private var gestureDragOffset: CGSize = .zero
 
     @GestureState private var gestureScale: Double = 1.0
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // キーボードフォーカス
     @FocusState private var isFocused: Bool
@@ -215,15 +218,25 @@ struct StarMapCanvasView: View {
 
     // MARK: Canvas
 
+    private var scintillationEnabled: Bool {
+        viewModel.isNight && !reduceMotion
+    }
+
     private func canvas(size: CGSize) -> some View {
-        Canvas { ctx, sz in
-            let cx = sz.width / 2
-            let cy = sz.height / 2
-            let (centerAlt, centerAz) = effectiveGnomonicCenter(size: sz)
-            let roll = effectiveGnomonicRoll()
-            let fov = effectiveGnomonicFOV()
-            drawGnomonicProjection(ctx: ctx, cx: cx, cy: cy, size: sz,
-                                   centerAlt: centerAlt, centerAz: centerAz, roll: roll, fov: fov)
+        TimelineView(.animation(minimumInterval: 0.25, paused: !scintillationEnabled)) { timeline in
+            Canvas { ctx, sz in
+                let cx = sz.width / 2
+                let cy = sz.height / 2
+                let (centerAlt, centerAz) = effectiveGnomonicCenter(size: sz)
+                let roll = effectiveGnomonicRoll()
+                let fov = effectiveGnomonicFOV()
+                let scintillationTime = scintillationEnabled
+                    ? timeline.date.timeIntervalSinceReferenceDate : 0
+                drawGnomonicProjection(ctx: ctx, cx: cx, cy: cy, size: sz,
+                                       centerAlt: centerAlt, centerAz: centerAz,
+                                       roll: roll, fov: fov,
+                                       scintillationTime: scintillationTime)
+            }
         }
     }
 
@@ -274,7 +287,8 @@ struct StarMapCanvasView: View {
 
     private func drawGnomonicProjection(ctx: GraphicsContext,
                                         cx: Double, cy: Double, size: CGSize,
-                                        centerAlt: Double, centerAz: Double, roll: Double, fov: Double) {
+                                        centerAlt: Double, centerAz: Double, roll: Double, fov: Double,
+                                        scintillationTime: Double = 0) {
         let projection = GnomonicProjectionContext(
             size: size,
             centerAlt: centerAlt,
@@ -282,6 +296,19 @@ struct StarMapCanvasView: View {
             rollDegrees: roll,
             fov: fov
         )
+
+        // 動的空色の塗りつぶし
+        if drawsDynamicSky {
+            let skyColor = StarMapPalette.skyColor(
+                sunAltitude: viewModel.sunAltitude,
+                moonAltitude: viewModel.moonAltitude,
+                moonPhase: viewModel.moonPhase
+            )
+            ctx.fill(
+                Rectangle().path(in: CGRect(origin: .zero, size: size)),
+                with: .color(skyColor)
+            )
+        }
 
         // 地平線・地面描画
         drawGnomonicGround(ctx: ctx, size: size, projection: projection)
@@ -312,6 +339,10 @@ struct StarMapCanvasView: View {
         }
 
         // 恒星
+        let moonBright = StarMapPalette.moonBrightness(
+            moonAltitude: viewModel.moonAltitude,
+            moonPhase: viewModel.moonPhase
+        )
         for pos in viewModel.starPositions {
             // 地平線近くの暗い星をスキップ
             if pos.altitude < 5 && pos.star.magnitude > 6.0 { continue }
@@ -320,7 +351,10 @@ struct StarMapCanvasView: View {
             if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
                 drawStar(ctx: ctx, at: pt, magnitude: pos.star.magnitude,
                          isDark: viewModel.isNight, precomputedColor: pos.precomputedColor,
-                         altitude: pos.altitude)
+                         altitude: pos.altitude,
+                         moonBrightness: moonBright,
+                         scintillationTime: scintillationTime,
+                         starRA: pos.star.ra)
                 if pos.star.magnitude < 1.5, !pos.star.localizedName.isEmpty {
                     drawStarLabel(ctx: ctx, at: pt, name: pos.star.localizedName)
                 }
@@ -777,25 +811,39 @@ struct StarMapCanvasView: View {
 
     private func drawStar(ctx: GraphicsContext, at point: CGPoint,
                           magnitude: Double, isDark: Bool, precomputedColor: Color,
-                          altitude: Double = 90) {
+                          altitude: Double = 90,
+                          moonBrightness: Double = 0,
+                          scintillationTime: Double = 0,
+                          starRA: Double = 0) {
         let color = precomputedColor
         let radius = max(0.8, 5 - (magnitude + 1.5) * (4 / 4.5))
         let opacity = isDark ? 1.0 : max(0.1, 0.3 - magnitude * 0.05)
         let brightness = magnitude < 0 ? 1.0 : max(0.6, 1.0 - magnitude * 0.12)
         // 大気消光: 仰角 15° 以下で徐々に減光
         let extinction = altitude < 15 ? max(0, altitude / 15.0) : 1.0
+        // 月光減衰: 月が明るいとき暗い星を減光
+        let moonDimming = StarMapPalette.moonDimmingFactor(
+            moonBrightness: moonBrightness, starMagnitude: magnitude
+        )
+        // シンチレーション: 明るい星の微小な明滅
+        let scintillation = StarMapPalette.scintillation(
+            starRA: starRA, magnitude: magnitude, altitude: altitude,
+            isDark: isDark, time: scintillationTime
+        )
+
+        let finalOpacity = opacity * brightness * extinction * moonDimming * scintillation
 
         let rect = CGRect(x: point.x - radius, y: point.y - radius,
                           width: radius * 2, height: radius * 2)
         ctx.fill(Circle().path(in: rect),
-                 with: .color(color.opacity(opacity * brightness * extinction)))
+                 with: .color(color.opacity(finalOpacity)))
 
         if magnitude < 2.0 {
             let glowR = radius * 3.0
             let glowRect = CGRect(x: point.x - glowR, y: point.y - glowR,
                                   width: glowR * 2, height: glowR * 2)
             ctx.fill(Circle().path(in: glowRect),
-                     with: .color(color.opacity(0.12 * (isDark ? 1 : 0.3))))
+                     with: .color(color.opacity(0.12 * (isDark ? 1 : 0.3) * scintillation)))
         }
 
         if magnitude < 0.5 {
@@ -803,7 +851,7 @@ struct StarMapCanvasView: View {
             let outerRect = CGRect(x: point.x - outerGlowR, y: point.y - outerGlowR,
                                    width: outerGlowR * 2, height: outerGlowR * 2)
             ctx.fill(Circle().path(in: outerRect),
-                     with: .color(color.opacity(0.04 * (isDark ? 1 : 0.2))))
+                     with: .color(color.opacity(0.04 * (isDark ? 1 : 0.2) * scintillation)))
         }
     }
 
