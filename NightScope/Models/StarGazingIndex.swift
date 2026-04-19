@@ -8,8 +8,8 @@ struct StarGazingIndex {
         static let lightPollutionMaxScore = 30
         /// Bortle スケールの最悪クラス（都市中心部）
         static let bortleWorstClass: Double = 9.0
-        /// このクラス以下は満点（日本の最暗空相当）
-        static let bortleBestClass: Double = 3.0
+        /// このクラス以下は満点
+        static let bortleBestClass: Double = 1.0
 
         /// 暗時間帯の観測不可割合しきい値
         /// - badCap: 全暗時間が観測不可（雨・高雲量等）→ 「観測困難」キャップ
@@ -32,6 +32,23 @@ struct StarGazingIndex {
         ///   スコアをそのまま反映する。逆にスコアが低い場合は時間帯分布に関わらず
         ///   「不向き」と判断することで、高スコアが不当に低評価になる逆転を防ぐ。
         static let weatherScoreForPoorCap = 20
+
+        /// 月明かりキャップ
+        /// - 条件: illumination ≥ 0.30（上弦以降）かつ月が暗時間の50%以上で地平線上
+        /// - 根拠: passesMoonFilter と同じ illumination ≥ 0.30 を使用。
+        ///   月が暗時間の半分以上で上空にある場合、空全体の輝度が自然夜空の30〜50倍に
+        ///   なり、星野・DSO・星景撮影は実質不可能。「不向き」以下が妥当。
+        static let moonCapScore = 49
+        static let moonCapIlluminationThreshold = 0.30
+        static let moonCapFractionThreshold = 0.50
+
+        /// 気象データなし時の信頼度キャップ
+        /// - 根拠: 天候は観測可否を最も大きく左右する要素（40/100点）。
+        ///   データ未取得状態で高得点を表示するとユーザーの判断を誤らせる。
+        /// - noWeatherCap: 気象なし → Good 上限（天候不明で Excellent は不適切）
+        /// - noWeatherNoLPCap: 気象+光害なし → Fair 上限（大部分のデータが欠損）
+        static let noWeatherCap = 79
+        static let noWeatherNoLPCap = 59
 
         /// 観測可能時間スコア閾値（条件: `hours > threshold`）
         /// - 根拠: 観測時間が長いほど対象天体の追尾・再構図・雲待ちが可能になる。
@@ -240,6 +257,19 @@ struct StarGazingIndex {
         weather: DayWeatherSummary?,
         bortleClass: Double?
     ) -> StarGazingIndex {
+        // #1: 暗時間ゼロ（白夜等）は観測不能 → 常に 0 点
+        guard nightSummary.totalDarkHours > 0 else {
+            return makeIndex(
+                score: 0,
+                milkyWayScore: 0,
+                constellationScore: 0,
+                weatherScore: 0,
+                lightPollutionScore: 0,
+                hasWeatherData: weather != nil,
+                hasLightPollutionData: bortleClass != nil
+            )
+        }
+
         let mw = computeMilkyWayScore(nightSummary: nightSummary)
         let constellation = computeConstellationScore(nightSummary: nightSummary)
         let lightPollution = computeLightPollutionScore(bortleClass: bortleClass)
@@ -247,14 +277,13 @@ struct StarGazingIndex {
 
         if let weather = weather,
            nightSummary.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours) {
-            let weatherPts = computeWeatherScore(weather: weather)
+            // #3: 気象スコアは暗時間帯に対応する時間帯のみで評価
+            // 根拠: weatherAwareRangeText と applyBadWeatherCap は isDark なイベントのみを
+            //       対象にしている。weatherScore も同じ母集団で評価し、一貫性を保つ。
+            let darkWeather = darkTimeSummary(nightSummary: nightSummary, weather: weather)
+            let weatherPts = darkWeather.map { computeWeatherScore(weather: $0) } ?? computeWeatherScore(weather: weather)
             // 合計: 星座(0-30) + 気象(0-40) + 光害(0-30) = 0-100
             let rawTotal = min(100, constellation + weatherPts + lightPollution)
-            // 天文薄明（isDark）の時間帯のみを対象に観測不可割合を計算してキャップを設定
-            // 根拠: weatherAwareRangeText は isDark なイベントのみを評価する。
-            //       全13時間（18:00-06:59）を使うと夕方や明け方の悪天候が
-            //       暗い時間帯の評価を歪め「観測可能時間あり＆観測困難」の矛盾が生じる。
-            //       isDark な時間帯に対応する天候のみを評価することで整合性を保つ。
             let cappedTotal = applyBadWeatherCap(
                 to: rawTotal,
                 nonWeatherBase: constellation + lightPollution,
@@ -262,9 +291,11 @@ struct StarGazingIndex {
                 nightSummary: nightSummary,
                 weather: weather
             )
+            // #2: 月明かりキャップ
+            let moonCapped = applyMoonCap(to: cappedTotal, nightSummary: nightSummary)
 
             return makeIndex(
-                score: cappedTotal,
+                score: moonCapped,
                 milkyWayScore: mw,
                 constellationScore: constellation,
                 weatherScore: weatherPts,
@@ -277,8 +308,13 @@ struct StarGazingIndex {
             let maxBase = hasLP ? 60 : 30
             let base = constellation + lightPollution
             let scaled = min(100, Int(Double(base) / Double(maxBase) * 100.0))
+            // #4: 信頼度キャップ — データ欠損時に過大評価を防止
+            let confidenceCap = hasLP ? Constants.noWeatherCap : Constants.noWeatherNoLPCap
+            let capped = min(scaled, confidenceCap)
+            // #2: 月明かりキャップ
+            let moonCapped = applyMoonCap(to: capped, nightSummary: nightSummary)
             return makeIndex(
-                score: scaled,
+                score: moonCapped,
                 milkyWayScore: mw,
                 constellationScore: constellation,
                 weatherScore: 0,
@@ -609,12 +645,41 @@ struct StarGazingIndex {
             || hour.weatherCode >= 45
     }
 
+    // MARK: - Moon Cap
+
+    /// #2: 月明かりキャップ — 強い月明かりが暗時間の大半で上空にある場合、不向き以下に制限
+    /// 根拠: illumination ≥ 0.30（上弦以降）で空輝度が自然夜空の30〜50倍に達し、
+    ///       星野・DSO・星景撮影は実質不可能。passesMoonFilter と同じ閾値を使用。
+    private static func applyMoonCap(to score: Int, nightSummary: NightSummary) -> Int {
+        let phase = nightSummary.moonPhaseAtMidnight
+        let illumination = (1.0 - cos(phase * 2.0 * .pi)) / 2.0
+        let moonFraction = nightSummary.moonAboveHorizonFractionDuringDark
+
+        guard illumination >= Constants.moonCapIlluminationThreshold,
+              moonFraction >= Constants.moonCapFractionThreshold else {
+            return score
+        }
+        return min(score, Constants.moonCapScore)
+    }
+
+    // MARK: - Dark Time Weather Summary
+
+    /// #3: 暗時間帯に対応する HourlyWeather のみで DayWeatherSummary を再構築
+    /// 根拠: weatherScore と applyBadWeatherCap の評価母集団を統一する。
+    private static func darkTimeSummary(
+        nightSummary: NightSummary,
+        weather: DayWeatherSummary
+    ) -> DayWeatherSummary? {
+        let darkHours = weatherHoursDuringDarkTime(nightSummary: nightSummary, weather: weather)
+        guard !darkHours.isEmpty else { return nil }
+        return DayWeatherSummary(date: weather.date, nighttimeHours: darkHours)
+    }
+
     // MARK: - Light Pollution Score (0–30)
 
     private static func computeLightPollutionScore(bortleClass: Double?) -> Int {
         guard let bortle = bortleClass else { return 0 }
-        // 日本の最暗空は Bortle 3 程度。3 以下はすべて満点 30。
-        // Bortle 9 で 0 点になるよう線形スケール（3〜9 の範囲）。
+        // Bortle 1 で満点 30、Bortle 9 で 0 点になるよう線形スケール（1〜9 の範囲）。
         // 変換元データ: Falchi et al. (2016, Science Advances) World Atlas 2015
         //
         // 線形マッピングの根拠:

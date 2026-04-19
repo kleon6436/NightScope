@@ -97,6 +97,10 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     }
 
     func observableRangeText(night: NightSummary, weather: DayWeatherSummary?) -> String {
+        // 暗時間ゼロ（白夜等）は専用テキスト
+        if night.totalDarkHours <= 0 {
+            return L10n.tr("暗い時間なし")
+        }
         if let weather,
            let text = night.weatherAwareRangeText(nighttimeHours: weather.nighttimeHours) {
             return text.isEmpty ? L10n.tr("天候不良") : text
@@ -107,6 +111,11 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     func cardAccessibilityLabel(night: NightSummary, weather: DayWeatherSummary?, index: StarGazingIndex?) -> String {
         var parts: [String] = []
         parts.append(DateFormatters.fullDateString(from: night.date, timeZone: selectedTimeZone))
+        if night.totalDarkHours <= 0 {
+            parts.append(L10n.tr("暗い時間なし"))
+            parts.append(L10n.format("月: %@", night.moonPhaseName))
+            return parts.joined(separator: "、")
+        }
         if let idx = index { parts.append(L10n.format("星空指数%d", idx.score)) }
         if hasReliableWeatherData(for: night, weather: weather), let w = weather {
             parts.append(L10n.format("天気%@", w.weatherLabel))

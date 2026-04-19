@@ -29,7 +29,8 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
         let detailVM = DetailViewModel(appController: appController)
         let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
 
-        XCTAssertEqual(vm.observableRangeText(night: .placeholder, weather: nil), "—")
+        // placeholder は events=[] → totalDarkHours=0 → "暗い時間なし"
+        XCTAssertEqual(vm.observableRangeText(night: .placeholder, weather: nil), "暗い時間なし")
     }
 
     func test_weatherIconColor_clear() {

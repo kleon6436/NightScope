@@ -6,7 +6,7 @@ private enum CloudCoverWeight {
     static let high = 0.3
 
     static func effective(low: Double, mid: Double, high: Double) -> Double {
-        low * Self.low + mid * Self.mid + high * Self.high
+        min(100, low * Self.low + mid * Self.mid + high * Self.high)
     }
 }
 

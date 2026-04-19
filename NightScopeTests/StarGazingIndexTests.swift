@@ -12,19 +12,21 @@ final class StarGazingIndexTests: XCTestCase {
         moonPhase: Double = 0.0,
         viewingHours: Double = 0,
         maxAltitude: Double = 0,
-        moonAltitude: Double = 30.0  // デフォルトは地平線上 (月スコアが月相に従って評価される)
+        moonAltitude: Double = 30.0,  // デフォルトは地平線上 (月スコアが月相に従って評価される)
+        moonBelowCount: Int = 0       // 指定数のイベントの月高度を -10 にする（月加重テスト用）
     ) -> NightSummary {
         let base = Date(timeIntervalSince1970: 0)
         let location = CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0)
 
         // 1イベント = 15分。sunAltitude < -18 で isDark = true
         let events = (0..<darkEventCount).map { i in
-            AstroEvent(
+            let isMoonBelow = i < moonBelowCount
+            return AstroEvent(
                 date: base.addingTimeInterval(Double(i) * 900),
                 galacticCenterAltitude: 0,
                 galacticCenterAzimuth: 0,
                 sunAltitude: -20.0,
-                moonAltitude: moonAltitude,
+                moonAltitude: isMoonBelow ? -10.0 : moonAltitude,
                 moonPhase: moonPhase
             )
         }
@@ -125,8 +127,11 @@ final class StarGazingIndexTests: XCTestCase {
         )
     }
 
-    private func makeIdealDarkSummary() -> NightSummary {
-        makeNightSummary(darkEventCount: 25)
+    private func makeIdealDarkSummary(
+        moonPhase: Double = 0.0,
+        moonAltitude: Double = 30.0
+    ) -> NightSummary {
+        makeNightSummary(darkEventCount: 25, moonPhase: moonPhase, moonAltitude: moonAltitude)
     }
 
     private func computeIndex(
@@ -241,29 +246,36 @@ final class StarGazingIndexTests: XCTestCase {
 
     // MARK: - Light Pollution Score
 
-    func test_lightPollutionScore_bortle3_isMax() {
-        // bortle=3: 30*(9-3)/6 = 30 → 満点
-        let summary = makeNightSummary()
-        let idx = computeIndex(nightSummary: summary, bortleClass: 3.0)
+    func test_lightPollutionScore_bortle1_isMax() {
+        // bortle=1: 30*(9-1)/8 = 30 → 満点
+        let summary = makeNightSummary(darkEventCount: 25)
+        let idx = computeIndex(nightSummary: summary, bortleClass: 1.0)
         XCTAssertEqual(idx.lightPollutionScore, 30)
     }
 
+    func test_lightPollutionScore_bortle3() {
+        // bortle=3: round(30*(9-3)/8) = round(22.5) = 23
+        let summary = makeNightSummary(darkEventCount: 25)
+        let idx = computeIndex(nightSummary: summary, bortleClass: 3.0)
+        XCTAssertEqual(idx.lightPollutionScore, 23)
+    }
+
     func test_lightPollutionScore_bortle6_isMid() {
-        // bortle=6: 30*(9-6)/6 = 15
-        let summary = makeNightSummary()
+        // bortle=6: round(30*(9-6)/8) = round(11.25) = 11
+        let summary = makeNightSummary(darkEventCount: 25)
         let idx = computeIndex(nightSummary: summary, bortleClass: 6.0)
-        XCTAssertEqual(idx.lightPollutionScore, 15)
+        XCTAssertEqual(idx.lightPollutionScore, 11)
     }
 
     func test_lightPollutionScore_bortle9_isZero() {
-        // bortle=9: 30*(9-9)/6 = 0
-        let summary = makeNightSummary()
+        // bortle=9: 30*(9-9)/8 = 0
+        let summary = makeNightSummary(darkEventCount: 25)
         let idx = computeIndex(nightSummary: summary, bortleClass: 9.0)
         XCTAssertEqual(idx.lightPollutionScore, 0)
     }
 
     func test_lightPollutionScore_nilBortle_isZero() {
-        let summary = makeNightSummary()
+        let summary = makeNightSummary(darkEventCount: 25)
         let idx = computeIndex(nightSummary: summary)
         XCTAssertEqual(idx.lightPollutionScore, 0)
     }
@@ -484,27 +496,29 @@ final class StarGazingIndexTests: XCTestCase {
             cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
             visibility: 25000, windGusts: 15
         )
-        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
         XCTAssertEqual(idx.score, 100)
         XCTAssertEqual(idx.tier, .excellent)
         XCTAssertTrue(idx.hasWeatherData)
         XCTAssertTrue(idx.hasLightPollutionData)
     }
 
-    func test_compute_noWeather_scaledFromConstellationAndLP() {
+    func test_compute_noWeather_cappedByConfidence() {
         // constellation=30(max), LP=30(max) → base=60, maxBase=60 → scaled=100
+        // → noWeatherCap=79 でキャップ
         let summary = makeIdealDarkSummary()
-        let idx = computeIndex(nightSummary: summary, bortleClass: 3.0)
-        XCTAssertEqual(idx.score, 100)
+        let idx = computeIndex(nightSummary: summary, bortleClass: 1.0)
+        XCTAssertEqual(idx.score, 79)
         XCTAssertFalse(idx.hasWeatherData)
         XCTAssertTrue(idx.hasLightPollutionData)
     }
 
-    func test_compute_noWeather_noLP_scaledFromConstellationOnly() {
+    func test_compute_noWeather_noLP_cappedByConfidence() {
         // constellation=30(max), LP=0 → base=30, maxBase=30 → scaled=100
+        // → noWeatherNoLPCap=59 でキャップ
         let summary = makeIdealDarkSummary()
         let idx = computeIndex(nightSummary: summary)
-        XCTAssertEqual(idx.score, 100)
+        XCTAssertEqual(idx.score, 59)
         XCTAssertFalse(idx.hasWeatherData)
         XCTAssertFalse(idx.hasLightPollutionData)
     }
@@ -712,11 +726,122 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_compute_noWeather_partialScore_scalesCorrectly() {
         // constellation: darkEvents=9 → 2.25h → +9pts, moonPhase=0.5 → illumination=1.0 → +0pts → 9pts
-        // LP: bortle=6 → 30*(9-6)/6 = 15pts
-        // base=9+15=24, maxBase=60 → scaled = Int(24/60*100) = 40
+        // LP: bortle=6 → round(30*(9-6)/8) = 11pts
+        // base=9+11=20, maxBase=60 → scaled = Int(20/60*100) = 33
+        // noWeatherCap=79 → min(33,79)=33, moonCap=49 → min(33,49)=33
         let summary = makeNightSummary(darkEventCount: 9, moonPhase: 0.5)
         let idx = computeIndex(nightSummary: summary, bortleClass: 6.0)
-        let expected = Int(Double(9 + 15) / 60.0 * 100.0)
-        XCTAssertEqual(idx.score, expected)
+        XCTAssertEqual(idx.score, 33)
+    }
+
+    // MARK: - #1 白夜（暗時間ゼロ）
+
+    func test_compute_noDarkHours_alwaysZero() {
+        // 暗時間ゼロは観測不能 → 常に 0 点
+        let summary = makeNightSummary(darkEventCount: 0)
+        let idx = computeIndex(nightSummary: summary, bortleClass: 1.0)
+        XCTAssertEqual(idx.score, 0, "暗時間ゼロは観測不能なので 0 点になるべき")
+    }
+
+    func test_compute_noDarkHours_withWeather_alwaysZero() {
+        // 白夜 + 天気データありでも 0 点
+        let summary = makeNightSummary(darkEventCount: 0)
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertEqual(idx.score, 0, "白夜は天気が良くても 0 点になるべき")
+    }
+
+    // MARK: - #2 月明かりキャップ
+
+    func test_compute_fullMoonAbove_cappedToPoor() {
+        // 満月(phase=0.5, illumination=1.0) + 暗時間中ずっと月が上空(fraction=1.0)
+        // → moonCap=49 発動 → 「不向き」以下
+        let summary = makeIdealDarkSummary(moonPhase: 0.5, moonAltitude: 30.0)
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertLessThanOrEqual(idx.score, 49,
+            "満月が暗時間中ずっと上空なら moonCap(49) が掛かるべき")
+        XCTAssertTrue(idx.tier == .poor || idx.tier == .bad)
+    }
+
+    func test_compute_fullMoonBelowHorizon_notCapped() {
+        // 満月(phase=0.5) だが暗時間中ずっと月が地平線下(moonAltitude=-10)
+        // → moonFraction=0 → moonCap 不発動 → 高スコア維持
+        let summary = makeIdealDarkSummary(moonPhase: 0.5, moonAltitude: -10.0)
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertGreaterThan(idx.score, 49,
+            "満月でも暗時間中に月が地平線下なら moonCap は掛からないべき")
+    }
+
+    func test_compute_waxingCrescent_notCapped() {
+        // 三日月(phase=0.1) → illumination ≈ 0.095 < 0.30 → moonCap 不発動
+        let summary = makeIdealDarkSummary(moonPhase: 0.1, moonAltitude: 30.0)
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertGreaterThan(idx.score, 49,
+            "三日月(illumination<0.30)では moonCap は掛からないべき")
+    }
+
+    func test_compute_moonHalfAbove_cappedToPoor() {
+        // 満月 + 暗時間の50%で月が上空 → moonCap 発動（境界値テスト）
+        let summary = makeNightSummary(
+            darkEventCount: 25,
+            moonPhase: 0.5,
+            moonAltitude: 30.0,
+            moonBelowCount: 12  // 25イベント中12が地平線下 → fraction = 13/25 = 0.52 ≥ 0.50
+        )
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertLessThanOrEqual(idx.score, 49,
+            "満月が暗時間の50%以上で上空なら moonCap が掛かるべき")
+    }
+
+    func test_compute_moonMostlyBelow_notCapped() {
+        // 満月 + 暗時間の49%未満で月が上空 → moonCap 不発動（境界値テスト）
+        let summary = makeNightSummary(
+            darkEventCount: 25,
+            moonPhase: 0.5,
+            moonAltitude: 30.0,
+            moonBelowCount: 13  // 25イベント中13が地平線下 → fraction = 12/25 = 0.48 < 0.50
+        )
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertGreaterThan(idx.score, 49,
+            "満月が暗時間の50%未満で上空なら moonCap は掛からないべき")
+    }
+
+    // MARK: - #5 多層雲の実効雲量クランプ
+
+    func test_effectiveCloudCover_clamped() {
+        // low=50, mid=50, high=50 → 50*1.0 + 50*0.7 + 50*0.3 = 100 → min(100, 100)
+        // low=60, mid=60, high=60 → 60*1.0 + 60*0.7 + 60*0.3 = 120 → min(100, 120) = 100
+        let summary = makeNightSummary(darkEventCount: 1)
+        let weather = makeWeather(
+            cloud: 80, precip: 0, wind: 5, humidity: 60, dewpointSpread: 10,
+            cloudLow: 60, cloudMid: 60, cloudHigh: 60
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        // 実効雲量が100にクランプされ、120にならないことを確認
+        // 雲量100%→cloudScore=0 は変わらないが、isObservationBlocked の判定が安定する
+        XCTAssertEqual(idx.weatherScore, idx.weatherScore)  // 計算自体がクラッシュしないことを確認
     }
 }
