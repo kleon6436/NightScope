@@ -82,18 +82,18 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             result(Self.transparentTileData(), nil)
             return
         }
-        nonisolated(unsafe) let tileService = self.tileService
-        nonisolated(unsafe) let resultHandler = result
-        Self.renderQueue.addOperation {
+        let tileService = self.tileService
+        Self.renderQueue.addOperation { [tileService] in
             let data = Self.renderTile(path: path, grid: grid, size: OverlayConfig.tilePixelSize)
             let tileData = data ?? Self.transparentTileData()
             tileService.storeTileData(tileData, for: path)
-            resultHandler(tileData, nil)
+            result(tileData, nil)
         }
     }
 
     override func url(forTilePath path: MKTileOverlayPath) -> URL {
-        URL(string: "about:blank")!
+        // MKTileOverlay の必須オーバーライド。ローカルレンダリング専用のため実 URL は不要。
+        URL(string: "about:blank") ?? URL(filePath: "/dev/null")
     }
 
     private func configureOverlay() {

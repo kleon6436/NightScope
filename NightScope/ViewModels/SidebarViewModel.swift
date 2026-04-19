@@ -339,6 +339,7 @@ final class SidebarViewModel: ObservableObject {
         locationController.selectCoordinate(
             CLLocationCoordinate2D(latitude: favorite.latitude, longitude: favorite.longitude)
         )
+        locationController.currentLocationCenterTrigger += 1
     }
 
     // MARK: - Sidebar Layout

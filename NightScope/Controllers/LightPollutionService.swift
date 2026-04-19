@@ -219,12 +219,13 @@ private extension Double {
 // MARK: - Tile Service
 
 /// 光害タイルの PNG データをメモリキャッシュで管理するサービス層。
-final class LightPollutionTileService {
+/// NSCache はスレッドセーフなため @unchecked Sendable 準拠が安全に行える。
+final class LightPollutionTileService: @unchecked Sendable {
     private enum TileConfig {
         static let memoryCacheCostLimit = 50 * 1024 * 1024
     }
 
-    nonisolated(unsafe) static let shared = LightPollutionTileService()
+    static let shared = LightPollutionTileService()
 
     private let memoryCache: NSCache<NSString, NSData> = {
         let cache = NSCache<NSString, NSData>()

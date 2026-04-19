@@ -35,6 +35,8 @@ final class WeatherService: ObservableObject, WeatherProviding {
     private let urlSession: URLSession
     private let requestFactory: MetNorwayRequestFactory
     private let forecastParser: MetNorwayForecastParser
+    // キャッシュとして保持する最大場所数
+    private let maxCachedLocations = 10
     private var lastModifiedDatesByLocation: [String: Date] = [:]
     private var weatherByDateByLocation: [String: [String: DayWeatherSummary]] = [:]
     private var activeLocationKey: String?
@@ -87,7 +89,18 @@ final class WeatherService: ObservableObject, WeatherProviding {
         if let lastModifiedDate = result.lastModifiedDate {
             lastModifiedDatesByLocation[result.locationKey] = lastModifiedDate
         }
+        // キャッシュ上限を超えた場合、アクティブ以外の古いエントリを削除する
+        evictCacheIfNeeded()
         isLoading = false
+    }
+
+    private func evictCacheIfNeeded() {
+        guard weatherByDateByLocation.count > maxCachedLocations else { return }
+        let keysToEvict = weatherByDateByLocation.keys.filter { $0 != activeLocationKey }
+        for key in keysToEvict.prefix(weatherByDateByLocation.count - maxCachedLocations) {
+            weatherByDateByLocation.removeValue(forKey: key)
+            lastModifiedDatesByLocation.removeValue(forKey: key)
+        }
     }
 
     func summary(for date: Date) -> DayWeatherSummary? {
