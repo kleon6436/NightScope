@@ -9,7 +9,11 @@ struct StarGazingIndex {
         /// Bortle スケールの最悪クラス（都市中心部）
         static let bortleWorstClass: Double = 9.0
         /// このクラス以下は満点
-        static let bortleBestClass: Double = 1.0
+        /// 根拠: 日本国内では Bortle 1（人工光ゼロ）の地点はほぼ存在せず、
+        ///       離島・高山でも Bortle 2–3 が実質的な最良条件。
+        ///       Bortle 3 以下を満点とすることで、日本の観測地点で
+        ///       到達可能な最良条件を正しく 30 点に対応させる。
+        static let bortleBestClass: Double = 3.0
 
         /// 暗時間帯の観測不可割合しきい値
         /// - badCap: 全暗時間が観測不可（雨・高雲量等）→ 「観測困難」キャップ
@@ -33,22 +37,47 @@ struct StarGazingIndex {
         ///   「不向き」と判断することで、高スコアが不当に低評価になる逆転を防ぐ。
         static let weatherScoreForPoorCap = 20
 
-        /// 月明かりキャップ
-        /// - 条件: illumination ≥ 0.30（上弦以降）かつ月が暗時間の50%以上で地平線上
-        /// - 根拠: passesMoonFilter と同じ illumination ≥ 0.30 を使用。
-        ///   月が暗時間の半分以上で上空にある場合、空全体の輝度が自然夜空の30〜50倍に
-        ///   なり、星野・DSO・星景撮影は実質不可能。「不向き」以下が妥当。
-        static let moonCapScore = 49
-        static let moonCapIlluminationThreshold = 0.30
-        static let moonCapFractionThreshold = 0.50
+        /// 月明かりキャップ（2段階）
+        /// - Hard cap: 十三夜〜満月が暗時間の大半で上空 → Poor 上限
+        /// - Soft cap: 上弦付近が暗時間の大半で上空 → Fair 中位上限
+        static let moonCapHardScore = 49
+        static let moonCapSoftScore = 64
+
+        /// Hard cap: ほぼ満月（illumination >= 0.60）で月が暗時間の50%以上
+        /// 根拠: illumination 0.60 以上は十三夜～満月で空輝度が自然夜空の50倍以上。
+        ///       暗時間の半分以上で上空にあれば、有効な観測時間の大半が影響を受ける。
+        ///       旧 0.40 から 0.50 に緩和し、月が上空にない時間帯が半分以上ある場合は
+        ///       その時間帯での観測機会を評価に反映する。
+        static let moonCapHardIlluminationThreshold = 0.60
+        static let moonCapHardFractionThreshold = 0.50
+
+        /// Soft cap: 上弦以降（illumination >= 0.30）で月が暗時間の65%以上
+        /// 根拠: illumination 0.30 は上弦付近。空輝度影響は満月級ではないが、
+        ///       暗時間の65%以上で上空だと明るい星座・惑星中心の観測に制限される。
+        ///       Fair 中位（64）に制限し、深空は不向きだが一般観測は可能と表現する。
+        ///       旧 0.60 から 0.65 に緩和し、月が沈む時間帯が35%以上あれば
+        ///       キャップを掛けず実スコアを反映する。
+        static let moonCapSoftIlluminationThreshold = 0.30
+        static let moonCapSoftFractionThreshold = 0.65
+
+        /// 光害キャップ — 高 Bortle クラスでのスコア上限
+        /// 根拠: Bortle スケール 7 以上の地域では、肉眼で天の川は不可視、
+        ///       限界等級は 4.5 等以下に制限される。天候が完璧でも観測条件の
+        ///       本質的な限界があるため、スコアの上限を設ける。
+        /// - Bortle >= 9: 都市中心部。主要星座の明るい星のみ可視。上限 Poor（49）
+        /// - Bortle >= 7: 郊外〜都市近郊。1等星と主要星座は可視だが星野は困難。上限 Fair 上位（74）
+        static let bortleCapThresholds: [(minBortle: Double, maxScore: Int)] = [
+            (9.0, 49),
+            (7.0, 74)
+        ]
 
         /// 気象データなし時の信頼度キャップ
         /// - 根拠: 天候は観測可否を最も大きく左右する要素（40/100点）。
         ///   データ未取得状態で高得点を表示するとユーザーの判断を誤らせる。
-        /// - noWeatherCap: 気象なし → Good 上限（天候不明で Excellent は不適切）
-        /// - noWeatherNoLPCap: 気象+光害なし → Fair 上限（大部分のデータが欠損）
-        static let noWeatherCap = 79
-        static let noWeatherNoLPCap = 59
+        /// - noWeatherCap: 気象なし → Fair 上限（天候不明で Good 以上は不適切）
+        /// - noWeatherNoLPCap: 気象+光害なし → Fair 下位上限（大部分のデータが欠損）
+        static let noWeatherCap = 74
+        static let noWeatherNoLPCap = 54
 
         /// 観測可能時間スコア閾値（条件: `hours > threshold`）
         /// - 根拠: 観測時間が長いほど対象天体の追尾・再構図・雲待ちが可能になる。
@@ -86,20 +115,23 @@ struct StarGazingIndex {
             (5, 1)
         ]
 
-        /// 暗時間スコア閾値（条件: `darkHours > threshold`）
+        /// 暗時間スコア閾値（条件: `darkHours >= threshold`）
         /// - 根拠: 天文薄明中の暗時間は観測可能性そのものを規定する。
         /// - しきい値ごとの意図:
-        ///   - `>6h`: 冬季等の長い暗夜（20点）
-        ///   - `>4h`: 十分な暗時間（15点）
-        ///   - `>2h`: 限定的だが有効な暗時間（9点）
-        ///   - `<=2h`: 実用性が低いため既定1点（呼び出し側で指定）
+        ///   - `>=6h`: 冬季等の長い暗夜（20点）
+        ///   - `>=4h`: 十分な暗時間（15点）
+        ///   - `>=2h`: 限定的だが有効な暗時間（9点）
+        ///   - `>=1h`: 1対象中心の短時間観測（5点）
+        ///   - `<1h`: 実用性が低いため既定1点（呼び出し側で指定）
         static let darkHoursThresholds: [(Double, Int)] = [
-            // >6h: ほぼフルセッション可能
+            // >=6h: ほぼフルセッション可能
             (6, 20),
-            // >4h: 観測計画を立てやすい
+            // >=4h: 観測計画を立てやすい
             (4, 15),
-            // >2h: 短時間計画向け
-            (2, 9)
+            // >=2h: 短時間計画向け
+            (2, 9),
+            // >=1h: 限定的だが1対象は狙える
+            (1, 5)
         ]
 
         /// 月照度スコア閾値（条件: `illumination < threshold`）
@@ -293,9 +325,10 @@ struct StarGazingIndex {
             )
             // #2: 月明かりキャップ
             let moonCapped = applyMoonCap(to: cappedTotal, nightSummary: nightSummary)
+            let bortleCapped = applyBortleCap(to: moonCapped, bortleClass: bortleClass)
 
             return makeIndex(
-                score: moonCapped,
+                score: bortleCapped,
                 milkyWayScore: mw,
                 constellationScore: constellation,
                 weatherScore: weatherPts,
@@ -313,8 +346,9 @@ struct StarGazingIndex {
             let capped = min(scaled, confidenceCap)
             // #2: 月明かりキャップ
             let moonCapped = applyMoonCap(to: capped, nightSummary: nightSummary)
+            let bortleCapped = applyBortleCap(to: moonCapped, bortleClass: bortleClass)
             return makeIndex(
-                score: moonCapped,
+                score: bortleCapped,
                 milkyWayScore: mw,
                 constellationScore: constellation,
                 weatherScore: 0,
@@ -370,10 +404,10 @@ struct StarGazingIndex {
         let darkHours = nightSummary.totalDarkHours
         guard darkHours > 0 else { return 0 }
 
-        score += scoreByGreaterThan(
+        score += scoreByGreaterOrEqual(
             darkHours,
             thresholds: Constants.darkHoursThresholds,
-            defaultScore: 1 // 0–2時間: 観測時間が極端に短く実用性が低い
+            defaultScore: 1 // 1時間未満: 観測時間が極端に短く実用性が低い
         )
 
         // 月の照明度 (0–10 pts) × 月が地平線上にある割合
@@ -645,21 +679,42 @@ struct StarGazingIndex {
             || hour.weatherCode >= 45
     }
 
+    // MARK: - Light Pollution Cap
+
+    /// 光害キャップ — Bortle クラスが高い地域ではスコアの上限を制限
+    /// 根拠: 光害は天候と異なり回避不能な制約。高 Bortle 地域で好天だからと
+    ///       高スコアを付けると、ユーザーの観測計画を誤らせる。
+    private static func applyBortleCap(to score: Int, bortleClass: Double?) -> Int {
+        guard let bortle = bortleClass else { return score }
+        for cap in Constants.bortleCapThresholds where bortle >= cap.minBortle {
+            return min(score, cap.maxScore)
+        }
+        return score
+    }
+
     // MARK: - Moon Cap
 
-    /// #2: 月明かりキャップ — 強い月明かりが暗時間の大半で上空にある場合、不向き以下に制限
-    /// 根拠: illumination ≥ 0.30（上弦以降）で空輝度が自然夜空の30〜50倍に達し、
-    ///       星野・DSO・星景撮影は実質不可能。passesMoonFilter と同じ閾値を使用。
+    /// #2: 月明かりキャップ（2段階）— 強い月明かりが暗時間の一定割合以上で上空にある場合にスコアを制限
+    /// - Hard cap(49): illumination ≥ 0.60（十三夜〜満月）かつ暗時間の50%以上 → Poor 上限
+    /// - Soft cap(64): illumination ≥ 0.30（上弦以降）かつ暗時間の65%以上 → Fair 中位上限
+    /// 根拠: 月輝度と滞在時間の組み合わせで段階的に評価。Hard を先に判定する前提。
+    ///       Soft cap を Fair 中位に留めることで、深空は不向きだが一般観測は可能と表現する。
     private static func applyMoonCap(to score: Int, nightSummary: NightSummary) -> Int {
         let phase = nightSummary.moonPhaseAtMidnight
         let illumination = (1.0 - cos(phase * 2.0 * .pi)) / 2.0
         let moonFraction = nightSummary.moonAboveHorizonFractionDuringDark
 
-        guard illumination >= Constants.moonCapIlluminationThreshold,
-              moonFraction >= Constants.moonCapFractionThreshold else {
-            return score
+        // Hard cap: ほぼ満月 + 暗時間の50%以上
+        if illumination >= Constants.moonCapHardIlluminationThreshold,
+           moonFraction >= Constants.moonCapHardFractionThreshold {
+            return min(score, Constants.moonCapHardScore)
         }
-        return min(score, Constants.moonCapScore)
+        // Soft cap: 上弦以降 + 暗時間の60%以上
+        if illumination >= Constants.moonCapSoftIlluminationThreshold,
+           moonFraction >= Constants.moonCapSoftFractionThreshold {
+            return min(score, Constants.moonCapSoftScore)
+        }
+        return score
     }
 
     // MARK: - Dark Time Weather Summary
@@ -679,14 +734,15 @@ struct StarGazingIndex {
 
     private static func computeLightPollutionScore(bortleClass: Double?) -> Int {
         guard let bortle = bortleClass else { return 0 }
-        // Bortle 1 で満点 30、Bortle 9 で 0 点になるよう線形スケール（1〜9 の範囲）。
+        // Bortle 3 以下で満点 30、Bortle 9 で 0 点になるよう線形スケール（3〜9 の範囲）。
         // 変換元データ: Falchi et al. (2016, Science Advances) World Atlas 2015
         //
-        // 線形マッピングの根拠:
-        //   Bortle スケールは各クラス間が約3倍の輝度差（対数スケール）で定義されている。
-        //   したがって Bortle → スコアの線形変換は、実際の輝度に対して対数スケールの
-        //   変換と等価であり、等しい輝度倍率の変化を等しいスコア変化として扱う。
-        //   限界等級も Bortle にほぼ線形に対応するため、実用上の評価としても適切。
+        // 日本向け調整の根拠:
+        //   日本国内では Bortle 1（人工光ゼロ）の地点はほぼ存在せず、
+        //   離島・高山でも Bortle 2〜3 が実質的な最良条件となる。
+        //   Bortle 3 以下を満点とすることで、日本の観測地点における
+        //   到達可能な最良条件を正しく 30 点に対応させる。
+        // 新スコア: B1-3→30, B4→25, B5→20, B6→15, B7→10, B8→5, B9→0
         let range = Constants.bortleWorstClass - Constants.bortleBestClass
         return max(0, min(Constants.lightPollutionMaxScore,
                           Int(round(Double(Constants.lightPollutionMaxScore) * (Constants.bortleWorstClass - bortle) / range))))

@@ -247,28 +247,28 @@ final class StarGazingIndexTests: XCTestCase {
     // MARK: - Light Pollution Score
 
     func test_lightPollutionScore_bortle1_isMax() {
-        // bortle=1: 30*(9-1)/8 = 30 → 満点
+        // bortle=1: round(30*(9-1)/6) = 40 → 30にクランプ（満点）
         let summary = makeNightSummary(darkEventCount: 25)
         let idx = computeIndex(nightSummary: summary, bortleClass: 1.0)
         XCTAssertEqual(idx.lightPollutionScore, 30)
     }
 
     func test_lightPollutionScore_bortle3() {
-        // bortle=3: round(30*(9-3)/8) = round(22.5) = 23
+        // bortle=3: 日本の実質最良条件 → 満点(30)
         let summary = makeNightSummary(darkEventCount: 25)
         let idx = computeIndex(nightSummary: summary, bortleClass: 3.0)
-        XCTAssertEqual(idx.lightPollutionScore, 23)
+        XCTAssertEqual(idx.lightPollutionScore, 30)
     }
 
     func test_lightPollutionScore_bortle6_isMid() {
-        // bortle=6: round(30*(9-6)/8) = round(11.25) = 11
+        // bortle=6: round(30*(9-6)/6) = round(15) = 15
         let summary = makeNightSummary(darkEventCount: 25)
         let idx = computeIndex(nightSummary: summary, bortleClass: 6.0)
-        XCTAssertEqual(idx.lightPollutionScore, 11)
+        XCTAssertEqual(idx.lightPollutionScore, 15)
     }
 
     func test_lightPollutionScore_bortle9_isZero() {
-        // bortle=9: 30*(9-9)/8 = 0
+        // bortle=9: round(30*(9-9)/6) = 0
         let summary = makeNightSummary(darkEventCount: 25)
         let idx = computeIndex(nightSummary: summary, bortleClass: 9.0)
         XCTAssertEqual(idx.lightPollutionScore, 0)
@@ -283,7 +283,7 @@ final class StarGazingIndexTests: XCTestCase {
     // MARK: - Constellation Score (暗時間 × 月照度)
 
     func test_constellationScore_maxDarkHours_newMoon() {
-        // darkEvents=25 → 6.25h > 6h → +20pts
+        // darkEvents=25 → 6.25h >= 6h → +20pts
         // phase=0 (新月) → illumination=0 < 0.05 → +10pts
         // total = 30 (上限)
         let summary = makeIdealDarkSummary()
@@ -300,7 +300,7 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_constellationScore_moderateDark_newMoon() {
-        // darkEvents=9 → 2.25h > 2h → +9pts
+        // darkEvents=9 → 2.25h >= 2h → +9pts
         // phase=0 → illumination=0 < 0.05 → +10pts → total=19
         let summary = makeNightSummary(darkEventCount: 9)
         let idx = computeIndex(nightSummary: summary)
@@ -505,20 +505,20 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_compute_noWeather_cappedByConfidence() {
         // constellation=30(max), LP=30(max) → base=60, maxBase=60 → scaled=100
-        // → noWeatherCap=79 でキャップ
+        // → noWeatherCap=74 でキャップ
         let summary = makeIdealDarkSummary()
         let idx = computeIndex(nightSummary: summary, bortleClass: 1.0)
-        XCTAssertEqual(idx.score, 79)
+        XCTAssertEqual(idx.score, 74)
         XCTAssertFalse(idx.hasWeatherData)
         XCTAssertTrue(idx.hasLightPollutionData)
     }
 
     func test_compute_noWeather_noLP_cappedByConfidence() {
         // constellation=30(max), LP=0 → base=30, maxBase=30 → scaled=100
-        // → noWeatherNoLPCap=59 でキャップ
+        // → noWeatherNoLPCap=54 でキャップ
         let summary = makeIdealDarkSummary()
         let idx = computeIndex(nightSummary: summary)
-        XCTAssertEqual(idx.score, 59)
+        XCTAssertEqual(idx.score, 54)
         XCTAssertFalse(idx.hasWeatherData)
         XCTAssertFalse(idx.hasLightPollutionData)
     }
@@ -726,12 +726,12 @@ final class StarGazingIndexTests: XCTestCase {
 
     func test_compute_noWeather_partialScore_scalesCorrectly() {
         // constellation: darkEvents=9 → 2.25h → +9pts, moonPhase=0.5 → illumination=1.0 → +0pts → 9pts
-        // LP: bortle=6 → round(30*(9-6)/8) = 11pts
-        // base=9+11=20, maxBase=60 → scaled = Int(20/60*100) = 33
-        // noWeatherCap=79 → min(33,79)=33, moonCap=49 → min(33,49)=33
+        // LP: bortle=6 → round(30*(9-6)/6) = 15pts
+        // base=9+15=24, maxBase=60 → scaled = Int(24/60*100) = 40
+        // noWeatherCap=74 → min(40,74)=40, moonCap Hard(49) → min(40,49)=40
         let summary = makeNightSummary(darkEventCount: 9, moonPhase: 0.5)
         let idx = computeIndex(nightSummary: summary, bortleClass: 6.0)
-        XCTAssertEqual(idx.score, 33)
+        XCTAssertEqual(idx.score, 40)
     }
 
     // MARK: - #1 白夜（暗時間ゼロ）
@@ -796,7 +796,7 @@ final class StarGazingIndexTests: XCTestCase {
     }
 
     func test_compute_moonHalfAbove_cappedToPoor() {
-        // 満月 + 暗時間の50%で月が上空 → moonCap 発動（境界値テスト）
+        // 満月 + 暗時間の52%で月が上空 → Hard cap 発動（illumination=1.0≥0.60, fraction=0.52≥0.50）
         let summary = makeNightSummary(
             darkEventCount: 25,
             moonPhase: 0.5,
@@ -809,16 +809,16 @@ final class StarGazingIndexTests: XCTestCase {
         )
         let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
         XCTAssertLessThanOrEqual(idx.score, 49,
-            "満月が暗時間の50%以上で上空なら moonCap が掛かるべき")
+            "満月(illumination≥0.60)が暗時間の50%以上で上空なら Hard cap が掛かるべき")
     }
 
     func test_compute_moonMostlyBelow_notCapped() {
-        // 満月 + 暗時間の49%未満で月が上空 → moonCap 不発動（境界値テスト）
+        // 満月 + 暗時間の36%で月が上空 → Hard cap 不発動（fraction < 0.50 境界値テスト）
         let summary = makeNightSummary(
             darkEventCount: 25,
             moonPhase: 0.5,
             moonAltitude: 30.0,
-            moonBelowCount: 13  // 25イベント中13が地平線下 → fraction = 12/25 = 0.48 < 0.50
+            moonBelowCount: 16  // 25イベント中16が地平線下 → fraction = 9/25 = 0.36 < 0.50
         )
         let weather = makeWeather(
             cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
@@ -826,7 +826,145 @@ final class StarGazingIndexTests: XCTestCase {
         )
         let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
         XCTAssertGreaterThan(idx.score, 49,
-            "満月が暗時間の50%未満で上空なら moonCap は掛からないべき")
+            "満月が暗時間の50%未満で上空なら Hard cap は掛からないべき")
+    }
+
+    // MARK: - #6 光害キャップ
+
+    func test_compute_bortle9_clearSky_cappedTo49() {
+        // Bortle 9 + 快晴の最良条件 → 光害キャップ(49)で制限される
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 9.0)
+        XCTAssertLessThanOrEqual(idx.score, 49,
+            "Bortle 9 では快晴でもスコア上限 49(Poor)に制限されるべき")
+    }
+
+    func test_compute_bortle7_clearSky_cappedTo74() {
+        // Bortle 7 + 快晴の最良条件 → 光害キャップ(74)で制限される
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 7.0)
+        XCTAssertLessThanOrEqual(idx.score, 74,
+            "Bortle 7 では快晴でもスコア上限74(Fair上位)に制限されるべき")
+    }
+
+    func test_compute_bortle6_clearSky_notCapped() {
+        // Bortle 6 → 光害キャップ対象外 → 高スコア維持
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 6.0)
+        XCTAssertGreaterThan(idx.score, 74,
+            "Bortle 6 では光害キャップが掛からず高スコアになるべき")
+    }
+
+    func test_compute_bortle9_noWeather_cappedTo49() {
+        // Bortle 9 + 気象データなし → noWeatherCap(74) と bortleCap(49) の両方が適用
+        // bortleCap の方が厳しいので 49 で制限
+        let summary = makeIdealDarkSummary()
+        let idx = computeIndex(nightSummary: summary, bortleClass: 9.0)
+        XCTAssertLessThanOrEqual(idx.score, 49,
+            "Bortle 9 は気象データなしでも bortleCap(49)で制限されるべき")
+    }
+
+    func test_compute_bortle7_badWeather_notAffectedByBortleCap() {
+        // Bortle 7 + 悪天候 → 天候キャップ(34)の方が厳しいので bortleCap(74)は影響しない
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(cloud: 80, precip: 1.0, wind: 10, humidity: 80, dewpointSpread: 5)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 7.0)
+        XCTAssertLessThanOrEqual(idx.score, 34,
+            "悪天候キャップ(34)は bortleCap(74)より厳しいため、悪天候のスコアに影響なし")
+    }
+
+    // MARK: - #7 月キャップ Soft cap 境界
+
+    func test_compute_softCap_justBelow_notCapped() {
+        // 上弦(illumination≈0.30) + fraction=0.56 → Soft cap 不発動（fraction < 0.65）
+        // phase=0.167 → illumination = (1-cos(0.334π))/2 ≈ 0.25 < 0.30 → Soft cap 不発動
+        // phase=0.196 → illumination ≈ 0.30 に近い値
+        // 正確に illumination=0.30 を生むには phase≈0.196
+        // ここでは fraction が 0.60 未満であることで不発動を確認
+        let summary = makeNightSummary(
+            darkEventCount: 25,
+            moonPhase: 0.196,  // illumination ≈ 0.30
+            moonAltitude: 30.0,
+            moonBelowCount: 11  // fraction = 14/25 = 0.56 < 0.65
+        )
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertGreaterThan(idx.score, 64,
+            "上弦付近(illumination≈0.30)で暗時間の56%なら Soft cap(fraction≥0.65)は掛からないべき")
+    }
+
+    func test_compute_softCap_fires_cappedTo64() {
+        // 上弦(phase=0.25, illumination≈0.50) + fraction=0.72 → Soft cap 発動（64上限）
+        // illumination = (1-cos(0.5π))/2 = 0.50 ≥ 0.30 → Soft cap 条件成立
+        // Hard cap: 0.50 < 0.60 → 不発動
+        let summary = makeNightSummary(
+            darkEventCount: 25,
+            moonPhase: 0.25,  // illumination = 0.50
+            moonAltitude: 30.0,
+            moonBelowCount: 7  // fraction = 18/25 = 0.72 ≥ 0.65
+        )
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 1.0)
+        XCTAssertLessThanOrEqual(idx.score, 64,
+            "上弦(illumination=0.50)で暗時間の72%上空なら Soft cap(64)が掛かるべき")
+        XCTAssertGreaterThanOrEqual(idx.score, 50,
+            "Soft cap 発動時も Fair 帯（50以上）に留まるべき")
+    }
+
+    // MARK: - #8 光害キャップ境界
+
+    func test_compute_bortle6_9_notCapped() {
+        // Bortle 6.9 → キャップ対象外（7.0未満）
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(
+            cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20,
+            visibility: 25000, windGusts: 15
+        )
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 6.9)
+        XCTAssertGreaterThan(idx.score, 74,
+            "Bortle 6.9(< 7.0)は光害キャップ対象外で高スコアになるべき")
+    }
+
+    // MARK: - #9 暗時間段差 境界
+
+    func test_constellationScore_darkHours1h_exact_getsScore() {
+        // darkEvents=4 → 1.0h（ちょうど1h）→ >=1h なので 5pt
+        let summary = makeNightSummary(darkEventCount: 4)
+        let idx = computeIndex(nightSummary: summary)
+        // darkHours=1.0: thresholds は >=1 なので 1.0 は該当する → 5pt
+        // moonScore: phase=0 → illumination=0 < 0.05 → 10pt
+        // total = 5 + 10 = 15
+        XCTAssertEqual(idx.constellationScore, 15,
+            "暗時間ちょうど1.0hは >=1h に該当し 5pt + moonScore=10 = 15 になるべき")
+    }
+
+    func test_constellationScore_darkHoursJustOver1h_is5() {
+        // darkEvents=5 → 1.25h > 1h → 5pt
+        let summary = makeNightSummary(darkEventCount: 5)
+        let idx = computeIndex(nightSummary: summary)
+        // darkHours=1.25: >1h → 5pt
+        // moonScore: phase=0 → illumination=0 < 0.05 → 10pt
+        // total = 5 + 10 = 15
+        XCTAssertEqual(idx.constellationScore, 15,
+            "暗時間1.25h(>1h)は darkHoursScore=5 + moonScore=10 = 15 になるべき")
     }
 
     // MARK: - #5 多層雲の実効雲量クランプ
