@@ -394,7 +394,7 @@ enum MilkyWayCalculator {
         from startDate: Date,
         location: CLLocationCoordinate2D,
         timeZone: TimeZone,
-        days: Int = 7
+        days: Int = 9
     ) -> [NightSummary] {
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let observationStartDate = calendar.startOfDay(for: startDate)

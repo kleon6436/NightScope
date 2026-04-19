@@ -44,7 +44,7 @@ final class NightCalculationService: NightCalculating, Sendable {
         from date: Date,
         location: CLLocationCoordinate2D,
         timeZone: TimeZone,
-        days: Int = 7
+        days: Int = 9
     ) async -> [NightSummary] {
         await withTaskGroup(of: [NightSummary].self) { group in
             group.addTask(priority: .background) { [summaryCalculator] in

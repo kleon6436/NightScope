@@ -232,7 +232,7 @@ final class AppController: ObservableObject {
         }
     }
 
-    /// 選択中の観測地に対する今後 7 日分の集計を再計算します。
+    /// 選択中の観測地に対する今後 9 日分の集計を再計算します。
     func recalculateUpcoming(referenceDate: Date = Date()) {
         upcomingTask?.cancel()
         isUpcomingLoading = true
@@ -243,7 +243,7 @@ final class AppController: ObservableObject {
                 from: today,
                 location: context.coordinate,
                 timeZone: context.timeZone,
-                days: 7
+                days: 9
             )
             guard !Task.isCancelled else { return }
             performObservationStateBatchUpdate {

@@ -45,7 +45,7 @@ enum Layout {
     static let mapSeparatorLineWidth: CGFloat = 0.5
     /// サイドバー補助ラベルの固定幅
     static let sidebarStatusWidth: CGFloat = 64
-    /// 今後7日間グリッドカードの高さ
+    /// 今後9日間グリッドカードの高さ
     static let upcomingCardHeight: CGFloat = 170
     /// グリッドのアイコン列幅
     static let gridIconWidth: CGFloat = 14

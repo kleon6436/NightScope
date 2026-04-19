@@ -182,35 +182,35 @@
         }
       }
     },
-    "7日予報" : {
+    "9日予報" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "7-Day Forecast"
+            "value" : "9-Day Forecast"
           }
         }
       }
     },
-    "7日予報を更新中" : {
+    "9日予報を更新中" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Updating 7-day forecast"
+            "value" : "Updating 9-day forecast"
           }
         }
       }
     },
-    "7日間の予報データを計算できませんでした" : {
+    "9日間の予報データを計算できませんでした" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Could not calculate the 7-day forecast."
+            "value" : "Could not calculate the 9-day forecast."
           }
         }
       }
@@ -2955,46 +2955,46 @@
         }
       }
     },
-    "今後7日間の予報" : {
+    "今後9日間の予報" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "7-Day Forecast"
+            "value" : "9-Day Forecast"
           }
         }
       }
     },
-    "今後7日間の予報を更新中" : {
+    "今後9日間の予報を更新中" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Updating the 7-day forecast"
+            "value" : "Updating the 9-day forecast"
           }
         }
       }
     },
-    "今後7日間の夜間予報を表示できませんでした" : {
+    "今後9日間の夜間予報を表示できませんでした" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Could not display the 7-day night forecast."
+            "value" : "Could not display the 9-day night forecast."
           }
         }
       }
     },
-    "今後7日間の夜空の見通し" : {
+    "今後9日間の夜空の見通し" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Night sky outlook for the next 7 days"
+            "value" : "Night sky outlook for the next 9 days"
           }
         }
       }
