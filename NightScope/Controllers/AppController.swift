@@ -71,13 +71,13 @@ final class AppController: ObservableObject {
 
     // MARK: - Private State
     private let calculationService: NightCalculating
-     private var calculationTask: Task<Void, Never>?
-     private var upcomingTask: Task<Void, Never>?
-     private var locationTask: Task<Void, Never>?
+    private var calculationTask: Task<Void, Never>?
+    private var upcomingTask: Task<Void, Never>?
+    private var locationTask: Task<Void, Never>?
     private var externalDataTask: Task<Void, Never>?
-     private var cancellables: Set<AnyCancellable> = []
-     private var isApplyingLocationRefresh = false
-     private var hasStarted = false
+    private var cancellables: Set<AnyCancellable> = []
+    private var isApplyingLocationRefresh = false
+    private var hasStarted = false
     private var lastObservedTimeZone: TimeZone
     private var lastActiveReferenceDate: Date
     private var observationStateBatchDepth = 0
@@ -106,12 +106,12 @@ final class AppController: ObservableObject {
         }
     }
 
-     deinit {
-         calculationTask?.cancel()
-         upcomingTask?.cancel()
-         locationTask?.cancel()
+    deinit {
+        calculationTask?.cancel()
+        upcomingTask?.cancel()
+        locationTask?.cancel()
         externalDataTask?.cancel()
-     }
+    }
 
     // MARK: - Public Methods
 
@@ -165,13 +165,13 @@ final class AppController: ObservableObject {
         }
     }
 
-     /// 選択中の観測地に対応する天気予報を更新します。
-     func refreshWeather() async {
+    /// 選択中の観測地に対応する天気予報を更新します。
+    func refreshWeather() async {
         await refreshWeather(using: selectedLocationContext)
-     }
+    }
 
-     /// 選択中の観測地に対応する光害データを更新します。
-     func refreshLightPollution() async {
+    /// 選択中の観測地に対応する光害データを更新します。
+    func refreshLightPollution() async {
         await refreshLightPollution(using: selectedLocationContext)
     }
 
