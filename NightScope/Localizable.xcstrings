@@ -182,35 +182,35 @@
         }
       }
     },
-    "14日予報" : {
+    "7日予報" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "14-Day Forecast"
+            "value" : "7-Day Forecast"
           }
         }
       }
     },
-    "14日予報を更新中" : {
+    "7日予報を更新中" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Updating 14-day forecast"
+            "value" : "Updating 7-day forecast"
           }
         }
       }
     },
-    "14日間の予報データを計算できませんでした" : {
+    "7日間の予報データを計算できませんでした" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Could not calculate the 14-day forecast."
+            "value" : "Could not calculate the 7-day forecast."
           }
         }
       }
@@ -2955,46 +2955,46 @@
         }
       }
     },
-    "今後2週間の予報" : {
+    "今後7日間の予報" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Forecast for the Next 2 Weeks"
+            "value" : "7-Day Forecast"
           }
         }
       }
     },
-    "今後2週間の予報を更新中" : {
+    "今後7日間の予報を更新中" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Updating the next 2 weeks forecast"
+            "value" : "Updating the 7-day forecast"
           }
         }
       }
     },
-    "今後2週間の夜間予報を表示できませんでした" : {
+    "今後7日間の夜間予報を表示できませんでした" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Could not display the next 2 weeks night forecast."
+            "value" : "Could not display the 7-day night forecast."
           }
         }
       }
     },
-    "今後14日間の夜空の見通し" : {
+    "今後7日間の夜空の見通し" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Night sky outlook for the next 14 days"
+            "value" : "Night sky outlook for the next 7 days"
           }
         }
       }

@@ -92,7 +92,7 @@ struct iOSForecastView: View {
 
     private var headerSection: some View {
         iOSTabHeaderView(
-            title: "14日予報",
+            title: "7日予報",
             horizontalPadding: Spacing.xs
         ) {
             VStack(alignment: .leading, spacing: Spacing.xs / 2) {
@@ -104,7 +104,7 @@ struct iOSForecastView: View {
                         .lineLimit(1)
                 }
 
-                Text("今後14日間の夜空の見通し")
+                Text("今後7日間の夜空の見通し")
                     .font(.subheadline)
                     .lineLimit(1)
             }
@@ -112,7 +112,7 @@ struct iOSForecastView: View {
             if detailViewModel.isUpcomingLoading || gridViewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)
-                    .accessibilityLabel("14日予報を更新中")
+                    .accessibilityLabel("7日予報を更新中")
             }
         }
     }
@@ -145,7 +145,7 @@ struct iOSForecastView: View {
         ContentUnavailableView {
             Label("予報データがありません", systemImage: "calendar.badge.exclamationmark")
         } description: {
-            Text("14日間の予報データを計算できませんでした")
+            Text("7日間の予報データを計算できませんでした")
         } actions: {
             Button("再試行") {
                 detailViewModel.retryForecastInBackground()

@@ -7,12 +7,12 @@ struct UpcomingNightsGrid: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
-                Text("今後2週間の予報")
+                Text("今後7日間の予報")
                     .font(.title3.bold())
                 if viewModel.isLoading {
                     ProgressView()
                         .controlSize(.small)
-                        .accessibilityLabel("今後2週間の予報を更新中")
+                        .accessibilityLabel("今後7日間の予報を更新中")
                 }
                 Spacer()
                 if !viewModel.isSelectedDateToday() {
@@ -31,7 +31,7 @@ struct UpcomingNightsGrid: View {
                 ContentUnavailableView(
                     "予報データがありません",
                     systemImage: AppIcons.Astronomy.moonZzz,
-                    description: Text("今後2週間の夜間予報を表示できませんでした")
+                    description: Text("今後7日間の夜間予報を表示できませんでした")
                 )
             } else {
                 GlassEffectContainer {
