@@ -23,6 +23,10 @@ struct iOSLocationView: View {
                         searchResultsList
                         mapArea
                         bottomBar
+                        iOSFavoritesSection(
+                            viewModel: sidebarViewModel,
+                            onSelect: selectFavorite
+                        )
                     }
                     .padding(.horizontal, Spacing.sm)
                     .padding(.top, Spacing.sm)
@@ -221,6 +225,20 @@ struct iOSLocationView: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
             Spacer()
+            Button {
+                sidebarViewModel.addCurrentLocationToFavorites()
+            } label: {
+                Image(
+                    systemName: sidebarViewModel.isCurrentLocationFavorited
+                        ? "star.fill" : "star"
+                )
+                .foregroundStyle(
+                    sidebarViewModel.isCurrentLocationFavorited ? .yellow : .secondary
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(sidebarViewModel.isCurrentLocationFavorited)
+            .accessibilityLabel("お気に入りに追加")
             if showLightPollution {
                 if sidebarViewModel.isLightPollutionLoading {
                     ProgressView().controlSize(.mini)
@@ -262,6 +280,11 @@ struct iOSLocationView: View {
 
     private func selectSearchResult(_ item: MKMapItem) {
         sidebarViewModel.selectSearchResult(item, searchTextBehavior: .clear)
+        isSearchFocused = false
+    }
+
+    private func selectFavorite(_ favorite: FavoriteLocation) {
+        sidebarViewModel.selectFavorite(favorite)
         isSearchFocused = false
     }
 
@@ -375,6 +398,70 @@ private struct LocationSearchField: View {
         .padding(.vertical, Spacing.xs)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .iOSMaterialPanel()
+    }
+}
+
+private struct iOSFavoritesSection: View {
+    @ObservedObject var viewModel: SidebarViewModel
+    let onSelect: (FavoriteLocation) -> Void
+
+    var body: some View {
+        if !viewModel.favorites.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Label("お気に入り", systemImage: "star.fill")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, Spacing.xs)
+
+                VStack(spacing: 0) {
+                    ForEach(viewModel.favorites) { favorite in
+                        Button { onSelect(favorite) } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(favorite.name)
+                                        .font(.body)
+                                        .lineLimit(1)
+                                    Text(
+                                        L10n.format(
+                                            "%.4f, %.4f",
+                                            favorite.latitude,
+                                            favorite.longitude
+                                        )
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xs)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            L10n.format("お気に入りの場所: %@", favorite.name)
+                        )
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                viewModel.removeFavorite(favorite)
+                            } label: {
+                                Label("削除", systemImage: "trash")
+                            }
+                        }
+
+                        if favorite.id != viewModel.favorites.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+                .iOSMaterialPanel()
+            }
+            .padding(.bottom, Spacing.sm)
+        }
     }
 }
 

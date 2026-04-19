@@ -48,9 +48,11 @@ final class SidebarViewModel: ObservableObject {
     @Published private(set) var isLightPollutionLoading: Bool
     @Published private(set) var hasLightPollutionFetchFailed: Bool
     @Published private(set) var selectedTimeZone: TimeZone
+    @Published private(set) var favorites: [FavoriteLocation] = []
 
     let locationController: any LocationProviding
     let lightPollutionService: any LightPollutionProviding
+    private let favoriteStore: any FavoriteLocationStoring
     private var cancellables = Set<AnyCancellable>()
     private var pendingLocationUpdateBehavior: PendingLocationUpdateBehavior?
 
@@ -82,9 +84,14 @@ final class SidebarViewModel: ObservableObject {
         }
     }
 
-    init(locationController: some LocationProviding, lightPollutionService: some LightPollutionProviding) {
+    init(
+        locationController: some LocationProviding,
+        lightPollutionService: some LightPollutionProviding,
+        favoriteStore: some FavoriteLocationStoring = FavoriteLocationStore()
+    ) {
         self.locationController = locationController
         self.lightPollutionService = lightPollutionService
+        self.favoriteStore = favoriteStore
         self.searchState = locationController.searchState
         self.isLocating = locationController.isLocating
         self.locationError = locationController.locationError
@@ -96,6 +103,7 @@ final class SidebarViewModel: ObservableObject {
         self.isLightPollutionLoading = lightPollutionService.isLoading
         self.hasLightPollutionFetchFailed = lightPollutionService.fetchFailed
         self.selectedTimeZone = locationController.selectedTimeZone
+        self.favorites = favoriteStore.loadAll()
 
         locationController.searchStatePublisher
             .receive(on: DispatchQueue.main)
@@ -291,6 +299,77 @@ final class SidebarViewModel: ObservableObject {
     private func resetSearchPresentation() {
         searchText = ""
         isShowingCommittedSelection = false
+    }
+
+    // MARK: - Favorites
+
+    var isCurrentLocationFavorited: Bool {
+        let coord = locationController.selectedLocation
+        return favorites.contains {
+            abs($0.latitude - coord.latitude) < 0.001
+                && abs($0.longitude - coord.longitude) < 0.001
+        }
+    }
+
+    func addCurrentLocationToFavorites() {
+        guard !isCurrentLocationFavorited else { return }
+        let favorite = FavoriteLocation(
+            name: locationController.locationName,
+            latitude: locationController.selectedLocation.latitude,
+            longitude: locationController.selectedLocation.longitude,
+            timeZoneIdentifier: locationController.selectedTimeZone.identifier
+        )
+        favorites.append(favorite)
+        favoriteStore.save(favorites)
+    }
+
+    func removeFavorite(_ favorite: FavoriteLocation) {
+        favorites.removeAll { $0.id == favorite.id }
+        favoriteStore.save(favorites)
+    }
+
+    func removeFavorites(at offsets: IndexSet) {
+        favorites.remove(atOffsets: offsets)
+        favoriteStore.save(favorites)
+    }
+
+    func selectFavorite(_ favorite: FavoriteLocation) {
+        pendingLocationUpdateBehavior = .clearSearch
+        resetSearchPresentation()
+        locationController.selectCoordinate(
+            CLLocationCoordinate2D(latitude: favorite.latitude, longitude: favorite.longitude)
+        )
+    }
+
+    // MARK: - Sidebar Layout
+
+    /// 検索結果・お気に入りの表示状態に応じたサイドバー内の追加リスト数
+    var extraListCount: Int {
+        let hasResults: Bool = {
+            if case .results = searchPresentation { return true }
+            return false
+        }()
+        return (hasResults ? 1 : 0) + (favorites.isEmpty ? 0 : 1)
+    }
+
+    var dynamicMapMinHeight: CGFloat {
+        switch extraListCount {
+        case 2: return 120
+        case 1: return 150
+        default: return Layout.mapMinHeight
+        }
+    }
+
+    var dynamicMapMaxHeight: CGFloat {
+        return .infinity
+    }
+
+    var calendarCellHeight: CGFloat {
+        switch extraListCount {
+        case 2: return 18
+        case 1: return 20
+        default: return 24
+        }
     }
 }
 

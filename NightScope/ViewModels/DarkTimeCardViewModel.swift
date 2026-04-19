@@ -10,12 +10,19 @@ struct DarkTimeCardViewModel {
     }
 
     var displayText: String {
-        if let w = weather,
-           hasReliableWeatherCoverage,
-           let text = summary.weatherAwareRangeText(nighttimeHours: w.nighttimeHours) {
-            return text.isEmpty ? L10n.tr("天候不良") : text
+        if let weatherText = weatherAwareText() {
+            return weatherText
         }
         return summary.darkRangeText.isEmpty ? L10n.tr("暗い時間なし") : summary.darkRangeText
+    }
+
+    private func weatherAwareText() -> String? {
+        guard let w = weather,
+              hasReliableWeatherCoverage,
+              let text = summary.weatherAwareRangeText(nighttimeHours: w.nighttimeHours) else {
+            return nil
+        }
+        return text.isEmpty ? L10n.tr("天候不良") : text
     }
 
     var isUnavailable: Bool {

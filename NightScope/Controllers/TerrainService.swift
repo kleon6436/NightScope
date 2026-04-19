@@ -135,7 +135,7 @@ actor TerrainService {
     private enum Constants {
         static let sampleDistancesMeters: [Double] = [1_000.0, 2_500.0, 5_000.0, 7_500.0, 10_000.0]
         static let sampleCount = 72
-        static let cachePrecisionDegrees = 0.005
+        static let cachePrecisionDegrees = 0.001
     }
 
     static let shared = TerrainService()

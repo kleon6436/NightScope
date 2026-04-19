@@ -1250,7 +1250,7 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapViewModel_terrainCacheKey_roundsCoordinatesConsistently() {
         XCTAssertEqual(
             StarMapViewModel.terrainCacheKey(latitude: 35.1234, longitude: 139.5678),
-            "35.125,139.57"
+            "35.123,139.568"
         )
         XCTAssertEqual(
             StarMapViewModel.terrainCacheKey(latitude: -35.1251, longitude: -139.5651),

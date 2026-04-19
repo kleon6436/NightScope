@@ -26,7 +26,6 @@ struct SidebarView: View {
             locationSection
             Divider()
             dateSection
-            Spacer()
         }
         .padding(.horizontal, Layout.sidebarHorizontalPadding)
         .padding(.vertical, Layout.sidebarVerticalPadding)
@@ -63,7 +62,8 @@ struct SidebarView: View {
             searchField
             searchResultsList
             mapView
-            selectedLocationLabel
+            selectedLocationRow
+            favoritesSection
         }
     }
 
@@ -142,7 +142,9 @@ struct SidebarView: View {
             onCurrentLocation: viewModel.requestCurrentLocation,
             isLocating: viewModel.isLocating,
             centerTrigger: viewModel.currentLocationCenterTrigger,
-            viewingDirection: starMapViewModel.viewingDirection
+            viewingDirection: starMapViewModel.viewingDirection,
+            mapMinHeight: viewModel.dynamicMapMinHeight,
+            mapMaxHeight: viewModel.dynamicMapMaxHeight
         )
         .equatable()
     }
@@ -170,6 +172,34 @@ struct SidebarView: View {
             locationName: viewModel.selectedLocationName,
             coordinate: viewModel.selectedCoordinate
         )
+    }
+
+    private var selectedLocationRow: some View {
+        HStack {
+            selectedLocationLabel
+            Spacer()
+            Button {
+                viewModel.addCurrentLocationToFavorites()
+            } label: {
+                Image(systemName: viewModel.isCurrentLocationFavorited ? "star.fill" : "star")
+                    .foregroundStyle(viewModel.isCurrentLocationFavorited ? .yellow : .secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isCurrentLocationFavorited)
+            .accessibilityLabel("お気に入りに追加")
+            .accessibilityHint("現在の場所をお気に入りに保存します")
+        }
+    }
+
+    @ViewBuilder
+    private var favoritesSection: some View {
+        if !viewModel.favorites.isEmpty {
+            SidebarFavoritesListView(
+                favorites: viewModel.favorites,
+                onSelect: viewModel.selectFavorite,
+                onDelete: viewModel.removeFavorite
+            )
+        }
     }
 
     // MARK: - Search Helpers
@@ -226,7 +256,7 @@ struct SidebarView: View {
     // MARK: - Date Section
 
     private var dateSection: some View {
-        SidebarDateSection(selectedDate: $selectedDate, timeZone: viewModel.selectedTimeZone)
+        SidebarDateSection(selectedDate: $selectedDate, timeZone: viewModel.selectedTimeZone, cellHeight: viewModel.calendarCellHeight)
     }
 }
 
@@ -355,6 +385,7 @@ private struct SidebarSelectedLocationSummaryView: View {
 private struct SidebarDateSection: View {
     @Binding var selectedDate: Date
     let timeZone: TimeZone
+    var cellHeight: CGFloat = 32
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -363,7 +394,7 @@ private struct SidebarDateSection: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
 
-            CalendarView(selectedDate: $selectedDate, timeZone: timeZone)
+            CalendarView(selectedDate: $selectedDate, timeZone: timeZone, cellHeight: cellHeight)
                 .padding(.horizontal, -Layout.sidebarHorizontalPadding)
         }
     }
@@ -375,52 +406,151 @@ private struct SidebarSearchResultsList: View {
     let onSelect: (MKMapItem) -> Void
 
     private static let rowHeight: CGFloat = 52
-    private static let maxVisibleRows: CGFloat = 2.5
+    private static let maxVisibleRows: CGFloat = 2
+
+    private var effectiveMaxHeight: CGFloat {
+        let items = searchResults.prefix(SidebarSearchInteraction.maxVisibleResults)
+        return min(CGFloat(items.count) * Self.rowHeight, Self.rowHeight * Self.maxVisibleRows)
+    }
 
     var body: some View {
         let items = Array(searchResults.prefix(SidebarSearchInteraction.maxVisibleResults).enumerated())
-        let needsScroll = SearchResultsLayout.needsScroll(
-            resultCount: items.count,
-            visibleRowCapacity: Self.maxVisibleRows
-        )
 
-        Group {
-            if needsScroll {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(items, id: \.offset) { index, item in
-                            searchResultRow(item: item, index: index)
-                            if index < items.count - 1 { Divider() }
-                        }
-                    }
-                }
-                .frame(maxHeight: Self.rowHeight * Self.maxVisibleRows)
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(items, id: \.offset) { index, item in
-                        searchResultRow(item: item, index: index)
-                    }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(items, id: \.offset) { index, item in
+                    searchResultRow(item: item, index: index)
+                    if index < items.count - 1 { Divider() }
                 }
             }
         }
+        .frame(maxHeight: effectiveMaxHeight)
+        .scrollBounceBehavior(.basedOnSize)
         .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
     }
 
     private func searchResultRow(item: MKMapItem, index: Int) -> some View {
+        SearchResultRowButton(item: item, isHighlighted: highlightedIndex == index, onSelect: onSelect)
+    }
+}
+
+private struct SearchResultRowButton: View {
+    let item: MKMapItem
+    let isHighlighted: Bool
+    let onSelect: (MKMapItem) -> Void
+    @State private var isHovered = false
+
+    var body: some View {
         Button { onSelect(item) } label: {
             LocationSearchResultContent(item: item)
-            .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.xs)
+                .padding(.vertical, Spacing.xs / 2)
+                .contentShape(Rectangle())
+                .background(
+                    isHighlighted ? Color.accentColor.opacity(0.2) :
+                    isHovered ? Color.primary.opacity(0.08) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 4)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .accessibilityLabel(
+            L10n.format("場所を選択: %@", item.name ?? L10n.tr("不明"))
+        )
+    }
+}
+
+private struct SidebarFavoritesListView: View {
+    let favorites: [FavoriteLocation]
+    let onSelect: (FavoriteLocation) -> Void
+    let onDelete: (FavoriteLocation) -> Void
+
+    private static let rowHeight: CGFloat = 44
+    private static let maxVisibleRows: CGFloat = 2
+
+    /// 件数に応じた表示高さ。上限を超えるとスクロールになる。
+    private var effectiveMaxHeight: CGFloat {
+        min(CGFloat(favorites.count) * Self.rowHeight, Self.rowHeight * Self.maxVisibleRows)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Label("お気に入り", systemImage: "star.fill")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+
+            ScrollView {
+                favoritesContent
+            }
+            .frame(maxHeight: effectiveMaxHeight)
+            .scrollBounceBehavior(.basedOnSize)
+            .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        }
+    }
+
+    private var favoritesContent: some View {
+        VStack(spacing: 0) {
+            ForEach(favorites) { favorite in
+                FavoriteRowButton(
+                    favorite: favorite,
+                    onSelect: onSelect,
+                    onDelete: onDelete
+                )
+
+                if favorite.id != favorites.last?.id {
+                    Divider()
+                }
+            }
+        }
+    }
+}
+
+private struct FavoriteRowButton: View {
+    let favorite: FavoriteLocation
+    let onSelect: (FavoriteLocation) -> Void
+    let onDelete: (FavoriteLocation) -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button { onSelect(favorite) } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(favorite.name)
+                        .font(.callout)
+                        .lineLimit(1)
+                    Text(
+                        L10n.format(
+                            "%.4f, %.4f",
+                            favorite.latitude,
+                            favorite.longitude
+                        )
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
             .padding(.horizontal, Spacing.xs)
             .padding(.vertical, Spacing.xs / 2)
             .contentShape(Rectangle())
             .background(
-                highlightedIndex == index ? Color.accentColor.opacity(0.2) : Color.clear,
+                isHovered ? Color.primary.opacity(0.08) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 4)
             )
         }
         .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .contextMenu {
+            Button(role: .destructive) {
+                onDelete(favorite)
+            } label: {
+                Label("削除", systemImage: "trash")
+            }
+        }
         .accessibilityLabel(
-            L10n.format("場所を選択: %@", item.name ?? L10n.tr("不明"))
+            L10n.format("お気に入りの場所: %@", favorite.name)
         )
     }
 }

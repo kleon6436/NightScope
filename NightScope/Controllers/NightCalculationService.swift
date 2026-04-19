@@ -34,12 +34,10 @@ final class NightCalculationService: NightCalculating, Sendable {
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) async -> NightSummary {
-        await withTaskGroup(of: NightSummary.self) { group in
-            group.addTask(priority: .userInitiated) { [summaryCalculator] in
-                summaryCalculator(date, location, timeZone)
-            }
-            return await group.next() ?? .placeholder
-        }
+        let calculator = summaryCalculator
+        return await Task(priority: .userInitiated) {
+            calculator(date, location, timeZone)
+        }.value
     }
 
     func calculateUpcomingNights(

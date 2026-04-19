@@ -5,6 +5,8 @@ import MapKit
 
 /// 地図ビューを包む共通コンテナ（枠線・ラベル付き）。
 private struct MapContainerView<Content: View>: View {
+    let mapMinHeight: CGFloat
+    let mapMaxHeight: CGFloat
     @ViewBuilder let content: () -> Content
 
     private var instructionText: String { L10n.tr("地図をクリックして場所を選択") }
@@ -18,8 +20,7 @@ private struct MapContainerView<Content: View>: View {
 
     private var mapSurface: some View {
         content()
-            .frame(minHeight: Layout.mapMinHeight, maxHeight: Layout.mapMaxHeight)
-            .frame(maxHeight: .infinity)
+            .frame(minHeight: mapMinHeight, maxHeight: mapMaxHeight)
             .clipShape(RoundedRectangle(cornerRadius: Layout.mapCornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Layout.mapCornerRadius)
@@ -121,6 +122,8 @@ struct MapLocationPicker: View, Equatable {
     var isLocating: Bool = false
     var centerTrigger: Int = 0
     var viewingDirection: ViewingDirection? = nil
+    var mapMinHeight: CGFloat = Layout.mapMinHeight
+    var mapMaxHeight: CGFloat = Layout.mapMaxHeight
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         coordinatesEqual(lhs.selectedCoordinate, rhs.selectedCoordinate) &&
@@ -128,7 +131,9 @@ struct MapLocationPicker: View, Equatable {
         lhs.showLightPollution == rhs.showLightPollution &&
         lhs.isLocating == rhs.isLocating &&
         lhs.centerTrigger == rhs.centerTrigger &&
-        lhs.viewingDirection == rhs.viewingDirection
+        lhs.viewingDirection == rhs.viewingDirection &&
+        lhs.mapMinHeight == rhs.mapMinHeight &&
+        lhs.mapMaxHeight == rhs.mapMaxHeight
     }
 
     private static func coordinatesEqual(_ lhs: CLLocationCoordinate2D, _ rhs: CLLocationCoordinate2D) -> Bool {
@@ -136,7 +141,7 @@ struct MapLocationPicker: View, Equatable {
     }
 
     var body: some View {
-        MapContainerView {
+        MapContainerView(mapMinHeight: mapMinHeight, mapMaxHeight: mapMaxHeight) {
             mapViewContent
         }
     }

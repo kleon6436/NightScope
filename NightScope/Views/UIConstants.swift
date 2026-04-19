@@ -34,7 +34,7 @@ enum Layout {
     /// 地図コンテナの最小高
     static let mapMinHeight: CGFloat = 160
     /// 地図コンテナの最大高
-    static let mapMaxHeight: CGFloat = 280
+    static let mapMaxHeight: CGFloat = 200
     /// 地図上ボタン（現在地）の角丸半径
     static let mapButtonCornerRadius: CGFloat = 6
     /// 地図上ボタン（現在地）のサイズ

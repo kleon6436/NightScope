@@ -1158,8 +1158,8 @@ private extension StarMapCanvasView {
         for i in 1..<ridgePoints.count {
             path.addLine(to: ridgePoints[i])
         }
-        path.addLine(to: CGPoint(x: ridgePoints.last!.x, y: size.height + 10))
-        path.addLine(to: CGPoint(x: ridgePoints.first!.x, y: size.height + 10))
+        path.addLine(to: CGPoint(x: ridgePoints[ridgePoints.count - 1].x, y: size.height + 10))
+        path.addLine(to: CGPoint(x: ridgePoints[0].x, y: size.height + 10))
         path.closeSubpath()
         ctx.fill(
             path,

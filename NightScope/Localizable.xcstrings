@@ -950,6 +950,39 @@
         }
       }
     },
+    "お気に入り" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorites"
+          }
+        }
+      }
+    },
+    "お気に入りに追加" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Favorites"
+          }
+        }
+      }
+    },
+    "お気に入りの場所: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorite location: %@"
+          }
+        }
+      }
+    },
     "オフ" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3227,6 +3260,17 @@
         }
       }
     },
+    "削除" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
     "北" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4686,6 +4730,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not get your current location. Please wait a moment and try again."
+          }
+        }
+      }
+    },
+    "現在の場所をお気に入りに保存します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the current location to favorites"
           }
         }
       }

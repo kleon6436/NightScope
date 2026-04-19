@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.nightscope", category: "StarCatalog")
 
 // MARK: - Star Model
 
@@ -165,10 +168,16 @@ enum StarCatalog {
     // stars_fill.json から読み込み: [[ra°, dec°, 等級, ci?], ...]
     // 25,650 星
     private static let fillStars: [Star] = {
-        guard let url = Bundle.main.url(forResource: "stars_fill", withExtension: "json"),
-              let data = try? Data(contentsOf: url),
+        guard let url = Bundle.main.url(forResource: "stars_fill", withExtension: "json") else {
+            logger.error("stars_fill.json not found in bundle")
+            return []
+        }
+        guard let data = try? Data(contentsOf: url),
               let entries = try? JSONDecoder().decode([[Double]].self, from: data)
-        else { return [] }
+        else {
+            logger.error("Failed to decode stars_fill.json")
+            return []
+        }
         return entries.map {
             Star(name: "", ra: $0[0], dec: $0[1], magnitude: $0[2],
                  colorIndex: $0.count > 3 ? $0[3] : nil)

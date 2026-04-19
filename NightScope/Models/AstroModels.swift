@@ -40,10 +40,12 @@ struct ViewingWindow {
     let peakAzimuth: Double
     var duration: TimeInterval { end.timeIntervalSince(start) }
 
+    /// 16方位名（22.5° 刻み）
+    private static let directionNames = ["北","北北東","北東","東北東","東","東南東","南東","南南東","南","南南西","南西","西南西","西","西北西","北西","北北西"]
+
     var peakDirectionName: String {
-        let directions = ["北","北北東","北東","東北東","東","東南東","南東","南南東","南","南南西","南西","西南西","西","西北西","北西","北北西"]
         let index = Int((peakAzimuth + 11.25) / 22.5) % 16
-        return L10n.tr(directions[index])
+        return L10n.tr(Self.directionNames[index])
     }
 
     func accessibilityDescription(timeZone: TimeZone = .current) -> String {
@@ -114,12 +116,14 @@ struct NightSummary {
     var moonPhaseIcon: String {
         switch moonPhaseAtMidnight {
         case 0..<0.04, 0.96...1: return AppIcons.Astronomy.moonPhaseNew
-        case 0.04..<0.25: return AppIcons.Astronomy.moonPhaseWaxingCrescent
-        case 0.25..<0.30: return AppIcons.Astronomy.moonPhaseFirstQuarter
+        case 0.04..<0.12: return AppIcons.Astronomy.moonPhaseWaxingCrescent
+        case 0.12..<0.22: return AppIcons.Astronomy.moonPhaseWaxingCrescent
+        case 0.22..<0.30: return AppIcons.Astronomy.moonPhaseFirstQuarter
         case 0.30..<0.46: return AppIcons.Astronomy.moonPhaseWaxingGibbous
         case 0.46..<0.54: return AppIcons.Astronomy.moonPhaseFull
         case 0.54..<0.70: return AppIcons.Astronomy.moonPhaseWaningGibbous
         case 0.70..<0.80: return AppIcons.Astronomy.moonPhaseLastQuarter
+        case 0.80..<0.96: return AppIcons.Astronomy.moonPhaseWaningCrescent
         default: return AppIcons.Astronomy.moonPhaseWaningCrescent
         }
     }
@@ -162,16 +166,8 @@ struct NightSummary {
     /// - Parameter nighttimeHours: DayWeatherSummary.nighttimeHours
     /// - Returns: (start, end) または nil（観測可能な時間帯なし）
     func weatherAwareObservableWindow(nighttimeHours: [HourlyWeather]) -> (start: Date, end: Date)? {
-        guard hasReliableWeatherData(nighttimeHours: nighttimeHours) else { return nil }
-        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let matchedNighttimeHours = darkWeatherHours(nighttimeHours: nighttimeHours)
-        let weatherByHour = makeWeatherByHour(nighttimeHours: matchedNighttimeHours, calendar: calendar)
-        let clearDarkEvents = filteredDarkEvents(
-            weatherByHour: weatherByHour,
-            calendar: calendar,
-            includeMoonFilter: true
-        )
-        guard !clearDarkEvents.isEmpty else { return nil }
+        let clearDarkEvents = weatherFilteredDarkEvents(nighttimeHours: nighttimeHours, includeMoonFilter: true)
+        guard let clearDarkEvents, !clearDarkEvents.isEmpty else { return nil }
         return longestMergedWindow(
             from: clearDarkEvents.map(\.date),
             mergeGap: MilkyWayCalculator.Constants.windowMergeGapSeconds
@@ -189,19 +185,24 @@ struct NightSummary {
         if let w = weatherAwareObservableWindow(nighttimeHours: nighttimeHours) {
             return "\(w.start.nightTimeString(timeZone: timeZone)) 〜 \(w.end.nightTimeString(timeZone: timeZone))"
         }
-        // 観測可能ウィンドウなし — 原因を判定して適切なメッセージを返す
-        // 天気フィルタのみ（月フィルタなし）で暗いイベントが存在すれば月が原因
+        // 観測可能ウィンドウなし — 月フィルタなしで再チェックし原因を判定
+        let weatherOnlyClearEvents = weatherFilteredDarkEvents(nighttimeHours: nighttimeHours, includeMoonFilter: false)
+        let hasWeatherClearDarkHour = weatherOnlyClearEvents.map { !$0.isEmpty } ?? false
+        return hasWeatherClearDarkHour ? L10n.tr("月明かり") : ""
+    }
+
+    /// 天気フィルタを適用した暗いイベントを返す（共通ヘルパー）
+    /// - Returns: nil = 天気データ不十分, [] = 条件を満たすイベントなし
+    private func weatherFilteredDarkEvents(nighttimeHours: [HourlyWeather], includeMoonFilter: Bool) -> [AstroEvent]? {
+        guard hasReliableWeatherData(nighttimeHours: nighttimeHours) else { return nil }
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let weatherByHour = makeWeatherByHour(
-            nighttimeHours: darkWeatherHours(nighttimeHours: nighttimeHours),
-            calendar: calendar
-        )
-        let hasWeatherClearDarkHour = !filteredDarkEvents(
+        let matchedNighttimeHours = darkWeatherHours(nighttimeHours: nighttimeHours)
+        let weatherByHour = makeWeatherByHour(nighttimeHours: matchedNighttimeHours, calendar: calendar)
+        return filteredDarkEvents(
             weatherByHour: weatherByHour,
             calendar: calendar,
-            includeMoonFilter: false
-        ).isEmpty
-        return hasWeatherClearDarkHour ? L10n.tr("月明かり") : ""
+            includeMoonFilter: includeMoonFilter
+        )
     }
 
     func hasReliableWeatherData(nighttimeHours: [HourlyWeather]) -> Bool {

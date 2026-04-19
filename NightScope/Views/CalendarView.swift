@@ -3,11 +3,13 @@ import SwiftUI
 struct CalendarView: View {
     @Binding var selectedDate: Date
     let timeZone: TimeZone
+    var cellHeight: CGFloat = 32
     @State private var displayMonth: Date
 
-    init(selectedDate: Binding<Date>, timeZone: TimeZone = .current) {
+    init(selectedDate: Binding<Date>, timeZone: TimeZone = .current, cellHeight: CGFloat = 32) {
         _selectedDate = selectedDate
         self.timeZone = timeZone
+        self.cellHeight = cellHeight
         _displayMonth = State(initialValue: selectedDate.wrappedValue)
     }
 
@@ -28,7 +30,7 @@ struct CalendarView: View {
                 Button { shiftMonth(by: -1) } label: {
                     Image(systemName: AppIcons.Controls.chevronLeft)
                         .font(.body.bold())
-                        .frame(width: 44, height: 44)
+                        .frame(width: 32, height: 32)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
@@ -44,7 +46,7 @@ struct CalendarView: View {
                 Button { shiftMonth(by: 1) } label: {
                     Image(systemName: AppIcons.Controls.chevronRight)
                         .font(.body.bold())
-                        .frame(width: 44, height: 44)
+                        .frame(width: 32, height: 32)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
@@ -74,10 +76,11 @@ struct CalendarView: View {
                             timeZone: timeZone,
                             isSelected: calendar.isDate(day, inSameDayAs: selectedDate),
                             isToday: ObservationTimeZone.isDateInToday(day, timeZone: timeZone),
+                            cellHeight: cellHeight,
                             onTap: { selectedDate = day }
                         )
                     } else {
-                        Color.clear.frame(maxWidth: .infinity, minHeight: 44)
+                        Color.clear.frame(maxWidth: .infinity, minHeight: cellHeight)
                     }
                 }
             }
@@ -122,6 +125,7 @@ struct CalendarDayCell: View {
     let timeZone: TimeZone
     let isSelected: Bool
     let isToday: Bool
+    var cellHeight: CGFloat = 32
     let onTap: () -> Void
 
     private var calendar: Calendar {
@@ -140,7 +144,7 @@ struct CalendarDayCell: View {
         Button(action: onTap) {
             Text("\(dayNumber)")
                 .font(.body)
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: cellHeight)
                 .foregroundStyle(isSelected ? Color.white : isToday ? Color.accentColor : Color.primary)
                 .background(
                     Circle()
