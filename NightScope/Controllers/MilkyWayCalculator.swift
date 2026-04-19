@@ -106,15 +106,15 @@ enum MilkyWayCalculator {
         return (ra, dec)
     }
 
-    // MARK: - 市民薄明の計算
+    // MARK: - 太陽高度に基づく夜間区間
 
-    /// 指定日・場所の市民薄明 (太陽高度 -6°) の開始/終了時刻を分単位で返す。
-    /// 観測日 12:00 から翌日 12:00 までの連続した暗区間を返す。
+    /// 観測日 12:00 から翌日 12:00 までで、太陽高度が `threshold` 度を下回る連続区間を返す。
     /// 極夜では 24 時間区間、白夜では nil を返す。
-    static func civilDarknessInterval(
+    private static func darknessInterval(
         date: Date,
         location: CLLocationCoordinate2D,
-        timeZone: TimeZone
+        timeZone: TimeZone,
+        threshold: Double
     ) -> DateInterval? {
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let observationDate = calendar.startOfDay(for: date)
@@ -124,7 +124,6 @@ enum MilkyWayCalculator {
         let latRad = location.latitude * .pi / 180.0
         let cosLat = cos(latRad)
         let sinLat = sin(latRad)
-        let threshold = -6.0
 
         var darkStart: Date?
         var previousAltitude: Double?
@@ -157,6 +156,26 @@ enum MilkyWayCalculator {
 
         guard let darkStart else { return nil }
         return DateInterval(start: darkStart, end: samplingEnd)
+    }
+
+    /// 指定日・場所の市民薄明 (太陽高度 -6°) の夜間区間を返す。
+    /// 極夜では 24 時間区間、白夜では nil を返す。
+    static func civilDarknessInterval(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> DateInterval? {
+        darknessInterval(date: date, location: location, timeZone: timeZone, threshold: -6.0)
+    }
+
+    /// 指定日・場所の日没〜日の出 (太陽高度 0°) の区間を返す。
+    /// 極夜では 24 時間区間、白夜では nil を返す。
+    static func sunsetSunriseInterval(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> DateInterval? {
+        darknessInterval(date: date, location: location, timeZone: timeZone, threshold: 0.0)
     }
 
     /// 正常な夜、または極夜の観測区間を返す。
@@ -195,6 +214,46 @@ enum MilkyWayCalculator {
         return (
             eveningMinutes: eveningMinutes.truncatingRemainder(dividingBy: 1_440),
             morningMinutes: morningMinutes.truncatingRemainder(dividingBy: 1_440)
+        )
+    }
+
+    /// 日没〜日の出の開始/終了 Date を返す。
+    static func findSunsetSunrise(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> (sunset: Date, sunrise: Date)? {
+        guard let interval = sunsetSunriseInterval(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        ) else {
+            return nil
+        }
+        return (sunset: interval.start, sunrise: interval.end)
+    }
+
+    /// 日没〜日の出の開始/終了を分単位で返す。
+    static func findSunsetSunriseMinutes(
+        date: Date,
+        location: CLLocationCoordinate2D,
+        timeZone: TimeZone
+    ) -> (sunsetMinutes: Double, sunriseMinutes: Double)? {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let times = findSunsetSunrise(
+            date: date,
+            location: location,
+            timeZone: timeZone
+        ) else {
+            return nil
+        }
+
+        let sunsetMinutes = times.sunset.timeIntervalSince(startOfDay) / 60
+        let sunriseMinutes = times.sunrise.timeIntervalSince(startOfDay) / 60
+        return (
+            sunsetMinutes: sunsetMinutes.truncatingRemainder(dividingBy: 1_440),
+            sunriseMinutes: sunriseMinutes.truncatingRemainder(dividingBy: 1_440)
         )
     }
 

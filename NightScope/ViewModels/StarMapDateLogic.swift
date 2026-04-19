@@ -43,7 +43,7 @@ enum StarMapDateLogic {
         referenceDate: Date? = nil,
         fallback: NightRange
     ) -> NightRange {
-        guard let interval = MilkyWayCalculator.civilDarknessInterval(
+        guard let interval = MilkyWayCalculator.sunsetSunriseInterval(
             date: date,
             location: location,
             timeZone: timeZone
@@ -82,7 +82,7 @@ enum StarMapDateLogic {
         location: CLLocationCoordinate2D,
         timeZone: TimeZone
     ) -> Date? {
-        guard let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
+        guard let twilight = MilkyWayCalculator.findSunsetSunriseMinutes(
             date: selectedDate,
             location: location,
             timeZone: timeZone
@@ -93,22 +93,22 @@ enum StarMapDateLogic {
         let referenceMinutes = clockMinutes(for: referenceDate, timeZone: timeZone)
         if isWithinNightRange(
             referenceMinutes,
-            eveningMinutes: twilight.eveningMinutes,
-            morningMinutes: twilight.morningMinutes
+            eveningMinutes: twilight.sunsetMinutes,
+            morningMinutes: twilight.sunriseMinutes
         ) {
             return date(
                 bySettingClockMinutes: referenceMinutes,
                 onObservationDate: selectedDate,
                 timeZone: timeZone,
-                nightStartMinutes: twilight.eveningMinutes
+                nightStartMinutes: twilight.sunsetMinutes
             )
         }
 
         return date(
-            bySettingClockMinutes: twilight.eveningMinutes,
+            bySettingClockMinutes: twilight.sunsetMinutes,
             onObservationDate: selectedDate,
             timeZone: timeZone,
-            nightStartMinutes: twilight.eveningMinutes
+            nightStartMinutes: twilight.sunsetMinutes
         )
     }
 

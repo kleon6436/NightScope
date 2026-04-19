@@ -852,7 +852,7 @@ final class StarMapViewModelTests: XCTestCase {
         viewModel.syncWithSelectedDate(referenceDate: referenceDate)
 
         let twilight = try XCTUnwrap(
-            MilkyWayCalculator.findCivilTwilightMinutes(
+            MilkyWayCalculator.findSunsetSunriseMinutes(
                 date: selectedDate,
                 location: appController.locationController.selectedLocation,
                 timeZone: appController.locationController.selectedTimeZone
@@ -865,8 +865,8 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 8)
         XCTAssertEqual(components.day, 12)
-        XCTAssertEqual(components.hour, Int(twilight.eveningMinutes) / 60)
-        XCTAssertEqual(components.minute, Int(twilight.eveningMinutes) % 60)
+        XCTAssertEqual(components.hour, Int(twilight.sunsetMinutes) / 60)
+        XCTAssertEqual(components.minute, Int(twilight.sunsetMinutes) % 60)
         XCTAssertEqual(viewModel.timeSliderMinutes, 0, accuracy: 0.001)
     }
 
@@ -946,7 +946,7 @@ final class StarMapViewModelTests: XCTestCase {
         viewModel.syncWithSelectedDate(referenceDate: referenceDate)
         viewModel.setTimeSliderMinutes(0)
 
-        let twilight = MilkyWayCalculator.findCivilTwilightMinutes(
+        let twilight = MilkyWayCalculator.findSunsetSunriseMinutes(
             date: selectedDate,
             location: appController.locationController.selectedLocation,
             timeZone: appController.locationController.selectedTimeZone
@@ -959,8 +959,8 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(components.year, 2026)
         XCTAssertEqual(components.month, 8)
         XCTAssertEqual(components.day, 12)
-        XCTAssertEqual(components.hour, Int((twilight?.eveningMinutes ?? 0)) / 60)
-        XCTAssertEqual(components.minute, Int((twilight?.eveningMinutes ?? 0)) % 60)
+        XCTAssertEqual(components.hour, Int((twilight?.sunsetMinutes ?? 0)) / 60)
+        XCTAssertEqual(components.minute, Int((twilight?.sunsetMinutes ?? 0)) % 60)
     }
 
     func test_StarMapViewModel_setTimeSliderMinutes_clampsPolarNightEndpoint() {

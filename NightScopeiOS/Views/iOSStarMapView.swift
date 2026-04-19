@@ -113,6 +113,9 @@ struct iOSStarMapView: View {
         iOSStarMapHeaderOverlay(
             starDisplayDensityRaw: $starDisplayDensityRaw,
             controlState: controlState,
+            onStarDensityChange: { density in
+                viewModel.setStarDisplayDensity(density)
+            },
             onToggleCameraBackground: toggleCameraBackground,
             onToggleGyroMode: toggleGyroMode,
             onOpenSettings: openAppSettings

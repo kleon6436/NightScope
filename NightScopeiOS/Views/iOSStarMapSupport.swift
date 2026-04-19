@@ -18,6 +18,7 @@ struct iOSStarMapControlState {
 struct iOSStarMapHeaderOverlay: View {
     @Binding var starDisplayDensityRaw: String
     let controlState: iOSStarMapControlState
+    let onStarDensityChange: (StarDisplayDensity) -> Void
     let onToggleCameraBackground: () -> Void
     let onToggleGyroMode: () -> Void
     let onOpenSettings: () -> Void
@@ -57,6 +58,7 @@ struct iOSStarMapHeaderOverlay: View {
             ForEach(StarDisplayDensity.allCases) { density in
                 Button {
                     starDisplayDensityRaw = density.rawValue
+                    onStarDensityChange(density)
                 } label: {
                     if density == controlState.selectedStarDisplayDensity {
                         Label(density.settingsLabel, systemImage: "checkmark")
@@ -71,9 +73,15 @@ struct iOSStarMapHeaderOverlay: View {
                 .frame(width: 44, height: 44)
         }
         .buttonStyle(.glass)
+        .disabled(controlState.isGyroMode)
+        .help(controlState.isGyroMode ? L10n.tr("タッチ操作に切り替えてから変更してください") : L10n.tr("星の表示数を変更"))
         .accessibilityLabel(L10n.tr("星の表示数"))
         .accessibilityValue(controlState.selectedStarDisplayDensity.settingsLabel)
-        .accessibilityHint(L10n.tr("表示する恒星の量を変更します"))
+        .accessibilityHint(
+            controlState.isGyroMode
+                ? L10n.tr("タッチ操作に切り替えてから変更してください")
+                : L10n.tr("表示する恒星の量を変更します")
+        )
     }
 
     private var cameraBackgroundButton: some View {

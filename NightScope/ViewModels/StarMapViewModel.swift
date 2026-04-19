@@ -401,7 +401,7 @@ final class StarMapViewModel: ObservableObject {
     @Published private(set) var timeSliderMinutes: Double = 0
     @Published private(set) var isTimeSliderScrubbing: Bool = false
 
-    /// 夜間開始時刻 (分, 0-1439) — 市民薄明 (太陽高度 -6°) 基準
+    /// 夜間開始時刻 (分, 0-1439) — 日没 (太陽高度 0°) 基準
     @Published private(set) var nightStartMinutes: Double = 1080  // デフォルト 18:00
     /// 夜間の長さ (分)
     @Published private(set) var nightDurationMinutes: Double = 600 // デフォルト 10時間
