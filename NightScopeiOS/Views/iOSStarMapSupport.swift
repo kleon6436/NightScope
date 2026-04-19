@@ -54,9 +54,15 @@ struct iOSStarMapHeaderOverlay: View {
 
     private var starDensityMenu: some View {
         Menu {
-            Picker("星の表示数", selection: $starDisplayDensityRaw) {
-                ForEach(StarDisplayDensity.allCases) { density in
-                    Text(density.settingsLabel).tag(density.rawValue)
+            ForEach(StarDisplayDensity.allCases) { density in
+                Button {
+                    starDisplayDensityRaw = density.rawValue
+                } label: {
+                    if density == controlState.selectedStarDisplayDensity {
+                        Label(density.settingsLabel, systemImage: "checkmark")
+                    } else {
+                        Text(density.settingsLabel)
+                    }
                 }
             }
         } label: {
