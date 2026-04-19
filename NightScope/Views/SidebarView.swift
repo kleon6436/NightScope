@@ -179,14 +179,15 @@ struct SidebarView: View {
             selectedLocationLabel
             Spacer()
             Button {
-                viewModel.addCurrentLocationToFavorites()
+                viewModel.toggleCurrentLocationFavorite()
             } label: {
                 Image(systemName: viewModel.isCurrentLocationFavorited ? "star.fill" : "star")
                     .foregroundStyle(viewModel.isCurrentLocationFavorited ? .yellow : .secondary)
             }
             .buttonStyle(.plain)
-            .disabled(viewModel.isCurrentLocationFavorited)
-            .accessibilityLabel("お気に入りに追加")
+            .accessibilityLabel(
+                viewModel.isCurrentLocationFavorited ? "お気に入りから削除" : "お気に入りに追加"
+            )
             .accessibilityHint("現在の場所をお気に入りに保存します")
         }
     }

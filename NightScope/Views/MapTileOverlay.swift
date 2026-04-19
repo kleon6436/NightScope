@@ -83,11 +83,12 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             return
         }
         let tileService = self.tileService
+        let sendableResult = unsafeBitCast(result, to: (@Sendable (Data?, (any Error)?) -> Void).self)
         Self.renderQueue.addOperation { [tileService] in
             let data = Self.renderTile(path: path, grid: grid, size: OverlayConfig.tilePixelSize)
             let tileData = data ?? Self.transparentTileData()
             tileService.storeTileData(tileData, for: path)
-            result(tileData, nil)
+            sendableResult(tileData, nil)
         }
     }
 

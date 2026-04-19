@@ -323,6 +323,23 @@ final class SidebarViewModel: ObservableObject {
         favoriteStore.save(favorites)
     }
 
+    func toggleCurrentLocationFavorite() {
+        if isCurrentLocationFavorited {
+            removeCurrentLocationFromFavorites()
+        } else {
+            addCurrentLocationToFavorites()
+        }
+    }
+
+    private func removeCurrentLocationFromFavorites() {
+        let coord = locationController.selectedLocation
+        favorites.removeAll {
+            abs($0.latitude - coord.latitude) < 0.001
+                && abs($0.longitude - coord.longitude) < 0.001
+        }
+        favoriteStore.save(favorites)
+    }
+
     func removeFavorite(_ favorite: FavoriteLocation) {
         favorites.removeAll { $0.id == favorite.id }
         favoriteStore.save(favorites)

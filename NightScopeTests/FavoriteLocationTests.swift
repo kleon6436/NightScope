@@ -65,6 +65,29 @@ final class FavoriteLocationTests: XCTestCase {
         XCTAssertTrue(vm.isCurrentLocationFavorited)
     }
 
+    // MARK: - Toggle
+
+    func test_toggleCurrentLocationFavorite_addsWhenNotFavorited() {
+        let (vm, _, store) = makeSidebarViewModel()
+
+        vm.toggleCurrentLocationFavorite()
+
+        XCTAssertEqual(vm.favorites.count, 1)
+        XCTAssertEqual(vm.favorites.first?.name, "東京")
+        XCTAssertEqual(store.saved.count, 1)
+    }
+
+    func test_toggleCurrentLocationFavorite_removesWhenFavorited() {
+        let (vm, _, store) = makeSidebarViewModel()
+        vm.addCurrentLocationToFavorites()
+        XCTAssertTrue(vm.isCurrentLocationFavorited)
+
+        vm.toggleCurrentLocationFavorite()
+
+        XCTAssertTrue(vm.favorites.isEmpty)
+        XCTAssertTrue(store.saved.isEmpty)
+    }
+
     // MARK: - Remove
 
     func test_removeFavorite_removesFromListAndPersists() {

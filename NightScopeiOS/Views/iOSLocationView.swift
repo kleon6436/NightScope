@@ -226,7 +226,7 @@ struct iOSLocationView: View {
             .lineLimit(1)
             Spacer()
             Button {
-                sidebarViewModel.addCurrentLocationToFavorites()
+                sidebarViewModel.toggleCurrentLocationFavorite()
             } label: {
                 Image(
                     systemName: sidebarViewModel.isCurrentLocationFavorited
@@ -237,8 +237,9 @@ struct iOSLocationView: View {
                 )
             }
             .buttonStyle(.plain)
-            .disabled(sidebarViewModel.isCurrentLocationFavorited)
-            .accessibilityLabel("お気に入りに追加")
+            .accessibilityLabel(
+                sidebarViewModel.isCurrentLocationFavorited ? "お気に入りから削除" : "お気に入りに追加"
+            )
             if showLightPollution {
                 if sidebarViewModel.isLightPollutionLoading {
                     ProgressView().controlSize(.mini)
@@ -405,6 +406,16 @@ private struct iOSFavoritesSection: View {
     @ObservedObject var viewModel: SidebarViewModel
     let onSelect: (FavoriteLocation) -> Void
 
+    private var needsScroll: Bool {
+        viewModel.favorites.count > IOSDesignTokens.Location.favoritesVisibleCount
+    }
+
+    private var favoritesListHeight: CGFloat {
+        let rowHeight = IOSDesignTokens.Location.estimatedFavoriteRowHeight
+        let contentHeight = CGFloat(viewModel.favorites.count) * rowHeight
+        return min(contentHeight, IOSDesignTokens.Location.favoritesMaxHeight)
+    }
+
     var body: some View {
         if !viewModel.favorites.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -414,50 +425,54 @@ private struct iOSFavoritesSection: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, Spacing.xs)
 
-                VStack(spacing: 0) {
-                    ForEach(viewModel.favorites) { favorite in
-                        Button { onSelect(favorite) } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(favorite.name)
-                                        .font(.body)
-                                        .lineLimit(1)
-                                    Text(
-                                        L10n.format(
-                                            "%.4f, %.4f",
-                                            favorite.latitude,
-                                            favorite.longitude
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(viewModel.favorites) { favorite in
+                            Button { onSelect(favorite) } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(favorite.name)
+                                            .font(.body)
+                                            .lineLimit(1)
+                                        Text(
+                                            L10n.format(
+                                                "%.4f, %.4f",
+                                                favorite.latitude,
+                                                favorite.longitude
+                                            )
                                         )
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
                                 }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                                .padding(.horizontal, Spacing.sm)
+                                .padding(.vertical, Spacing.xs)
+                                .contentShape(Rectangle())
                             }
-                            .padding(.horizontal, Spacing.sm)
-                            .padding(.vertical, Spacing.xs)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(
-                            L10n.format("お気に入りの場所: %@", favorite.name)
-                        )
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                viewModel.removeFavorite(favorite)
-                            } label: {
-                                Label("削除", systemImage: "trash")
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(
+                                L10n.format("お気に入りの場所: %@", favorite.name)
+                            )
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    viewModel.removeFavorite(favorite)
+                                } label: {
+                                    Label("削除", systemImage: "trash")
+                                }
                             }
-                        }
 
-                        if favorite.id != viewModel.favorites.last?.id {
-                            Divider()
+                            if favorite.id != viewModel.favorites.last?.id {
+                                Divider()
+                            }
                         }
                     }
                 }
+                .scrollDisabled(!needsScroll)
+                .frame(height: favoritesListHeight)
                 .iOSMaterialPanel()
             }
             .padding(.bottom, Spacing.sm)
