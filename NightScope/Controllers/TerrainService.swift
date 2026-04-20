@@ -1,4 +1,5 @@
 import Foundation
+import zlib
 
 // MARK: - SRTM Elevation Grid Data
 
@@ -26,7 +27,11 @@ import Foundation
 ///
 ///   範囲外座標は 0m（平坦地）を返す。
 ///
-/// 生成: Tools/prepare_srtm.py (NASA SRTM, パブリックドメイン)
+///   圧縮フォーマット (SRTZ):
+///   - Magic:     4 bytes  = 0x53 0x52 0x54 0x5A ("SRTZ")
+///   - Payload:   上記 Version 1/2 全体を zlib.compress(..., 9) で圧縮したデータ
+///
+/// 生成: Tools/prepare_srtm.py (Copernicus DEM GLO-30: CC BY 4.0 / NASA SRTM: Public Domain)
 struct ElevationGridData {
     private let latCells: Int
     private let lonCells: Int
@@ -104,6 +109,12 @@ struct ElevationGridData {
         return Double(data[latIdx * lonCells + lonIdx])
     }
 
+    /// 指定座標がこのグリッドの範囲内かどうかを返す。
+    func contains(latitude: Double, longitude: Double) -> Bool {
+        let normalizedLon = (lonMax - lonMin) >= 359 ? Self.normalizedLongitude(longitude) : longitude
+        return latitude >= latMin && latitude <= latMax && normalizedLon >= lonMin && normalizedLon <= lonMax
+    }
+
     private func normalizedLongitudeIfNeeded(_ longitude: Double) -> Double {
         guard (lonMax - lonMin) >= 359 else { return longitude }
         return Self.normalizedLongitude(longitude)
@@ -118,6 +129,55 @@ struct ElevationGridData {
         }
         return normalized
     }
+
+    /// バンドルファイル（非圧縮 SRTM または圧縮 SRTZ）から読み込む。
+    static func load(from url: URL) -> ElevationGridData? {
+        guard let fileData = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
+        guard fileData.count >= 4 else { return nil }
+        // SRTZ マジック (0x53 0x52 0x54 0x5A) → zlib 展開
+        if fileData[0..<4].elementsEqual([0x53, 0x52, 0x54, 0x5A]) {
+            guard let decompressed = decompressZlib(Data(fileData.dropFirst(4))) else { return nil }
+            return ElevationGridData(data: decompressed)
+        }
+        return ElevationGridData(data: fileData)
+    }
+
+    private static func decompressZlib(_ data: Data) -> Data? {
+        var stream = z_stream()
+        let initStatus = inflateInit_(&stream, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size))
+        guard initStatus == Z_OK else { return nil }
+        defer { inflateEnd(&stream) }
+
+        return data.withUnsafeBytes { srcRaw -> Data? in
+            guard let srcBase = srcRaw.bindMemory(to: Bytef.self).baseAddress else { return nil }
+
+            stream.next_in = UnsafeMutablePointer<Bytef>(mutating: srcBase)
+            stream.avail_in = uInt(data.count)
+
+            var output = Data()
+            let chunkSize = 256 * 1024
+            let outBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
+            defer { outBuffer.deallocate() }
+
+            while true {
+                stream.next_out = outBuffer
+                stream.avail_out = uInt(chunkSize)
+
+                let status = inflate(&stream, Z_NO_FLUSH)
+                let produced = chunkSize - Int(stream.avail_out)
+                if produced > 0 {
+                    output.append(outBuffer, count: produced)
+                }
+
+                if status == Z_STREAM_END {
+                    return output
+                }
+                if status != Z_OK {
+                    return nil
+                }
+            }
+        }
+    }
 }
 
 private extension Int {
@@ -129,30 +189,85 @@ private extension Int {
 // MARK: - Service
 
 /// 観測地周辺の地形データを提供する Actor。
-/// NASA SRTM バンドルデータから各方位 10km 先の標高を読み込み、
-/// 地平仰角プロファイルを構築する。バンドルデータが存在しない場合は nil を返す（平坦地扱い）。
+/// Copernicus DEM / NASA SRTM バンドルデータから各方位の標高を読み込み、地球曲率と
+/// 観測者の目の高さを考慮した地平仰角プロファイルを構築する。
+/// 高解像度グリッド（日本等）があれば優先的に使い、範囲外は全球グリッドにフォールバックする。
+/// バンドルデータが存在しない場合は nil を返す（平坦地扱い）。
 actor TerrainService {
     private enum Constants {
-        static let sampleDistancesMeters: [Double] = [1_000.0, 2_500.0, 5_000.0, 7_500.0, 10_000.0]
         static let sampleCount = 72
         static let cachePrecisionDegrees = 0.001
+        static let eyeHeightMeters = 1.7
+        static let earthRadiusMeters = 6_371_000.0
+        /// サンプリング距離候補 (m)。近距離は密に、遠距離は粗くなる。
+        static let sampleDistanceCandidates: [Double] = [
+            500, 1_000, 2_000, 4_000, 8_000,
+            15_000, 25_000, 40_000, 60_000, 80_000, 100_000
+        ]
+        /// 想定最高峰 (m)。最大サンプリング距離の計算に使用。
+        static let maxPeakElevationMeters = 4_500.0
+        /// 100km を超えると仰角 < 2° となり星空遮蔽への影響が小さいためキャップ。
+        static let maxSamplingDistanceMeters = 100_000.0
     }
 
     static let shared = TerrainService()
 
     private let cache = NSCache<NSString, NSArray>()
-    private let elevationData: ElevationGridData?
+    private let globalData: ElevationGridData?
+    private let highResData: ElevationGridData?
 
-    init(elevationData: ElevationGridData? = TerrainService.loadBundledElevationData()) {
-        self.elevationData = elevationData
+    init(globalData: ElevationGridData? = TerrainService.loadGlobalData(),
+         highResData: ElevationGridData? = TerrainService.loadHighResData()) {
+        self.globalData = globalData
+        self.highResData = highResData
     }
 
-    /// Bundle.main から srtm_elevation.bin を読み込む
-    private static func loadBundledElevationData() -> ElevationGridData? {
-        guard let url = Bundle.main.url(forResource: "srtm_elevation", withExtension: "bin"),
-              let data = try? Data(contentsOf: url, options: .mappedIfSafe)
-        else { return nil }
-        return ElevationGridData(data: data)
+    /// elevation_global (.bin.z / .bin) を読み込む。
+    private static func loadGlobalData() -> ElevationGridData? {
+        loadFile(name: "elevation_global")
+    }
+
+    /// elevation_japan (.bin.z / .bin) を読み込む。
+    private static func loadHighResData() -> ElevationGridData? {
+        loadFile(name: "elevation_japan")
+    }
+
+    /// name.bin.z（圧縮）→ name.bin（非圧縮）の順で Bundle.main を検索して読み込む。
+    private static func loadFile(name: String) -> ElevationGridData? {
+        let candidates: [(resource: String, ext: String)] = [
+            (name, "bin.z"),
+            ("\(name).bin", "z"),
+            (name, "bin")
+        ]
+
+        for candidate in candidates {
+            guard let url = Bundle.main.url(forResource: candidate.resource, withExtension: candidate.ext) else {
+                continue
+            }
+            if let data = ElevationGridData.load(from: url) {
+                return data
+            }
+        }
+
+        let expectedCompressedName = "\(name).bin.z"
+        if let compressedURLs = Bundle.main.urls(forResourcesWithExtension: "z", subdirectory: nil) {
+            for url in compressedURLs where url.lastPathComponent == expectedCompressedName {
+                if let data = ElevationGridData.load(from: url) {
+                    return data
+                }
+            }
+        }
+
+        let expectedPlainName = "\(name).bin"
+        if let plainURLs = Bundle.main.urls(forResourcesWithExtension: "bin", subdirectory: nil) {
+            for url in plainURLs where url.lastPathComponent == expectedPlainName {
+                if let data = ElevationGridData.load(from: url) {
+                    return data
+                }
+            }
+        }
+
+        return nil
     }
 
     /// 観測地座標に対するプロファイルを返す。キャッシュがあればそれを使う。
@@ -162,9 +277,9 @@ actor TerrainService {
         if let cached = cache.object(forKey: key) as? [Double] {
             return TerrainProfile(horizonAngles: cached)
         }
-        guard let grid = elevationData else { return nil }
+        guard globalData != nil || highResData != nil else { return nil }
 
-        let angles = computeAngles(latitude: latitude, longitude: longitude, grid: grid)
+        let angles = computeAngles(latitude: latitude, longitude: longitude)
         cache.setObject(angles as NSArray, forKey: key)
         return TerrainProfile(horizonAngles: angles)
     }
@@ -177,20 +292,56 @@ actor TerrainService {
         return "\(rLat),\(rLon)"
     }
 
+    /// 観測者標高に基づき、地形が空を遮る可能性がある最大距離 (m) を返す。
+    /// 幾何学的水平線距離: d_max = √(2R·h_obs) + √(2R·H_peak)
+    nonisolated static func maxUsefulDistance(observerElevation: Double) -> Double {
+        let R = Constants.earthRadiusMeters
+        let hObs = max(observerElevation + Constants.eyeHeightMeters, 0)
+        let dObs = (2 * R * hObs).squareRoot()
+        let dPeak = (2 * R * Constants.maxPeakElevationMeters).squareRoot()
+        return min(dObs + dPeak, Constants.maxSamplingDistanceMeters)
+    }
+
+    /// maxDistance 以内のサンプリング距離を返す。
+    nonisolated static func adaptiveSampleDistances(maxDistance: Double) -> [Double] {
+        Constants.sampleDistanceCandidates.filter { $0 <= maxDistance }
+    }
+
+    /// 高解像度グリッドを優先し、範囲外なら全球にフォールバック。両方 nil の場合は 0.0 を返す。
+    private func elevation(latitude: Double, longitude: Double) -> Double {
+        if let hires = highResData {
+            let val = hires.elevation(latitude: latitude, longitude: longitude)
+            if val != 0.0 { return val }
+            // 0.0 は範囲外の可能性があるので、座標がグリッド範囲内か確認
+            if hires.contains(latitude: latitude, longitude: longitude) {
+                return val
+            }
+        }
+        return globalData?.elevation(latitude: latitude, longitude: longitude) ?? 0.0
+    }
+
     /// バンドルデータから 72 方位の地平仰角を計算する。
-    private func computeAngles(latitude: Double, longitude: Double, grid: ElevationGridData) -> [Double] {
-        let obsElev = grid.elevation(latitude: latitude, longitude: longitude)
+    /// 地球曲率と観測者の目の高さ (1.7m) を考慮する。
+    private func computeAngles(latitude: Double, longitude: Double) -> [Double] {
+        let obsElev = elevation(latitude: latitude, longitude: longitude)
+        let maxDist = Self.maxUsefulDistance(observerElevation: obsElev)
+        let distances = Self.adaptiveSampleDistances(maxDistance: maxDist)
+        let viewerHeight = obsElev + Constants.eyeHeightMeters
+
         return (0..<Constants.sampleCount).map { index in
             let bearing = Double(index) * 5.0
-            return Constants.sampleDistancesMeters.reduce(-90.0) { highestAngle, sampleDistance in
+            return distances.reduce(-90.0) { highestAngle, sampleDistance in
                 let (lat2, lon2) = destinationPoint(
                     lat: latitude,
                     lon: longitude,
                     bearing: bearing,
                     distanceM: sampleDistance
                 )
-                let elev = grid.elevation(latitude: lat2, longitude: lon2)
-                let angle = atan2(elev - obsElev, sampleDistance) * 180.0 / .pi
+                let targetElev = self.elevation(latitude: lat2, longitude: lon2)
+                let curvatureDrop = sampleDistance * sampleDistance
+                    / (2.0 * Constants.earthRadiusMeters)
+                let apparentHeight = targetElev - viewerHeight - curvatureDrop
+                let angle = atan2(apparentHeight, sampleDistance) * 180.0 / .pi
                 return max(highestAngle, angle)
             }
         }
@@ -213,7 +364,7 @@ actor TerrainService {
     /// Haversine 公式: 距離 distanceM 先の方位 bearing にある座標を返す。
     private func destinationPoint(lat: Double, lon: Double,
                                   bearing: Double, distanceM: Double) -> (Double, Double) {
-        let R    = 6_371_000.0
+        let R    = Constants.earthRadiusMeters
         let d    = distanceM / R
         let lat1 = lat * .pi / 180
         let lon1 = lon * .pi / 180

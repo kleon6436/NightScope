@@ -93,8 +93,8 @@ private struct SettingsAboutSections: View {
                 )
                 AttributionRow(
                     title: "地形データ",
-                    detail: "NASA Shuttle Radar Topography Mission (SRTM)",
-                    license: "Public Domain"
+                    detail: "Copernicus DEM GLO-30 © DLR/ESA, NASA SRTM",
+                    license: "CC BY 4.0 / Public Domain"
                 )
                 AttributionRow(
                     title: "星カタログ",

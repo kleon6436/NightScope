@@ -55,6 +55,37 @@ struct StarMapComputationDependency: Sendable {
     )
 }
 
+enum StarMapTerrainFetchState: Equatable {
+    case idle
+    case loading
+    case available
+    case unavailable
+
+    var statusText: String {
+        switch self {
+        case .idle:
+            "地形: 待機中"
+        case .loading:
+            "地形: 読込中"
+        case .available:
+            "地形: 有効"
+        case .unavailable:
+            "地形: 未取得"
+        }
+    }
+
+    var systemImageName: String {
+        switch self {
+        case .idle, .loading:
+            "hourglass"
+        case .available:
+            "mountain.2"
+        case .unavailable:
+            "exclamationmark.triangle"
+        }
+    }
+}
+
 enum StarMapScreenOrientation: Sendable {
     case portrait
     case portraitUpsideDown
@@ -387,6 +418,7 @@ final class StarMapViewModel: ObservableObject {
     @Published private(set) var planetPositions: [PlanetPosition] = []
     @Published private(set) var meteorShowerRadiants: [(shower: MeteorShower, altitude: Double, azimuth: Double)] = []
     @Published private(set) var terrainProfile: TerrainProfile? = nil
+    @Published private(set) var terrainFetchState: StarMapTerrainFetchState = .idle
     /// 天の川バンドのキャッシュ (lat/LST が変わったときのみ再計算)
     @Published private(set) var milkyWayBandPoints: [MilkyWayBandPoint] = []
 
@@ -658,6 +690,7 @@ final class StarMapViewModel: ObservableObject {
         guard context.terrainCacheKey != lastTerrainKey else { return }
         lastTerrainKey = context.terrainCacheKey
         terrainProfile = nil
+        terrainFetchState = .loading
         fetchTerrain(
             latitude: context.latitude,
             longitude: context.longitude,
@@ -693,6 +726,7 @@ final class StarMapViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             guard terrainKey == lastTerrainKey else { return }
             terrainProfile = profile
+            terrainFetchState = profile == nil ? .unavailable : .available
         }
     }
 

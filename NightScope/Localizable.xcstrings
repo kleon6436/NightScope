@@ -171,17 +171,6 @@
     "%lld/100" : {
 
     },
-    "10日以内のみ" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Within 10 days only"
-          }
-        }
-      }
-    },
     "9日予報" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -215,7 +204,24 @@
         }
       }
     },
+    "10日以内のみ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Within 10 days only"
+          }
+        }
+      }
+    },
     "CC BY 4.0" : {
+
+    },
+    "CC BY 4.0 / Public Domain" : {
+
+    },
+    "Copernicus DEM GLO-30 © DLR/ESA, NASA SRTM" : {
 
     },
     "Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness (GFZ Data Services)" : {
@@ -234,9 +240,6 @@
           }
         }
       }
-    },
-    "NASA Shuttle Radar Topography Mission (SRTM)" : {
-
     },
     "NightScope" : {
       "extractionState" : "manual",
@@ -2977,17 +2980,6 @@
         }
       }
     },
-    "今後9日間の夜間予報を表示できませんでした" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not display the 9-day night forecast."
-          }
-        }
-      }
-    },
     "今後9日間の夜空の見通し" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2995,6 +2987,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Night sky outlook for the next 9 days"
+          }
+        }
+      }
+    },
+    "今後9日間の夜間予報を表示できませんでした" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not display the 9-day night forecast."
           }
         }
       }
@@ -3570,6 +3573,9 @@
           }
         }
       }
+    },
+    "地形データ状態: %@" : {
+
     },
     "場所" : {
       "extractionState" : "manual",

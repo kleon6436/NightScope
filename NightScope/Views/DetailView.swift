@@ -314,6 +314,11 @@ private struct MacStarMapSheet: View {
             .font(.body)
             .foregroundStyle(.secondary)
 
+            Label(viewModel.terrainFetchState.statusText, systemImage: viewModel.terrainFetchState.systemImageName)
+                .font(.body)
+                .foregroundStyle(terrainStatusColor)
+                .accessibilityLabel("地形データ状態: \(viewModel.terrainFetchState.statusText)")
+
             Spacer()
 
             if viewModel.moonAltitude > 0 {
@@ -338,6 +343,17 @@ private struct MacStarMapSheet: View {
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
+    }
+
+    private var terrainStatusColor: Color {
+        switch viewModel.terrainFetchState {
+        case .idle, .loading:
+            .secondary
+        case .available:
+            Color(red: 0.4, green: 1.0, blue: 0.7)
+        case .unavailable:
+            .orange
+        }
     }
 
     private var controlsSection: some View {

@@ -215,10 +215,29 @@ struct iOSStarMapView: View {
             Text("夜空を表示中")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            terrainStatusLabel
             Spacer()
             skyStatusLabel
         }
         .padding(.bottom, 2)
+    }
+
+    private var terrainStatusLabel: some View {
+        Label(viewModel.terrainFetchState.statusText, systemImage: viewModel.terrainFetchState.systemImageName)
+            .font(.caption2)
+            .foregroundStyle(terrainStatusColor)
+            .accessibilityLabel("地形データ状態: \(viewModel.terrainFetchState.statusText)")
+    }
+
+    private var terrainStatusColor: Color {
+        switch viewModel.terrainFetchState {
+        case .idle, .loading:
+            .secondary
+        case .available:
+            Color(red: 0.4, green: 1.0, blue: 0.7)
+        case .unavailable:
+            .orange
+        }
     }
 
     private var skyStatusLabel: some View {

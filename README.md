@@ -53,7 +53,7 @@ NightScope は以下の外部データ/サービスを利用しています。
 |---|---|---|---|---|
 | MET Norway Locationforecast 2.0 | 天気予報取得 | Norwegian Meteorological Institute (MET Norway) — https://api.met.no/ | CC BY 4.0 | 実行時 API（ネットワーク必須） |
 | Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness | 光害マップ | Falchi, F. et al. (2016) / GFZ Data Services — https://doi.org/10.5880/GFZ.1.4.2016.001 | CC BY 4.0 | バンドルバイナリ（`bortle_map.bin`、`Tools/generate_bortle_map.py` で生成） |
-| NASA Shuttle Radar Topography Mission (SRTM) | 地形・標高データ | NASA / USGS SRTM — https://srtm.csi.cgiar.org/ | Public Domain | バンドルバイナリ（`srtm_elevation.bin`、`Tools/prepare_srtm.py` で生成） |
+| Copernicus DEM GLO-30 / NASA SRTM | 地形・標高データ | Copernicus DEM (DLR/ESA) — https://dataspace.copernicus.eu / NASA / USGS SRTM — https://srtm.csi.cgiar.org/ | CC BY 4.0 / Public Domain | バンドルバイナリ（`elevation_global.bin.z`, `elevation_japan.bin.z`、`Tools/prepare_srtm.py` で生成） |
 | Yale Bright Star Catalogue (BSC5 / CDS V/50) | 星カタログ | Yale BSC5 / CDS VizieR — https://vizier.cds.unistra.fr/viz-bin/VizieR-3?-source=V/50 | Public Domain | バンドル JSON（`stars_fill.json`、`Tools/generate_stars.py` で生成） |
 | Apple MapKit (MKReverseGeocodingRequest) | 逆ジオコーディング・地名取得 | Apple Inc. | Apple Developer Program 規約 | システムフレームワーク（ネットワーク不要） |
 
@@ -67,33 +67,39 @@ python3 Tools/generate_bortle_map.py \
     --output NightScope/Models/bortle_map.bin
 ```
 
-### srtm_elevation.bin（地形データ）
+### elevation_global.bin.z / elevation_japan.bin.z（地形データ）
 
-`srtm.py` パッケージが SRTM3 タイルを公開 CDN（`srtm.kurviger.de`）から自動取得します。登録不要です。
+`prepare_srtm.py` は Copernicus DEM（推奨）または SRTM を使って地形バイナリを生成できます。
 
 ```bash
 pip install srtm.py numpy
 
 # --resolution 0.5 → 約 0.5 MB、数分で完了（推奨）
 python3 Tools/prepare_srtm.py --auto \
-    --output NightScope/Models/srtm_elevation.bin \
+    --output NightScope/Models/elevation_global.bin \
     --resolution 0.5
 
 # より詳細なデータが必要な場合（約 12 MB、時間がかかる）
 python3 Tools/prepare_srtm.py --auto \
-    --output NightScope/Models/srtm_elevation.bin \
+    --output NightScope/Models/elevation_global.bin \
     --resolution 0.1
+
+# Copernicus DEM（推奨）
+python3 Tools/prepare_srtm.py --source copernicus --resolution 0.05 \
+    --compress --output NightScope/Models/elevation_global.bin.z
+python3 Tools/prepare_srtm.py --source copernicus --region japan --resolution 0.01 \
+    --compress --output NightScope/Models/elevation_japan.bin.z
 ```
 
 ローカルに GeoTIFF / .hgt タイルがある場合:
 ```bash
 pip install numpy rasterio scipy
 python3 Tools/prepare_srtm.py --input-dir ~/srtm_tiles/ \
-    --output NightScope/Models/srtm_elevation.bin --resolution 0.1
+    --output NightScope/Models/elevation_global.bin --resolution 0.1
 ```
 
 > [!NOTE]
-> `srtm_elevation.bin` が存在しない場合、`TerrainService` は nil を返し地形データなし（平坦地扱い）で動作します。ビルド・実行は可能ですが、地平線障害物の計算は行われません。
+> `elevation_global.bin(.z)` / `elevation_japan.bin(.z)` が存在しない場合、`TerrainService` は nil を返し地形データなし（平坦地扱い）で動作します。ビルド・実行は可能ですが、地平線障害物の計算は行われません。
 
 ## 利用上の注意（個人利用 / 将来商用）
 

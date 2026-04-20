@@ -109,8 +109,10 @@
 		BB0000000000000000003B02 /* stars_fill.json in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F01 /* stars_fill.json */; };
 		BB0000000000000000003B03 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
 		BB0000000000000000003B04 /* bortle_map.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F02 /* bortle_map.bin */; };
-		BB0000000000000000003B05 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
-		BB0000000000000000003B06 /* srtm_elevation.bin in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F03 /* srtm_elevation.bin */; };
+		BB0000000000000000006B01 /* elevation_japan.bin.z in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000006F01 /* elevation_japan.bin.z */; };
+		BB0000000000000000006B02 /* elevation_japan.bin.z in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000006F01 /* elevation_japan.bin.z */; };
+		BB0000000000000000006B03 /* elevation_global.bin.z in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000006F02 /* elevation_global.bin.z */; };
+		BB0000000000000000006B04 /* elevation_global.bin.z in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000006F02 /* elevation_global.bin.z */; };
 		BB0000000000000000003B08 /* StarMapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F08 /* StarMapViewModel.swift */; };
 		BB0000000000000000005B01 /* StarCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F21 /* StarCatalog.swift */; };
 		BB0000000000000000005B02 /* StarMapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F08 /* StarMapViewModel.swift */; };
@@ -237,7 +239,8 @@
 		BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapCanvasOverlays.swift; sourceTree = "<group>"; };
 		BB0000000000000000003F01 /* stars_fill.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stars_fill.json; sourceTree = "<group>"; };
 		BB0000000000000000003F02 /* bortle_map.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = bortle_map.bin; sourceTree = "<group>"; };
-		BB0000000000000000003F03 /* srtm_elevation.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = srtm_elevation.bin; sourceTree = "<group>"; };
+		BB0000000000000000006F01 /* elevation_japan.bin.z */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "elevation_japan.bin.z"; sourceTree = "<group>"; };
+		BB0000000000000000006F02 /* elevation_global.bin.z */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "elevation_global.bin.z"; sourceTree = "<group>"; };
 		BB0000000000000000003F08 /* StarMapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapViewModel.swift; sourceTree = "<group>"; };
 		BB0000000000000000003F09 /* StarMapPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapPresentation.swift; sourceTree = "<group>"; };
 		BB0000000000000000003F0A /* StarDisplayDensity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarDisplayDensity.swift; sourceTree = "<group>"; };
@@ -363,7 +366,8 @@
 				AA0000000000000000002F21 /* TerrainProfile.swift */,
 				BB0000000000000000003F01 /* stars_fill.json */,
 				BB0000000000000000003F02 /* bortle_map.bin */,
-				BB0000000000000000003F03 /* srtm_elevation.bin */,
+				BB0000000000000000006F01 /* elevation_japan.bin.z */,
+				BB0000000000000000006F02 /* elevation_global.bin.z */,
 				BB0000000000000000002F21 /* StarCatalog.swift */,
 				BB0000000000000000003F0A /* StarDisplayDensity.swift */,
 				BB0000000000000000002F23 /* ConstellationData.swift */,
@@ -575,7 +579,8 @@
 				A0F100000000000000000006 /* Localizable.xcstrings in Resources */,
 				BB0000000000000000003B02 /* stars_fill.json in Resources */,
 				BB0000000000000000003B04 /* bortle_map.bin in Resources */,
-				BB0000000000000000003B06 /* srtm_elevation.bin in Resources */,
+				BB0000000000000000006B02 /* elevation_japan.bin.z in Resources */,
+				BB0000000000000000006B04 /* elevation_global.bin.z in Resources */,
 				7E100000000000000000IC01 /* NightScope.icon in Resources */,
 				824FD5CAFE4F9BD597800662 /* Assets.xcassets in Resources */,
 			);
@@ -588,7 +593,8 @@
 				A0F100000000000000000005 /* Localizable.xcstrings in Resources */,
 				BB0000000000000000003B01 /* stars_fill.json in Resources */,
 				BB0000000000000000003B03 /* bortle_map.bin in Resources */,
-				BB0000000000000000003B05 /* srtm_elevation.bin in Resources */,
+				BB0000000000000000006B01 /* elevation_japan.bin.z in Resources */,
+				BB0000000000000000006B03 /* elevation_global.bin.z in Resources */,
 				6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */,
 				AA0000000000000000001B05 /* Assets.xcassets in Resources */,
 			);

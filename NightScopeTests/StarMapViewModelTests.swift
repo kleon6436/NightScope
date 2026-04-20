@@ -1205,6 +1205,44 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.terrainProfile?.horizonAngles.first, 3)
     }
 
+    func test_StarMapViewModel_terrainFetchState_reflectsLoadingAndResult() async {
+        let appController = makeTokyoAppController()
+        let losAngeles = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        let terrainDependency = StarMapTerrainDependency(
+            fetchProfile: { latitude, longitude in
+                if latitude == losAngeles.latitude && longitude == losAngeles.longitude {
+                    try? await Task.sleep(nanoseconds: 120_000_000)
+                    return nil
+                }
+                try? await Task.sleep(nanoseconds: 20_000_000)
+                return TerrainProfile(horizonAngles: Array(repeating: 1, count: 72))
+            }
+        )
+
+        let viewModel = StarMapViewModel(
+            appController: appController,
+            terrainDependency: terrainDependency,
+            computationDependency: makeStaticComputationDependency()
+        )
+
+        await waitUntil(timeout: 1.0) {
+            viewModel.terrainFetchState == .available
+                && viewModel.terrainProfile?.horizonAngles.first == 1
+        }
+
+        appController.locationController.selectCoordinate(losAngeles)
+
+        await waitUntil(timeout: 1.0) {
+            viewModel.terrainFetchState == .loading
+                && viewModel.terrainProfile == nil
+        }
+
+        await waitUntil(timeout: 1.0) {
+            viewModel.terrainFetchState == .unavailable
+                && viewModel.terrainProfile == nil
+        }
+    }
+
     func test_StarMapViewModel_setObservationDate_triggersNightRecalculation() async {
         let calculationService = MockNightCalculationService()
         let storage = InMemoryLocationStorage()
