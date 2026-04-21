@@ -1,6 +1,11 @@
 import SwiftUI
 
 struct CalendarView: View {
+    struct WeekdayHeaderItem: Identifiable, Equatable {
+        let id: Int
+        let label: String
+    }
+
     @Binding var selectedDate: Date
     let timeZone: TimeZone
     var cellHeight: CGFloat = 32
@@ -21,6 +26,16 @@ struct CalendarView: View {
         let formatter = DateFormatter()
         formatter.locale = .autoupdatingCurrent
         return formatter.veryShortStandaloneWeekdaySymbols
+    }
+
+    private var weekdayHeaderItems: [WeekdayHeaderItem] {
+        Self.makeWeekdayHeaderItems(from: weekdayLabels)
+    }
+
+    static func makeWeekdayHeaderItems(from labels: [String]) -> [WeekdayHeaderItem] {
+        labels.enumerated().map { index, label in
+            WeekdayHeaderItem(id: index, label: label)
+        }
     }
 
     var body: some View {
@@ -55,8 +70,8 @@ struct CalendarView: View {
 
             // 曜日ヘッダー
             HStack(spacing: 0) {
-                ForEach(weekdayLabels, id: \.self) { label in
-                    Text(label)
+                ForEach(weekdayHeaderItems) { item in
+                    Text(item.label)
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
