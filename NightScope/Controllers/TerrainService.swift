@@ -1,21 +1,21 @@
 import Foundation
 import zlib
 
-// MARK: - SRTM Elevation Grid Data
+// MARK: - Elevation Grid Data
 
-/// バンドルされた SRTM 標高データを読み込む構造体。
+/// バンドルされた標高データを読み込む構造体。
 ///
 /// バイナリフォーマット:
 ///
 ///   Version 1（全球）:
-///   - Magic:     4 bytes  = 0x53 0x52 0x54 0x4D ("SRTM")
+///   - Magic:     4 bytes  = 0x45 0x4C 0x45 0x56 ("ELEV")
 ///   - Version:   UInt32 LE = 1
 ///   - Lat cells: Int32  LE (南から北: -90 → +90)
 ///   - Lon cells: Int32  LE (西から東: -180 → +180)
 ///   - Data:      Int16[] LE, row-major, 標高 (メートル、海面上)
 ///
 ///   Version 2（領域限定）:
-///   - Magic:     4 bytes  = 0x53 0x52 0x54 0x4D ("SRTM")
+///   - Magic:     4 bytes  = 0x45 0x4C 0x45 0x56 ("ELEV")
 ///   - Version:   UInt32 LE = 2
 ///   - Lat cells: Int32  LE
 ///   - Lon cells: Int32  LE
@@ -27,11 +27,11 @@ import zlib
 ///
 ///   範囲外座標は 0m（平坦地）を返す。
 ///
-///   圧縮フォーマット (SRTZ):
-///   - Magic:     4 bytes  = 0x53 0x52 0x54 0x5A ("SRTZ")
+///   圧縮フォーマット (ELVZ):
+///   - Magic:     4 bytes  = 0x45 0x4C 0x56 0x5A ("ELVZ")
 ///   - Payload:   上記 Version 1/2 全体を zlib.compress(..., 9) で圧縮したデータ
 ///
-/// 生成: Tools/prepare_srtm.py (Copernicus DEM GLO-30: CC BY 4.0 / NASA SRTM: Public Domain)
+/// 生成: Tools/prepare_srtm.py (Copernicus DEM GLO-30: CC BY 4.0)
 struct ElevationGridData {
     private let latCells: Int
     private let lonCells: Int
@@ -41,7 +41,8 @@ struct ElevationGridData {
     private let lonMin: Double
     private let lonMax: Double
 
-    private static let magic: [UInt8] = [0x53, 0x52, 0x54, 0x4D]  // "SRTM"
+    private static let magic: [UInt8] = [0x45, 0x4C, 0x45, 0x56]  // "ELEV"
+    private static let compressedMagic: [UInt8] = [0x45, 0x4C, 0x56, 0x5A]  // "ELVZ"
 
     init?(data fileData: Data) {
         guard fileData.count >= 16 else { return nil }
@@ -130,12 +131,12 @@ struct ElevationGridData {
         return normalized
     }
 
-    /// バンドルファイル（非圧縮 SRTM または圧縮 SRTZ）から読み込む。
+    /// バンドルファイル（非圧縮 ELEV または圧縮 ELVZ）から読み込む。
     static func load(from url: URL) -> ElevationGridData? {
         guard let fileData = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
         guard fileData.count >= 4 else { return nil }
-        // SRTZ マジック (0x53 0x52 0x54 0x5A) → zlib 展開
-        if fileData[0..<4].elementsEqual([0x53, 0x52, 0x54, 0x5A]) {
+        // ELVZ マジック (0x45 0x4C 0x56 0x5A) → zlib 展開
+        if fileData[0..<4].elementsEqual(compressedMagic) {
             guard let decompressed = decompressZlib(Data(fileData.dropFirst(4))) else { return nil }
             return ElevationGridData(data: decompressed)
         }
@@ -189,7 +190,7 @@ private extension Int {
 // MARK: - Service
 
 /// 観測地周辺の地形データを提供する Actor。
-/// Copernicus DEM / NASA SRTM バンドルデータから各方位の標高を読み込み、地球曲率と
+/// Copernicus DEM バンドルデータから各方位の標高を読み込み、地球曲率と
 /// 観測者の目の高さを考慮した地平仰角プロファイルを構築する。
 /// 高解像度グリッド（日本等）があれば優先的に使い、範囲外は全球グリッドにフォールバックする。
 /// バンドルデータが存在しない場合は nil を返す（平坦地扱い）。

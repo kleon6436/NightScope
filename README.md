@@ -53,7 +53,7 @@ NightScope は以下の外部データ/サービスを利用しています。
 |---|---|---|---|---|
 | MET Norway Locationforecast 2.0 | 天気予報取得 | Norwegian Meteorological Institute (MET Norway) — https://api.met.no/ | CC BY 4.0 | 実行時 API（ネットワーク必須） |
 | Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness | 光害マップ | Falchi, F. et al. (2016) / GFZ Data Services — https://doi.org/10.5880/GFZ.1.4.2016.001 | CC BY 4.0 | バンドルバイナリ（`bortle_map.bin`、`Tools/generate_bortle_map.py` で生成） |
-| Copernicus DEM GLO-30 / NASA SRTM | 地形・標高データ | Copernicus DEM (DLR/ESA) — https://dataspace.copernicus.eu / NASA / USGS SRTM — https://srtm.csi.cgiar.org/ | CC BY 4.0 / Public Domain | バンドルバイナリ（`elevation_global.bin.z`, `elevation_japan.bin.z`、`Tools/prepare_srtm.py` で生成） |
+| Copernicus DEM GLO-30 | 地形・標高データ | Copernicus DEM (DLR/ESA) — https://dataspace.copernicus.eu | CC BY 4.0 | バンドルバイナリ（`elevation_global.bin.z`, `elevation_japan.bin.z`、`Tools/prepare_srtm.py` で生成） |
 | Yale Bright Star Catalogue (BSC5 / CDS V/50) | 星カタログ | Yale BSC5 / CDS VizieR — https://vizier.cds.unistra.fr/viz-bin/VizieR-3?-source=V/50 | Public Domain | バンドル JSON（`stars_fill.json`、`Tools/generate_stars.py` で生成） |
 | Apple MapKit (MKReverseGeocodingRequest) | 逆ジオコーディング・地名取得 | Apple Inc. | Apple Developer Program 規約 | システムフレームワーク（ネットワーク不要） |
 
@@ -69,32 +69,23 @@ python3 Tools/generate_bortle_map.py \
 
 ### elevation_global.bin.z / elevation_japan.bin.z（地形データ）
 
-`prepare_srtm.py` は Copernicus DEM（推奨）または SRTM を使って地形バイナリを生成できます。
+`prepare_srtm.py` は Copernicus DEM を使って地形バイナリを生成します。
 
 ```bash
-pip install srtm.py numpy
+pip install rasterio numpy scipy
 
-# --resolution 0.5 → 約 0.5 MB、数分で完了（推奨）
-python3 Tools/prepare_srtm.py --auto \
-    --output NightScope/Models/elevation_global.bin \
-    --resolution 0.5
-
-# より詳細なデータが必要な場合（約 12 MB、時間がかかる）
-python3 Tools/prepare_srtm.py --auto \
-    --output NightScope/Models/elevation_global.bin \
-    --resolution 0.1
-
-# Copernicus DEM（推奨）
-python3 Tools/prepare_srtm.py --source copernicus --resolution 0.05 \
+# Copernicus DEM（全球）
+python3 Tools/prepare_srtm.py --resolution 0.05 \
     --compress --output NightScope/Models/elevation_global.bin.z
-python3 Tools/prepare_srtm.py --source copernicus --region japan --resolution 0.01 \
+
+# Copernicus DEM（日本高解像度）
+python3 Tools/prepare_srtm.py --region japan --resolution 0.01 \
     --compress --output NightScope/Models/elevation_japan.bin.z
 ```
 
 ローカルに GeoTIFF / .hgt タイルがある場合:
 ```bash
-pip install numpy rasterio scipy
-python3 Tools/prepare_srtm.py --input-dir ~/srtm_tiles/ \
+python3 Tools/prepare_srtm.py --input-dir ~/dem_tiles/ \
     --output NightScope/Models/elevation_global.bin --resolution 0.1
 ```
 
@@ -109,11 +100,10 @@ python3 Tools/prepare_srtm.py --input-dir ~/srtm_tiles/ \
 |---|---|---|---|
 | MET Norway Locationforecast 2.0 | CC BY 4.0 | ✅ 可 | 帰属表示・User-Agent 設定 |
 | Falchi et al. 2016 World Atlas | CC BY 4.0 | ✅ 可 | 帰属表示（論文・DOI の明示） |
-| NASA SRTM | Public Domain | ✅ 可 | 帰属表示（推奨） |
 | Yale BSC5 / CDS VizieR | Public Domain | ✅ 可 | 帰属表示（推奨） |
 | Apple MapKit | Apple Developer Program 規約 | ✅ 可（規約の範囲内） | Apple Developer Program への参加 |
 
-全データソースが **CC BY 4.0 / Public Domain / Apple Developer Program 規約**のみで構成されており、商用配布・課金・法人利用においても帰属表示を適切に行うことで利用可能な状態です。
+全データソースが **CC BY 4.0 / Public Domain / Apple Developer Program 規約**で構成されており、商用配布・課金・法人利用においても帰属表示を適切に行うことで利用可能な状態です。
 
 ### 個人利用（現状）
 
@@ -131,7 +121,6 @@ python3 Tools/prepare_srtm.py --input-dir ~/srtm_tiles/ \
 
 - [ ] MET Norway Locationforecast 2.0 の利用規約に変更がないことを確認
 - [ ] Falchi World Atlas (CC BY 4.0) の帰属表示（Falchi et al. 2016 / GFZ Data Services / DOI）がアプリ内・配布物に含まれている
-- [ ] NASA SRTM の利用条件（Public Domain）に変更がないことを確認
 - [ ] Yale BSC5 の帰属表示が設定画面に含まれている
 - [ ] Apple MapKit の利用が Apple Developer Program 規約の範囲内であることを確認
 - [ ] README とアプリ内「設定 > データソースとクレジット」で全帰属が明示されている
