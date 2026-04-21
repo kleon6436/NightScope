@@ -12,7 +12,7 @@ struct ViewingWindowsSection: View {
                     .glassCard()
                     .accessibilityElement(children: .contain)
             } else {
-                ForEach(summary.viewingWindows, id: \.start) { window in
+                ForEach(Array(summary.viewingWindows.enumerated()), id: \.offset) { _, window in
                     ViewingWindowCard(window: window, timeZone: summary.timeZone, viewModel: viewModel)
                 }
             }

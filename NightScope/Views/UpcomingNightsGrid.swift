@@ -35,8 +35,9 @@ struct UpcomingNightsGrid: View {
                 )
             } else {
                 GlassEffectContainer {
+                    let nightItems = Array(displayNights.enumerated())
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: Spacing.xs)], spacing: Spacing.xs) {
-                        ForEach(displayNights, id: \.date) { night in
+                        ForEach(nightItems, id: \.offset) { _, night in
                             upcomingNightCard(night: night)
                         }
                     }

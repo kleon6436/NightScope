@@ -154,8 +154,10 @@ struct iOSForecastView: View {
     }
 
     private var forecastList: some View {
-        LazyVStack(alignment: .leading, spacing: IOSDesignTokens.Forecast.rowSpacing) {
-            ForEach(gridViewModel.displayNights, id: \.date) { night in
+        let nightItems = Array(gridViewModel.displayNights.enumerated())
+
+        return LazyVStack(alignment: .leading, spacing: IOSDesignTokens.Forecast.rowSpacing) {
+            ForEach(nightItems, id: \.offset) { _, night in
                 forecastRow(for: night)
             }
         }
