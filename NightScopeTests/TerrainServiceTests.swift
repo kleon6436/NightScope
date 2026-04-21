@@ -121,9 +121,9 @@ final class TerrainServiceTests: XCTestCase {
     }
 
     func test_fetchProfile_realYamanakakoData_hasPositiveTerrainAngles() async throws {
-        let modelsURL = repositoryRootURL().appendingPathComponent("NightScope/Models", isDirectory: true)
-        let globalURL = modelsURL.appendingPathComponent("elevation_global.bin.z")
-        let japanURL = modelsURL.appendingPathComponent("elevation_japan.bin.z")
+        let dataURL = repositoryRootURL().appendingPathComponent("NightScope/Data", isDirectory: true)
+        let globalURL = dataURL.appendingPathComponent("elevation_global.bin.z")
+        let japanURL = dataURL.appendingPathComponent("elevation_japan.bin.z")
 
         let globalGrid = ElevationGridData.load(from: globalURL)
         let highResGrid = ElevationGridData.load(from: japanURL)

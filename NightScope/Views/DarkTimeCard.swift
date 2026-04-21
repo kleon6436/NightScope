@@ -16,6 +16,7 @@ struct DarkTimeCard: View {
             HStack(alignment: .center, spacing: Spacing.sm) {
                 DarkTimeArc(darkHours: summary.totalDarkHours)
                     .frame(width: CardVisual.width, height: CardVisual.arcHeight)
+                    .summaryCardMetricVisualFrame()
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(viewModel.displayText)
@@ -43,6 +44,7 @@ struct DarkTimeCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(minHeight: CardVisual.metricVisualHeight, alignment: .leading)
         }
         .glassCard()
         .accessibilityElement(children: .combine)

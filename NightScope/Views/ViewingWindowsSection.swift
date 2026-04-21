@@ -69,9 +69,9 @@ struct ViewingWindowCardContent: View {
 
         HStack(alignment: .center, spacing: Spacing.sm) {
             DirectionIndicator(azimuth: window.peakAzimuth)
-                .frame(width: CardVisual.width, height: CardVisual.compassSize)
+                .summaryCardMetricVisualFrame()
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: Spacing.xs / 2) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(timeAndPeakText)
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(.primary)
@@ -90,6 +90,7 @@ struct ViewingWindowCardContent: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(minHeight: CardVisual.metricVisualHeight, alignment: .leading)
     }
 }
 

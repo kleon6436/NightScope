@@ -41,6 +41,7 @@ NightScope は、星空観測向けの macOS / iOS アプリです。
 
 - `NightScope/Controllers/` : 外部API取得・計算ロジック
 - `NightScope/Models/` : ドメインモデル
+- `NightScope/Data/` : バンドルするJSON / バイナリデータ
 - `NightScope/ViewModels/` : 表示用ロジック
 - `NightScope/Views/` : SwiftUIビュー
 - `NightScopeTests/` : 単体テスト
@@ -65,14 +66,14 @@ NightScope は以下の外部データ/サービスを利用しています。
 ```bash
 pip install numpy scipy
 python3 Tools/generate_bortle_map.py \
-    --output NightScope/Models/bortle_map.bin
+    --output NightScope/Data/bortle_map.bin
 ```
 
 ### constellations_iau.json（星座線データ）
 
 ```bash
 python3 Tools/generate_constellations.py \
-    --output NightScope/Models/constellations_iau.json
+    --output NightScope/Data/constellations_iau.json
 ```
 
 > [!NOTE]
@@ -90,17 +91,17 @@ pip install rasterio numpy scipy
 
 # Copernicus DEM（全球）
 python3 Tools/prepare_srtm.py --resolution 0.05 \
-    --compress --output NightScope/Models/elevation_global.bin.z
+    --compress --output NightScope/Data/elevation_global.bin.z
 
 # Copernicus DEM（日本高解像度）
 python3 Tools/prepare_srtm.py --region japan --resolution 0.01 \
-    --compress --output NightScope/Models/elevation_japan.bin.z
+    --compress --output NightScope/Data/elevation_japan.bin.z
 ```
 
 ローカルに GeoTIFF / .hgt タイルがある場合:
 ```bash
 python3 Tools/prepare_srtm.py --input-dir ~/dem_tiles/ \
-    --output NightScope/Models/elevation_global.bin --resolution 0.1
+    --output NightScope/Data/elevation_global.bin --resolution 0.1
 ```
 
 > [!NOTE]

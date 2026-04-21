@@ -3,7 +3,7 @@
 Generate stars_fill.json from Yale Bright Star Catalogue (BSC5) – FULL catalog.
 Downloads BSC5 catalog from VizieR and outputs fill star data for NightScope.
 
-Output: NightScope/Models/stars_fill.json
+Output: NightScope/Data/stars_fill.json
 Format: [[ra_deg, dec_deg, magnitude], ...]  (all ~9000 BSC5 stars minus named stars)
 """
 import json
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     stars  = parse_bsc5(text)
     print(f"Parsed {len(stars)} fill stars from BSC5.")
 
-    out_dir  = os.path.join(os.path.dirname(__file__), "..", "NightScope", "Models")
+    out_dir  = os.path.join(os.path.dirname(__file__), "..", "NightScope", "Data")
     out_path = os.path.join(out_dir, "stars_fill.json")
     os.makedirs(out_dir, exist_ok=True)
 

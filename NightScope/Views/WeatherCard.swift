@@ -16,6 +16,7 @@ struct NightWeatherCard: View {
                 weatherTextContent
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(minHeight: CardVisual.metricVisualHeight, alignment: .leading)
         }
         .glassCard()
         .accessibilityElement(children: .combine)
@@ -34,6 +35,7 @@ struct NightWeatherCard: View {
     private var weatherVisual: some View {
         WeatherSymbolVisual(weather: weather, isLoading: isLoading)
             .frame(width: CardVisual.width, height: CardVisual.arcHeight)
+            .summaryCardMetricVisualFrame()
             .accessibilityHidden(true)
     }
 

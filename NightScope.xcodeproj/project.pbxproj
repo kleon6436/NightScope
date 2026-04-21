@@ -338,6 +338,7 @@
 			children = (
 				AA0000000000000000001F01 /* NightScopeApp.swift */,
 				AA000000000000000000GR04 /* Models */,
+				BB0000000000000000008G01 /* Data */,
 				AA000000000000000000GR05 /* Controllers */,
 				AA000000000000000000GR08 /* ViewModels */,
 				AA000000000000000000GR06 /* Views */,
@@ -369,11 +370,6 @@
 				AA0000000000000000002F03 /* StarGazingIndex.swift */,
 				A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */,
 				AA0000000000000000002F21 /* TerrainProfile.swift */,
-				BB0000000000000000003F01 /* stars_fill.json */,
-				BB0000000000000000007F01 /* constellations_iau.json */,
-				BB0000000000000000003F02 /* bortle_map.bin */,
-				BB0000000000000000006F01 /* elevation_japan.bin.z */,
-				BB0000000000000000006F02 /* elevation_global.bin.z */,
 				BB0000000000000000002F21 /* StarCatalog.swift */,
 				BB0000000000000000003F0A /* StarDisplayDensity.swift */,
 				BB0000000000000000002F23 /* ConstellationData.swift */,
@@ -381,6 +377,18 @@
 				0A5FD175A6FD4FA2071B5F37 /* FavoriteLocation.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		BB0000000000000000008G01 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				BB0000000000000000003F01 /* stars_fill.json */,
+				BB0000000000000000007F01 /* constellations_iau.json */,
+				BB0000000000000000003F02 /* bortle_map.bin */,
+				BB0000000000000000006F01 /* elevation_japan.bin.z */,
+				BB0000000000000000006F02 /* elevation_global.bin.z */,
+			);
+			path = Data;
 			sourceTree = "<group>";
 		};
 		AA000000000000000000GR05 /* Controllers */ = {

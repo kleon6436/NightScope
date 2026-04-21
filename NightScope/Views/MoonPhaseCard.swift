@@ -16,11 +16,12 @@ struct MoonPhaseCard: View {
                 Image(systemName: summary.moonPhaseIcon)
                     .font(.system(size: CardVisual.moonIconSize))
                     .foregroundStyle(.indigo)
-                    .frame(width: CardVisual.width)
+                    .summaryCardMetricVisualFrame()
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: Spacing.xs / 2) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(summary.moonPhaseName)
                         .font(.headline)
+                        .lineLimit(1)
                         .panelTooltip(summary.moonPhaseName)
                     HStack(spacing: Spacing.xs) {
                         Text("月齢")
@@ -39,6 +40,7 @@ struct MoonPhaseCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(minHeight: CardVisual.metricVisualHeight, alignment: .leading)
         }
         .glassCard()
         .accessibilityElement(children: .combine)

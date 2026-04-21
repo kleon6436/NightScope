@@ -359,6 +359,8 @@ enum LayoutiOS {
 enum CardVisual {
     /// カード左側ビジュアルの統一幅
     static let width: CGFloat = 52
+    /// 要約カード左側ビジュアル列の統一高さ
+    static let metricVisualHeight: CGFloat = 44
     /// 半円ゲージの統一高さ
     static let arcHeight: CGFloat = 28
     /// 月相アイコンのフォントサイズ
@@ -385,6 +387,10 @@ struct GlassCardModifier: ViewModifier {
 extension View {
     func glassCard() -> some View {
         modifier(GlassCardModifier())
+    }
+
+    func summaryCardMetricVisualFrame() -> some View {
+        frame(width: CardVisual.width, height: CardVisual.metricVisualHeight, alignment: .center)
     }
 
     @ViewBuilder

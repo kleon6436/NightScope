@@ -31,20 +31,20 @@ generate_bortle_map.py
       --source viirs \\
       --eog-username your@email.com \\
       --eog-password yourpassword \\
-      --output NightScope/Models/bortle_map.bin \\
+      --output NightScope/Data/bortle_map.bin \\
       --resolution 0.1
 
   # Falchi World Atlas 2015 — 自動ダウンロード (アカウント不要)
   python3 Tools/generate_bortle_map.py \\
       --source falchi \\
-      --output NightScope/Models/bortle_map.bin \\
+      --output NightScope/Data/bortle_map.bin \\
       --resolution 0.1
 
   # 非圧縮 (v1) で出力
   python3 Tools/generate_bortle_map.py \\
       --source falchi \\
       --no-compress \\
-      --output NightScope/Models/bortle_map.bin
+      --output NightScope/Data/bortle_map.bin
 
   # 既存ファイルを指定して変換
   python3 Tools/generate_bortle_map.py \\
@@ -283,7 +283,7 @@ def main():
         help="データソース種別: falchi (デフォルト) または viirs"
     )
     parser.add_argument(
-        "--output", default="NightScope/Models/bortle_map.bin",
+        "--output", default="NightScope/Data/bortle_map.bin",
         help="出力バイナリファイルパス"
     )
     parser.add_argument(

@@ -37,7 +37,7 @@ CONSTELLATION_LINES_URL = f"https://raw.githubusercontent.com/ofrohn/d3-celestia
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate constellation resource JSON for NightScope")
-    default_output = Path(__file__).resolve().parent.parent / "NightScope" / "Models" / "constellations_iau.json"
+    default_output = Path(__file__).resolve().parent.parent / "NightScope" / "Data" / "constellations_iau.json"
     parser.add_argument(
         "--output",
         type=Path,
