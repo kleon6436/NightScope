@@ -75,6 +75,12 @@ python3 Tools/generate_constellations.py \
     --output NightScope/Models/constellations_iau.json
 ```
 
+> [!NOTE]
+> `Tools/generate_constellations.py` は d3-celestial の commit `7e720a3de062059d4c5400a379146a601d9010e0` に固定して生成します。将来データを更新する場合は、更新対象 commit と差分確認結果を README または PR に明記してください。
+
+> [!IMPORTANT]
+> d3-celestial (BSD 3-Clause) notice: Copyright (c) Olaf Frohn. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the copyright notice, license conditions, and disclaimer are retained. This software is provided "as is", without warranties or conditions of any kind.
+
 ### elevation_global.bin.z / elevation_japan.bin.z（地形データ）
 
 `prepare_srtm.py` は Copernicus DEM を使って地形バイナリを生成します。

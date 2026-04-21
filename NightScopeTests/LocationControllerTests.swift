@@ -210,7 +210,7 @@ final class LocationControllerTests: XCTestCase {
 
         XCTAssertEqual(sut.selectedLocation.latitude, 35.6762, accuracy: 0.000001)
         XCTAssertEqual(sut.selectedLocation.longitude, 139.6503, accuracy: 0.000001)
-        XCTAssertEqual(sut.locationName, "東京")
+        XCTAssertEqual(sut.locationName, L10n.tr("東京"))
         XCTAssertNil(storage.latitude)
         XCTAssertNil(storage.longitude)
         XCTAssertNil(storage.name)
@@ -509,14 +509,15 @@ final class LocationControllerTests: XCTestCase {
         let resolver = MockLocationNameResolver(resolvedName: "", timeZoneIdentifier: nil)
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
         let coordinate = CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0)
+        let expectedFallbackName = L10n.tr("選択した地点")
 
         sut.selectCoordinate(coordinate)
 
         await waitUntil {
-            sut.locationName == "選択した地点"
+            sut.locationName == expectedFallbackName
         }
 
-        XCTAssertEqual(sut.locationName, "選択した地点")
+        XCTAssertEqual(sut.locationName, expectedFallbackName)
     }
 
     func test_LocationController_selectCoordinate_updatesResolvedTimeZone() async {
@@ -607,11 +608,12 @@ final class LocationControllerTests: XCTestCase {
         let resolver = MockLocationNameResolver(resolvedName: "", timeZoneIdentifier: nil)
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
         let coordinate = CLLocationCoordinate2D(latitude: 0.0, longitude: 150.0)
+        let expectedFallbackName = L10n.tr("選択した地点")
 
         sut.selectCoordinate(coordinate)
 
         await waitUntil {
-            sut.locationName == "選択した地点"
+            sut.locationName == expectedFallbackName
         }
 
         XCTAssertEqual(sut.selectedTimeZone.identifier, "Etc/GMT-10")

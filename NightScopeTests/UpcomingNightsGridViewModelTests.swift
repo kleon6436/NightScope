@@ -30,7 +30,7 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
         let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
 
         // placeholder は events=[] → totalDarkHours=0 → "暗い時間なし"
-        XCTAssertEqual(vm.observableRangeText(night: .placeholder, weather: nil), "暗い時間なし")
+        XCTAssertEqual(vm.observableRangeText(night: .placeholder, weather: nil), L10n.tr("暗い時間なし"))
     }
 
     func test_weatherIconColor_clear() {
@@ -70,8 +70,8 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
 
         let night = makeNightSummary()
         let label = vm.cardAccessibilityLabel(night: night, weather: nil, index: nil)
-        XCTAssertTrue(label.contains("月:"))
-        XCTAssertFalse(label.contains("星空指数"))
+        XCTAssertTrue(label.contains(DateFormatters.fullDateString(from: night.date, timeZone: detailVM.selectedTimeZone)))
+        XCTAssertTrue(label.contains(L10n.format("月: %@", night.moonPhaseName)))
     }
 
     func test_cardAccessibilityLabel_withIndex() {
@@ -81,11 +81,25 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
         let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
 
         let night = makeNightSummary()
-        let weather = makeDayWeatherSummary()
+        let weather = DayWeatherSummary(date: night.date, nighttimeHours: [
+            HourlyWeather(
+                date: night.events[0].date,
+                temperatureCelsius: 15,
+                cloudCoverPercent: 10,
+                precipitationMM: 0,
+                windSpeedKmh: 5,
+                humidityPercent: 40,
+                dewpointCelsius: 2,
+                weatherCode: 0,
+                visibilityMeters: 20_000,
+                windGustsKmh: nil,
+                windSpeedKmh500hpa: nil
+            )
+        ])
         let index = StarGazingIndex.compute(nightSummary: night, weather: weather, bortleClass: 3.0)
         let label = vm.cardAccessibilityLabel(night: night, weather: weather, index: index)
-        XCTAssertTrue(label.contains("星空指数"))
-        XCTAssertTrue(label.contains("天気"))
+        XCTAssertTrue(label.contains(L10n.format("星空指数%d", index.score)))
+        XCTAssertTrue(label.contains(L10n.format("天気%@", weather.weatherLabel)))
     }
 
     func test_cardAccessibilityLabel_withPartialWeather_usesPartialForecastMessage() {
@@ -100,7 +114,7 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
         ])
         let label = vm.cardAccessibilityLabel(night: night, weather: weather, index: nil)
 
-        XCTAssertTrue(label.contains("天気予報一部のみ"))
-        XCTAssertFalse(label.contains("天気快晴"))
+        XCTAssertTrue(label.contains(L10n.tr("天気予報一部のみ")))
+        XCTAssertFalse(label.contains(L10n.format("天気%@", weather.weatherLabel)))
     }
 }

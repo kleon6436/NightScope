@@ -1,7 +1,10 @@
 import SwiftUI
-
 #if os(macOS)
 import AppKit
+private typealias PlatformFont = NSFont
+#elseif os(iOS)
+import UIKit
+private typealias PlatformFont = UIFont
 #endif
 
 // MARK: - StarMapCanvasView
@@ -15,6 +18,23 @@ struct StarMapCanvasView: View {
         let x: Double
 
         var id: Double { azimuthDegrees }
+    }
+
+    struct ConstellationLabelCandidate: Equatable {
+        let name: String
+        let anchor: CGPoint
+        let priority: Double
+    }
+
+    struct ConstellationLabelPlacement: Equatable {
+        let name: String
+        let anchor: CGPoint
+        let origin: CGPoint
+        let size: CGSize
+
+        var bounds: CGRect {
+            CGRect(origin: origin, size: size)
+        }
     }
 
     struct HorizonOverlayStyle {
@@ -362,16 +382,29 @@ struct StarMapCanvasView: View {
         }
 
         // 星座名ラベル
+        var constellationLabelCandidates: [ConstellationLabelCandidate] = []
         for label in viewModel.constellationLabels {
             let alt = label.alt * .pi / 180
             let az  = label.az  * .pi / 180
             if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
-                ctx.draw(
-                    Text(label.name)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.45)),
-                    at: pt)
+                constellationLabelCandidates.append(
+                    ConstellationLabelCandidate(name: label.name, anchor: pt, priority: label.alt)
+                )
             }
+        }
+
+        for placement in Self.optimizedConstellationLabelPlacements(
+            candidates: constellationLabelCandidates,
+            canvasSize: size,
+            reservedBottomInset: showsCardinalOverlay ? Double(cardinalOverlayBottomInset) + 20 : 0
+        ) {
+            ctx.draw(
+                Text(placement.name)
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.52)),
+                at: placement.origin,
+                anchor: .topLeading
+            )
         }
 
         // 月
@@ -539,6 +572,92 @@ struct StarMapCanvasView: View {
         bottomInset: Double = Double(StarMapLayout.cardinalLabelBottomInset)
     ) -> Double {
         sizeHeight - bottomInset
+    }
+
+    nonisolated static func optimizedConstellationLabelPlacements(
+        candidates: [ConstellationLabelCandidate],
+        canvasSize: CGSize,
+        reservedBottomInset: Double = 0,
+        fontSize: Double = 11
+    ) -> [ConstellationLabelPlacement] {
+        let sortedCandidates = candidates.sorted {
+            if $0.priority == $1.priority {
+                return $0.name.count < $1.name.count
+            }
+            return $0.priority > $1.priority
+        }
+        let reservedHeight = max(0, min(reservedBottomInset, canvasSize.height - 8))
+        let availableHeight = max(0, canvasSize.height - reservedHeight - 8)
+        let canvasRect = CGRect(x: 4, y: 4, width: max(0, canvasSize.width - 8), height: availableHeight)
+        guard canvasRect.width > 0, canvasRect.height > 0 else { return [] }
+        var acceptedPlacements: [ConstellationLabelPlacement] = []
+
+        for candidate in sortedCandidates {
+            let labelSize = estimateConstellationLabelSize(text: candidate.name, fontSize: fontSize)
+            let placementOrigins = candidateLabelOrigins(anchor: candidate.anchor, labelSize: labelSize)
+
+            for proposedOrigin in placementOrigins {
+                let fittedOrigin = clampLabelOrigin(
+                    proposedOrigin,
+                    labelSize: labelSize,
+                    canvasRect: canvasRect
+                )
+                let placement = ConstellationLabelPlacement(
+                    name: candidate.name,
+                    anchor: candidate.anchor,
+                    origin: fittedOrigin,
+                    size: labelSize
+                )
+                let paddedBounds = placement.bounds.insetBy(dx: -4, dy: -2)
+                let overlapsExisting = acceptedPlacements.contains {
+                    paddedBounds.intersects($0.bounds.insetBy(dx: -4, dy: -2))
+                }
+                if !overlapsExisting {
+                    acceptedPlacements.append(placement)
+                    break
+                }
+            }
+        }
+
+        return acceptedPlacements
+    }
+
+    nonisolated static func estimateConstellationLabelSize(
+        text: String,
+        fontSize: Double = 11
+    ) -> CGSize {
+        let measuredSize = NSString(string: text).size(
+            withAttributes: [.font: PlatformFont.systemFont(ofSize: fontSize)]
+        )
+        return CGSize(
+            width: ceil(max(measuredSize.width, fontSize * 2.6)),
+            height: ceil(max(measuredSize.height, fontSize + 4))
+        )
+    }
+
+    nonisolated private static func candidateLabelOrigins(anchor: CGPoint, labelSize: CGSize) -> [CGPoint] {
+        let horizontalOffset = 8.0
+        let verticalOffset = 6.0
+
+        return [
+            CGPoint(x: anchor.x + horizontalOffset, y: anchor.y - labelSize.height - verticalOffset),
+            CGPoint(x: anchor.x + horizontalOffset, y: anchor.y + verticalOffset),
+            CGPoint(x: anchor.x - labelSize.width - horizontalOffset, y: anchor.y - labelSize.height - verticalOffset),
+            CGPoint(x: anchor.x - labelSize.width - horizontalOffset, y: anchor.y + verticalOffset),
+            CGPoint(x: anchor.x - labelSize.width / 2, y: anchor.y - labelSize.height - 10),
+            CGPoint(x: anchor.x - labelSize.width / 2, y: anchor.y + 8)
+        ]
+    }
+
+    nonisolated private static func clampLabelOrigin(
+        _ origin: CGPoint,
+        labelSize: CGSize,
+        canvasRect: CGRect
+    ) -> CGPoint {
+        CGPoint(
+            x: min(max(origin.x, canvasRect.minX), canvasRect.maxX - labelSize.width),
+            y: min(max(origin.y, canvasRect.minY), canvasRect.maxY - labelSize.height)
+        )
     }
 
     nonisolated private static func projectedCardinalLabelX(

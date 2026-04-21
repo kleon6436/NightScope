@@ -118,7 +118,7 @@ final class AstroModelsTests: XCTestCase {
             makeWeatherHour(date: date, cloud: 0, precipitation: 0, weatherCode: 0)
         ]
 
-        XCTAssertEqual(summary.weatherAwareRangeText(nighttimeHours: hours), "月明かり")
+        XCTAssertEqual(summary.weatherAwareRangeText(nighttimeHours: hours), L10n.tr("月明かり"))
     }
 
     func test_weatherAwareRangeText_returnsEmptyWhenWeatherBad() {

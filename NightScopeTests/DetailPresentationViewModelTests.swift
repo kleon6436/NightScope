@@ -267,32 +267,35 @@ final class DetailContentStateResolverTests: XCTestCase {
 final class NightWeatherCardViewModelTests: XCTestCase {
     func test_formatCloudCover() {
         let vm = NightWeatherCardViewModel()
-        XCTAssertEqual(vm.formatCloudCover(75.0), "雲量 75%")
-        XCTAssertEqual(vm.formatCloudCover(0.0), "雲量 0%")
-        XCTAssertEqual(vm.formatCloudCover(100.0), "雲量 100%")
+        XCTAssertEqual(vm.formatCloudCover(75.0), L10n.format("weather.cloudCover.label", L10n.percent(75.0)))
+        XCTAssertEqual(vm.formatCloudCover(0.0), L10n.format("weather.cloudCover.label", L10n.percent(0.0)))
+        XCTAssertEqual(vm.formatCloudCover(100.0), L10n.format("weather.cloudCover.label", L10n.percent(100.0)))
     }
 
     func test_formatPrecipitation() {
         let vm = NightWeatherCardViewModel()
-        XCTAssertEqual(vm.formatPrecipitation(2.5), "降水 2.5 mm")
-        XCTAssertEqual(vm.formatPrecipitation(0.0), "降水 0.0 mm")
+        XCTAssertEqual(vm.formatPrecipitation(2.5), L10n.format("降水 %.1f mm", 2.5))
+        XCTAssertEqual(vm.formatPrecipitation(0.0), L10n.format("降水 %.1f mm", 0.0))
     }
 
     func test_formatMetrics() {
         let vm = NightWeatherCardViewModel()
-        XCTAssertEqual(vm.formatMetrics(precipitation: 2.5, cloudCover: 75.0), "降水 2.5 mm ・ 雲量 75%")
+        XCTAssertEqual(
+            vm.formatMetrics(precipitation: 2.5, cloudCover: 75.0),
+            "\(vm.formatPrecipitation(2.5)) ・ \(vm.formatCloudCover(75.0))"
+        )
     }
 
     func test_formatWindSpeed_defaultKmh() {
         let vm = NightWeatherCardViewModel()
         UserDefaults.standard.set(WindSpeedUnit.kmh.rawValue, forKey: "windSpeedUnit")
-        XCTAssertEqual(vm.formatWindSpeed(36.0), "風速 36 km/h")
+        XCTAssertEqual(vm.formatWindSpeed(36.0), WindSpeedUnit.kmh.format(36.0))
     }
 
     func test_weatherLabel_usesPrimaryForecast() {
         let vm = NightWeatherCardViewModel()
         let weather = makeDayWeatherSummary(cloudCover: 0, weatherCode: 61)
-        XCTAssertEqual(vm.weatherLabel(weather), "小雨")
+        XCTAssertEqual(vm.weatherLabel(weather), L10n.tr("小雨"))
     }
 
     func test_accessibilityDescription_loading() {
@@ -304,7 +307,7 @@ final class NightWeatherCardViewModelTests: XCTestCase {
                 isForecastOutOfRange: false,
                 isCoverageIncomplete: false
             ),
-            "天気 夜間: 取得中"
+            L10n.tr("天気 夜間: 取得中")
         )
     }
 
@@ -317,7 +320,7 @@ final class NightWeatherCardViewModelTests: XCTestCase {
                 isForecastOutOfRange: false,
                 isCoverageIncomplete: false
             ),
-            "天気 夜間: 不明、データなし、10日以内のみ"
+            L10n.tr("天気 夜間: 不明、データなし、10日以内のみ")
         )
     }
 
@@ -330,7 +333,7 @@ final class NightWeatherCardViewModelTests: XCTestCase {
                 isForecastOutOfRange: false,
                 isCoverageIncomplete: true
             ),
-            "天気 夜間: 予報一部のみ、夜間を最後まで評価できません、星空指数には反映していません"
+            L10n.tr("天気 夜間: 予報一部のみ、夜間を最後まで評価できません、星空指数には反映していません")
         )
     }
 
@@ -343,7 +346,7 @@ final class NightWeatherCardViewModelTests: XCTestCase {
                 isForecastOutOfRange: true,
                 isCoverageIncomplete: false
             ),
-            "天気 夜間: 予報対象外、この日は天気予報の対象外です、天文情報のみ表示しています"
+            L10n.tr("天気 夜間: 予報対象外、この日は天気予報の対象外です、天文情報のみ表示しています")
         )
     }
 
@@ -357,7 +360,7 @@ final class NightWeatherCardViewModelTests: XCTestCase {
                 isCoverageIncomplete: false,
                 errorMessage: "通信に失敗しました"
             ),
-            "天気 夜間: 取得失敗、通信に失敗しました、再試行してください"
+            L10n.format("天気 夜間: 取得失敗、%@、再試行してください", "通信に失敗しました")
         )
     }
 
@@ -370,22 +373,28 @@ final class NightWeatherCardViewModelTests: XCTestCase {
             isForecastOutOfRange: false,
             isCoverageIncomplete: false
         )
-        XCTAssertTrue(desc.hasPrefix("天気 夜間: "))
-        XCTAssertTrue(desc.contains("雲量20%"))
-        XCTAssertTrue(desc.contains("降水0.0mm"))
-        XCTAssertTrue(desc.contains("風速 10 km/h"))
+        XCTAssertEqual(
+            desc,
+            L10n.format(
+                "weather.night.accessibility.metrics",
+                vm.weatherLabel(weather),
+                L10n.format("weather.precipitation.compact", L10n.number(weather.maxPrecipitation, fractionDigits: 1)),
+                L10n.format("weather.cloudCover.compact", L10n.percent(weather.avgCloudCover)),
+                vm.formatWindSpeed(weather.avgWindSpeed)
+            )
+        )
     }
 }
 
 final class WeatherPresentationTests: XCTestCase {
     func test_primaryLabel_returnsForecast() {
         let weather = makeDayWeatherSummary(cloudCover: 0, weatherCode: 0)
-        XCTAssertEqual(WeatherPresentation.primaryLabel(for: weather), "快晴")
+        XCTAssertEqual(WeatherPresentation.primaryLabel(for: weather), L10n.tr("快晴"))
     }
 
     func test_primaryLabel_ignoresCloudLabel() {
         let weather = makeDayWeatherSummary(cloudCover: 0, weatherCode: 61)
-        XCTAssertEqual(WeatherPresentation.primaryLabel(for: weather), "小雨")
+        XCTAssertEqual(WeatherPresentation.primaryLabel(for: weather), L10n.tr("小雨"))
     }
 
     func test_color_mappingRepresentativeCases() {
@@ -409,7 +418,7 @@ final class ForecastCardPresentationTests: XCTestCase {
             hasWeatherLoadError: false
         )
 
-        XCTAssertEqual(sut.weatherDetailText, "小雨")
+        XCTAssertEqual(sut.weatherDetailText, L10n.tr("小雨"))
     }
 
     func test_weatherDetailText_returnsPartialMessageWhenCoverageIsIncomplete() {
@@ -424,7 +433,7 @@ final class ForecastCardPresentationTests: XCTestCase {
             hasWeatherLoadError: false
         )
 
-        XCTAssertEqual(sut.weatherDetailText, "夜間予報は一部のみ")
+        XCTAssertEqual(sut.weatherDetailText, L10n.tr("夜間予報は一部のみ"))
     }
 
     func test_weatherDetailText_returnsFailureMessageWhenLoadFailed() {
@@ -439,7 +448,7 @@ final class ForecastCardPresentationTests: XCTestCase {
             hasWeatherLoadError: true
         )
 
-        XCTAssertEqual(sut.weatherDetailText, "取得失敗")
+        XCTAssertEqual(sut.weatherDetailText, L10n.tr("取得失敗"))
     }
 }
 
@@ -449,14 +458,14 @@ final class DarkTimeCardViewModelTests: XCTestCase {
         let summary = NightSummary.placeholder
         let vm = DarkTimeCardViewModel(summary: summary, weather: nil)
         XCTAssertTrue(vm.isUnavailable)
-        XCTAssertEqual(vm.displayText, "暗い時間なし")
-        XCTAssertEqual(vm.accessibilityLabel, "観測可能時間: 暗い時間なし")
+        XCTAssertEqual(vm.displayText, L10n.tr("暗い時間なし"))
+        XCTAssertEqual(vm.accessibilityLabel, L10n.format("観測可能時間: %@", vm.displayText))
     }
 
     func test_noWeather_hasRange_available() {
         let summary = makeNightSummary(withWindow: true)
         let vm = DarkTimeCardViewModel(summary: summary, weather: nil)
-        XCTAssertEqual(vm.accessibilityLabel, "観測可能時間: \(vm.displayText)")
+        XCTAssertEqual(vm.accessibilityLabel, L10n.format("観測可能時間: %@", vm.displayText))
     }
 
     func test_heavyClouds_returnsWeatherAwareText() {
@@ -465,7 +474,7 @@ final class DarkTimeCardViewModelTests: XCTestCase {
         let weather = DayWeatherSummary(date: Date(), nighttimeHours: [heavyCloud])
         let vm = DarkTimeCardViewModel(summary: summary, weather: weather)
         if let text = summary.weatherAwareRangeText(nighttimeHours: weather.nighttimeHours), text.isEmpty {
-            XCTAssertEqual(vm.displayText, "天候不良")
+            XCTAssertEqual(vm.displayText, L10n.tr("天候不良"))
             XCTAssertTrue(vm.isUnavailable)
         }
     }
@@ -477,7 +486,7 @@ final class ViewingWindowsSectionViewModelTests: XCTestCase {
         let summary = makeNightSummary(withWindow: true)
         let vm = ViewingWindowsSectionViewModel()
         let window = summary.viewingWindows[0]
-        XCTAssertEqual(vm.altitudeText(window), "最大高度 32°")
+        XCTAssertEqual(vm.altitudeText(window), L10n.format("最大高度 %.0f°", window.peakAltitude))
     }
 
     func test_windowTimeText_containsSeparator() {
@@ -493,9 +502,7 @@ final class ViewingWindowsSectionViewModelTests: XCTestCase {
         let window = summary.viewingWindows[0]
         let text = vm.timeAndPeakText(window, timeZone: summary.timeZone)
 
-        XCTAssertTrue(text.contains("〜"))
-        XCTAssertTrue(text.contains("見頃"))
-        XCTAssertTrue(text.contains(window.peakTime.nightTimeString()))
+        XCTAssertEqual(text, "\(vm.windowTimeText(window, timeZone: summary.timeZone)) \(vm.peakTimeText(window, timeZone: summary.timeZone))")
     }
 
     func test_directionText() {
@@ -503,7 +510,7 @@ final class ViewingWindowsSectionViewModelTests: XCTestCase {
         let vm = ViewingWindowsSectionViewModel()
         let window = summary.viewingWindows[0]
 
-        XCTAssertEqual(vm.directionText(window), "方位 南")
+        XCTAssertEqual(vm.directionText(window), L10n.format("方位 %@", window.peakDirectionName))
     }
 
     func test_accessibilityDescription_excludesRemovedFields() {
@@ -511,10 +518,7 @@ final class ViewingWindowsSectionViewModelTests: XCTestCase {
         let vm = ViewingWindowsSectionViewModel()
         let window = summary.viewingWindows[0]
         let description = vm.accessibilityDescription(for: window, timeZone: summary.timeZone)
-        XCTAssertTrue(description.contains("観測窓:"))
-        XCTAssertTrue(description.contains("最大高度32度"))
-        XCTAssertTrue(description.contains("見頃"))
-        XCTAssertTrue(description.contains("方角"))
+        XCTAssertEqual(description, window.accessibilityDescription(timeZone: summary.timeZone))
         XCTAssertFalse(description.contains("観測 1.0時間"))
         XCTAssertFalse(description.contains("条件良好"))
         XCTAssertFalse(description.contains("月明かりあり"))

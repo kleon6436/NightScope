@@ -108,6 +108,10 @@ private struct SettingsAboutSections: View {
                 )
             }
             .padding(.vertical, 4)
+
+            Text(verbatim: "d3-celestial BSD 3-Clause notice: Copyright (c) Olaf Frohn. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the copyright notice, license conditions, and disclaimer are retained. Provided \"as is\" without warranties.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
 
         Section("データ運用") {

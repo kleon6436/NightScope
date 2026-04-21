@@ -30,8 +30,9 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
-CONSTELLATIONS_URL = "https://github.com/ofrohn/d3-celestial/raw/refs/heads/master/data/constellations.json"
-CONSTELLATION_LINES_URL = "https://github.com/ofrohn/d3-celestial/raw/refs/heads/master/data/constellations.lines.json"
+D3_CELESTIAL_COMMIT = "7e720a3de062059d4c5400a379146a601d9010e0"
+CONSTELLATIONS_URL = f"https://raw.githubusercontent.com/ofrohn/d3-celestial/{D3_CELESTIAL_COMMIT}/data/constellations.json"
+CONSTELLATION_LINES_URL = f"https://raw.githubusercontent.com/ofrohn/d3-celestial/{D3_CELESTIAL_COMMIT}/data/constellations.lines.json"
 
 
 def parse_args() -> argparse.Namespace:

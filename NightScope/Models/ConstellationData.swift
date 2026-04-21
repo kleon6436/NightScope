@@ -34,11 +34,37 @@ struct ConstellationEntry {
     let centerDec: Double
     let segments: [ConstellationSegment]
 
+    static func normalizedEnglishDisplayName(_ name: String) -> String {
+        switch name {
+        case "Boötes":
+            return "Bootes"
+        case "Corona Austrina":
+            return "Corona Australis"
+        case "Serpens Caput":
+            return "Serpens"
+        default:
+            return name
+        }
+    }
+
+    var englishDisplayName: String {
+        Self.normalizedEnglishDisplayName(englishName)
+    }
+
+    func resolvedDisplayName(localizedJapaneseName: String, preferredLanguage: String?) -> String {
+        let prefersJapanese = preferredLanguage?.hasPrefix("ja") == true
+        if localizedJapaneseName != japaneseName {
+            return prefersJapanese ? localizedJapaneseName : Self.normalizedEnglishDisplayName(localizedJapaneseName)
+        }
+        guard !prefersJapanese else { return japaneseName }
+        return englishDisplayName.isEmpty ? japaneseName : englishDisplayName
+    }
+
     var localizedName: String {
-        let localized = L10n.tr(japaneseName)
-        guard localized == japaneseName else { return localized }
-        guard Locale.preferredLanguages.first?.hasPrefix("ja") != true else { return japaneseName }
-        return englishName.isEmpty ? japaneseName : englishName
+        resolvedDisplayName(
+            localizedJapaneseName: L10n.tr(japaneseName),
+            preferredLanguage: Locale.preferredLanguages.first
+        )
     }
 }
 

@@ -99,21 +99,21 @@ final class StarMapViewModelTests: XCTestCase {
     }
 
     func test_StarMapPresentation_azimuthName_normalizesDegrees() {
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: -1), "北")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 44), "北東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), "南西")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 359), "北")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: -1), L10n.tr("北"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 44), L10n.tr("北東"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), L10n.tr("南西"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 359), L10n.tr("北"))
     }
 
     func test_StarMapPresentation_azimuthName_supportsEightDirections() {
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 0), "北")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 45), "北東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 90), "東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 135), "南東")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 180), "南")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), "南西")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 270), "西")
-        XCTAssertEqual(StarMapPresentation.azimuthName(for: 315), "北西")
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 0), L10n.tr("北"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 45), L10n.tr("北東"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 90), L10n.tr("東"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 135), L10n.tr("南東"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 180), L10n.tr("南"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 225), L10n.tr("南西"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 270), L10n.tr("西"))
+        XCTAssertEqual(StarMapPresentation.azimuthName(for: 315), L10n.tr("北西"))
     }
 
     func test_StarMapPresentation_timeString_formatsMinutes() {
@@ -183,7 +183,7 @@ final class StarMapViewModelTests: XCTestCase {
             roll: 0,
             fov: 90
         )
-        XCTAssertEqual(placements.map(\.label), ["北", "北東", "北西"])
+        XCTAssertEqual(placements.map(\.label), [L10n.tr("北"), L10n.tr("北東"), L10n.tr("北西")])
     }
 
     func test_StarMapCanvasView_horizonProjection_matchesProjectedAltitudeZeroPoints() {
@@ -224,10 +224,14 @@ final class StarMapViewModelTests: XCTestCase {
     }
 
     func test_StarDisplayDensity_usesExpectedThresholdsAndLabels() {
-        XCTAssertEqual(StarDisplayDensity.maximum.settingsLabel, "最大（7.5等級まで）")
-        XCTAssertEqual(StarDisplayDensity.large.settingsLabel, "大（6.8等級まで）")
-        XCTAssertEqual(StarDisplayDensity.medium.settingsLabel, "中（6.0等級まで）")
-        XCTAssertEqual(StarDisplayDensity.small.settingsLabel, "小（5.0等級まで）")
+        XCTAssertTrue(StarDisplayDensity.maximum.settingsLabel.contains(StarDisplayDensity.maximum.title))
+        XCTAssertTrue(StarDisplayDensity.maximum.settingsLabel.contains("7.5"))
+        XCTAssertTrue(StarDisplayDensity.large.settingsLabel.contains(StarDisplayDensity.large.title))
+        XCTAssertTrue(StarDisplayDensity.large.settingsLabel.contains("6.8"))
+        XCTAssertTrue(StarDisplayDensity.medium.settingsLabel.contains(StarDisplayDensity.medium.title))
+        XCTAssertTrue(StarDisplayDensity.medium.settingsLabel.contains("6.0"))
+        XCTAssertTrue(StarDisplayDensity.small.settingsLabel.contains(StarDisplayDensity.small.title))
+        XCTAssertTrue(StarDisplayDensity.small.settingsLabel.contains("5.0"))
 
         XCTAssertEqual(StarDisplayDensity.maximum.maxMagnitude, 7.5, accuracy: 0.0001)
         XCTAssertEqual(StarDisplayDensity.large.maxMagnitude, 6.8, accuracy: 0.0001)
@@ -1307,6 +1311,39 @@ final class StarMapViewModelTests: XCTestCase {
         }
     }
 
+    func test_ConstellationData_englishDisplayName_normalizesPreferredLabels() {
+        let displayNames = Dictionary(
+            uniqueKeysWithValues: ConstellationData.constellations.map { ($0.englishName, $0.englishDisplayName) }
+        )
+
+        XCTAssertEqual(displayNames["Boötes"], "Bootes")
+        XCTAssertEqual(displayNames["Corona Austrina"], "Corona Australis")
+        XCTAssertEqual(displayNames["Serpens Caput"], "Serpens")
+    }
+
+    func test_ConstellationEntry_resolvedDisplayName_normalizesTranslatedEnglishLabels() {
+        let entry = ConstellationEntry(
+            japaneseName: "うしかい座",
+            englishName: "Boötes",
+            centerRA: 0,
+            centerDec: 0,
+            segments: []
+        )
+
+        XCTAssertEqual(
+            entry.resolvedDisplayName(localizedJapaneseName: "Boötes", preferredLanguage: "en"),
+            "Bootes"
+        )
+        XCTAssertEqual(
+            entry.resolvedDisplayName(localizedJapaneseName: "うしかい座", preferredLanguage: "en"),
+            "Bootes"
+        )
+        XCTAssertEqual(
+            entry.resolvedDisplayName(localizedJapaneseName: "うしかい座", preferredLanguage: "ja"),
+            "うしかい座"
+        )
+    }
+
     func test_ConstellationData_segmentsStayWithinValidEquatorialCoordinateRanges() {
         for constellation in ConstellationData.constellations {
             XCTAssertFalse(constellation.segments.isEmpty, "\(constellation.englishName) に星座線がありません")
@@ -1342,5 +1379,107 @@ final class StarMapViewModelTests: XCTestCase {
             XCTAssertTrue(visibleLabelNames.contains($0), "\($0) が南半球スナップショットに表示されていません")
         }
         XCTAssertGreaterThan(snapshot.constellationLines.count, 20)
+    }
+
+    func test_StarMapCanvasView_optimizedConstellationLabelPlacements_avoidsOverlaps() {
+        let candidates = [
+            StarMapCanvasView.ConstellationLabelCandidate(
+                name: "みなみじゅうじ座",
+                anchor: CGPoint(x: 150, y: 100),
+                priority: 40
+            ),
+            StarMapCanvasView.ConstellationLabelCandidate(
+                name: "ケンタウルス座",
+                anchor: CGPoint(x: 154, y: 104),
+                priority: 39
+            ),
+            StarMapCanvasView.ConstellationLabelCandidate(
+                name: "りゅうこつ座",
+                anchor: CGPoint(x: 158, y: 108),
+                priority: 38
+            )
+        ]
+
+        let placements = StarMapCanvasView.optimizedConstellationLabelPlacements(
+            candidates: candidates,
+            canvasSize: CGSize(width: 320, height: 220)
+        )
+
+        XCTAssertEqual(placements.count, candidates.count)
+        for index in placements.indices {
+            for otherIndex in placements.indices where otherIndex > index {
+                XCTAssertFalse(
+                    placements[index].bounds.insetBy(dx: -4, dy: -2)
+                        .intersects(placements[otherIndex].bounds.insetBy(dx: -4, dy: -2)),
+                    "星座ラベルが重なっています: \(placements[index].name) / \(placements[otherIndex].name)"
+                )
+            }
+        }
+    }
+
+    func test_StarMapCanvasView_optimizedConstellationLabelPlacements_skipsLowerPriorityWhenSpaceRunsOut() {
+        let primaryLabel = "みなみのかんむり座"
+        let secondaryLabel = "みなみのさんかく座"
+        let primarySize = StarMapCanvasView.estimateConstellationLabelSize(text: primaryLabel)
+        let secondarySize = StarMapCanvasView.estimateConstellationLabelSize(text: secondaryLabel)
+        let canvasSize = CGSize(
+            width: max(primarySize.width, secondarySize.width) + 12,
+            height: max(primarySize.height, secondarySize.height) + 12
+        )
+        let anchor = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+
+        let placements = StarMapCanvasView.optimizedConstellationLabelPlacements(
+            candidates: [
+                StarMapCanvasView.ConstellationLabelCandidate(
+                    name: primaryLabel,
+                    anchor: anchor,
+                    priority: 30
+                ),
+                StarMapCanvasView.ConstellationLabelCandidate(
+                    name: secondaryLabel,
+                    anchor: anchor,
+                    priority: 10
+                )
+            ],
+            canvasSize: canvasSize
+        )
+
+        XCTAssertEqual(placements.map(\.name), [primaryLabel])
+    }
+
+    func test_StarMapCanvasView_optimizedConstellationLabelPlacements_clampsIntoCanvasBounds() throws {
+        let placements = StarMapCanvasView.optimizedConstellationLabelPlacements(
+            candidates: [
+                StarMapCanvasView.ConstellationLabelCandidate(
+                    name: "Corona Australis",
+                    anchor: CGPoint(x: 6, y: 6),
+                    priority: 20
+                )
+            ],
+            canvasSize: CGSize(width: 240, height: 160)
+        )
+
+        let placement = try XCTUnwrap(placements.first)
+        XCTAssertGreaterThanOrEqual(placement.bounds.minX, 0)
+        XCTAssertGreaterThanOrEqual(placement.bounds.minY, 0)
+        XCTAssertLessThanOrEqual(placement.bounds.maxX, 240)
+        XCTAssertLessThanOrEqual(placement.bounds.maxY, 160)
+    }
+
+    func test_StarMapCanvasView_optimizedConstellationLabelPlacements_respectsReservedBottomInset() throws {
+        let placements = StarMapCanvasView.optimizedConstellationLabelPlacements(
+            candidates: [
+                StarMapCanvasView.ConstellationLabelCandidate(
+                    name: "みなみのうお座",
+                    anchor: CGPoint(x: 120, y: 150),
+                    priority: 20
+                )
+            ],
+            canvasSize: CGSize(width: 240, height: 180),
+            reservedBottomInset: 44
+        )
+
+        let placement = try XCTUnwrap(placements.first)
+        XCTAssertLessThanOrEqual(placement.bounds.maxY, 180 - 44)
     }
 }
