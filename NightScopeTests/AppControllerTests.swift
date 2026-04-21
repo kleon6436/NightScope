@@ -45,6 +45,72 @@ final class AppControllerTests: XCTestCase {
         }
     }
 
+    actor RequestedDaysNightCalculationService: NightCalculating {
+        private var requestedUpcomingDays: [Int] = []
+
+        func calculateNightSummary(
+            date: Date,
+            location: CLLocationCoordinate2D,
+            timeZone: TimeZone
+        ) async -> NightSummary {
+            Self.makeNightSummary(date: date, location: location, timeZone: timeZone)
+        }
+
+        func calculateUpcomingNights(
+            from date: Date,
+            location: CLLocationCoordinate2D,
+            timeZone: TimeZone,
+            days: Int
+        ) async -> [NightSummary] {
+            requestedUpcomingDays.append(days)
+            let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+            let startDate = calendar.startOfDay(for: date)
+            return (0..<days).map { offset in
+                let targetDate = calendar.date(byAdding: .day, value: offset, to: startDate) ?? startDate
+                return Self.makeNightSummary(date: targetDate, location: location, timeZone: timeZone)
+            }
+        }
+
+        func lastRequestedUpcomingDays() -> Int? {
+            requestedUpcomingDays.last
+        }
+
+        private static func makeNightSummary(
+            date: Date,
+            location: CLLocationCoordinate2D,
+            timeZone: TimeZone
+        ) -> NightSummary {
+            let eventDate = ObservationTimeZone.gregorianCalendar(timeZone: timeZone).date(
+                byAdding: .hour,
+                value: 21,
+                to: date
+            ) ?? date
+            let event = AstroEvent(
+                date: eventDate,
+                galacticCenterAltitude: 28,
+                galacticCenterAzimuth: 190,
+                sunAltitude: -22,
+                moonAltitude: -8,
+                moonPhase: 0.12
+            )
+            let window = ViewingWindow(
+                start: eventDate,
+                end: eventDate.addingTimeInterval(90 * 60),
+                peakTime: eventDate.addingTimeInterval(45 * 60),
+                peakAltitude: 32,
+                peakAzimuth: 200
+            )
+            return NightSummary(
+                date: date,
+                location: location,
+                events: [event],
+                viewingWindows: [window],
+                moonPhaseAtMidnight: 0.12,
+                timeZoneIdentifier: timeZone.identifier
+            )
+        }
+    }
+
     override func tearDown() {
         MockURLProtocol.requestHandler = nil
         super.tearDown()
@@ -319,6 +385,59 @@ final class AppControllerTests: XCTestCase {
         await refreshTask.value
 
         XCTAssertNil(appController.lightPollutionService.bortleClass)
+    }
+
+    func test_locationChange_keepsNineUpcomingNights() async {
+        let tokyo = CLLocationCoordinate2D(latitude: 35.6762, longitude: 139.6503)
+        let losAngeles = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
+        let tokyoTimeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let losAngelesTimeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let storage = InMemoryLocationStorage()
+        storage.latitude = tokyo.latitude
+        storage.longitude = tokyo.longitude
+        storage.name = "東京"
+        storage.timeZoneIdentifier = tokyoTimeZone.identifier
+
+        let locationController = LocationController(
+            storage: storage,
+            searchService: NoopLocationSearchService(),
+            locationNameResolver: FixedLocationNameResolver(
+                details: ResolvedLocationDetails(name: "ロサンゼルス", timeZoneIdentifier: losAngelesTimeZone.identifier)
+            )
+        )
+        let calculationService = RequestedDaysNightCalculationService()
+        let weatherService = makeMockWeatherService { request in
+            let url = try XCTUnwrap(request.url)
+            let response = try XCTUnwrap(
+                HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+            )
+            return (response, Data(#"{"properties":{"timeseries":[]}}"#.utf8))
+        }
+        let lightPollutionService = LightPollutionService(
+            gridData: makeTwoByTwoLightPollutionGrid(
+                northWestBrightness: 0.0172,
+                northEastBrightness: 0.172
+            )
+        )
+        let appController = AppController(
+            locationController: locationController,
+            weatherService: weatherService,
+            lightPollutionService: lightPollutionService,
+            calculationService: calculationService
+        )
+
+        locationController.selectCoordinate(losAngeles)
+
+        await waitUntil(timeout: 2.0) {
+            locationController.selectedTimeZone.identifier == losAngelesTimeZone.identifier
+                && appController.isUpcomingLoading == false
+                && appController.upcomingNights.count == 9
+        }
+
+        let requestedUpcomingDays = await calculationService.lastRequestedUpcomingDays()
+        XCTAssertEqual(requestedUpcomingDays, 9)
+        XCTAssertEqual(appController.upcomingNights.count, 9)
+        XCTAssertEqual(appController.upcomingIndexes.count, 9)
     }
 
     func test_makeStarGazingIndex_usesProvidedWeatherSnapshotAndTimeZone() {

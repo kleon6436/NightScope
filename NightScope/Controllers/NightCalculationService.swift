@@ -1,6 +1,10 @@
 import Foundation
 import CoreLocation
 
+enum ForecastConfiguration {
+    static let upcomingNightCount = 9
+}
+
 protocol NightCalculating: Sendable {
     func calculateNightSummary(
         date: Date,
@@ -44,7 +48,7 @@ final class NightCalculationService: NightCalculating, Sendable {
         from date: Date,
         location: CLLocationCoordinate2D,
         timeZone: TimeZone,
-        days: Int = 9
+        days: Int = ForecastConfiguration.upcomingNightCount
     ) async -> [NightSummary] {
         await withTaskGroup(of: [NightSummary].self) { group in
             group.addTask(priority: .background) { [summaryCalculator] in
