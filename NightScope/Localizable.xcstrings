@@ -24,7 +24,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "(Best around %@)"
+            "value" : "(Peak %@)"
           }
         }
       }
@@ -215,10 +215,10 @@
         }
       }
     },
-    "CC BY 4.0" : {
+    "BSD 3-Clause" : {
 
     },
-    "BSD 3-Clause" : {
+    "CC BY 4.0" : {
 
     },
     "Copernicus DEM GLO-30 © DLR/ESA" : {
@@ -299,17 +299,6 @@
     "Public Domain" : {
 
     },
-    "星座線データ" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Constellation line data"
-          }
-        }
-      }
-    },
     "Unknown" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -338,7 +327,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cloud cover %@"
+            "value" : "Clouds %@"
           }
         },
         "ja" : {
@@ -355,7 +344,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cloud cover %@"
+            "value" : "Clouds %@"
           }
         },
         "ja" : {
@@ -389,7 +378,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Precipitation %@ mm"
+            "value" : "Rain %@ mm"
           }
         },
         "ja" : {
@@ -3239,7 +3228,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Peak altitude %.0f°"
+            "value" : "Up to %.0f°"
           }
         }
       }
@@ -3250,7 +3239,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Peak altitude %.0f°"
+            "value" : "Up to %.0f°"
           }
         }
       }
@@ -3585,20 +3574,6 @@
         }
       }
     },
-    "地形データ" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terrain Data"
-          }
-        }
-      }
-    },
-    "地形データ状態: %@" : {
-
-    },
     "地形: 待機中" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3642,6 +3617,20 @@
           }
         }
       }
+    },
+    "地形データ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terrain Data"
+          }
+        }
+      }
+    },
+    "地形データ状態: %@" : {
+
     },
     "場所" : {
       "extractionState" : "manual",
@@ -3825,7 +3814,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Weather and moonlight considered"
+            "value" : "Weather & moonlight"
           }
         }
       }
@@ -3847,7 +3836,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Astronomical darkness"
+            "value" : "Astronomical night"
           }
         }
       }
@@ -3979,7 +3968,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Showing dark hours because weather data is incomplete"
+            "value" : "Using dark hours only"
           }
         }
       }
@@ -4133,7 +4122,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Great for astrophotography"
+            "value" : "Good for photos"
           }
         }
       }
@@ -4177,7 +4166,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Direction %@"
+            "value" : "Toward %@"
           }
         }
       }
@@ -4188,7 +4177,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Direction %@"
+            "value" : "Toward %@"
           }
         }
       }
@@ -4244,6 +4233,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Star density"
+          }
+        }
+      }
+    },
+    "星座線データ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Constellation line data"
           }
         }
       }
@@ -4364,7 +4364,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not reflected in the stargazing score"
+            "value" : "Not used in score"
           }
         }
       }
@@ -4518,7 +4518,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Watch for moonlight"
+            "value" : "Bright moonlight"
           }
         }
       }
@@ -5035,7 +5035,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Best around %@"
+            "value" : "Peak %@"
           }
         }
       }
@@ -5244,7 +5244,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Precipitation %.1f mm"
+            "value" : "Rain %.1f mm"
           }
         }
       }
