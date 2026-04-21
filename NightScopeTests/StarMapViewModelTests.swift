@@ -1295,4 +1295,52 @@ final class StarMapViewModelTests: XCTestCase {
             "-35.125,-139.565"
         )
     }
+
+    func test_ConstellationData_containsAll88IAUConstellationsIncludingSouthernSky() {
+        XCTAssertEqual(ConstellationData.constellations.count, 88)
+
+        let englishNames = Set(ConstellationData.constellations.map(\.englishName))
+        XCTAssertEqual(englishNames.count, 88)
+
+        ["Crux", "Centaurus", "Carina", "Musca", "Pavo", "Tucana", "Indus", "Octans"].forEach {
+            XCTAssertTrue(englishNames.contains($0), "\($0) が星座カタログに含まれていません")
+        }
+    }
+
+    func test_ConstellationData_segmentsStayWithinValidEquatorialCoordinateRanges() {
+        for constellation in ConstellationData.constellations {
+            XCTAssertFalse(constellation.segments.isEmpty, "\(constellation.englishName) に星座線がありません")
+            XCTAssertTrue((0...360).contains(constellation.centerRA), "\(constellation.englishName) の中心RAが不正です")
+            XCTAssertTrue((-90...90).contains(constellation.centerDec), "\(constellation.englishName) の中心Decが不正です")
+
+            for segment in constellation.segments {
+                XCTAssertTrue((0...360).contains(segment.ra1), "\(constellation.englishName) の ra1 が不正です")
+                XCTAssertTrue((0...360).contains(segment.ra2), "\(constellation.englishName) の ra2 が不正です")
+                XCTAssertTrue((-90...90).contains(segment.dec1), "\(constellation.englishName) の dec1 が不正です")
+                XCTAssertTrue((-90...90).contains(segment.dec2), "\(constellation.englishName) の dec2 が不正です")
+            }
+        }
+    }
+
+    func test_StarMapComputation_southernLatitudeShowsMajorSouthernConstellationLabels() {
+        let snapshot = StarMapComputation.compute(
+            latitude: -45,
+            longitude: 0,
+            julianDate: 2_461_041.5,
+            localSiderealTime: 186,
+            activeMeteorShowers: [],
+            starDisplayDensity: .small
+        )
+
+        let visibleLabelNames = Set(snapshot.constellationLabels.map(\.name))
+        let expectedVisibleLabels = ["Crux", "Centaurus", "Carina", "Musca", "Triangulum Australe"]
+            .compactMap { englishName in
+                ConstellationData.constellations.first(where: { $0.englishName == englishName })?.localizedName
+            }
+
+        expectedVisibleLabels.forEach {
+            XCTAssertTrue(visibleLabelNames.contains($0), "\($0) が南半球スナップショットに表示されていません")
+        }
+        XCTAssertGreaterThan(snapshot.constellationLines.count, 20)
+    }
 }

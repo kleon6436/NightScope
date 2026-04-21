@@ -55,6 +55,7 @@ NightScope は以下の外部データ/サービスを利用しています。
 | Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness | 光害マップ | Falchi, F. et al. (2016) / GFZ Data Services — https://doi.org/10.5880/GFZ.1.4.2016.001 | CC BY 4.0 | バンドルバイナリ（`bortle_map.bin`、`Tools/generate_bortle_map.py` で生成） |
 | Copernicus DEM GLO-30 | 地形・標高データ | Copernicus DEM (DLR/ESA) — https://dataspace.copernicus.eu | CC BY 4.0 | バンドルバイナリ（`elevation_global.bin.z`, `elevation_japan.bin.z`、`Tools/prepare_srtm.py` で生成） |
 | Yale Bright Star Catalogue (BSC5 / CDS V/50) | 星カタログ | Yale BSC5 / CDS VizieR — https://vizier.cds.unistra.fr/viz-bin/VizieR-3?-source=V/50 | Public Domain | バンドル JSON（`stars_fill.json`、`Tools/generate_stars.py` で生成） |
+| d3-celestial constellation data | 星座線・星座ラベル基準点 | Olaf Frohn / d3-celestial — https://github.com/ofrohn/d3-celestial | BSD 3-Clause | バンドル JSON（`constellations_iau.json`、`Tools/generate_constellations.py` で生成） |
 | Apple MapKit (MKReverseGeocodingRequest) | 逆ジオコーディング・地名取得 | Apple Inc. | Apple Developer Program 規約 | システムフレームワーク（ネットワーク不要） |
 
 ## バンドルデータの準備手順
@@ -65,6 +66,13 @@ NightScope は以下の外部データ/サービスを利用しています。
 pip install numpy scipy
 python3 Tools/generate_bortle_map.py \
     --output NightScope/Models/bortle_map.bin
+```
+
+### constellations_iau.json（星座線データ）
+
+```bash
+python3 Tools/generate_constellations.py \
+    --output NightScope/Models/constellations_iau.json
 ```
 
 ### elevation_global.bin.z / elevation_japan.bin.z（地形データ）
@@ -101,9 +109,10 @@ python3 Tools/prepare_srtm.py --input-dir ~/dem_tiles/ \
 | MET Norway Locationforecast 2.0 | CC BY 4.0 | ✅ 可 | 帰属表示・User-Agent 設定 |
 | Falchi et al. 2016 World Atlas | CC BY 4.0 | ✅ 可 | 帰属表示（論文・DOI の明示） |
 | Yale BSC5 / CDS VizieR | Public Domain | ✅ 可 | 帰属表示（推奨） |
+| d3-celestial constellation data | BSD 3-Clause | ✅ 可 | ライセンス表示・著作権表示 |
 | Apple MapKit | Apple Developer Program 規約 | ✅ 可（規約の範囲内） | Apple Developer Program への参加 |
 
-全データソースが **CC BY 4.0 / Public Domain / Apple Developer Program 規約**で構成されており、商用配布・課金・法人利用においても帰属表示を適切に行うことで利用可能な状態です。
+全データソースが **CC BY 4.0 / Public Domain / BSD 3-Clause / Apple Developer Program 規約**で構成されており、商用配布・課金・法人利用においても帰属表示を適切に行うことで利用可能な状態です。
 
 ### 個人利用（現状）
 
@@ -122,6 +131,7 @@ python3 Tools/prepare_srtm.py --input-dir ~/dem_tiles/ \
 - [ ] MET Norway Locationforecast 2.0 の利用規約に変更がないことを確認
 - [ ] Falchi World Atlas (CC BY 4.0) の帰属表示（Falchi et al. 2016 / GFZ Data Services / DOI）がアプリ内・配布物に含まれている
 - [ ] Yale BSC5 の帰属表示が設定画面に含まれている
+- [ ] d3-celestial constellation data (BSD 3-Clause) の帰属表示が設定画面や配布物に含まれている
 - [ ] Apple MapKit の利用が Apple Developer Program 規約の範囲内であることを確認
 - [ ] README とアプリ内「設定 > データソースとクレジット」で全帰属が明示されている
 

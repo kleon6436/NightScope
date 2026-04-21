@@ -218,8 +218,22 @@
     "CC BY 4.0" : {
 
     },
+    "BSD 3-Clause" : {
+
+    },
     "Copernicus DEM GLO-30 © DLR/ESA" : {
 
+    },
+    "d3-celestial constellation data / Olaf Frohn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "d3-celestial constellation data / Olaf Frohn"
+          }
+        }
+      }
     },
     "Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness (GFZ Data Services)" : {
 
@@ -284,6 +298,17 @@
     },
     "Public Domain" : {
 
+    },
+    "星座線データ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Constellation line data"
+          }
+        }
+      }
     },
     "Unknown" : {
       "extractionState" : "manual",

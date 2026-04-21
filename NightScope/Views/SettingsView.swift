@@ -101,6 +101,11 @@ private struct SettingsAboutSections: View {
                     detail: "Yale Bright Star Catalogue (BSC5) / CDS VizieR",
                     license: "Public Domain"
                 )
+                AttributionRow(
+                    title: "星座線データ",
+                    detail: "d3-celestial constellation data / Olaf Frohn",
+                    license: "BSD 3-Clause"
+                )
             }
             .padding(.vertical, 4)
         }
