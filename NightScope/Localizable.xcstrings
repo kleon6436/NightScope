@@ -3599,6 +3599,50 @@
     "地形データ状態: %@" : {
 
     },
+    "地形: 待機中" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terrain: Idle"
+          }
+        }
+      }
+    },
+    "地形: 有効" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terrain: Enabled"
+          }
+        }
+      }
+    },
+    "地形: 未取得" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terrain: Unavailable"
+          }
+        }
+      }
+    },
+    "地形: 読込中" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terrain: Loading"
+          }
+        }
+      }
+    },
     "場所" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -64,13 +64,13 @@ enum StarMapTerrainFetchState: Equatable {
     var statusText: String {
         switch self {
         case .idle:
-            "地形: 待機中"
+            L10n.tr("地形: 待機中")
         case .loading:
-            "地形: 読込中"
+            L10n.tr("地形: 読込中")
         case .available:
-            "地形: 有効"
+            L10n.tr("地形: 有効")
         case .unavailable:
-            "地形: 未取得"
+            L10n.tr("地形: 未取得")
         }
     }
 

@@ -9,6 +9,8 @@ struct DarkTimeCard: View {
     }
 
     var body: some View {
+        let totalDarkHoursText = L10n.format("%.1f時間", summary.totalDarkHours)
+
         VStack(alignment: .leading, spacing: Spacing.xs) {
             CardHeader(icon: AppIcons.Observation.clock, iconColor: .green, title: "観測可能時間")
             HStack(alignment: .center, spacing: Spacing.sm) {
@@ -20,20 +22,23 @@ struct DarkTimeCard: View {
                         .font(.headline)
                         .foregroundStyle(viewModel.isUnavailable ? .secondary : .primary)
                         .lineLimit(1)
+                        .panelTooltip(viewModel.displayText)
                     if !viewModel.isUnavailable {
                         HStack(alignment: .firstTextBaseline, spacing: Spacing.xs / 2) {
                             Text("暗い時間")
                                 .font(.body)
                                 .foregroundStyle(.secondary)
-                            Text(String(format: "%.1f時間", summary.totalDarkHours))
+                            Text(totalDarkHoursText)
                                 .font(.body.monospacedDigit())
                                 .fontWeight(.semibold)
                                 .foregroundStyle(.secondary)
+                                .panelTooltip(totalDarkHoursText)
                         }
                         Text(viewModel.supportingText)
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
+                            .panelTooltip(viewModel.supportingText)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

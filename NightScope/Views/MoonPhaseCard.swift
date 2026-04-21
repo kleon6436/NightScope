@@ -8,6 +8,8 @@ struct MoonPhaseCard: View {
     }
 
     var body: some View {
+        let moonRecommendationText = summary.isMoonFavorable ? L10n.tr("撮影に適しています") : L10n.tr("月明かりに注意")
+
         VStack(alignment: .leading, spacing: Spacing.xs) {
             CardHeader(icon: summary.moonPhaseIcon, iconColor: .indigo, title: "月の状態")
             HStack(alignment: .center, spacing: Spacing.sm) {
@@ -19,19 +21,21 @@ struct MoonPhaseCard: View {
                 VStack(alignment: .leading, spacing: Spacing.xs / 2) {
                     Text(summary.moonPhaseName)
                         .font(.headline)
+                        .panelTooltip(summary.moonPhaseName)
                     HStack(spacing: Spacing.xs) {
                         Text("月齢")
                             .font(.body)
                             .foregroundStyle(.secondary)
-                    Text(L10n.format("%.1f日", moonAgeDays))
+                        Text(L10n.format("%.1f日", moonAgeDays))
                             .font(.body.monospacedDigit())
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
                     }
-                    Text(summary.isMoonFavorable ? "撮影に適しています" : "月明かりに注意")
+                    Text(moonRecommendationText)
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .panelTooltip(moonRecommendationText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -43,7 +47,7 @@ struct MoonPhaseCard: View {
                 "月の状態: %@、月齢%.1f日。%@",
                 summary.moonPhaseName,
                 moonAgeDays,
-                summary.isMoonFavorable ? L10n.tr("撮影に適しています") : L10n.tr("月明かりに注意")
+                moonRecommendationText
             )
         )
     }

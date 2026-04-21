@@ -59,13 +59,13 @@ struct StarGazingIndexCard: View {
 
     @ViewBuilder
     private func expandedContent(color: Color) -> some View {
-        subScoreRow(label: "星空", score: index.constellationScore, maxScore: StarGazingIndex.maxConstellationScore, color: Color.indigo)
+        subScoreRow(label: L10n.tr("星空"), score: index.constellationScore, maxScore: StarGazingIndex.maxConstellationScore, color: Color.indigo)
 
         if index.hasWeatherData {
-            subScoreRow(label: "気象", score: index.weatherScore, maxScore: StarGazingIndex.maxWeatherScore, color: .cyan)
+            subScoreRow(label: L10n.tr("気象"), score: index.weatherScore, maxScore: StarGazingIndex.maxWeatherScore, color: .cyan)
         } else {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                subScoreLabel("気象")
+                subScoreLabel(L10n.tr("気象"))
                 Text("データなし")
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -74,10 +74,10 @@ struct StarGazingIndexCard: View {
         }
 
         if index.hasLightPollutionData {
-            subScoreRow(label: "光害", score: index.lightPollutionScore, maxScore: StarGazingIndex.maxLightPollutionScore, color: .orange)
+            subScoreRow(label: L10n.tr("光害"), score: index.lightPollutionScore, maxScore: StarGazingIndex.maxLightPollutionScore, color: .orange)
         } else {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                subScoreLabel("光害")
+                subScoreLabel(L10n.tr("光害"))
                 if lightPollutionViewModel.isLoading {
                     ProgressView()
                         .controlSize(.mini)
@@ -117,6 +117,7 @@ struct StarGazingIndexCard: View {
             .font(.body)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: true, vertical: false)
+            .panelTooltip(label)
     }
 
     private func toggleExpanded() {
@@ -166,14 +167,23 @@ struct MacStarGazingIndexCard: View {
 
     private var inlineBreakdown: some View {
         HStack(spacing: Spacing.xs) {
-            inlineScore(label: "星空", value: "\(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)")
-            inlineScore(label: "気象", value: weatherValue)
-            inlineScore(label: "光害", value: lightPollutionValue)
+            inlineScore(label: L10n.tr("星空"), value: "\(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)")
+            inlineScore(label: L10n.tr("気象"), value: weatherValue)
+            inlineScore(label: L10n.tr("光害"), value: lightPollutionValue)
         }
         .font(.body)
         .lineLimit(1)
         .minimumScaleFactor(0.85)
         .allowsTightening(true)
+        .panelTooltip(inlineBreakdownTooltip)
+    }
+
+    private var inlineBreakdownTooltip: String {
+        [
+            "\(L10n.tr("星空")) \(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)",
+            "\(L10n.tr("気象")) \(weatherValue)",
+            "\(L10n.tr("光害")) \(lightPollutionValue)"
+        ].joined(separator: " • ")
     }
 
     private var weatherValue: String {
@@ -212,6 +222,7 @@ struct MacStarGazingIndexCard: View {
                 .foregroundStyle(.primary)
         }
         .lineLimit(1)
+        .panelTooltip("\(label) \(value)")
     }
 }
 #endif
@@ -240,6 +251,7 @@ private struct StarTierSummary: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
                 .allowsTightening(true)
+                .panelTooltip(index.label)
                 .padding(.horizontal, Spacing.xs)
                 .padding(.vertical, Spacing.xs / 2)
                 .background(color.opacity(0.14), in: Capsule())

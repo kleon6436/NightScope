@@ -63,23 +63,30 @@ struct ViewingWindowCardContent: View {
     let viewModel: ViewingWindowsSectionViewModel
 
     var body: some View {
+        let timeAndPeakText = viewModel.timeAndPeakText(window, timeZone: timeZone)
+        let altitudeText = viewModel.altitudeText(window)
+        let directionText = viewModel.directionText(window)
+
         HStack(alignment: .center, spacing: Spacing.sm) {
             DirectionIndicator(azimuth: window.peakAzimuth)
                 .frame(width: CardVisual.width, height: CardVisual.compassSize)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xs / 2) {
-                Text(viewModel.timeAndPeakText(window, timeZone: timeZone))
+                Text(timeAndPeakText)
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                Text(viewModel.altitudeText(window))
+                    .panelTooltip(timeAndPeakText)
+                Text(altitudeText)
                     .font(.body.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Text(viewModel.directionText(window))
+                    .panelTooltip(altitudeText)
+                Text(directionText)
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .panelTooltip(directionText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -91,9 +98,9 @@ struct ViewingWindowsEmptyStateCardContent: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             CardHeader(icon: AppIcons.Astronomy.sparkles, iconColor: .indigo, title: "天の川")
             ContentUnavailableView(
-                "観測に適した時間帯がありません",
+                L10n.tr("観測に適した時間帯がありません"),
                 systemImage: AppIcons.Status.warning,
-                description: Text("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした")
+                description: Text(L10n.tr("銀河系中心が地平線上にある時間帯と天文薄明が重なりませんでした"))
             )
         }
     }

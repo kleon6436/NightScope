@@ -386,6 +386,19 @@ extension View {
     func glassCard() -> some View {
         modifier(GlassCardModifier())
     }
+
+    @ViewBuilder
+    func panelTooltip(_ text: String?) -> some View {
+#if os(macOS)
+        if let text, !text.isEmpty {
+            self.help(text)
+        } else {
+            self
+        }
+#else
+        self
+#endif
+    }
 }
 
 // MARK: - CardHeader

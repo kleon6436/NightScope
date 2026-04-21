@@ -189,6 +189,7 @@ struct UpcomingNightsGrid: View {
                             .font(.headline)
                             .foregroundStyle(index.tier.color)
                             .lineLimit(1)
+                            .panelTooltip(index.label)
                     } else {
                         Text("計算中…")
                             .font(.caption)
@@ -200,9 +201,11 @@ struct UpcomingNightsGrid: View {
                     Image(systemName: AppIcons.Astronomy.moonStars)
                         .frame(width: Layout.gridIconWidth, alignment: .center)
                         .accessibilityHidden(true)
-                    Text(viewModel.observableRangeText(night: night, weather: weather))
+                    let observableRangeText = viewModel.observableRangeText(night: night, weather: weather)
+                    Text(observableRangeText)
                         .font(.body)
                         .lineLimit(1)
+                        .panelTooltip(observableRangeText)
                 }
             }
             .foregroundStyle(.secondary)
@@ -212,7 +215,12 @@ struct UpcomingNightsGrid: View {
     }
 
     private func milkyWayColumn(night: NightSummary) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        let bestViewingText = night.bestViewingTime.map {
+            L10n.format("見頃 %@", $0.nightTimeString(timeZone: night.timeZone))
+        } ?? L10n.tr("見頃 —")
+        let observationHoursText = L10n.format("観測 %.1f時間", night.totalViewingHours)
+
+        return VStack(alignment: .leading, spacing: 3) {
             Text("天の川")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -221,21 +229,19 @@ struct UpcomingNightsGrid: View {
                     Image(systemName: AppIcons.Astronomy.star)
                         .frame(width: Layout.gridIconWidth, alignment: .center)
                         .accessibilityHidden(true)
-                    Text(
-                        night.bestViewingTime.map {
-                            L10n.format("見頃 %@", $0.nightTimeString(timeZone: night.timeZone))
-                        } ?? L10n.tr("見頃 —")
-                    )
+                    Text(bestViewingText)
                         .font(.body)
                         .lineLimit(1)
+                        .panelTooltip(bestViewingText)
                 }
                 GridRow {
                     Image(systemName: AppIcons.Observation.clock)
                         .frame(width: Layout.gridIconWidth, alignment: .center)
                         .accessibilityHidden(true)
-                    Text(L10n.format("観測 %.1f時間", night.totalViewingHours))
+                    Text(observationHoursText)
                         .font(.body)
                         .lineLimit(1)
+                        .panelTooltip(observationHoursText)
                 }
                 if let direction = night.bestDirection {
                     GridRow {
@@ -245,6 +251,7 @@ struct UpcomingNightsGrid: View {
                         Text(direction)
                             .font(.body)
                             .lineLimit(1)
+                            .panelTooltip(direction)
                     }
                 }
             }
