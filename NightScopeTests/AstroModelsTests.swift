@@ -194,4 +194,27 @@ final class AstroModelsTests: XCTestCase {
 
         XCTAssertNil(summary.weatherAwareRangeText(nighttimeHours: hours))
     }
+
+    func test_starCatalogMakeFillStars_skipsMalformedRows() {
+        let stars = StarCatalog.makeFillStars(from: [
+            [15.0, -20.0, 1.2, 0.4],
+            [120.0, 45.0],
+            [210.0, 30.0, 2.8]
+        ])
+
+        XCTAssertEqual(stars.count, 2)
+        XCTAssertEqual(stars[0].ra, 15.0, accuracy: 0.0001)
+        XCTAssertEqual(stars[0].dec, -20.0, accuracy: 0.0001)
+        XCTAssertEqual(stars[0].magnitude, 1.2, accuracy: 0.0001)
+        XCTAssertEqual(stars[0].colorIndex ?? -1, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(stars[1].ra, 210.0, accuracy: 0.0001)
+        XCTAssertNil(stars[1].colorIndex)
+    }
+
+    func test_terrainProfileInterpolatesAndWrapsAzimuth() {
+        let profile = TerrainProfile(horizonAngles: (0..<72).map(Double.init))
+
+        XCTAssertEqual(profile.horizonAngle(forAzimuth: 7.5), 1.5, accuracy: 0.0001)
+        XCTAssertEqual(profile.horizonAngle(forAzimuth: -2.5), 35.5, accuracy: 0.0001)
+    }
 }

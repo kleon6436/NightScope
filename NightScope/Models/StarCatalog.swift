@@ -27,6 +27,28 @@ struct Star {
 enum StarCatalog {
     static let stars: [Star] = namedStars + fillStars
 
+    static func makeFillStars(from entries: [[Double]]) -> [Star] {
+        let malformedRowCount = entries.reduce(into: 0) { count, row in
+            if row.count < 3 {
+                count += 1
+            }
+        }
+        if malformedRowCount > 0 {
+            logger.error("Ignored \(malformedRowCount, privacy: .public) malformed rows in stars_fill.json")
+        }
+
+        return entries.compactMap { row in
+            guard row.count >= 3 else { return nil }
+            return Star(
+                name: "",
+                ra: row[0],
+                dec: row[1],
+                magnitude: row[2],
+                colorIndex: row.count > 3 ? row[3] : nil
+            )
+        }
+    }
+
     // MARK: - Named Stars (121 星, 日本語名付き)
     private static let namedStars: [Star] = [
 
@@ -178,10 +200,7 @@ enum StarCatalog {
             logger.error("Failed to decode stars_fill.json")
             return []
         }
-        return entries.map {
-            Star(name: "", ra: $0[0], dec: $0[1], magnitude: $0[2],
-                 colorIndex: $0.count > 3 ? $0[3] : nil)
-        }
+        return makeFillStars(from: entries)
     }()
 
 }

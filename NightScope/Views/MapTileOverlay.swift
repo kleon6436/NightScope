@@ -30,6 +30,18 @@ struct MapKitSyncState: Equatable {
     }
 }
 
+private final class TileLoadResultHandler: @unchecked Sendable {
+    private let handler: (Data?, Error?) -> Void
+
+    init(_ handler: @escaping (Data?, Error?) -> Void) {
+        self.handler = handler
+    }
+
+    func callAsFunction(_ data: Data?, _ error: Error?) {
+        handler(data, error)
+    }
+}
+
 // MARK: - LightPollutionTileOverlay
 
 final class LightPollutionTileOverlay: MKTileOverlay {
@@ -83,12 +95,12 @@ final class LightPollutionTileOverlay: MKTileOverlay {
             return
         }
         let tileService = self.tileService
-        let sendableResult = unsafeBitCast(result, to: (@Sendable (Data?, (any Error)?) -> Void).self)
-        Self.renderQueue.addOperation { [tileService] in
+        let resultHandler = TileLoadResultHandler(result)
+        Self.renderQueue.addOperation { [tileService, resultHandler] in
             let data = Self.renderTile(path: path, grid: grid, size: OverlayConfig.tilePixelSize)
             let tileData = data ?? Self.transparentTileData()
             tileService.storeTileData(tileData, for: path)
-            sendableResult(tileData, nil)
+            resultHandler(tileData, nil)
         }
     }
 
