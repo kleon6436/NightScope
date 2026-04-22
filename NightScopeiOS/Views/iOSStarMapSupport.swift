@@ -5,7 +5,7 @@ import CoreMotion
 import UIKit
 
 struct iOSStarMapControlState {
-    let selectedStarDisplayDensity: StarDisplayDensity
+    let displaySettings: StarMapDisplaySettings
     let canEnableGyroMode: Bool
     let isGyroMode: Bool
     let isCameraBackgroundVisible: Bool
@@ -16,9 +16,8 @@ struct iOSStarMapControlState {
 }
 
 struct iOSStarMapHeaderOverlay: View {
-    @Binding var starDisplayDensityRaw: String
     let controlState: iOSStarMapControlState
-    let onStarDensityChange: (StarDisplayDensity) -> Void
+    let onOpenDisplaySettings: () -> Void
     let onToggleCameraBackground: () -> Void
     let onToggleGyroMode: () -> Void
     let onOpenSettings: () -> Void
@@ -41,7 +40,7 @@ struct iOSStarMapHeaderOverlay: View {
                 }
             } trailing: {
                 HStack(spacing: Spacing.xs / 2) {
-                    starDensityMenu
+                    displaySettingsButton
                     cameraBackgroundButton
                     gyroToggleButton
                 }
@@ -53,35 +52,23 @@ struct iOSStarMapHeaderOverlay: View {
         }
     }
 
-    private var starDensityMenu: some View {
-        Menu {
-            ForEach(StarDisplayDensity.allCases) { density in
-                Button {
-                    starDisplayDensityRaw = density.rawValue
-                    onStarDensityChange(density)
-                } label: {
-                    if density == controlState.selectedStarDisplayDensity {
-                        Label(density.settingsLabel, systemImage: "checkmark")
-                    } else {
-                        Text(density.settingsLabel)
-                    }
-                }
-            }
-        } label: {
+    private var displaySettingsButton: some View {
+        Button(action: onOpenDisplaySettings) {
             Image(systemName: "slider.horizontal.3")
                 .font(.headline)
                 .frame(width: 44, height: 44)
         }
         .buttonStyle(.glass)
-        .disabled(controlState.isGyroMode)
-        .help(controlState.isGyroMode ? L10n.tr("タッチ操作に切り替えてから変更してください") : L10n.tr("星の表示数を変更"))
-        .accessibilityLabel(L10n.tr("星の表示数"))
-        .accessibilityValue(controlState.selectedStarDisplayDensity.settingsLabel)
-        .accessibilityHint(
-            controlState.isGyroMode
-                ? L10n.tr("タッチ操作に切り替えてから変更してください")
-                : L10n.tr("表示する恒星の量を変更します")
+        .help(L10n.tr("星空の表示設定を開く"))
+        .accessibilityLabel(L10n.tr("星空の表示設定"))
+        .accessibilityValue(
+            L10n.format(
+                "星の表示数 %@、星座線 %@",
+                controlState.displaySettings.density.title,
+                controlState.displaySettings.showsConstellationLines ? L10n.tr("オン") : L10n.tr("オフ")
+            )
         )
+        .accessibilityHint(L10n.tr("星の表示数や星座線の表示を変更します"))
     }
 
     private var cameraBackgroundButton: some View {
@@ -131,6 +118,29 @@ struct iOSStarMapHeaderOverlay: View {
         } else {
             icon.symbolEffect(.bounce, value: isActive)
         }
+    }
+}
+
+struct iOSStarMapDisplaySettingsSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                StarMapDisplaySettingsSection()
+            }
+            .formStyle(.grouped)
+            .navigationTitle(L10n.tr("星空の表示設定"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.tr("完了")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

@@ -2,9 +2,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("windSpeedUnit") private var windSpeedUnit: String = WindSpeedUnit.kmh.rawValue
-    #if os(macOS)
-    @AppStorage(StarDisplayDensity.defaultsKey) private var starDisplayDensity: String = StarDisplayDensity.defaultValue.rawValue
-    #endif
 
     var body: some View {
         formContent
@@ -24,18 +21,9 @@ struct SettingsView: View {
                 }
             }
 
+            StarMapDisplaySettingsSection()
+
             #if os(iOS)
-            Section("画面ごとの調整") {
-                LabeledContent("星の表示数") {
-                    Text("「星空」タブで変更")
-                        .foregroundStyle(.secondary)
-                }
-
-                Text("表示する恒星の量は、「星空」タブ右上の表示メニューから変更できます。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
             Section("情報") {
                 NavigationLink {
                     SettingsAboutView()
@@ -44,18 +32,6 @@ struct SettingsView: View {
                 }
             }
             #else
-            Section("星空マップ") {
-                Picker("星の表示数", selection: $starDisplayDensity) {
-                    ForEach(StarDisplayDensity.allCases) { density in
-                        Text(density.settingsLabel).tag(density.rawValue)
-                    }
-                }
-
-                Text("表示する恒星の等級上限を切り替えます。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
             SettingsAboutSections()
             #endif
         }

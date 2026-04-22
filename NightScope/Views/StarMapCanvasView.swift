@@ -334,19 +334,21 @@ struct StarMapCanvasView: View {
         drawGnomonicGround(ctx: ctx, size: size, projection: projection)
 
         // 星座線
-        var constPath = Path()
-        for line in viewModel.constellationLines {
-            let a1 = max(line.startAlt, -5) * .pi / 180
-            let a2 = max(line.endAlt,   -5) * .pi / 180
-            if let p1 = projection.project(altitudeRadians: a1, azimuthRadians: line.startAz * .pi / 180),
-               let p2 = projection.project(altitudeRadians: a2, azimuthRadians: line.endAz * .pi / 180) {
-                constPath.move(to: p1)
-                constPath.addLine(to: p2)
+        if viewModel.showsConstellationLines {
+            var constPath = Path()
+            for line in viewModel.constellationLines {
+                let a1 = max(line.startAlt, -5) * .pi / 180
+                let a2 = max(line.endAlt,   -5) * .pi / 180
+                if let p1 = projection.project(altitudeRadians: a1, azimuthRadians: line.startAz * .pi / 180),
+                   let p2 = projection.project(altitudeRadians: a2, azimuthRadians: line.endAz * .pi / 180) {
+                    constPath.move(to: p1)
+                    constPath.addLine(to: p2)
+                }
             }
+            ctx.stroke(constPath,
+                       with: .color(Color(red: 0.4, green: 0.6, blue: 0.9).opacity(0.35)),
+                       lineWidth: 1)
         }
-        ctx.stroke(constPath,
-                   with: .color(Color(red: 0.4, green: 0.6, blue: 0.9).opacity(0.35)),
-                   lineWidth: 1)
 
         // 天の川バンド（星座線の上、恒星の下に描画）
         if viewModel.isNight {
@@ -382,29 +384,31 @@ struct StarMapCanvasView: View {
         }
 
         // 星座名ラベル
-        var constellationLabelCandidates: [ConstellationLabelCandidate] = []
-        for label in viewModel.constellationLabels {
-            let alt = label.alt * .pi / 180
-            let az  = label.az  * .pi / 180
-            if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
-                constellationLabelCandidates.append(
-                    ConstellationLabelCandidate(name: label.name, anchor: pt, priority: label.alt)
+        if viewModel.showsConstellationLines {
+            var constellationLabelCandidates: [ConstellationLabelCandidate] = []
+            for label in viewModel.constellationLabels {
+                let alt = label.alt * .pi / 180
+                let az  = label.az  * .pi / 180
+                if let pt = projection.project(altitudeRadians: alt, azimuthRadians: az) {
+                    constellationLabelCandidates.append(
+                        ConstellationLabelCandidate(name: label.name, anchor: pt, priority: label.alt)
+                    )
+                }
+            }
+
+            for placement in Self.optimizedConstellationLabelPlacements(
+                candidates: constellationLabelCandidates,
+                canvasSize: size,
+                reservedBottomInset: showsCardinalOverlay ? Double(cardinalOverlayBottomInset) + 20 : 0
+            ) {
+                ctx.draw(
+                    Text(placement.name)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.52)),
+                    at: placement.origin,
+                    anchor: .topLeading
                 )
             }
-        }
-
-        for placement in Self.optimizedConstellationLabelPlacements(
-            candidates: constellationLabelCandidates,
-            canvasSize: size,
-            reservedBottomInset: showsCardinalOverlay ? Double(cardinalOverlayBottomInset) + 20 : 0
-        ) {
-            ctx.draw(
-                Text(placement.name)
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(red: 0.6, green: 0.8, blue: 1.0).opacity(0.52)),
-                at: placement.origin,
-                anchor: .topLeading
-            )
         }
 
         // 月

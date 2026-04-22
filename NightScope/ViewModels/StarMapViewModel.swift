@@ -5,15 +5,15 @@ import SwiftUI
 
 @MainActor
 struct StarMapSettingsDependency {
-    let currentDensity: () -> StarDisplayDensity
-    let changes: AnyPublisher<StarDisplayDensity, Never>
+    let currentSettings: () -> StarMapDisplaySettings
+    let changes: AnyPublisher<StarMapDisplaySettings, Never>
 
     static let live = StarMapSettingsDependency(
-        currentDensity: {
-            StarDisplayDensity.load()
+        currentSettings: {
+            StarMapDisplaySettings.load()
         },
         changes: NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .map { _ in StarDisplayDensity.load() }
+            .map { _ in StarMapDisplaySettings.load() }
             .removeDuplicates()
             .eraseToAnyPublisher()
     )
@@ -419,6 +419,7 @@ final class StarMapViewModel: ObservableObject {
     @Published private(set) var meteorShowerRadiants: [(shower: MeteorShower, altitude: Double, azimuth: Double)] = []
     @Published private(set) var terrainProfile: TerrainProfile? = nil
     @Published private(set) var terrainFetchState: StarMapTerrainFetchState = .idle
+    @Published private(set) var showsConstellationLines: Bool = StarMapDisplaySettings.defaultValue.showsConstellationLines
     /// 天の川バンドのキャッシュ (lat/LST が変わったときのみ再計算)
     @Published private(set) var milkyWayBandPoints: [MilkyWayBandPoint] = []
 
@@ -479,6 +480,7 @@ final class StarMapViewModel: ObservableObject {
     private var pendingTimeSliderDate: Date?
     private var timeSliderCommitTask: Task<Void, Never>?
     private var displayDateUpdateMode: DisplayDateUpdateMode = .standard
+    private var starMapDisplaySettings: StarMapDisplaySettings
     private var starDisplayDensity: StarDisplayDensity
 
     // MARK: - Init
@@ -489,11 +491,15 @@ final class StarMapViewModel: ObservableObject {
         terrainDependency: StarMapTerrainDependency? = nil,
         computationDependency: StarMapComputationDependency? = nil
     ) {
+        let resolvedSettingsDependency = settingsDependency ?? .live
+        let initialDisplaySettings = resolvedSettingsDependency.currentSettings()
         self.appController = appController
-        self.settingsDependency = settingsDependency ?? .live
+        self.settingsDependency = resolvedSettingsDependency
         self.terrainDependency = terrainDependency ?? .live
         self.computationDependency = computationDependency ?? .live
-        self.starDisplayDensity = self.settingsDependency.currentDensity()
+        self.starMapDisplaySettings = initialDisplaySettings
+        self.starDisplayDensity = initialDisplaySettings.density
+        self.showsConstellationLines = initialDisplaySettings.showsConstellationLines
         setupBindings()
         updateNightRange(referenceDate: displayDate)
         syncTimeSliderWithDisplayDate()
@@ -641,8 +647,8 @@ final class StarMapViewModel: ObservableObject {
 
         settingsDependency.changes
             .receive(on: RunLoop.main)
-            .sink { [weak self] density in
-                self?.applyStarDisplayDensity(density)
+            .sink { [weak self] settings in
+                self?.applyStarMapDisplaySettings(settings)
             }
             .store(in: &cancellables)
 
@@ -677,13 +683,45 @@ final class StarMapViewModel: ObservableObject {
 
     /// 表示する恒星密度を切り替え、必要な再計算を要求します。
     func setStarDisplayDensity(_ density: StarDisplayDensity) {
-        applyStarDisplayDensity(density)
+        applyStarMapDisplaySettings(
+            StarMapDisplaySettings(
+                density: density,
+                showsConstellationLines: starMapDisplaySettings.showsConstellationLines
+            )
+        )
     }
 
-    private func applyStarDisplayDensity(_ density: StarDisplayDensity) {
-        guard density != starDisplayDensity else { return }
-        starDisplayDensity = density
-        update()
+    /// 星座線表示を切り替えます。
+    func setShowsConstellationLines(_ showsConstellationLines: Bool) {
+        applyStarMapDisplaySettings(
+            StarMapDisplaySettings(
+                density: starMapDisplaySettings.density,
+                showsConstellationLines: showsConstellationLines
+            )
+        )
+    }
+
+    var displaySettings: StarMapDisplaySettings {
+        starMapDisplaySettings
+    }
+
+    private func applyStarMapDisplaySettings(_ settings: StarMapDisplaySettings) {
+        guard settings != starMapDisplaySettings else { return }
+
+        let densityChanged = settings.density != starMapDisplaySettings.density
+        let constellationLinesChanged =
+            settings.showsConstellationLines != starMapDisplaySettings.showsConstellationLines
+
+        starMapDisplaySettings = settings
+        starDisplayDensity = settings.density
+
+        if constellationLinesChanged {
+            showsConstellationLines = settings.showsConstellationLines
+        }
+
+        if densityChanged {
+            update()
+        }
     }
 
     private func scheduleTerrainFetchIfNeeded(for context: UpdateContext) {

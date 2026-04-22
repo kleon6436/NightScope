@@ -239,6 +239,75 @@ final class StarMapViewModelTests: XCTestCase {
         XCTAssertEqual(StarDisplayDensity.small.maxMagnitude, 5.0, accuracy: 0.0001)
     }
 
+    func test_StarMapDisplaySettings_load_usesDefaultsAndPersistedValues() {
+        let densityKey = StarDisplayDensity.defaultsKey
+        let constellationLinesKey = StarMapDisplaySettings.showsConstellationLinesDefaultsKey
+        let previousDensityValue = UserDefaults.standard.object(forKey: densityKey)
+        let previousConstellationLinesValue = UserDefaults.standard.object(forKey: constellationLinesKey)
+
+        defer {
+            if let previousDensityValue {
+                UserDefaults.standard.set(previousDensityValue, forKey: densityKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: densityKey)
+            }
+
+            if let previousConstellationLinesValue {
+                UserDefaults.standard.set(previousConstellationLinesValue, forKey: constellationLinesKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: constellationLinesKey)
+            }
+        }
+
+        UserDefaults.standard.removeObject(forKey: densityKey)
+        UserDefaults.standard.removeObject(forKey: constellationLinesKey)
+
+        XCTAssertEqual(StarMapDisplaySettings.load(), .defaultValue)
+
+        UserDefaults.standard.set(StarDisplayDensity.small.rawValue, forKey: densityKey)
+        UserDefaults.standard.set(false, forKey: constellationLinesKey)
+
+        XCTAssertEqual(
+            StarMapDisplaySettings.load(),
+            StarMapDisplaySettings(density: .small, showsConstellationLines: false)
+        )
+    }
+
+    func test_StarMapViewModel_setShowsConstellationLines_updatesDisplaySettings() {
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let viewModel = StarMapViewModel(appController: appController)
+
+        viewModel.setShowsConstellationLines(false)
+
+        XCTAssertFalse(viewModel.showsConstellationLines)
+        XCTAssertFalse(viewModel.displaySettings.showsConstellationLines)
+    }
+
+    func test_StarMapViewModel_updatesConstellationLineVisibilityWhenSettingsChange() async {
+        let settingsSubject = PassthroughSubject<StarMapDisplaySettings, Never>()
+        let initialSettings = StarMapDisplaySettings(density: .medium, showsConstellationLines: true)
+        let settingsDependency = StarMapSettingsDependency(
+            currentSettings: { initialSettings },
+            changes: settingsSubject.eraseToAnyPublisher()
+        )
+        let viewModel = StarMapViewModel(
+            appController: makeTokyoAppController(),
+            settingsDependency: settingsDependency,
+            computationDependency: makeStaticComputationDependency()
+        )
+
+        XCTAssertTrue(viewModel.showsConstellationLines)
+        XCTAssertEqual(viewModel.displaySettings.density, .medium)
+
+        settingsSubject.send(StarMapDisplaySettings(density: .medium, showsConstellationLines: false))
+
+        await waitUntil {
+            viewModel.showsConstellationLines == false
+        }
+
+        XCTAssertFalse(viewModel.displaySettings.showsConstellationLines)
+    }
+
     func test_StarMapMotionPose_make_convertsBackVectorToSkyPose() {
         let northHorizon = StarMapMotionPose.make(
             rotationMatrix: StarMapMotionMatrix(

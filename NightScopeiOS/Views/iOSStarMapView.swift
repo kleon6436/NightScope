@@ -6,11 +6,11 @@ import UIKit
 
 struct iOSStarMapView: View {
     @ObservedObject var viewModel: StarMapViewModel
-    @AppStorage(StarDisplayDensity.defaultsKey) private var starDisplayDensityRaw = StarDisplayDensity.defaultValue.rawValue
 
     @StateObject private var motionController = StarMapMotionController()
     @StateObject private var cameraController = StarMapCameraController()
     @State private var isCameraBackgroundEnabled = false
+    @State private var isPresentingDisplaySettings = false
     @State private var isRequestingCameraPermission = false
     @State private var cameraNotice: CameraNotice?
     @State private var cameraPermissionRequestID = 0
@@ -78,6 +78,9 @@ struct iOSStarMapView: View {
         .onChange(of: cameraController.lastErrorMessage) { _, newMessage in
             handleCameraErrorChange(newMessage)
         }
+        .sheet(isPresented: $isPresentingDisplaySettings) {
+            iOSStarMapDisplaySettingsSheetView()
+        }
     }
 
     private var backgroundLayer: some View {
@@ -111,11 +114,8 @@ struct iOSStarMapView: View {
 
     private var topOverlaySection: some View {
         iOSStarMapHeaderOverlay(
-            starDisplayDensityRaw: $starDisplayDensityRaw,
             controlState: controlState,
-            onStarDensityChange: { density in
-                viewModel.setStarDisplayDensity(density)
-            },
+            onOpenDisplaySettings: openDisplaySettings,
             onToggleCameraBackground: toggleCameraBackground,
             onToggleGyroMode: toggleGyroMode,
             onOpenSettings: openAppSettings
@@ -302,7 +302,7 @@ struct iOSStarMapView: View {
         }()
 
         return iOSStarMapControlState(
-            selectedStarDisplayDensity: StarDisplayDensity(rawValue: starDisplayDensityRaw) ?? .defaultValue,
+            displaySettings: viewModel.displaySettings,
             canEnableGyroMode: motionController.canEnableGyroMode,
             isGyroMode: viewModel.isGyroMode,
             isCameraBackgroundVisible: isCameraBackgroundVisible,
@@ -342,6 +342,10 @@ struct iOSStarMapView: View {
         withAnimation(reduceMotion ? .none : .standard) {
             viewModel.isGyroMode.toggle()
         }
+    }
+
+    private func openDisplaySettings() {
+        isPresentingDisplaySettings = true
     }
 
     // MARK: - CoreMotion
