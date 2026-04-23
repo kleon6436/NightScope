@@ -225,6 +225,12 @@ struct StarMapCameraSessionActivationState: Sendable {
     }
 }
 
+struct StarMapObservationConditionSample: Equatable {
+    let moonAltitude: Double
+    let moonPhase: Double
+    let sunAltitude: Double
+}
+
 struct StarMapMotionMatrix {
     let m11: Double
     let m12: Double
@@ -420,8 +426,13 @@ final class StarMapViewModel: ObservableObject {
     @Published private(set) var terrainProfile: TerrainProfile? = nil
     @Published private(set) var terrainFetchState: StarMapTerrainFetchState = .idle
     @Published private(set) var showsConstellationLines: Bool = StarMapDisplaySettings.defaultValue.showsConstellationLines
+    @Published private(set) var showsConstellationLabels: Bool = StarMapDisplaySettings.defaultValue.showsConstellationLabels
+    @Published private(set) var showsPlanets: Bool = StarMapDisplaySettings.defaultValue.showsPlanets
+    @Published private(set) var showsMeteorShowers: Bool = StarMapDisplaySettings.defaultValue.showsMeteorShowers
+    @Published private(set) var showsMilkyWay: Bool = StarMapDisplaySettings.defaultValue.showsMilkyWay
     /// 天の川バンドのキャッシュ (lat/LST が変わったときのみ再計算)
     @Published private(set) var milkyWayBandPoints: [MilkyWayBandPoint] = []
+    @Published private(set) var observationConditionTimeline: [StarMapObservationConditionSample] = []
 
     // MARK: - Observation datetime (independent of AppController.selectedDate)
 
@@ -500,6 +511,10 @@ final class StarMapViewModel: ObservableObject {
         self.starMapDisplaySettings = initialDisplaySettings
         self.starDisplayDensity = initialDisplaySettings.density
         self.showsConstellationLines = initialDisplaySettings.showsConstellationLines
+        self.showsConstellationLabels = initialDisplaySettings.showsConstellationLabels
+        self.showsPlanets = initialDisplaySettings.showsPlanets
+        self.showsMeteorShowers = initialDisplaySettings.showsMeteorShowers
+        self.showsMilkyWay = initialDisplaySettings.showsMilkyWay
         setupBindings()
         updateNightRange(referenceDate: displayDate)
         syncTimeSliderWithDisplayDate()
@@ -686,7 +701,11 @@ final class StarMapViewModel: ObservableObject {
         applyStarMapDisplaySettings(
             StarMapDisplaySettings(
                 density: density,
-                showsConstellationLines: starMapDisplaySettings.showsConstellationLines
+                showsConstellationLines: starMapDisplaySettings.showsConstellationLines,
+                showsConstellationLabels: starMapDisplaySettings.showsConstellationLabels,
+                showsPlanets: starMapDisplaySettings.showsPlanets,
+                showsMeteorShowers: starMapDisplaySettings.showsMeteorShowers,
+                showsMilkyWay: starMapDisplaySettings.showsMilkyWay
             )
         )
     }
@@ -696,7 +715,11 @@ final class StarMapViewModel: ObservableObject {
         applyStarMapDisplaySettings(
             StarMapDisplaySettings(
                 density: starMapDisplaySettings.density,
-                showsConstellationLines: showsConstellationLines
+                showsConstellationLines: showsConstellationLines,
+                showsConstellationLabels: starMapDisplaySettings.showsConstellationLabels,
+                showsPlanets: starMapDisplaySettings.showsPlanets,
+                showsMeteorShowers: starMapDisplaySettings.showsMeteorShowers,
+                showsMilkyWay: starMapDisplaySettings.showsMilkyWay
             )
         )
     }
@@ -709,15 +732,14 @@ final class StarMapViewModel: ObservableObject {
         guard settings != starMapDisplaySettings else { return }
 
         let densityChanged = settings.density != starMapDisplaySettings.density
-        let constellationLinesChanged =
-            settings.showsConstellationLines != starMapDisplaySettings.showsConstellationLines
 
         starMapDisplaySettings = settings
         starDisplayDensity = settings.density
-
-        if constellationLinesChanged {
-            showsConstellationLines = settings.showsConstellationLines
-        }
+        showsConstellationLines = settings.showsConstellationLines
+        showsConstellationLabels = settings.showsConstellationLabels
+        showsPlanets = settings.showsPlanets
+        showsMeteorShowers = settings.showsMeteorShowers
+        showsMilkyWay = settings.showsMilkyWay
 
         if densityChanged {
             update()
@@ -910,6 +932,12 @@ final class StarMapViewModel: ObservableObject {
         StarMapDateLogic.maxSelectableNightOffset(nightDurationMinutes: nightDurationMinutes)
     }
 
+    var timeSliderFraction: Double {
+        let maximumMinutes = timeSliderMaximumMinutes
+        guard maximumMinutes > 0 else { return 0 }
+        return max(0, min(1, timeSliderMinutes / maximumMinutes))
+    }
+
     private func syncTimeSliderWithDisplayDate() {
         let context = observationContext
         let realMinutes = StarMapDateLogic.clockMinutes(
@@ -1060,6 +1088,13 @@ final class StarMapViewModel: ObservableObject {
         )
         nightStartMinutes = range.startMinutes
         nightDurationMinutes = range.durationMinutes
+        observationConditionTimeline = Self.makeObservationConditionTimeline(
+            location: context.location,
+            observationDate: context.selectedDate,
+            timeZone: context.timeZone,
+            nightStartMinutes: range.startMinutes,
+            nightDurationMinutes: range.durationMinutes
+        )
     }
 
     /// 夜間スライダーのオフセットを、現在の観測日に属する実際の表示日時へ変換します。
@@ -1093,6 +1128,69 @@ final class StarMapViewModel: ObservableObject {
 
     nonisolated static func terrainCacheKey(latitude: Double, longitude: Double) -> String {
         TerrainService.cacheKey(latitude: latitude, longitude: longitude)
+    }
+
+    private static func makeObservationConditionTimeline(
+        location: CLLocationCoordinate2D,
+        observationDate: Date,
+        timeZone: TimeZone,
+        nightStartMinutes: Double,
+        nightDurationMinutes: Double
+    ) -> [StarMapObservationConditionSample] {
+        let maximumOffset = StarMapDateLogic.maxSelectableNightOffset(nightDurationMinutes: nightDurationMinutes)
+        guard maximumOffset > 0 else { return [] }
+
+        let stepMinutes = 20.0
+        var offsets = Array(stride(from: 0.0, through: maximumOffset, by: stepMinutes))
+        if let lastOffset = offsets.last, abs(lastOffset - maximumOffset) > 0.5 {
+            offsets.append(maximumOffset)
+        }
+
+        let latitudeRadians = location.latitude * .pi / 180
+        let cosLat = cos(latitudeRadians)
+        let sinLat = sin(latitudeRadians)
+
+        return offsets.compactMap { offset in
+            let realMinutes = StarMapDateLogic.nightOffsetToRealMinutes(
+                offset,
+                nightStartMinutes: nightStartMinutes
+            )
+            guard let date = StarMapDateLogic.date(
+                bySettingClockMinutes: realMinutes,
+                onObservationDate: observationDate,
+                timeZone: timeZone,
+                nightStartMinutes: nightStartMinutes
+            ) else {
+                return nil
+            }
+
+            let julianDate = MilkyWayCalculator.julianDate(from: date)
+            let localSiderealTime = MilkyWayCalculator.localSiderealTime(
+                jd: julianDate,
+                longitude: location.longitude
+            )
+            let sun = MilkyWayCalculator.sunRaDec(jd: julianDate)
+            let moon = MilkyWayCalculator.moonRaDec(jd: julianDate)
+            let (sunAltitude, _) = MilkyWayCalculator.altAzFast(
+                ra: sun.ra,
+                dec: sun.dec,
+                cosLat: cosLat,
+                sinLat: sinLat,
+                lst: localSiderealTime
+            )
+            let (moonAltitude, _) = MilkyWayCalculator.altAzFast(
+                ra: moon.ra,
+                dec: moon.dec,
+                cosLat: cosLat,
+                sinLat: sinLat,
+                lst: localSiderealTime
+            )
+            return StarMapObservationConditionSample(
+                moonAltitude: moonAltitude,
+                moonPhase: moon.phase,
+                sunAltitude: sunAltitude
+            )
+        }
     }
 }
 

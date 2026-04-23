@@ -242,8 +242,16 @@ final class StarMapViewModelTests: XCTestCase {
     func test_StarMapDisplaySettings_load_usesDefaultsAndPersistedValues() {
         let densityKey = StarDisplayDensity.defaultsKey
         let constellationLinesKey = StarMapDisplaySettings.showsConstellationLinesDefaultsKey
+        let constellationLabelsKey = StarMapDisplaySettings.showsConstellationLabelsDefaultsKey
+        let planetsKey = StarMapDisplaySettings.showsPlanetsDefaultsKey
+        let meteorShowersKey = StarMapDisplaySettings.showsMeteorShowersDefaultsKey
+        let milkyWayKey = StarMapDisplaySettings.showsMilkyWayDefaultsKey
         let previousDensityValue = UserDefaults.standard.object(forKey: densityKey)
         let previousConstellationLinesValue = UserDefaults.standard.object(forKey: constellationLinesKey)
+        let previousConstellationLabelsValue = UserDefaults.standard.object(forKey: constellationLabelsKey)
+        let previousPlanetsValue = UserDefaults.standard.object(forKey: planetsKey)
+        let previousMeteorShowersValue = UserDefaults.standard.object(forKey: meteorShowersKey)
+        let previousMilkyWayValue = UserDefaults.standard.object(forKey: milkyWayKey)
 
         defer {
             if let previousDensityValue {
@@ -257,19 +265,58 @@ final class StarMapViewModelTests: XCTestCase {
             } else {
                 UserDefaults.standard.removeObject(forKey: constellationLinesKey)
             }
+
+            if let previousConstellationLabelsValue {
+                UserDefaults.standard.set(previousConstellationLabelsValue, forKey: constellationLabelsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: constellationLabelsKey)
+            }
+
+            if let previousPlanetsValue {
+                UserDefaults.standard.set(previousPlanetsValue, forKey: planetsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: planetsKey)
+            }
+
+            if let previousMeteorShowersValue {
+                UserDefaults.standard.set(previousMeteorShowersValue, forKey: meteorShowersKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: meteorShowersKey)
+            }
+
+            if let previousMilkyWayValue {
+                UserDefaults.standard.set(previousMilkyWayValue, forKey: milkyWayKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: milkyWayKey)
+            }
         }
 
         UserDefaults.standard.removeObject(forKey: densityKey)
         UserDefaults.standard.removeObject(forKey: constellationLinesKey)
+        UserDefaults.standard.removeObject(forKey: constellationLabelsKey)
+        UserDefaults.standard.removeObject(forKey: planetsKey)
+        UserDefaults.standard.removeObject(forKey: meteorShowersKey)
+        UserDefaults.standard.removeObject(forKey: milkyWayKey)
 
         XCTAssertEqual(StarMapDisplaySettings.load(), .defaultValue)
 
         UserDefaults.standard.set(StarDisplayDensity.small.rawValue, forKey: densityKey)
         UserDefaults.standard.set(false, forKey: constellationLinesKey)
+        UserDefaults.standard.set(false, forKey: constellationLabelsKey)
+        UserDefaults.standard.set(false, forKey: planetsKey)
+        UserDefaults.standard.set(false, forKey: meteorShowersKey)
+        UserDefaults.standard.set(false, forKey: milkyWayKey)
 
         XCTAssertEqual(
             StarMapDisplaySettings.load(),
-            StarMapDisplaySettings(density: .small, showsConstellationLines: false)
+            StarMapDisplaySettings(
+                density: .small,
+                showsConstellationLines: false,
+                showsConstellationLabels: false,
+                showsPlanets: false,
+                showsMeteorShowers: false,
+                showsMilkyWay: false
+            )
         )
     }
 
@@ -281,6 +328,8 @@ final class StarMapViewModelTests: XCTestCase {
 
         XCTAssertFalse(viewModel.showsConstellationLines)
         XCTAssertFalse(viewModel.displaySettings.showsConstellationLines)
+        XCTAssertTrue(viewModel.displaySettings.showsConstellationLabels)
+        XCTAssertTrue(viewModel.displaySettings.showsPlanets)
     }
 
     func test_StarMapViewModel_updatesConstellationLineVisibilityWhenSettingsChange() async {
@@ -297,15 +346,141 @@ final class StarMapViewModelTests: XCTestCase {
         )
 
         XCTAssertTrue(viewModel.showsConstellationLines)
+        XCTAssertTrue(viewModel.showsConstellationLabels)
+        XCTAssertTrue(viewModel.showsPlanets)
+        XCTAssertTrue(viewModel.showsMeteorShowers)
+        XCTAssertTrue(viewModel.showsMilkyWay)
         XCTAssertEqual(viewModel.displaySettings.density, .medium)
 
-        settingsSubject.send(StarMapDisplaySettings(density: .medium, showsConstellationLines: false))
+        settingsSubject.send(
+            StarMapDisplaySettings(
+                density: .medium,
+                showsConstellationLines: false,
+                showsConstellationLabels: false,
+                showsPlanets: false,
+                showsMeteorShowers: false,
+                showsMilkyWay: false
+            )
+        )
 
         await waitUntil {
-            viewModel.showsConstellationLines == false
+            !viewModel.showsConstellationLines
+                && !viewModel.showsConstellationLabels
+                && !viewModel.showsPlanets
+                && !viewModel.showsMeteorShowers
+                && !viewModel.showsMilkyWay
         }
 
         XCTAssertFalse(viewModel.displaySettings.showsConstellationLines)
+        XCTAssertFalse(viewModel.displaySettings.showsConstellationLabels)
+        XCTAssertFalse(viewModel.displaySettings.showsPlanets)
+        XCTAssertFalse(viewModel.displaySettings.showsMeteorShowers)
+        XCTAssertFalse(viewModel.displaySettings.showsMilkyWay)
+    }
+
+    func test_StarMapViewModel_generatesMoonAltitudeTimelineForNightRange() {
+        let appController = makeTokyoAppController()
+        let viewModel = StarMapViewModel(appController: appController)
+
+        XCTAssertFalse(viewModel.observationConditionTimeline.isEmpty)
+        XCTAssertTrue(
+            viewModel.observationConditionTimeline.allSatisfy { sample in
+                sample.sunAltitude <= 90 && sample.sunAltitude >= -90
+            }
+        )
+        XCTAssertGreaterThan(viewModel.timeSliderMaximumMinutes, 0)
+        XCTAssertGreaterThanOrEqual(viewModel.timeSliderFraction, 0)
+        XCTAssertLessThanOrEqual(viewModel.timeSliderFraction, 1)
+    }
+
+    func test_ObservationHeatBarView_qualityLabel_doesNotTreatAstronomicalTwilightAsGood() {
+        XCTAssertEqual(
+            ObservationHeatBarView.qualityLabel(
+                moonAltitude: -10,
+                moonPhase: 0,
+                sunAltitude: -16
+            ),
+            L10n.tr("観測条件に注意")
+        )
+        XCTAssertEqual(
+            ObservationHeatBarView.qualityLabel(
+                moonAltitude: -10,
+                moonPhase: 0,
+                sunAltitude: -20
+            ),
+            L10n.tr("観測条件が良い")
+        )
+    }
+
+    func test_ObservationHeatBarView_moonImpactScore_usesMoonlightThresholds() {
+        XCTAssertGreaterThan(
+            ObservationHeatBarView.moonImpactScore(moonAltitude: 5, moonPhase: 0.5),
+            0.35
+        )
+        XCTAssertGreaterThan(
+            ObservationHeatBarView.moonImpactScore(moonAltitude: 10, moonPhase: 0.25),
+            0.65
+        )
+        XCTAssertLessThan(
+            ObservationHeatBarView.moonImpactScore(moonAltitude: 40, moonPhase: 0),
+            0.12
+        )
+    }
+
+    func test_ObservationHeatBarView_combinedImpactScore_accumulatesSunAndMoon() {
+        let sunOnly = ObservationHeatBarView.sunImpactScore(for: -15)
+        let moonOnly = ObservationHeatBarView.moonImpactScore(moonAltitude: 10, moonPhase: 0.25)
+        let combined = ObservationHeatBarView.combinedImpactScore(
+            moonAltitude: 10,
+            moonPhase: 0.25,
+            sunAltitude: -15
+        )
+
+        XCTAssertGreaterThan(combined, sunOnly)
+        XCTAssertGreaterThan(combined, moonOnly)
+        XCTAssertEqual(
+            ObservationHeatBarView.qualityLabel(
+                moonAltitude: 10,
+                moonPhase: 0.25,
+                sunAltitude: -15
+            ),
+            L10n.tr("観測条件は厳しい")
+        )
+    }
+
+    func test_ObservationHeatBarView_conditionStateText_reportsMoonlightSeverity() {
+        XCTAssertEqual(
+            ObservationHeatBarView.conditionStateText(
+                moonAltitude: 35,
+                moonPhase: 0.5,
+                sunAltitude: -25
+            ),
+            L10n.tr("月明かりの影響が強い")
+        )
+        XCTAssertEqual(
+            ObservationHeatBarView.conditionStateText(
+                moonAltitude: 20,
+                moonPhase: 0.1,
+                sunAltitude: -25
+            ),
+            L10n.tr("月明かりの影響が小さい")
+        )
+        XCTAssertEqual(
+            ObservationHeatBarView.conditionStateText(
+                moonAltitude: -5,
+                moonPhase: 0.5,
+                sunAltitude: -25
+            ),
+            L10n.tr("月は地平線の下です")
+        )
+        XCTAssertEqual(
+            ObservationHeatBarView.conditionStateText(
+                moonAltitude: 0,
+                moonPhase: 0.5,
+                sunAltitude: -25
+            ),
+            L10n.tr("月は地平線の下です")
+        )
     }
 
     func test_StarMapMotionPose_make_convertsBackVectorToSkyPose() {

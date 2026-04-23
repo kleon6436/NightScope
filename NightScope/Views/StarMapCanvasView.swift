@@ -351,7 +351,7 @@ struct StarMapCanvasView: View {
         }
 
         // 天の川バンド（星座線の上、恒星の下に描画）
-        if viewModel.isNight {
+        if viewModel.isNight && viewModel.showsMilkyWay {
             drawGnomonicMilkyWayBand(
                 ctx: ctx,
                 project: { alt, az in
@@ -384,7 +384,7 @@ struct StarMapCanvasView: View {
         }
 
         // 星座名ラベル
-        if viewModel.showsConstellationLines {
+        if viewModel.showsConstellationLabels {
             var constellationLabelCandidates: [ConstellationLabelCandidate] = []
             for label in viewModel.constellationLabels {
                 let alt = label.alt * .pi / 180
@@ -434,24 +434,28 @@ struct StarMapCanvasView: View {
         }
 
         // 惑星
-        for planet in viewModel.planetPositions where planet.altitude > -1 {
-            let alt = planet.altitude * .pi / 180
-            if let pt = projection.project(
-                altitudeRadians: alt,
-                azimuthRadians: planet.azimuth * .pi / 180
-            ) {
-                drawPlanet(ctx: ctx, at: pt, planet: planet)
+        if viewModel.showsPlanets {
+            for planet in viewModel.planetPositions where planet.altitude > -1 {
+                let alt = planet.altitude * .pi / 180
+                if let pt = projection.project(
+                    altitudeRadians: alt,
+                    azimuthRadians: planet.azimuth * .pi / 180
+                ) {
+                    drawPlanet(ctx: ctx, at: pt, planet: planet)
+                }
             }
         }
 
         // 流星群放射点
-        for radiant in viewModel.meteorShowerRadiants where radiant.altitude > -1 {
-            let alt = radiant.altitude * .pi / 180
-            if let pt = projection.project(
-                altitudeRadians: alt,
-                azimuthRadians: radiant.azimuth * .pi / 180
-            ) {
-                drawMeteorShowerRadiant(ctx: ctx, at: pt, shower: radiant.shower)
+        if viewModel.showsMeteorShowers {
+            for radiant in viewModel.meteorShowerRadiants where radiant.altitude > -1 {
+                let alt = radiant.altitude * .pi / 180
+                if let pt = projection.project(
+                    altitudeRadians: alt,
+                    azimuthRadians: radiant.azimuth * .pi / 180
+                ) {
+                    drawMeteorShowerRadiant(ctx: ctx, at: pt, shower: radiant.shower)
+                }
             }
         }
 

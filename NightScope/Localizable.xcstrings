@@ -4556,6 +4556,72 @@
         }
       }
     },
+    "月明かりの影響あり" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some moonlight impact"
+          }
+        }
+      }
+    },
+    "月明かりの影響が小さい" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low moonlight impact"
+          }
+        }
+      }
+    },
+    "月明かりの影響が強い" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High moonlight impact"
+          }
+        }
+      }
+    },
+    "月明かりの影響は控えめ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moderate moonlight impact"
+          }
+        }
+      }
+    },
+    "月は地平線の下です" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The moon is below the horizon"
+          }
+        }
+      }
+    },
+    "月の高度は %.0f° です" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moon altitude is %.0f°"
+          }
+        }
+      }
+    },
     "月齢" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5018,6 +5084,17 @@
         }
       }
     },
+    "表示する恒星の量や星図レイヤーを調整します。変更は星空マップへすぐ反映されます。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjust the number of visible stars and star map layers. Changes appear on the star map immediately."
+          }
+        }
+      }
+    },
     "表示する恒星の量を変更します" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5036,6 +5113,204 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Star density %@, constellation lines %@"
+          }
+        }
+      }
+    },
+    "星の表示数 %@、星座線 %@、星座名 %@、惑星 %@、流星群 %@、天の川 %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Star density %@, constellation lines %@, constellation labels %@, planets %@, meteor shower radiants %@, Milky Way %@"
+          }
+        }
+      }
+    },
+    "星の表示数や星図レイヤーの表示を変更します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change the star density and visibility of star map layers"
+          }
+        }
+      }
+    },
+    "星座名ラベル" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Constellation labels"
+          }
+        }
+      }
+    },
+    "惑星" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planets"
+          }
+        }
+      }
+    },
+    "流星群放射点" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meteor shower radiants"
+          }
+        }
+      }
+    },
+    "観測ヒートバー" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observation heat bar"
+          }
+        }
+      }
+    },
+    "観測ヒートバーの色の意味" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observation heat bar color meaning"
+          }
+        }
+      }
+    },
+    "観測条件が良い" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good observing conditions"
+          }
+        }
+      }
+    },
+    "観測条件に注意" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caution: observing conditions"
+          }
+        }
+      }
+    },
+    "観測条件はまずまず" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fair observing conditions"
+          }
+        }
+      }
+    },
+    "観測条件は厳しい" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poor observing conditions"
+          }
+        }
+      }
+    },
+    "色で太陽や月の影響を含む観測条件の強さを示します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows the strength of observing conditions affected by the sun and moon using color"
+          }
+        }
+      }
+    },
+    "太陽が地平線上です" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The sun is above the horizon"
+          }
+        }
+      }
+    },
+    "天文薄明中です" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Astronomical twilight is in progress"
+          }
+        }
+      }
+    },
+    "市民薄明中です" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Civil twilight is in progress"
+          }
+        }
+      }
+    },
+    "航海薄明中です" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nautical twilight is in progress"
+          }
+        }
+      }
+    },
+    "青から赤に近づくほど太陽や月の影響で観測条件が厳しくなります。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observing conditions become harsher as the color shifts from blue to red due to the sun and moon."
+          }
+        }
+      }
+    },
+    "%@。現在時刻 %@。%@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@. Current time %@. %@"
           }
         }
       }

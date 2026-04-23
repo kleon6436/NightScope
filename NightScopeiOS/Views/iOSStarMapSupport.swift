@@ -63,12 +63,16 @@ struct iOSStarMapHeaderOverlay: View {
         .accessibilityLabel(L10n.tr("星空の表示設定"))
         .accessibilityValue(
             L10n.format(
-                "星の表示数 %@、星座線 %@",
+                "星の表示数 %@、星座線 %@、星座名 %@、惑星 %@、流星群 %@、天の川 %@",
                 controlState.displaySettings.density.title,
-                controlState.displaySettings.showsConstellationLines ? L10n.tr("オン") : L10n.tr("オフ")
+                controlState.displaySettings.showsConstellationLines ? L10n.tr("オン") : L10n.tr("オフ"),
+                controlState.displaySettings.showsConstellationLabels ? L10n.tr("オン") : L10n.tr("オフ"),
+                controlState.displaySettings.showsPlanets ? L10n.tr("オン") : L10n.tr("オフ"),
+                controlState.displaySettings.showsMeteorShowers ? L10n.tr("オン") : L10n.tr("オフ"),
+                controlState.displaySettings.showsMilkyWay ? L10n.tr("オン") : L10n.tr("オフ")
             )
         )
-        .accessibilityHint(L10n.tr("星の表示数や星座線の表示を変更します"))
+        .accessibilityHint(L10n.tr("星の表示数や星図レイヤーの表示を変更します"))
     }
 
     private var cameraBackgroundButton: some View {

@@ -395,6 +395,15 @@ private struct MacStarMapSheet: View {
                     .foregroundStyle(.secondary)
                     .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
             }
+
+            ObservationHeatBarView(
+                observationConditionTimeline: viewModel.observationConditionTimeline,
+                sliderFraction: viewModel.timeSliderFraction,
+                currentMoonAltitude: viewModel.moonAltitude,
+                currentMoonPhase: viewModel.moonPhase,
+                currentSunAltitude: viewModel.sunAltitude,
+                currentTimeText: viewModel.displayTimeString
+            )
         }
         .padding(Spacing.sm)
     }

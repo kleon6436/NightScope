@@ -178,24 +178,35 @@ struct iOSStarMapView: View {
     }
 
     private var timeSliderRow: some View {
-        HStack(spacing: Spacing.xs) {
-            Image(systemName: "moon.stars")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: "moon.stars")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            Slider(
-                value: timeSliderBinding,
-                in: 0...viewModel.timeSliderMaximumMinutes,
-                step: 1,
-                onEditingChanged: timeSliderEditingChanged
+                Slider(
+                    value: timeSliderBinding,
+                    in: 0...viewModel.timeSliderMaximumMinutes,
+                    step: 1,
+                    onEditingChanged: timeSliderEditingChanged
+                )
+                    .accessibilityLabel("時刻")
+                    .tint(.accentColor)
+
+                Text(viewModel.displayTimeString)
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(.white)
+                    .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
+            }
+
+            ObservationHeatBarView(
+                observationConditionTimeline: viewModel.observationConditionTimeline,
+                sliderFraction: viewModel.timeSliderFraction,
+                currentMoonAltitude: viewModel.moonAltitude,
+                currentMoonPhase: viewModel.moonPhase,
+                currentSunAltitude: viewModel.sunAltitude,
+                currentTimeText: viewModel.displayTimeString
             )
-                .accessibilityLabel("時刻")
-                .tint(.accentColor)
-
-            Text(viewModel.displayTimeString)
-                .font(.footnote.monospacedDigit())
-                .foregroundStyle(.white)
-                .frame(width: StarMapLayout.timeLabelWidth, alignment: .trailing)
         }
         .padding(.vertical, Spacing.xs)
     }
