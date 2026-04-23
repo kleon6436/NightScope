@@ -195,7 +195,7 @@
 		AA0000000000000000001F03 /* MilkyWayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculator.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F05 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0000000000000000001F06 /* NightScope.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NightScope.entitlements; sourceTree = "<group>"; };
-		AA0000000000000000001F08 /* NightStarCast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightStarCast.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000001F08 /* NightScope.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightScope.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000002F01 /* AstroModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModels.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F02 /* WeatherModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherModels.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F03 /* StarGazingIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndex.swift; sourceTree = "<group>"; };
@@ -365,7 +365,7 @@
 		AA000000000000000000GR03 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AA0000000000000000001F08 /* NightStarCast.app */,
+				AA0000000000000000001F08 /* NightScope.app */,
 				AA000000000000000000TF09 /* NightScopeTests.xctest */,
 				7E945580091B1E2051F32062 /* NightScopeiOS.app */,
 			);
@@ -542,7 +542,7 @@
 			);
 			name = NightScope;
 			productName = NightScope;
-			productReference = AA0000000000000000001F08 /* NightStarCast.app */;
+			productReference = AA0000000000000000001F08 /* NightScope.app */;
 			productType = "com.apple.product-type.application";
 		};
 		AA000000000000000000TG02 /* NightScopeTests */ = {
@@ -1036,7 +1036,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kleon.NightScope;
-				PRODUCT_NAME = NightStarCast;
+				PRODUCT_NAME = NightScope;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -1072,7 +1072,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kleon.NightScope;
-				PRODUCT_NAME = NightStarCast;
+				PRODUCT_NAME = NightScope;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
