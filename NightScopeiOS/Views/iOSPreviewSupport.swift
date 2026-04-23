@@ -30,7 +30,7 @@ enum IOSPreviewFactory {
             appController.starGazingIndex = nil
             appController.upcomingNights = []
             appController.upcomingIndexes = [:]
-            appController.weatherService.weatherByDate = [:]
+            (appController.weatherService as? WeatherKitService)?.weatherByDate = [:]
 
         case .empty:
             appController.isCalculating = false
@@ -38,7 +38,7 @@ enum IOSPreviewFactory {
             appController.starGazingIndex = nil
             appController.upcomingNights = []
             appController.upcomingIndexes = [:]
-            appController.weatherService.weatherByDate = [:]
+            (appController.weatherService as? WeatherKitService)?.weatherByDate = [:]
 
         case .content:
             appController.isCalculating = false
@@ -48,7 +48,7 @@ enum IOSPreviewFactory {
             let tonightWeather = makeWeatherSummary(date: date, avgCloudCover: 22, weatherCode: 1)
 
             appController.nightSummary = tonightSummary
-            appController.weatherService.weatherByDate = [
+            (appController.weatherService as? WeatherKitService)?.weatherByDate = [
                 dateKey(for: date): tonightWeather
             ]
             appController.starGazingIndex = StarGazingIndex.compute(
@@ -67,7 +67,7 @@ enum IOSPreviewFactory {
                     avgCloudCover: Double(18 + offset * 10),
                     weatherCode: offset == 2 ? 3 : 1
                 )
-                appController.weatherService.weatherByDate[dateKey(for: night.date)] = weather
+                (appController.weatherService as? WeatherKitService)?.weatherByDate[dateKey(for: night.date)] = weather
                 upcomingIndexes[Calendar.current.startOfDay(for: night.date)] = StarGazingIndex.compute(
                     nightSummary: night,
                     weather: weather,

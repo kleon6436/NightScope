@@ -17,6 +17,12 @@ struct NightWeatherCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(minHeight: CardVisual.metricVisualHeight, alignment: .leading)
+            if weather != nil {
+                Text("Weather data provided by Apple Weather")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
         }
         .glassCard()
         .accessibilityElement(children: .combine)

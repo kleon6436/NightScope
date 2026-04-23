@@ -36,7 +36,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         detailViewModel.$upcomingIndexes
             .assign(to: &$upcomingIndexes)
 
-        detailViewModel.weatherService.$weatherByDate
+        detailViewModel.weatherService.weatherByDatePublisher
             .assign(to: &$weatherByDate)
 
         detailViewModel.$weatherErrorMessage

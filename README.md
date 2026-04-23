@@ -52,7 +52,7 @@ NightScope は以下の外部データ/サービスを利用しています。
 
 | サービス / データ | 用途 | 主な帰属・出典 | ライセンス | 取得方法 |
 |---|---|---|---|---|
-| MET Norway Locationforecast 2.0 | 天気予報取得 | Norwegian Meteorological Institute (MET Norway) — https://api.met.no/ | CC BY 4.0 | 実行時 API（ネットワーク必須） |
+| Apple WeatherKit | 天気予報取得 | Apple Inc. — https://developer.apple.com/weatherkit/ | Apple Weather Terms of Service | 実行時 API（ネットワーク必須） |
 | Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness | 光害マップ | Falchi, F. et al. (2016) / GFZ Data Services — https://doi.org/10.5880/GFZ.1.4.2016.001 | CC BY 4.0 | バンドルバイナリ（`bortle_map.bin`、`Tools/generate_bortle_map.py` で生成） |
 | Copernicus DEM GLO-30 | 地形・標高データ | Copernicus DEM (DLR/ESA) — https://dataspace.copernicus.eu | CC BY 4.0 | バンドルバイナリ（`elevation_global.bin.z`, `elevation_japan.bin.z`、`Tools/prepare_srtm.py` で生成） |
 | Yale Bright Star Catalogue (BSC5 / CDS V/50) | 星カタログ | Yale BSC5 / CDS VizieR — https://vizier.cds.unistra.fr/viz-bin/VizieR-3?-source=V/50 | Public Domain | バンドル JSON（`stars_fill.json`、`Tools/generate_stars.py` で生成） |
@@ -113,29 +113,29 @@ python3 Tools/prepare_srtm.py --input-dir ~/dem_tiles/ \
 
 | データソース | ライセンス | 商用利用 | 主な要件 |
 |---|---|---|---|
-| MET Norway Locationforecast 2.0 | CC BY 4.0 | ✅ 可 | 帰属表示・User-Agent 設定 |
+| Apple WeatherKit | Apple Weather Terms of Service | ✅ 可（Apple Developer Program 規約範囲内） | Apple Developer Program への参加 |
 | Falchi et al. 2016 World Atlas | CC BY 4.0 | ✅ 可 | 帰属表示（論文・DOI の明示） |
 | Yale BSC5 / CDS VizieR | Public Domain | ✅ 可 | 帰属表示（推奨） |
 | d3-celestial constellation data | BSD 3-Clause | ✅ 可 | ライセンス表示・著作権表示 |
 | Apple MapKit | Apple Developer Program 規約 | ✅ 可（規約の範囲内） | Apple Developer Program への参加 |
 
-全データソースが **CC BY 4.0 / Public Domain / BSD 3-Clause / Apple Developer Program 規約**で構成されており、商用配布・課金・法人利用においても帰属表示を適切に行うことで利用可能な状態です。
+全データソースが **Apple Weather Terms of Service / CC BY 4.0 / Public Domain / BSD 3-Clause / Apple Developer Program 規約**で構成されており、商用配布・課金・法人利用においても各規約の条件を守ることで利用可能な状態です。
 
 ### 個人利用（現状）
 
 - 各データソースの条件を守る前提で利用可能です。
-- MET Norway は User-Agent ヘッダの設定が必須です（`WeatherService` で対応済み）。
+- WeatherKit は Apple Developer Program への参加が必須です（`WeatherKitService` で対応済み）。
 - 帰属表示はアプリ内「設定 > データソースとクレジット」で行っています。
 
 ### 商用化時の確認事項
 
-- MET Norway の利用規約に変更がないことを確認してください。今後、Apple Developer Programに参加した際には、Apple Weather Kitに置き換える予定。
+- Apple WeatherKit の利用規約（Apple Weather Terms of Service）に変更がないことを確認してください。
 - CC BY 4.0 データソースの帰属表示がアプリ内・配布物（App Store ページ等）に含まれていることを確認してください。
 - Apple Developer Program 規約の最新版を確認してください。
 
 ## 商用化前チェックリスト
 
-- [ ] MET Norway Locationforecast 2.0 の利用規約に変更がないことを確認
+- [ ] Apple WeatherKit の利用規約（Apple Weather Terms of Service）に変更がないことを確認
 - [ ] Falchi World Atlas (CC BY 4.0) の帰属表示（Falchi et al. 2016 / GFZ Data Services / DOI）がアプリ内・配布物に含まれている
 - [ ] Yale BSC5 の帰属表示が設定画面に含まれている
 - [ ] d3-celestial constellation data (BSD 3-Clause) の帰属表示が設定画面や配布物に含まれている

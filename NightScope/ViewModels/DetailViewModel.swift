@@ -86,7 +86,7 @@ final class DetailViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        appController.weatherService.$weatherByDate
+        appController.weatherService.weatherByDatePublisher
             .sink { [weak self] _ in
                 self?.updateDisplayedContentState()
             }
@@ -126,21 +126,21 @@ final class DetailViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        appController.weatherService.$errorMessage
+        appController.weatherService.errorMessagePublisher
             .sink { [weak self] errorMessage in
                 self?.weatherErrorMessage = errorMessage
                 self?.hasWeatherError = errorMessage != nil
             }
             .store(in: &cancellables)
 
-        appController.weatherService.$isLoading
+        appController.weatherService.isLoadingPublisher
             .assign(to: &$isWeatherLoading)
 
         appController.lightPollutionService.$fetchFailed
             .assign(to: &$hasLightPollutionError)
     }
 
-    var weatherService: WeatherService {
+    var weatherService: any WeatherProviding {
         appController.weatherService
     }
 

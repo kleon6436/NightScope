@@ -59,8 +59,8 @@ private struct SettingsAboutSections: View {
             VStack(alignment: .leading, spacing: 8) {
                 AttributionRow(
                     title: "天気予報",
-                    detail: "MET Norway / Norwegian Meteorological Institute",
-                    license: "CC BY 4.0"
+                    detail: "Apple Weather",
+                    license: "Apple Weather Terms of Service"
                 )
                 AttributionRow(
                     title: "光害マップ",
@@ -93,7 +93,7 @@ private struct SettingsAboutSections: View {
         Section("データ運用") {
             DataSourceStatusRow(
                 title: "天気予報",
-                detail: "MET Norway API を実行時に取得します。",
+                detail: "Apple WeatherKit を使用します。",
                 note: "ネットワーク接続が必要です。"
             )
             DataSourceStatusRow(

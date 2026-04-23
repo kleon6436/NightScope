@@ -29,7 +29,7 @@ final class AppController: ObservableObject {
     struct LocationRefreshPayload {
         let nightSummary: NightSummary
         let upcomingNights: [NightSummary]
-        let weatherResult: WeatherService.FetchResult
+        let weatherResult: WeatherFetchResult
         let lightPollutionResult: LightPollutionService.FetchResult
         let starGazingIndex: StarGazingIndex
         let upcomingIndexes: [Date: StarGazingIndex]
@@ -42,7 +42,7 @@ final class AppController: ObservableObject {
 
     // MARK: - Dependencies
     let locationController: LocationController
-    let weatherService: WeatherService
+    let weatherService: any WeatherProviding
     let lightPollutionService: LightPollutionService
 
     // MARK: - Published State
@@ -84,11 +84,11 @@ final class AppController: ObservableObject {
 
     // MARK: - Init
     init(locationController: LocationController? = nil,
-         weatherService: WeatherService? = nil,
+         weatherService: (any WeatherProviding)? = nil,
          lightPollutionService: LightPollutionService? = nil,
          calculationService: NightCalculating? = nil) {
         self.locationController = locationController ?? LocationController()
-        self.weatherService = weatherService ?? WeatherService()
+        self.weatherService = weatherService ?? WeatherKitService()
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
         self.calculationService = calculationService ?? NightCalculationService()
         self.lastObservedTimeZone = self.locationController.selectedTimeZone
@@ -414,7 +414,7 @@ final class AppController: ObservableObject {
     ) async -> (
         nightSummary: NightSummary,
         upcomingNights: [NightSummary],
-        weatherResult: WeatherService.FetchResult,
+        weatherResult: WeatherFetchResult,
         lightPollutionResult: LightPollutionService.FetchResult
     ) {
         async let summaryTask = calculationService.calculateNightSummary(
@@ -470,7 +470,7 @@ final class AppController: ObservableObject {
             }
             .store(in: &cancellables)
 
-        weatherService.$weatherByDate
+        weatherService.weatherByDatePublisher
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -656,7 +656,7 @@ final class AppController: ObservableObject {
         context: SelectedLocationContext,
         nightSummary: NightSummary,
         upcomingNights: [NightSummary],
-        weatherResult: WeatherService.FetchResult,
+        weatherResult: WeatherFetchResult,
         lightPollutionResult: LightPollutionService.FetchResult
     ) -> LocationRefreshPayload {
         LocationRefreshPayload(

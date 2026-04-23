@@ -77,25 +77,28 @@ final class DetailViewModelTests: XCTestCase {
 
     func test_hasWeatherError_reflectsService() {
         let mockCalculationService = MockNightCalculationService()
-        let appController = AppController(calculationService: mockCalculationService)
+        let weatherService = WeatherKitService()
+        let appController = AppController(weatherService: weatherService, calculationService: mockCalculationService)
         let vm = DetailViewModel(appController: appController)
 
         XCTAssertFalse(vm.hasWeatherError)
         XCTAssertNil(vm.weatherErrorMessage)
-        appController.weatherService.errorMessage = "テストエラー"
+        weatherService.errorMessage = "テストエラー"
         XCTAssertTrue(vm.hasWeatherError)
         XCTAssertEqual(vm.weatherErrorMessage, "テストエラー")
     }
 
     func test_currentWeather_tracksWeatherUpdatesForSelectedDate() async {
         let mockCalculationService = MockNightCalculationService()
-        let appController = AppController(calculationService: mockCalculationService)
+        let weatherService = WeatherKitService()
+        let appController = AppController(weatherService: weatherService, calculationService: mockCalculationService)
         let targetDate = Calendar.current.startOfDay(for: Date())
         let weather = DayWeatherSummary(date: targetDate, nighttimeHours: [makeHourlyWeather(cloudCover: 22)])
 
         appController.selectedDate = targetDate
-        appController.weatherService.weatherByDate = [
-            appController.weatherService.dateKey(targetDate): weather
+        let tz = appController.locationController.selectedTimeZone
+        weatherService.weatherByDate = [
+            appController.weatherService.dateKey(targetDate, timeZone: tz): weather
         ]
         let vm = DetailViewModel(appController: appController)
 
@@ -107,7 +110,8 @@ final class DetailViewModelTests: XCTestCase {
 
     func test_displayedDateAndWeather_stayOnVisibleSummaryWhileRefreshingNextDate() async {
         let mockCalculationService = MockNightCalculationService()
-        let appController = AppController(calculationService: mockCalculationService)
+        let weatherService = WeatherKitService()
+        let appController = AppController(weatherService: weatherService, calculationService: mockCalculationService)
         let currentDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
         let currentSummary = makeNightSummary(date: currentDate)
@@ -116,9 +120,10 @@ final class DetailViewModelTests: XCTestCase {
 
         appController.selectedDate = currentDate
         appController.nightSummary = currentSummary
-        appController.weatherService.weatherByDate = [
-            appController.weatherService.dateKey(currentDate): currentWeather,
-            appController.weatherService.dateKey(nextDate): nextWeather
+        let tz1 = appController.locationController.selectedTimeZone
+        weatherService.weatherByDate = [
+            appController.weatherService.dateKey(currentDate, timeZone: tz1): currentWeather,
+            appController.weatherService.dateKey(nextDate, timeZone: tz1): nextWeather
         ]
 
         let vm = DetailViewModel(appController: appController)
@@ -134,7 +139,8 @@ final class DetailViewModelTests: XCTestCase {
 
     func test_displayedDateAndWeather_switchToNewSelectionAfterRefreshCompletes() async {
         let mockCalculationService = MockNightCalculationService()
-        let appController = AppController(calculationService: mockCalculationService)
+        let weatherService = WeatherKitService()
+        let appController = AppController(weatherService: weatherService, calculationService: mockCalculationService)
         let currentDate = Calendar.current.startOfDay(for: Date())
         let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
         let currentSummary = makeNightSummary(date: currentDate)
@@ -144,9 +150,10 @@ final class DetailViewModelTests: XCTestCase {
 
         appController.selectedDate = currentDate
         appController.nightSummary = currentSummary
-        appController.weatherService.weatherByDate = [
-            appController.weatherService.dateKey(currentDate): currentWeather,
-            appController.weatherService.dateKey(nextDate): nextWeather
+        let tz2 = appController.locationController.selectedTimeZone
+        weatherService.weatherByDate = [
+            appController.weatherService.dateKey(currentDate, timeZone: tz2): currentWeather,
+            appController.weatherService.dateKey(nextDate, timeZone: tz2): nextWeather
         ]
 
         let vm = DetailViewModel(appController: appController)
@@ -214,11 +221,12 @@ final class DetailViewModelTests: XCTestCase {
 
     func test_isWeatherLoading_reflectsService() {
         let mockCalculationService = MockNightCalculationService()
-        let appController = AppController(calculationService: mockCalculationService)
+        let weatherService = WeatherKitService()
+        let appController = AppController(weatherService: weatherService, calculationService: mockCalculationService)
         let vm = DetailViewModel(appController: appController)
 
         XCTAssertFalse(vm.isWeatherLoading)
-        appController.weatherService.isLoading = true
+        weatherService.isLoading = true
         XCTAssertTrue(vm.isWeatherLoading)
     }
 
