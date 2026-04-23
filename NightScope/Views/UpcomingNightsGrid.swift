@@ -17,10 +17,10 @@ struct UpcomingNightsGrid: View {
                 Spacer()
                 if !viewModel.isSelectedDateToday() {
                     Button("今日") { viewModel.setSelectedDate(Date()) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .buttonStyle(.glass)
                         .accessibilityLabel("今日の日付に移動")
                 }
+                WeatherAttributionBadge()
             }
 
             let displayNights = viewModel.displayNights

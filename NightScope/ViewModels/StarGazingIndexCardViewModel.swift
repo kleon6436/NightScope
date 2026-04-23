@@ -6,7 +6,7 @@ final class StarGazingIndexCardViewModel: ObservableObject {
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var fetchFailed: Bool = false
 
-    private weak var lightPollutionService: LightPollutionService?
+    private let lightPollutionService: LightPollutionService
     private var cancellables = Set<AnyCancellable>()
 
     init(lightPollutionService: LightPollutionService) {
@@ -15,10 +15,10 @@ final class StarGazingIndexCardViewModel: ObservableObject {
     }
 
     private func setupBindings() {
-        lightPollutionService?.$isLoading
+        lightPollutionService.$isLoading
             .assign(to: &$isLoading)
 
-        lightPollutionService?.$fetchFailed
+        lightPollutionService.$fetchFailed
             .assign(to: &$fetchFailed)
     }
 }

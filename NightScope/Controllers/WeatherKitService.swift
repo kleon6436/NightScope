@@ -178,9 +178,17 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
             let clLocation = CLLocation(latitude: context.latitude, longitude: context.longitude)
 
             // WeatherKit.WeatherService は module 名を明示して参照する
+            // .hourly だけでは 24 時間しか取得できないため、開始日と終了日を明示して
+            // upcomingNightCount+1 日分（夜間が翌日にまたがる余裕を含む）を要求する
+            let now = Date()
+            let forecastEndDate = Calendar.current.date(
+                byAdding: .day,
+                value: ForecastConfiguration.upcomingNightCount + 1,
+                to: now
+            ) ?? now.addingTimeInterval(Double(ForecastConfiguration.upcomingNightCount + 1) * 24 * 3600)
             let hourlyForecast = try await WeatherKit.WeatherService.shared.weather(
                 for: clLocation,
-                including: .hourly
+                including: .hourly(startDate: now, endDate: forecastEndDate)
             )
 
             if Task.isCancelled {
@@ -297,5 +305,40 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
             )
         }
         return summaries
+    }
+}
+
+// MARK: - WeatherAttributionData
+
+/// WeatherKit の WeatherAttribution から必要な情報を取り出したデータ構造。
+/// WeatherKit を import しないビュー層でも安全に利用できる。
+struct WeatherAttributionData {
+    let serviceName: String
+    let logoLightURL: URL
+    let logoDarkURL: URL
+    let legalPageURL: URL
+}
+
+// MARK: - WeatherAttributionService
+
+/// WeatherKit が要求する帰属表示情報を取得・キャッシュするサービス。
+/// WeatherKit の利用規約により、天気データを表示するすべての箇所で帰属表示が必要。
+@MainActor
+final class WeatherAttributionService: ObservableObject {
+    @Published private(set) var attributionData: WeatherAttributionData?
+    private var isLoading = false
+
+    func loadIfNeeded() async {
+        guard attributionData == nil, !isLoading else { return }
+        isLoading = true
+        if let attr = try? await WeatherKit.WeatherService.shared.attribution {
+            attributionData = WeatherAttributionData(
+                serviceName: attr.serviceName,
+                logoLightURL: attr.combinedMarkLightURL,
+                logoDarkURL: attr.combinedMarkDarkURL,
+                legalPageURL: attr.legalPageURL
+            )
+        }
+        isLoading = false
     }
 }

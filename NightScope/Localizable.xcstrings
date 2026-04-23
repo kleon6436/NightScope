@@ -229,9 +229,6 @@
     "Apple Weather" : {
 
     },
-    "Apple Weather Terms of Service" : {
-
-    },
     "Apple WeatherKit を使用します。" : {
 
     },
@@ -326,9 +323,6 @@
           }
         }
       }
-    },
-    "Weather data provided by Apple Weather" : {
-
     },
     "weather.cloudCover.compact" : {
       "extractionState" : "manual",
@@ -4891,6 +4885,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mercury"
+          }
+        }
+      }
+    },
+    "法的情報・著作権" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Legal Information & Attribution"
           }
         }
       }

@@ -138,6 +138,9 @@ struct DetailView: View {
                     .disabled(isSummaryRefreshing)
                     .help("星空マップを表示")
                     .accessibilityHint("選択した日付の星空マップを開きます")
+                    if weather != nil {
+                        WeatherAttributionBadge()
+                    }
                 }
                 MacStarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
             }

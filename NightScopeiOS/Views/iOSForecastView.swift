@@ -78,6 +78,11 @@ struct iOSForecastView: View {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     headerSection
                     contentByState
+                    if displayState == .content {
+                        WeatherAttributionBadge()
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.horizontal, Spacing.xs)
+                    }
                 }
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, Spacing.sm)

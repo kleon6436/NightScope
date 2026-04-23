@@ -57,11 +57,12 @@ private struct SettingsAboutSections: View {
     var body: some View {
         Section("データソースとクレジット") {
             VStack(alignment: .leading, spacing: 8) {
-                AttributionRow(
-                    title: "天気予報",
-                    detail: "Apple Weather",
-                    license: "Apple Weather Terms of Service"
-                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("天気予報")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    WeatherAttributionBadge(style: .full)
+                }
                 AttributionRow(
                     title: "光害マップ",
                     detail: "Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness (GFZ Data Services)",

@@ -55,6 +55,7 @@ final class SidebarViewModel: ObservableObject {
     private let favoriteStore: any FavoriteLocationStoring
     private var cancellables = Set<AnyCancellable>()
     private var pendingLocationUpdateBehavior: PendingLocationUpdateBehavior?
+    private var lightPollutionRetryTask: Task<Void, Never>?
 
     var isSearching: Bool {
         searchState.isSearching
@@ -250,7 +251,8 @@ final class SidebarViewModel: ObservableObject {
     }
 
     func retryLightPollution() {
-        Task {
+        lightPollutionRetryTask?.cancel()
+        lightPollutionRetryTask = Task {
             await lightPollutionService.fetch(
                 latitude: selectedCoordinate.latitude,
                 longitude: selectedCoordinate.longitude

@@ -122,19 +122,17 @@ struct iOSTodayView: View {
             )
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
-            if weather != nil {
-                Text("Weather data provided by Apple Weather")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.horizontal, Spacing.xs)
-            }
-
             MoonPhaseCard(summary: summary)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight)
 
             MilkyWaySummaryCard(summary: summary)
                 .frame(minHeight: IOSDesignTokens.Today.summaryCardMinHeight, alignment: .top)
+
+            if weather != nil {
+                WeatherAttributionBadge()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, Spacing.xs)
+            }
         }
     }
 

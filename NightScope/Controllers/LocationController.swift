@@ -160,6 +160,12 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
     }
 
+    deinit {
+        locationTimeoutTask?.cancel()
+        searchTask?.cancel()
+        locationNameTask?.cancel()
+    }
+
     private func restorePersistedLocation() {
         let storedCoordinate = storedCoordinateFromStorage()
         switch storedCoordinate {

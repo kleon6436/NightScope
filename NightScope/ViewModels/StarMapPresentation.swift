@@ -16,8 +16,9 @@ func _starColorForBV(_ bvIndex: Double?) -> Color {
         (1.40, 1.00, 0.58, 0.30),
         (2.00, 1.00, 0.40, 0.20),
     ]
-    if bv <= table.first!.bv { return Color(red: table.first!.r, green: table.first!.g, blue: table.first!.b) }
-    if bv >= table.last!.bv { return Color(red: table.last!.r, green: table.last!.g, blue: table.last!.b) }
+    guard let first = table.first, let last = table.last else { return .white }
+    if bv <= first.bv { return Color(red: first.r, green: first.g, blue: first.b) }
+    if bv >= last.bv { return Color(red: last.r, green: last.g, blue: last.b) }
     for i in 1..<table.count {
         let prev = table[i - 1], next = table[i]
         if bv <= next.bv {
