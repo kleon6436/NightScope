@@ -9,7 +9,7 @@ struct iOSTodayViewModel {
     }
 
     func headerTitle(for selectedDate: Date, timeZone: TimeZone) -> String {
-        DateFormatters.yearMonthDayWeekdayString(from: selectedDate, timeZone: timeZone)
+        DateFormatters.yearMonthDayWeekdayStringWithoutWeekday(from: selectedDate, timeZone: timeZone)
     }
 
     func contentState(isCalculating: Bool, summary: NightSummary?) -> LoadableContentState {

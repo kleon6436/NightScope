@@ -491,6 +491,10 @@ enum DateFormatters {
     static func yearMonthDayWeekdayString(from date: Date, timeZone: TimeZone = .current) -> String {
         FormatterFactory.localizedDate(template: "yMMMMEEEEd", timeZone: timeZone).string(from: date)
     }
+    
+    static func yearMonthDayWeekdayStringWithoutWeekday(from date: Date, timeZone: TimeZone = .current) -> String {
+        FormatterFactory.localizedDate(template: "yMMMMd", timeZone: timeZone).string(from: date)
+    }
 }
 
 extension String {
@@ -553,10 +557,6 @@ struct ForecastCardPresentation {
 
     var shortDateLabel: String {
         FormatterFactory.localizedDate(template: "MEd", timeZone: timeZone).string(from: night.date)
-    }
-
-    var shortDateLabelWithoutWeekday: String {
-        FormatterFactory.localizedDate(template: "Md", timeZone: timeZone).string(from: night.date)
     }
 
     var relativeNightLabel: String? {

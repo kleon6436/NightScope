@@ -45,7 +45,7 @@ struct iOSNightCardRow: View {
 
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-            Text(presentation.shortDateLabelWithoutWeekday)
+            Text(presentation.shortDateLabel)
                 .font(.headline.monospacedDigit())
                 .fontWeight(.semibold)
             if let label = presentation.relativeNightLabel {
