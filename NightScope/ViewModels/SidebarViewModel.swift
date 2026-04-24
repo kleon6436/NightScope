@@ -106,43 +106,38 @@ final class SidebarViewModel: ObservableObject {
         self.selectedTimeZone = locationController.selectedTimeZone
         self.favorites = favoriteStore.loadAll()
 
+        // LocationProviding / LightPollutionProviding は @MainActor プロトコルであり、
+        // concrete 実装も @MainActor のため、upstream publisher は必ずメインスレッドで発火する。
+        // receive(on: DispatchQueue.main) は不要。
         locationController.searchStatePublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.searchState = $0 }
             .store(in: &cancellables)
 
         locationController.isLocatingPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.isLocating = $0 }
             .store(in: &cancellables)
 
         locationController.locationErrorPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.locationError = $0 }
             .store(in: &cancellables)
 
         locationController.locationNamePublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.selectedLocationName = $0 }
             .store(in: &cancellables)
 
         locationController.searchFocusTriggerPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.searchFocusTrigger = $0 }
             .store(in: &cancellables)
 
         locationController.currentLocationCenterTriggerPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.currentLocationCenterTrigger = $0 }
             .store(in: &cancellables)
 
         locationController.selectedTimeZonePublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.selectedTimeZone = $0 }
             .store(in: &cancellables)
 
         locationController.selectedLocationPublisher
-            .receive(on: DispatchQueue.main)
             .dropFirst()
             .sink { [weak self] coordinate in
                 self?.selectedCoordinate = coordinate
@@ -151,17 +146,14 @@ final class SidebarViewModel: ObservableObject {
             .store(in: &cancellables)
 
         lightPollutionService.bortleClassPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.lightPollutionBortleClass = $0 }
             .store(in: &cancellables)
 
         lightPollutionService.isLoadingPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.isLightPollutionLoading = $0 }
             .store(in: &cancellables)
 
         lightPollutionService.fetchFailedPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] in self?.hasLightPollutionFetchFailed = $0 }
             .store(in: &cancellables)
     }

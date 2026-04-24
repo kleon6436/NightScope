@@ -297,6 +297,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
     /// 検索状態を初期化し、進行中の検索を取り消します。
     func clearSearch() {
         searchTask?.cancel()
+        searchTask = nil
         latestSearchQuery = ""
         searchState = .idle
     }

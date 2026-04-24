@@ -383,6 +383,45 @@ final class LocationControllerTests: XCTestCase {
         XCTAssertEqual(sut.searchState.query, "Osaka")
     }
 
+    func test_LocationController_clearSearch_idlesSearchStateImmediately() {
+        let storage = InMemoryLocationStorage()
+        let searchService = MockLocationSearchService(result: .success([]))
+        let resolver = MockLocationNameResolver(resolvedName: "東京")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+        let previousResults = [makeMapItem(
+            coordinate: CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0),
+            name: "Tokyo"
+        )]
+        sut.searchResults = previousResults
+
+        sut.clearSearch()
+
+        XCTAssertFalse(sut.isSearching)
+        XCTAssertEqual(sut.searchState.phase, .idle)
+        XCTAssertTrue(sut.searchResults.isEmpty)
+    }
+
+    func test_LocationController_clearSearch_preventsStaleResultFromAppearing() async {
+        let storage = InMemoryLocationStorage()
+        let searchService = CountingLocationSearchService(delayInNanoseconds: 300_000_000)
+        let resolver = MockLocationNameResolver(resolvedName: "東京")
+        let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
+
+        sut.search(query: "tokyo")
+        // デバウンス(150ms)が終わってサービス呼び出しが始まるのを待つ
+        try? await Task.sleep(nanoseconds: 170_000_000)
+        XCTAssertTrue(sut.isSearching, "検索中のはず")
+
+        sut.clearSearch()
+        XCTAssertEqual(sut.searchState.phase, .idle, "clearSearch 直後は idle のはず")
+        XCTAssertTrue(sut.searchResults.isEmpty)
+
+        // サービスの遅延(300ms)が完了するのを十分に待ち、stale 結果が復活しないことを確認
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(sut.searchState.phase, .idle, "stale 結果で上書きされないはず")
+        XCTAssertTrue(sut.searchResults.isEmpty)
+    }
+
     func test_MapItemLocationDetailsExtractor_usesMapItemTimeZone() {
         let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
         let item = makeMapItem(coordinate: coordinate, name: "ロサンゼルス")
