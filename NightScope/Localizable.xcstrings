@@ -230,7 +230,15 @@
 
     },
     "Apple WeatherKit を使用します。" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses Apple WeatherKit."
+          }
+        }
+      }
     },
     "BSD 3-Clause" : {
 
