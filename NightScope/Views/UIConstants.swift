@@ -555,6 +555,10 @@ struct ForecastCardPresentation {
         FormatterFactory.localizedDate(template: "MEd", timeZone: timeZone).string(from: night.date)
     }
 
+    var shortDateLabelWithoutWeekday: String {
+        FormatterFactory.localizedDate(template: "Md", timeZone: timeZone).string(from: night.date)
+    }
+
     var relativeNightLabel: String? {
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         if ObservationTimeZone.isDateInToday(night.date, timeZone: timeZone) { return L10n.tr("今夜") }
