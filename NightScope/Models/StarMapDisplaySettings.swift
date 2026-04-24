@@ -6,6 +6,7 @@ struct StarMapDisplaySettings: Equatable {
     static let showsPlanetsDefaultsKey = "starMapShowsPlanets"
     static let showsMeteorShowersDefaultsKey = "starMapShowsMeteorShowers"
     static let showsMilkyWayDefaultsKey = "starMapShowsMilkyWay"
+    static let compassAzimuthOffsetDefaultsKey = "starMapCompassAzimuthOffset"
 
     let density: StarDisplayDensity
     let showsConstellationLines: Bool

@@ -22,6 +22,7 @@ struct iOSStarMapHeaderOverlay: View {
     let onToggleCameraBackground: () -> Void
     let onToggleGyroMode: () -> Void
     let onOpenSettings: () -> Void
+    let onCalibrateCompass: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -43,6 +44,9 @@ struct iOSStarMapHeaderOverlay: View {
                 HStack(spacing: Spacing.xs / 2) {
                     displaySettingsButton
                     cameraBackgroundButton
+                    if controlState.isGyroMode {
+                        compassCalibrationButton
+                    }
                     gyroToggleButton
                 }
             }
@@ -51,6 +55,18 @@ struct iOSStarMapHeaderOverlay: View {
                 iOSStarMapNoticeCard(notice: notice, onOpenSettings: onOpenSettings)
             }
         }
+    }
+
+    private var compassCalibrationButton: some View {
+        Button(action: onCalibrateCompass) {
+            Image(systemName: "location.north.line")
+                .font(.headline)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(.glass)
+        .help(L10n.tr("コンパスキャリブレーション"))
+        .accessibilityLabel(L10n.tr("コンパスキャリブレーション"))
+        .accessibilityHint(L10n.tr("現在の向きを北として方位角を補正します"))
     }
 
     private var displaySettingsButton: some View {

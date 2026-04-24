@@ -7,6 +7,83 @@
     "--" : {
 
     },
+    "コンパス補正" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compass Correction"
+          }
+        }
+      }
+    },
+    "コンパスキャリブレーション" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compass Calibration"
+          }
+        }
+      }
+    },
+    "方位角オフセット" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azimuth Offset"
+          }
+        }
+      }
+    },
+    "ジャイロモードの方位角のズレを補正します。星空マップ上のキャリブレーションボタンで北を基準に自動設定することもできます。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjusts the azimuth offset to compensate for gyro drift. You can also auto-calibrate using the calibration button on the star map."
+          }
+        }
+      }
+    },
+    "デバイスを真北に向けた状態で「補正する」を押すと、現在の向きを 0° として方位角を補正します。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Point your device toward true north, then tap Calibrate to correct the azimuth to 0°."
+          }
+        }
+      }
+    },
+    "補正する" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibrate"
+          }
+        }
+      }
+    },
+    "現在の向きを北として方位角を補正します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrects the azimuth using the current orientation as north"
+          }
+        }
+      }
+    },
     "\"%@\" の検索に失敗しました。%@" : {
       "extractionState" : "manual",
       "localizations" : {
