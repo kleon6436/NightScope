@@ -147,7 +147,9 @@ struct StarMapCanvasView: View {
                         handleTap(at: location, size: size)
                     }
 
+#if os(macOS)
                 gyroModeIndicator
+#endif
 
                 // ピンチ中のみ視野角を表示
                 if allowsManualFOVAdjustment && gestureScale != 1.0 {
