@@ -1,5 +1,6 @@
 import SwiftUI
 @preconcurrency import AVFoundation
+import CoreLocation
 import CoreMedia
 import CoreMotion
 import UIKit
@@ -214,10 +215,14 @@ struct CameraNotice: Equatable {
 }
 
 @MainActor
-final class StarMapMotionController: ObservableObject {
+final class StarMapMotionController: NSObject, ObservableObject {
     private let motionManager = CMMotionManager()
+    private let headingManager = CLLocationManager()
     private var lastPose: StarMapMotionPose?
     private var screenOrientation: StarMapScreenOrientation = .portrait
+    /// `xMagneticNorthZVertical` 使用時の磁気偏角（真北 − 磁気北、度）。
+    /// `xTrueNorthZVertical` では CoreMotion が WMM 補正済みのため不要。
+    private var latestMagneticDeclination: Double?
 
     var canEnableGyroMode: Bool {
         motionManager.isDeviceMotionAvailable && preferredReferenceFrame != nil
@@ -247,6 +252,15 @@ final class StarMapMotionController: ObservableObject {
         guard !motionManager.isDeviceMotionActive else { return }
 
         lastPose = nil
+
+        // xMagneticNorthZVertical 使用時のみ CLHeading で磁気偏角を補正する。
+        // xTrueNorthZVertical は CoreMotion が WMM 補正済みのため CLHeading 不要。
+        if referenceFrame == .xMagneticNorthZVertical {
+            headingManager.delegate = self
+            headingManager.headingFilter = 0
+            headingManager.startUpdatingHeading()
+        }
+
         motionManager.deviceMotionUpdateInterval = 1.0 / 45
         motionManager.startDeviceMotionUpdates(
             using: referenceFrame,
@@ -266,7 +280,22 @@ final class StarMapMotionController: ObservableObject {
                 rotationMatrix: StarMapMotionMatrix(rotationMatrix: motion.attitude.rotationMatrix),
                 screenOrientation: self.screenOrientation
             )
-            let smoothedPose = StarMapMotionPose.smoothed(previous: self.lastPose, next: rawPose)
+
+            // xMagneticNorthZVertical 使用時のみ磁気偏角を加算して真北基準に補正する。
+            // xTrueNorthZVertical は CoreMotion が WMM 補正済みのため rawPose をそのまま使用する。
+            let correctedPose: StarMapMotionPose
+            if referenceFrame == .xMagneticNorthZVertical,
+               let declination = self.latestMagneticDeclination {
+                correctedPose = StarMapMotionPose(
+                    azimuth: rawPose.azimuth + declination,
+                    altitude: rawPose.altitude,
+                    roll: rawPose.roll
+                )
+            } else {
+                correctedPose = rawPose
+            }
+
+            let smoothedPose = StarMapMotionPose.smoothed(previous: self.lastPose, next: correctedPose)
             self.lastPose = smoothedPose
             onPoseUpdate(smoothedPose)
         }
@@ -278,7 +307,23 @@ final class StarMapMotionController: ObservableObject {
 
     func stop() {
         motionManager.stopDeviceMotionUpdates()
+        headingManager.stopUpdatingHeading()
         lastPose = nil
+        latestMagneticDeclination = nil
+    }
+}
+
+// MARK: - CLLocationManagerDelegate
+
+extension StarMapMotionController: CLLocationManagerDelegate {
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        guard newHeading.headingAccuracy >= 0, newHeading.trueHeading >= 0 else { return }
+
+        // 磁気偏角 = 真北 − 磁気北。rawPose.azimuth（磁気北基準）に加算することで真北基準へ補正する。
+        let declination = newHeading.trueHeading - newHeading.magneticHeading
+        Task { @MainActor [weak self] in
+            self?.latestMagneticDeclination = declination
+        }
     }
 }
 
