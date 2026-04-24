@@ -30,6 +30,8 @@ struct MapKitSyncState: Equatable {
     }
 }
 
+// handler は init 後に変更されない定数クロージャのため Sendable として安全。
+// MKTileOverlay のネットワークコールバックから呼ばれるので @unchecked が必要。
 private final class TileLoadResultHandler: @unchecked Sendable {
     private let handler: (Data?, Error?) -> Void
 

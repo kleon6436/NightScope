@@ -8,6 +8,8 @@ protocol FavoriteLocationStoring: AnyObject, Sendable {
     func save(_ favorites: [FavoriteLocation])
 }
 
+// UserDefaults はスレッドセーフ（Apple ドキュメント保証）なため @unchecked Sendable が安全。
+// 変更可能な内部状態への直接アクセスは持たない。
 final class FavoriteLocationStore: FavoriteLocationStoring, @unchecked Sendable {
     private let userDefaults: UserDefaults
     private let key = "favorites.locations"

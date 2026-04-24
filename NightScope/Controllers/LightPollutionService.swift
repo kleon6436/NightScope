@@ -272,7 +272,6 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     @Published var fetchFailed = false
     var fetchFailedPublisher: Published<Bool>.Publisher { $fetchFailed }
 
-    private var lastFetchedCoordinate: (lat: Double, lon: Double)?
     private var lastFetchResult: FetchResult?
 
     /// バンドルデータ（アプリ起動時に一度だけロード）
@@ -302,8 +301,8 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
 
     func fetchSnapshot(latitude: Double, longitude: Double) async -> FetchResult {
         // 同じ座標（0.05度以内 ≈ 5km）では再取得しない（光害は静的データ）
-        if let last = lastFetchedCoordinate,
-           let lastFetchResult,
+        if let lastFetchResult,
+           let last = lastFetchResult.lastFetchedCoordinate,
            abs(last.lat - latitude) <= Constants.cacheRadiusDegrees,
            abs(last.lon - longitude) <= Constants.cacheRadiusDegrees {
             return lastFetchResult
@@ -320,7 +319,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
             return FetchResult(
                 bortleClass: nil,
                 fetchFailed: true,
-                lastFetchedCoordinate: nil
+                lastFetchedCoordinate: (latitude, longitude)
             )
         }
     }
@@ -328,7 +327,6 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
     func applyFetchResult(_ result: FetchResult) {
         bortleClass = result.bortleClass
         fetchFailed = result.fetchFailed
-        lastFetchedCoordinate = result.lastFetchedCoordinate
         lastFetchResult = result
         isLoading = false
     }

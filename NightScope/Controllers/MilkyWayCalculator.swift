@@ -319,8 +319,7 @@ enum MilkyWayCalculator {
             let jd = julianDate(from: sampleDate)
             let lst = localSiderealTime(jd: jd, longitude: location.longitude)
 
-            let gcAlt = altitude(ra: gcRA, dec: gcDec, latitude: location.latitude, lst: lst)
-            let gcAz = azimuth(ra: gcRA, dec: gcDec, latitude: location.latitude, lst: lst)
+            let (gcAlt, gcAz) = altAz(ra: gcRA, dec: gcDec, latitude: location.latitude, lst: lst)
 
             let sun = sunRaDec(jd: jd)
             let sunAlt = altitude(ra: sun.ra, dec: sun.dec, latitude: location.latitude, lst: lst)
@@ -608,8 +607,7 @@ enum MilkyWayCalculator {
             if ra < 0 { ra += 360.0 }
             let dec = asin(max(-1.0, min(1.0, sin(βGeo)*cos(ε) + cos(βGeo)*sin(ε)*sin(λGeo)))) * 180.0 / .pi
 
-            let alt = altitude(ra: ra, dec: dec, latitude: latitude, lst: lst)
-            let az  = azimuth( ra: ra, dec: dec, latitude: latitude, lst: lst)
+            let (alt, az) = altAz(ra: ra, dec: dec, latitude: latitude, lst: lst)
 
             // 簡易等級 (位相角補正なし。内惑星は過大評価になるが実視に支障はない)
             let mag = min(orbit.H + 5.0 * log10(max(1e-6, r * Δ)), 5.0)
