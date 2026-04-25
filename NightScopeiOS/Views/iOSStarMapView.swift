@@ -310,8 +310,8 @@ struct iOSStarMapView: View {
                 return L10n.tr("この環境ではカメラ背景を利用できません")
             }
             return isCameraBackgroundVisible
-                ? L10n.tr("カメラ背景をオフにします")
-                : L10n.tr("カメラ背景をオンにします")
+                ? L10n.tr("カメラ背景をオフにする")
+                : L10n.tr("カメラ背景をオンにする")
         }()
 
         let cameraButtonHintText: String = {

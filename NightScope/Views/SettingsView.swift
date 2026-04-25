@@ -28,7 +28,7 @@ struct SettingsView: View {
                 NavigationLink {
                     SettingsAboutView()
                 } label: {
-                    Label("データソースとアプリ情報", systemImage: "info.circle")
+                    Label("データソースとクレジット", systemImage: "info.circle")
                 }
             }
             #else

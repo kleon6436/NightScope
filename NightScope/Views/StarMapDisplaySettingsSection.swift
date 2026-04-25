@@ -58,7 +58,7 @@ struct StarMapDisplaySettingsSection: View {
             .padding(.top, 4)
         }
 
-        Section(L10n.tr("コンパス補正")) {
+        Section(L10n.tr("コンパスキャリブレーション")) {
             HStack {
                 Text(L10n.tr("方位角オフセット"))
                 Spacer()

@@ -119,7 +119,7 @@ struct iOSStarMapHeaderOverlay: View {
             )
         }
         .glassButtonStyle()
-        .help(controlState.isGyroMode ? L10n.tr("タッチ操作に切替") : L10n.tr("ジャイロ操作に切替"))
+        .help(controlState.isGyroMode ? L10n.tr("タッチ操作に切り替える") : L10n.tr("ジャイロ操作に切り替える"))
         .accessibilityLabel(
             controlState.isGyroMode
                 ? L10n.tr("タッチ操作に切り替える")

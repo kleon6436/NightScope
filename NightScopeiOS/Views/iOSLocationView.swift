@@ -61,7 +61,7 @@ struct iOSLocationView: View {
             title: "場所",
             horizontalPadding: Spacing.xs
         ) {
-            Text("観測地点を検索")
+            Text("場所を検索")
                 .font(.subheadline)
                 .lineLimit(1)
         } trailing: {
@@ -198,7 +198,7 @@ struct iOSLocationView: View {
 
     private var bottomBar: some View {
         VStack(spacing: Spacing.sm) {
-            Picker("地図モード", selection: $locationInputMode) {
+            Picker("地図表示モード", selection: $locationInputMode) {
                 Text("地図").tag(LocationInputMode.map)
                 Text("光害").tag(LocationInputMode.lightPollutionMap)
             }
