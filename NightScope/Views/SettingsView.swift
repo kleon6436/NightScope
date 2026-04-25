@@ -86,6 +86,29 @@ private struct SettingsAboutSections: View {
             }
             .padding(.vertical, 4)
 
+            Group {
+                Text(verbatim: "Falchi attribution: Contains modified World Atlas of Artificial Night Sky Brightness data © Falchi et al. 2016, GFZ Data Services (DOI: 10.5880/GFZ.1.4.2016.001), licensed under CC BY 4.0.")
+                Text(verbatim: "Copernicus attribution: Contains modified Copernicus DEM GLO-30 data © European Union, processed by ESA/DLR, licensed under CC BY 4.0.")
+            }
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+
+            Group {
+                Link(destination: SettingsAboutLinks.falchiDOI) {
+                    Text(verbatim: "Falchi DOI")
+                }
+                Link(destination: SettingsAboutLinks.ccBy40) {
+                    Text(verbatim: "CC BY 4.0 ライセンス")
+                }
+                Link(destination: SettingsAboutLinks.copernicusLicense) {
+                    Text(verbatim: "Copernicus DEM ライセンス")
+                }
+                Link(destination: SettingsAboutLinks.d3CelestialLicense) {
+                    Text(verbatim: "d3-celestial LICENSE")
+                }
+            }
+            .font(.caption2)
+
             Text(verbatim: "d3-celestial BSD 3-Clause notice: Copyright (c) Olaf Frohn. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the copyright notice, license conditions, and disclaimer are retained. Provided \"as is\" without warranties.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
@@ -115,6 +138,13 @@ private struct SettingsAboutSections: View {
             }
         }
     }
+}
+
+private enum SettingsAboutLinks {
+    static let falchiDOI = URL(string: "https://doi.org/10.5880/GFZ.1.4.2016.001")!
+    static let ccBy40 = URL(string: "https://creativecommons.org/licenses/by/4.0/")!
+    static let copernicusLicense = URL(string: "https://land.copernicus.eu/en/data/data-access/guest-license")!
+    static let d3CelestialLicense = URL(string: "https://github.com/ofrohn/d3-celestial/blob/master/LICENSE")!
 }
 
 private struct DataSourceStatusRow: View {

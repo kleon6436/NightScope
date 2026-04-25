@@ -22,6 +22,8 @@
 		6C18B7702F791309007949F3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18B76F2F791309007949F3 /* SettingsView.swift */; };
 		6CD4ED0F2F83B99000ECC17B /* MapTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */; };
 		6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */; };
+		6D4A1F7B2E9C4100A1B2C3D4 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6D4A1F7B2E9C4100A1B2C3D3 /* PrivacyInfo.xcprivacy */; };
+		6D4A1F7B2E9C4100A1B2C3D5 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6D4A1F7B2E9C4100A1B2C3D3 /* PrivacyInfo.xcprivacy */; };
 		6D8978B603E8F74BD3DF79C9 /* DarkTimeCardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */; };
 		6ECB4F746F4502FCE2C97515 /* DarkTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F20 /* DarkTimeCard.swift */; };
 		6FC7FC5F38B1C25572A8CC78 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F02 /* SidebarViewModel.swift */; };
@@ -182,6 +184,7 @@
 		6C18B76F2F791309007949F3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapTileOverlay.swift; sourceTree = "<group>"; };
 		6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NightScope.icon; sourceTree = "<group>"; };
+		6D4A1F7B2E9C4100A1B2C3D3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSForecastView.swift; sourceTree = "<group>"; };
 		79E10951ADCBC5CEF800EE18 /* NightScopeiOSApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightScopeiOSApp.swift; sourceTree = "<group>"; };
 		7E945580091B1E2051F32062 /* NightScopeiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightScopeiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -358,6 +361,7 @@
 				A0F100000000000000000004 /* Localizable.xcstrings */,
 				6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */,
 				AA0000000000000000001F06 /* NightScope.entitlements */,
+				6D4A1F7B2E9C4100A1B2C3D3 /* PrivacyInfo.xcprivacy */,
 			);
 			path = NightScope;
 			sourceTree = "<group>";
@@ -615,6 +619,7 @@
 				BB0000000000000000006B04 /* elevation_global.bin.z in Resources */,
 				7E100000000000000000IC01 /* NightScope.icon in Resources */,
 				824FD5CAFE4F9BD597800662 /* Assets.xcassets in Resources */,
+				6D4A1F7B2E9C4100A1B2C3D5 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -630,6 +635,7 @@
 				BB0000000000000000006B03 /* elevation_global.bin.z in Resources */,
 				6CFBFDEB2F78B7080018A9E5 /* NightScope.icon in Resources */,
 				AA0000000000000000001B05 /* Assets.xcassets in Resources */,
+				6D4A1F7B2E9C4100A1B2C3D4 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -817,6 +823,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "実際の空と星図を重ねて表示するためにカメラを使用します。";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "現在地の星空を表示するために位置情報を使用します。";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -856,6 +863,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "実際の空と星図を重ねて表示するためにカメラを使用します。";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "現在地の星空を表示するために位置情報を使用します。";
 				INFOPLIST_KEY_NSMotionUsageDescription = "ジャイロスコープを使ってスマートフォンを向けた方角の星空を表示します。";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1026,6 +1034,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableDescription = "天の川の撮影に活用できる天文情報アプリ";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "現在地の星空を表示するために位置情報を使用します。";
@@ -1062,6 +1071,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NightScope;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableDescription = "天の川の撮影に活用できる天文情報アプリ";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "現在地の星空を表示するために位置情報を使用します。";
