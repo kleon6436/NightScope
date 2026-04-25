@@ -134,8 +134,12 @@ enum IOSPreviewFactory {
 
     private static func makeMapItem(name: String, latitude: Double, longitude: Double) -> MKMapItem {
         let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        let mapItem = MKMapItem(location: location, address: nil)
+        let mapItem: MKMapItem
+        if #available(iOS 26, macOS 26, *) {
+            mapItem = MKMapItem(location: CLLocation(latitude: latitude, longitude: longitude), address: nil)
+        } else {
+            mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        }
         mapItem.name = name
         return mapItem
     }

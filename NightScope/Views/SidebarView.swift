@@ -427,7 +427,7 @@ private struct SidebarSearchResultsList: View {
         }
         .frame(maxHeight: effectiveMaxHeight)
         .scrollBounceBehavior(.basedOnSize)
-        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        .glassEffectCompat(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
     }
 
     private func searchResultRow(item: MKMapItem, index: Int) -> some View {
@@ -487,7 +487,7 @@ private struct SidebarFavoritesListView: View {
             }
             .frame(maxHeight: effectiveMaxHeight)
             .scrollBounceBehavior(.basedOnSize)
-            .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+            .glassEffectCompat(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
         }
     }
 

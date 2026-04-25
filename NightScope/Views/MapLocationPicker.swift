@@ -167,7 +167,7 @@ struct MapLocationPicker: View, Equatable {
             Button(action: onCurrentLocation) {
                 currentLocationButtonLabel
             }
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .padding(Spacing.xs)
             .disabled(isLocating)
             .accessibilityLabel(L10n.tr("現在地を取得"))

@@ -63,7 +63,7 @@ struct iOSStarMapHeaderOverlay: View {
                 .font(.headline)
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.glass)
+        .glassButtonStyle()
         .help(L10n.tr("コンパスキャリブレーション"))
         .accessibilityLabel(L10n.tr("コンパスキャリブレーション"))
         .accessibilityHint(L10n.tr("現在の向きを北として方位角を補正します"))
@@ -75,7 +75,7 @@ struct iOSStarMapHeaderOverlay: View {
                 .font(.headline)
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.glass)
+        .glassButtonStyle()
         .help(L10n.tr("星空の表示設定を開く"))
         .accessibilityLabel(L10n.tr("星空の表示設定"))
         .accessibilityValue(
@@ -99,7 +99,7 @@ struct iOSStarMapHeaderOverlay: View {
                 isActive: controlState.isCameraBackgroundVisible
             )
         }
-        .buttonStyle(.glass)
+        .glassButtonStyle()
         .help(controlState.cameraButtonHelpText)
         .accessibilityLabel(
             controlState.isCameraBackgroundVisible
@@ -118,7 +118,7 @@ struct iOSStarMapHeaderOverlay: View {
                 isActive: controlState.isGyroMode
             )
         }
-        .buttonStyle(.glass)
+        .glassButtonStyle()
         .help(controlState.isGyroMode ? L10n.tr("タッチ操作に切替") : L10n.tr("ジャイロ操作に切替"))
         .accessibilityLabel(
             controlState.isGyroMode
@@ -179,7 +179,7 @@ private struct iOSStarMapNoticeCard: View {
                 .foregroundStyle(.white.opacity(0.82))
             if notice.showsSettingsButton {
                 Button(L10n.tr("設定を開く"), action: onOpenSettings)
-                    .buttonStyle(.glass)
+                    .glassButtonStyle()
                     .accessibilityHint(L10n.tr("NightScope の設定画面を開きます"))
             }
         }

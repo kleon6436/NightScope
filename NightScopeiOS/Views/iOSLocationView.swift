@@ -80,7 +80,7 @@ struct iOSLocationView: View {
                 }
                 .frame(width: 44, height: 44)
             }
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .disabled(sidebarViewModel.isLocating)
             .accessibilityLabel("現在地を取得")
             .accessibilityHint("地図を現在地へ移動します")

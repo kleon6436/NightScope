@@ -134,7 +134,7 @@ struct DetailView: View {
                     } label: {
                         Label("星空マップ", systemImage: AppIcons.Astronomy.sparkles)
                     }
-                    .buttonStyle(.glass)
+                    .glassButtonStyle()
                     .disabled(isSummaryRefreshing)
                     .help("星空マップを表示")
                     .accessibilityHint("選択した日付の星空マップを開きます")
@@ -145,7 +145,7 @@ struct DetailView: View {
                 MacStarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
             }
 
-            GlassEffectContainer {
+            GlassEffectContainerCompat {
                 ViewThatFits(in: .horizontal) {
                     MacSummaryCardsWide(
                         summary: summary,

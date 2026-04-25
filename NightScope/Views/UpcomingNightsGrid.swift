@@ -17,7 +17,7 @@ struct UpcomingNightsGrid: View {
                 Spacer()
                 if !viewModel.isSelectedDateToday() {
                     Button("今日") { viewModel.setSelectedDate(Date()) }
-                        .buttonStyle(.glass)
+                        .glassButtonStyle()
                         .accessibilityLabel("今日の日付に移動")
                 }
                 WeatherAttributionBadge()
@@ -34,7 +34,7 @@ struct UpcomingNightsGrid: View {
                     description: Text("今後9日間の夜間予報を表示できませんでした")
                 )
             } else {
-                GlassEffectContainer {
+                GlassEffectContainerCompat {
                     let nightItems = Array(displayNights.enumerated())
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: Spacing.xs)], spacing: Spacing.xs) {
                         ForEach(nightItems, id: \.offset) { _, night in
@@ -76,7 +76,7 @@ struct UpcomingNightsGrid: View {
         .padding(Layout.cardPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(height: Layout.upcomingCardHeight)
-        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
+        .glassEffectCompat(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Layout.cardCornerRadius)
                 .stroke(Color.accentColor, lineWidth: isSelected ? 1.5 : 0)
@@ -93,7 +93,7 @@ struct UpcomingNightsGrid: View {
     }
 
     private var placeholderGrid: some View {
-        GlassEffectContainer {
+        GlassEffectContainerCompat {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: Spacing.xs)], spacing: Spacing.xs) {
                 ForEach(0..<placeholderCardCount, id: \.self) { offset in
                     upcomingNightCard(night: viewModel.placeholderNight(at: offset))

@@ -7,13 +7,6 @@ import MapKit
 @MainActor
 final class LocationControllerTests: XCTestCase {
 
-    private func makeMapItem(coordinate: CLLocationCoordinate2D, name: String? = nil) -> MKMapItem {
-        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        let item = MKMapItem(location: location, address: nil)
-        item.name = name
-        return item
-    }
-
     private func waitUntil(
         timeout: TimeInterval = 1.0,
         file: StaticString = #filePath,
@@ -146,10 +139,7 @@ final class LocationControllerTests: XCTestCase {
         }
 
         private static func makeMapItem(latitude: Double, longitude: Double, name: String) -> MKMapItem {
-            let location = CLLocation(latitude: latitude, longitude: longitude)
-            let item = MKMapItem(location: location, address: nil)
-            item.name = name
-            return item
+            makeTestMapItem(latitude: latitude, longitude: longitude, name: name)
         }
     }
 
@@ -167,9 +157,7 @@ final class LocationControllerTests: XCTestCase {
                 try? await Task.sleep(nanoseconds: delayInNanoseconds)
             }
 
-            let location = CLLocation(latitude: 35.6762, longitude: 139.6503)
-            let item = MKMapItem(location: location, address: nil)
-            item.name = query
+            let item = makeTestMapItem(latitude: 35.6762, longitude: 139.6503, name: query)
             return [item]
         }
 
@@ -269,7 +257,7 @@ final class LocationControllerTests: XCTestCase {
 
     func test_LocationController_search_success_updatesResults() async {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
-        let item = makeMapItem(coordinate: coordinate, name: "東京駅")
+        let item = makeTestMapItem(latitude: coordinate.latitude, longitude: coordinate.longitude, name: "東京駅")
 
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([item]))
@@ -292,7 +280,7 @@ final class LocationControllerTests: XCTestCase {
         let searchService = MockLocationSearchService(result: .failure(MockLocationSearchError.failed))
         let resolver = MockLocationNameResolver(resolvedName: "東京")
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-        sut.searchResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))]
+        sut.searchResults = [makeTestMapItem(latitude: 0, longitude: 0)]
 
         sut.search(query: "invalid")
 
@@ -309,7 +297,7 @@ final class LocationControllerTests: XCTestCase {
 
     func test_LocationController_search_trimsWhitespaceAndNewline() async {
         let coordinate = CLLocationCoordinate2D(latitude: 35.6812, longitude: 139.7671)
-        let item = makeMapItem(coordinate: coordinate, name: "東京駅")
+        let item = makeTestMapItem(latitude: coordinate.latitude, longitude: coordinate.longitude, name: "東京駅")
 
         let storage = InMemoryLocationStorage()
         let searchService = MockLocationSearchService(result: .success([item]))
@@ -371,7 +359,7 @@ final class LocationControllerTests: XCTestCase {
         let searchService = MockLocationSearchService(result: .success([]))
         let resolver = MockLocationNameResolver(resolvedName: "東京")
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-        let previousResults = [makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0), name: "Tokyo")]
+        let previousResults = [makeTestMapItem(latitude: 35.0, longitude: 139.0, name: "Tokyo")]
         sut.searchResults = previousResults
 
         sut.search(query: "Osaka")
@@ -388,8 +376,8 @@ final class LocationControllerTests: XCTestCase {
         let searchService = MockLocationSearchService(result: .success([]))
         let resolver = MockLocationNameResolver(resolvedName: "東京")
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
-        let previousResults = [makeMapItem(
-            coordinate: CLLocationCoordinate2D(latitude: 35.0, longitude: 139.0),
+        let previousResults = [makeTestMapItem(
+            latitude: 35.0, longitude: 139.0,
             name: "Tokyo"
         )]
         sut.searchResults = previousResults
@@ -424,7 +412,7 @@ final class LocationControllerTests: XCTestCase {
 
     func test_MapItemLocationDetailsExtractor_usesMapItemTimeZone() {
         let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
-        let item = makeMapItem(coordinate: coordinate, name: "ロサンゼルス")
+        let item = makeTestMapItem(latitude: coordinate.latitude, longitude: coordinate.longitude, name: "ロサンゼルス")
         item.timeZone = TimeZone(identifier: "America/Los_Angeles")
 
         let details = MapItemLocationDetailsExtractor.details(from: item)
@@ -440,7 +428,7 @@ final class LocationControllerTests: XCTestCase {
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
 
         let coordinate = CLLocationCoordinate2D(latitude: 34.0522, longitude: -118.2437)
-        let item = makeMapItem(coordinate: coordinate, name: "Los Angeles")
+        let item = makeTestMapItem(latitude: coordinate.latitude, longitude: coordinate.longitude, name: "Los Angeles")
         item.timeZone = TimeZone(identifier: "America/Los_Angeles")
 
         sut.select(item)
@@ -465,7 +453,7 @@ final class LocationControllerTests: XCTestCase {
         )
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
         let coordinate = CLLocationCoordinate2D(latitude: 33.4484, longitude: -112.0740)
-        let item = makeMapItem(coordinate: coordinate, name: "Phoenix")
+        let item = makeTestMapItem(latitude: coordinate.latitude, longitude: coordinate.longitude, name: "Phoenix")
         item.timeZone = TimeZone(identifier: "America/Los_Angeles")
 
         let initialUpdateID = sut.locationUpdateID
@@ -491,7 +479,7 @@ final class LocationControllerTests: XCTestCase {
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
 
         let coordinate = CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034)
-        let item = makeMapItem(coordinate: coordinate, name: "新宿駅")
+        let item = makeTestMapItem(latitude: coordinate.latitude, longitude: coordinate.longitude, name: "新宿駅")
         let baseTrigger = sut.currentLocationCenterTrigger
 
         sut.searchResults = [item]
@@ -852,7 +840,7 @@ final class LocationControllerTests: XCTestCase {
         let lateLocation = CLLocation(latitude: 35.6762, longitude: 139.6503)
 
         sut.isLocating = true
-        sut.select(makeMapItem(coordinate: manualCoordinate, name: "新宿"))
+        sut.select(makeTestMapItem(latitude: manualCoordinate.latitude, longitude: manualCoordinate.longitude, name: "新宿"))
 
         await waitUntil {
             !sut.isLocating
@@ -898,7 +886,7 @@ final class LocationControllerTests: XCTestCase {
         let sut = LocationController(storage: storage, searchService: searchService, locationNameResolver: resolver)
         sut.isLocating = true
 
-        let item = makeMapItem(coordinate: CLLocationCoordinate2D(latitude: 35.6938, longitude: 139.7034), name: "新宿")
+        let item = makeTestMapItem(latitude: 35.6938, longitude: 139.7034, name: "新宿")
         sut.select(item)
 
         await waitUntil { !sut.isLocating }

@@ -75,7 +75,7 @@ final class SidebarViewModelTests: XCTestCase {
         vm.searchText = "富士山"
         locationController.searchState = .results(
             query: "富士山",
-            items: [MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)]
+            items: [makeTestMapItem(latitude: 35.0, longitude: 139.0)]
         )
 
         vm.requestCurrentLocation()
@@ -89,7 +89,7 @@ final class SidebarViewModelTests: XCTestCase {
         let locationController = MockLocationController()
         let lightService = MockLightPollutionService()
         let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
-        let item = MKMapItem(location: CLLocation(latitude: 35.3606, longitude: 138.7274), address: nil)
+        let item = makeTestMapItem(latitude: 35.3606, longitude: 138.7274)
         item.name = "富士山五合目"
 
         vm.selectSearchResult(item, searchTextBehavior: .fillSelectionName)
@@ -104,7 +104,7 @@ final class SidebarViewModelTests: XCTestCase {
         let locationController = MockLocationController()
         let lightService = MockLightPollutionService()
         let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
-        let item = MKMapItem(location: CLLocation(latitude: 35.3606, longitude: 138.7274), address: nil)
+        let item = makeTestMapItem(latitude: 35.3606, longitude: 138.7274)
         item.name = "富士山五合目"
 
         vm.selectSearchResult(item, searchTextBehavior: .clear)
@@ -122,7 +122,7 @@ final class SidebarViewModelTests: XCTestCase {
         vm.searchText = "富士山"
         locationController.searchState = .results(
             query: "富士山",
-            items: [MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)]
+            items: [makeTestMapItem(latitude: 35.0, longitude: 139.0)]
         )
 
         vm.clearSearch()
@@ -237,7 +237,7 @@ final class SidebarViewModelTests: XCTestCase {
         let lightService = MockLightPollutionService()
         let vm = SidebarViewModel(locationController: locationController, lightPollutionService: lightService)
 
-        let item = MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)
+        let item = makeTestMapItem(latitude: 35.0, longitude: 139.0)
         item.name = "御嶽山"
         vm.selectSearchResult(item, searchTextBehavior: .fillSelectionName)
         // この時点で searchText="御嶽山", isShowingCommittedSelection=true
@@ -251,8 +251,8 @@ final class SidebarViewModelTests: XCTestCase {
 
 final class SidebarSearchInteractionTests: XCTestCase {
     func test_highlightedTarget_withoutValidIndex_returnsFirst() {
-        let first = MKMapItem(location: CLLocation(latitude: 35.0, longitude: 139.0), address: nil)
-        let second = MKMapItem(location: CLLocation(latitude: 36.0, longitude: 140.0), address: nil)
+        let first = makeTestMapItem(latitude: 35.0, longitude: 139.0)
+        let second = makeTestMapItem(latitude: 36.0, longitude: 140.0)
 
         let target = SidebarSearchInteraction.highlightedTarget(in: [first, second], highlightedIndex: 99)
 

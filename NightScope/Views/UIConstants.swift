@@ -97,14 +97,13 @@ private struct DetailErrorBanner: View {
                 .lineLimit(2)
             Spacer()
             Button("再試行", action: retryAction)
-                .buttonStyle(.glass)
+                .glassButtonStyle()
                 .controlSize(.small)
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
-        .glassEffect(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
+        .glassEffectCompat(in: RoundedRectangle(cornerRadius: Layout.smallCornerRadius))
         .shadow(radius: 4)
-        .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.format("エラー: %@", message))
     }
 }
@@ -148,12 +147,22 @@ struct LocationSearchResultContent: View {
                     .font(titleFont)
                     .foregroundStyle(.primary)
 
-                if let address = item.address,
+                if #available(iOS 26, macOS 26, *),
+                   let address = item.address,
                    let subtitle = address.shortAddress ?? address.fullAddress.nilIfEmpty {
                     Text(subtitle)
                         .font(subtitleFont)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                } else {
+                    let subtitle = [item.placemark.locality, item.placemark.administrativeArea]
+                        .compactMap { $0 }.joined(separator: ", ")
+                    if !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(subtitleFont)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
         }
@@ -373,6 +382,48 @@ enum CardVisual {
     static let trackOpacity: Double = 0.12
 }
 
+// MARK: - Liquid Glass Compatibility Helpers
+
+extension View {
+    /// `.glassEffect()` の互換ラッパー。iOS 18 / macOS 15 以降で動作する。
+    /// iOS 26 / macOS 26 以上では Liquid Glass を適用し、それ以前は ultraThinMaterial にフォールバックする。
+    @ViewBuilder
+    func glassEffectCompat(in shape: RoundedRectangle) -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            self.glassEffect(in: shape)
+        } else {
+            self
+                .background(.ultraThinMaterial, in: shape)
+        }
+    }
+
+    /// `.buttonStyle(.glass)` の互換ラッパー。
+    @ViewBuilder
+    func glassButtonStyle() -> some View {
+        if #available(iOS 26, macOS 26, *) {
+            self.buttonStyle(.glass)
+        } else {
+            self.buttonStyle(.bordered)
+        }
+    }
+}
+
+/// `GlassEffectContainer` の互換ラッパー。
+/// iOS 26 / macOS 26 以上では Liquid Glass コンテナを適用し、それ以前はそのまま描画する。
+struct GlassEffectContainerCompat<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if #available(iOS 26, macOS 26, *) {
+            GlassEffectContainer {
+                content()
+            }
+        } else {
+            content()
+        }
+    }
+}
+
 // MARK: - GlassCard ViewModifier
 
 struct GlassCardModifier: ViewModifier {
@@ -380,7 +431,7 @@ struct GlassCardModifier: ViewModifier {
         content
             .padding(Layout.cardPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .glassEffect(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
+            .glassEffectCompat(in: RoundedRectangle(cornerRadius: Layout.cardCornerRadius))
     }
 }
 
