@@ -205,7 +205,7 @@ struct iOSStarMapView: View {
                     step: 1,
                     onEditingChanged: timeSliderEditingChanged
                 )
-                    .accessibilityLabel("時刻")
+                    .accessibilityLabel(L10n.tr("時刻"))
                     .tint(.accentColor)
 
                 Text(viewModel.displayTimeString)
@@ -252,7 +252,7 @@ struct iOSStarMapView: View {
         Label(viewModel.terrainFetchState.statusText, systemImage: viewModel.terrainFetchState.systemImageName)
             .font(.caption2)
             .foregroundStyle(terrainStatusColor)
-            .accessibilityLabel("地形データ状態: \(viewModel.terrainFetchState.statusText)")
+            .accessibilityLabel(L10n.format("地形データ状態: %@", viewModel.terrainFetchState.statusText))
     }
 
     private var terrainStatusColor: Color {

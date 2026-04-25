@@ -84,7 +84,7 @@ struct DetailView: View {
             .redacted(reason: .placeholder)
         }
         .ignoresSafeArea(edges: .top)
-        .accessibilityLabel("星空データを計算中")
+        .accessibilityLabel(L10n.tr("星空データを計算中"))
     }
 
     private var emptyContent: some View {
@@ -118,7 +118,7 @@ struct DetailView: View {
                 if isSummaryRefreshing {
                     ProgressView()
                         .controlSize(.small)
-                        .accessibilityLabel("右側の情報を更新中")
+                        .accessibilityLabel(L10n.tr("右側の情報を更新中"))
                 }
                 Spacer()
             }
@@ -136,8 +136,8 @@ struct DetailView: View {
                     }
                     .glassButtonStyle()
                     .disabled(isSummaryRefreshing)
-                    .help("星空マップを表示")
-                    .accessibilityHint("選択した日付の星空マップを開きます")
+                    .help(L10n.tr("星空マップを表示"))
+                    .accessibilityHint(L10n.tr("選択した日付の星空マップを開きます"))
                     if weather != nil {
                         WeatherAttributionBadge()
                     }
@@ -278,7 +278,7 @@ private struct MacStarMapSheet: View {
                 Label("北を向く", systemImage: "arrow.up.circle")
             }
             .buttonStyle(.bordered)
-            .help("北を向き、地平線を下端付近に合わせてリセット  [N]")
+            .help(L10n.tr("北を向き、地平線を下端付近に合わせてリセット  [N]"))
 
             Button(action: closeSheet) {
                 Image(systemName: "xmark.circle.fill")
@@ -286,7 +286,7 @@ private struct MacStarMapSheet: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("星空マップを閉じる")
+            .accessibilityLabel(L10n.tr("星空マップを閉じる"))
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.top, Spacing.sm)
@@ -320,7 +320,7 @@ private struct MacStarMapSheet: View {
             Label(viewModel.terrainFetchState.statusText, systemImage: viewModel.terrainFetchState.systemImageName)
                 .font(.body)
                 .foregroundStyle(terrainStatusColor)
-                .accessibilityLabel("地形データ状態: \(viewModel.terrainFetchState.statusText)")
+                .accessibilityLabel(L10n.format("地形データ状態: %@", viewModel.terrainFetchState.statusText))
 
             Spacer()
 

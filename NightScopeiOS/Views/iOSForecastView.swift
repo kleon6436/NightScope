@@ -117,7 +117,7 @@ struct iOSForecastView: View {
             if detailViewModel.isUpcomingLoading || gridViewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)
-                    .accessibilityLabel("9日予報を更新中")
+                    .accessibilityLabel(L10n.tr("9日予報を更新中"))
             }
         }
     }
@@ -189,7 +189,7 @@ struct iOSForecastView: View {
         }
         .buttonStyle(ForecastRowButtonStyle())
         .accessibilityLabel(rowModel.accessibilityLabel)
-        .accessibilityHint("タップして今夜タブで詳細を表示")
+        .accessibilityHint(L10n.tr("タップして今夜タブで詳細を表示"))
         .accessibilityAddTraits(rowModel.isSelected ? .isSelected : [])
     }
 }

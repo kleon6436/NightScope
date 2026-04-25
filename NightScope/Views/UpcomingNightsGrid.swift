@@ -12,13 +12,13 @@ struct UpcomingNightsGrid: View {
                 if viewModel.isLoading {
                     ProgressView()
                         .controlSize(.small)
-                        .accessibilityLabel("今後9日間の予報を更新中")
+                        .accessibilityLabel(L10n.tr("今後9日間の予報を更新中"))
                 }
                 Spacer()
                 if !viewModel.isSelectedDateToday() {
                     Button("今日") { viewModel.setSelectedDate(Date()) }
                         .glassButtonStyle()
-                        .accessibilityLabel("今日の日付に移動")
+                        .accessibilityLabel(L10n.tr("今日の日付に移動"))
                 }
                 WeatherAttributionBadge()
             }

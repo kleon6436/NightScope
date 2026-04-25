@@ -164,7 +164,7 @@ struct iOSTodayView: View {
                         .frame(width: 44, height: 44)
                 }
                 .glassButtonStyle()
-                .accessibilityLabel("日付を選択")
+                .accessibilityLabel(L10n.tr("日付を選択"))
 
                 settingsButton
             }
@@ -180,8 +180,8 @@ struct iOSTodayView: View {
                 .frame(width: 44, height: 44)
         }
         .glassButtonStyle()
-        .accessibilityLabel("設定を開く")
-        .accessibilityHint("アプリ全体の表示設定を変更します")
+        .accessibilityLabel(L10n.tr("設定を開く"))
+        .accessibilityHint(L10n.tr("アプリ全体の表示設定を変更します"))
     }
 
     private var loadingPlaceholder: some View {

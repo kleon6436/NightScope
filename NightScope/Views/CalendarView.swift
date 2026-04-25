@@ -49,7 +49,7 @@ struct CalendarView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("前の月")
+                .accessibilityLabel(L10n.tr("前の月"))
 
                 Spacer()
 
@@ -65,7 +65,7 @@ struct CalendarView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("次の月")
+                .accessibilityLabel(L10n.tr("次の月"))
             }
 
             // 曜日ヘッダー

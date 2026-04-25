@@ -186,9 +186,9 @@ struct SidebarView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
-                viewModel.isCurrentLocationFavorited ? "お気に入りから削除" : "お気に入りに追加"
+                viewModel.isCurrentLocationFavorited ? L10n.tr("お気に入りから削除") : L10n.tr("お気に入りに追加")
             )
-            .accessibilityHint("現在の場所をお気に入りに保存します")
+            .accessibilityHint(L10n.tr("現在の場所をお気に入りに保存します"))
         }
     }
 
@@ -274,7 +274,7 @@ private struct SidebarSearchField: View {
         TextField("場所を検索", text: $searchText)
             .textFieldStyle(.roundedBorder)
             .focused(isSearchFocused)
-            .accessibilityLabel("場所を検索")
+            .accessibilityLabel(L10n.tr("場所を検索"))
             .overlay(alignment: .trailing) {
                 if isSearching {
                     ProgressView()
@@ -326,7 +326,7 @@ private extension SidebarView {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .fixedSize()
-                .accessibilityLabel("地図表示モード")
+                .accessibilityLabel(L10n.tr("地図表示モード"))
 
                 Spacer()
 
@@ -347,18 +347,18 @@ private struct SidebarBortleLabel: View {
             if isLoading {
                 ProgressView()
                     .controlSize(.small)
-                    .accessibilityLabel("光害データを取得中")
+                    .accessibilityLabel(L10n.tr("光害データを取得中"))
             } else if let bortleClass {
                 Text(String(format: "Bortle %.0f", bortleClass))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(color(for: bortleClass))
-                    .accessibilityLabel(String(format: "光害レベル: Bortle %.0f", bortleClass))
+                    .accessibilityLabel(L10n.format("光害レベル: Bortle %.0f", bortleClass))
             } else {
                 Text("--")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("光害データなし")
+                    .accessibilityLabel(L10n.tr("光害データなし"))
             }
         }
         .frame(width: Layout.sidebarStatusWidth, alignment: .trailing)

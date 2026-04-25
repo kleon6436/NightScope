@@ -82,8 +82,8 @@ struct iOSLocationView: View {
             }
             .glassButtonStyle()
             .disabled(sidebarViewModel.isLocating)
-            .accessibilityLabel("現在地を取得")
-            .accessibilityHint("地図を現在地へ移動します")
+            .accessibilityLabel(L10n.tr("現在地を取得"))
+            .accessibilityHint(L10n.tr("地図を現在地へ移動します"))
         }
     }
 
@@ -238,7 +238,7 @@ struct iOSLocationView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
-                sidebarViewModel.isCurrentLocationFavorited ? "お気に入りから削除" : "お気に入りに追加"
+                sidebarViewModel.isCurrentLocationFavorited ? L10n.tr("お気に入りから削除") : L10n.tr("お気に入りに追加")
             )
             if showLightPollution {
                 if sidebarViewModel.isLightPollutionLoading {
@@ -378,7 +378,7 @@ private struct LocationSearchField: View {
             TextField("場所を検索", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused(isSearchFocused)
-                .accessibilityLabel("場所を検索")
+                .accessibilityLabel(L10n.tr("場所を検索"))
 
             if isSearching {
                 ProgressView()
@@ -392,7 +392,7 @@ private struct LocationSearchField: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("検索語を消去")
+                .accessibilityLabel(L10n.tr("検索語を消去"))
             }
         }
         .padding(.horizontal, Spacing.sm)
