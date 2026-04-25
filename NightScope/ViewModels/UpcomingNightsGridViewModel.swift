@@ -66,12 +66,12 @@ final class UpcomingNightsGridViewModel: ObservableObject {
 
     func hasReliableWeatherData(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
         guard let weather else { return false }
-        return night.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours)
+        return night.hasUsableWeatherData(nighttimeHours: weather.nighttimeHours)
     }
 
     func hasPartialWeatherData(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
         guard let weather else { return false }
-        return !night.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours)
+        return !night.hasUsableWeatherData(nighttimeHours: weather.nighttimeHours)
     }
 
     func isForecastOutOfRange(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {

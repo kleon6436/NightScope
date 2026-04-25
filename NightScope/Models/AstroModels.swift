@@ -165,8 +165,15 @@ struct NightSummary {
     /// 天気を考慮した最長連続観測可能ウィンドウ（暗闇 + 晴れ間）
     /// - Parameter nighttimeHours: DayWeatherSummary.nighttimeHours
     /// - Returns: (start, end) または nil（観測可能な時間帯なし）
-    func weatherAwareObservableWindow(nighttimeHours: [HourlyWeather]) -> (start: Date, end: Date)? {
-        let clearDarkEvents = weatherFilteredDarkEvents(nighttimeHours: nighttimeHours, includeMoonFilter: true)
+    func weatherAwareObservableWindow(
+        nighttimeHours: [HourlyWeather],
+        referenceDate: Date = Date()
+    ) -> (start: Date, end: Date)? {
+        let clearDarkEvents = weatherFilteredDarkEvents(
+            nighttimeHours: nighttimeHours,
+            referenceDate: referenceDate,
+            includeMoonFilter: true
+        )
         guard let clearDarkEvents, !clearDarkEvents.isEmpty else { return nil }
         return longestMergedWindow(
             from: clearDarkEvents.map(\.date),
@@ -180,25 +187,42 @@ struct NightSummary {
     ///   - ""     : 天候不良で観測不可
     ///   - "月明かり": 天気は良好だが月が明るすぎる
     ///   - その他 : 観測可能な時間帯文字列
-    func weatherAwareRangeText(nighttimeHours: [HourlyWeather]) -> String? {
-        guard hasReliableWeatherData(nighttimeHours: nighttimeHours) else { return nil }
-        if let w = weatherAwareObservableWindow(nighttimeHours: nighttimeHours) {
+    func weatherAwareRangeText(
+        nighttimeHours: [HourlyWeather],
+        referenceDate: Date = Date()
+    ) -> String? {
+        guard hasUsableWeatherData(nighttimeHours: nighttimeHours, referenceDate: referenceDate) else { return nil }
+        if let w = weatherAwareObservableWindow(nighttimeHours: nighttimeHours, referenceDate: referenceDate) {
             return "\(w.start.nightTimeString(timeZone: timeZone)) 〜 \(w.end.nightTimeString(timeZone: timeZone))"
         }
         // 観測可能ウィンドウなし — 月フィルタなしで再チェックし原因を判定
-        let weatherOnlyClearEvents = weatherFilteredDarkEvents(nighttimeHours: nighttimeHours, includeMoonFilter: false)
+        let weatherOnlyClearEvents = weatherFilteredDarkEvents(
+            nighttimeHours: nighttimeHours,
+            referenceDate: referenceDate,
+            includeMoonFilter: false
+        )
         let hasWeatherClearDarkHour = weatherOnlyClearEvents.map { !$0.isEmpty } ?? false
         return hasWeatherClearDarkHour ? L10n.tr("月明かり") : ""
     }
 
     /// 天気フィルタを適用した暗いイベントを返す（共通ヘルパー）
     /// - Returns: nil = 天気データ不十分, [] = 条件を満たすイベントなし
-    private func weatherFilteredDarkEvents(nighttimeHours: [HourlyWeather], includeMoonFilter: Bool) -> [AstroEvent]? {
-        guard hasReliableWeatherData(nighttimeHours: nighttimeHours) else { return nil }
+    private func weatherFilteredDarkEvents(
+        nighttimeHours: [HourlyWeather],
+        referenceDate: Date,
+        includeMoonFilter: Bool
+    ) -> [AstroEvent]? {
+        guard let context = usableWeatherContext(
+            nighttimeHours: nighttimeHours,
+            referenceDate: referenceDate
+        ) else {
+            return nil
+        }
         let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
-        let matchedNighttimeHours = darkWeatherHours(nighttimeHours: nighttimeHours)
-        let weatherByHour = makeWeatherByHour(nighttimeHours: matchedNighttimeHours, calendar: calendar)
+        let weatherByHour = makeWeatherByHour(nighttimeHours: context.weather.nighttimeHours, calendar: calendar)
+        let coveredEvents = coveredDarkEvents(nighttimeHours: context.weather.nighttimeHours, calendar: calendar)
         return filteredDarkEvents(
+            events: coveredEvents,
             weatherByHour: weatherByHour,
             calendar: calendar,
             includeMoonFilter: includeMoonFilter
@@ -210,6 +234,40 @@ struct NightSummary {
         return coverage.hasFullCoverage && !coverage.hours.isEmpty
     }
 
+    func hasUsableWeatherData(
+        nighttimeHours: [HourlyWeather],
+        referenceDate: Date = Date()
+    ) -> Bool {
+        usableWeatherContext(nighttimeHours: nighttimeHours, referenceDate: referenceDate) != nil
+    }
+
+    func usableWeatherContext(
+        nighttimeHours: [HourlyWeather],
+        referenceDate: Date = Date()
+    ) -> (summary: NightSummary, weather: DayWeatherSummary, isPartial: Bool)? {
+        let coverage = darkWeatherCoverage(nighttimeHours: nighttimeHours)
+        guard !coverage.hours.isEmpty else { return nil }
+
+        if coverage.hasFullCoverage {
+            return (
+                self,
+                DayWeatherSummary(date: date, nighttimeHours: coverage.hours),
+                false
+            )
+        }
+
+        guard ObservationTimeZone.isDateInToday(date, timeZone: timeZone, referenceDate: referenceDate),
+              let partialSummary = clippedToCoveredDarkHours(coverage.hours) else {
+            return nil
+        }
+
+        return (
+            partialSummary,
+            DayWeatherSummary(date: date, nighttimeHours: coverage.hours),
+            true
+        )
+    }
+
     private func makeWeatherByHour(nighttimeHours: [HourlyWeather], calendar: Calendar) -> WeatherByHour {
         Dictionary(
             uniqueKeysWithValues: nighttimeHours.compactMap { weather in
@@ -219,10 +277,6 @@ struct NightSummary {
                 return (hourStart, weather)
             }
         )
-    }
-
-    private func darkWeatherHours(nighttimeHours: [HourlyWeather]) -> [HourlyWeather] {
-        darkWeatherCoverage(nighttimeHours: nighttimeHours).hours
     }
 
     private func darkWeatherCoverage(nighttimeHours: [HourlyWeather]) -> (hours: [HourlyWeather], hasFullCoverage: Bool) {
@@ -256,13 +310,41 @@ struct NightSummary {
         })
     }
 
+    private func coveredDarkEvents(nighttimeHours: [HourlyWeather], calendar: Calendar) -> [AstroEvent] {
+        let coveredHourStarts = Set(nighttimeHours.compactMap { weather in
+            calendar.dateInterval(of: .hour, for: weather.date)?.start
+        })
+        return events.filter { event in
+            guard event.isDark,
+                  let hourStart = calendar.dateInterval(of: .hour, for: event.date)?.start else {
+                return false
+            }
+            return coveredHourStarts.contains(hourStart)
+        }
+    }
+
+    private func clippedToCoveredDarkHours(_ nighttimeHours: [HourlyWeather]) -> NightSummary? {
+        let calendar = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
+        let coveredEvents = coveredDarkEvents(nighttimeHours: nighttimeHours, calendar: calendar)
+        guard !coveredEvents.isEmpty else { return nil }
+
+        return NightSummary(
+            date: date,
+            location: location,
+            events: coveredEvents,
+            viewingWindows: MilkyWayCalculator.findViewingWindows(events: coveredEvents),
+            moonPhaseAtMidnight: moonPhaseAtMidnight,
+            timeZoneIdentifier: timeZoneIdentifier
+        )
+    }
+
     private func filteredDarkEvents(
+        events: [AstroEvent],
         weatherByHour: WeatherByHour,
         calendar: Calendar,
         includeMoonFilter: Bool
     ) -> [AstroEvent] {
         events.filter { event in
-            guard event.isDark else { return false }
             guard passesWeatherFilter(event: event, weatherByHour: weatherByHour, calendar: calendar) else {
                 return false
             }

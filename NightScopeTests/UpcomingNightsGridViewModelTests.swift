@@ -108,7 +108,10 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
         let detailVM = DetailViewModel(appController: appController)
         let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
 
-        let night = makeNightSummary(withWindow: true)
+        let night = makeNightSummary(
+            date: Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date(),
+            withWindow: true
+        )
         let weather = DayWeatherSummary(date: night.date, nighttimeHours: [
             makeHourlyWeather()
         ])
@@ -116,5 +119,34 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
 
         XCTAssertTrue(label.contains(L10n.tr("天気予報一部のみ")))
         XCTAssertFalse(label.contains(L10n.format("天気%@", weather.weatherLabel)))
+    }
+
+    func test_cardAccessibilityLabel_withCurrentNightPartialWeather_usesWeatherLabel() {
+        let mockCalc = MockNightCalculationService()
+        let appController = AppController(calculationService: mockCalc)
+        let detailVM = DetailViewModel(appController: appController)
+        let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
+
+        let night = makeNightSummary(withWindow: true)
+        let weatherHourStart = Calendar.current.dateInterval(of: .hour, for: night.events[0].date)?.start ?? night.events[0].date
+        let weather = DayWeatherSummary(date: night.date, nighttimeHours: [
+            HourlyWeather(
+                date: weatherHourStart,
+                temperatureCelsius: 15,
+                cloudCoverPercent: 10,
+                precipitationMM: 0,
+                windSpeedKmh: 5,
+                humidityPercent: 40,
+                dewpointCelsius: 2,
+                weatherCode: 0,
+                visibilityMeters: 20_000,
+                windGustsKmh: nil,
+                windSpeedKmh500hpa: nil
+            )
+        ])
+        let label = vm.cardAccessibilityLabel(night: night, weather: weather, index: nil)
+
+        XCTAssertTrue(label.contains(L10n.format("天気%@", weather.weatherLabel)))
+        XCTAssertFalse(label.contains(L10n.tr("天気予報一部のみ")))
     }
 }

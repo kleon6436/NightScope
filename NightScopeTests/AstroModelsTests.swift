@@ -195,6 +195,64 @@ final class AstroModelsTests: XCTestCase {
         XCTAssertNil(summary.weatherAwareRangeText(nighttimeHours: hours))
     }
 
+    func test_weatherAwareRangeText_returnsPartialRangeForCurrentNight() {
+        let referenceDate = makeDate(2026, 4, 2, 12, 0)
+        let evening = makeDate(2026, 4, 2, 23, 45)
+        let morning = makeDate(2026, 4, 3, 0, 0)
+        let summary = NightSummary(
+            date: makeDate(2026, 4, 2, 0, 0),
+            location: CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0),
+            events: [
+                makeEvent(date: evening),
+                makeEvent(date: morning)
+            ],
+            viewingWindows: [],
+            moonPhaseAtMidnight: 0.1,
+            timeZoneIdentifier: "Asia/Tokyo"
+        )
+
+        let hours = [
+            makeWeatherHour(date: makeDate(2026, 4, 2, 23, 0))
+        ]
+
+        XCTAssertEqual(
+            summary.weatherAwareRangeText(
+                nighttimeHours: hours,
+                referenceDate: referenceDate
+            ),
+            "\(evening.nightTimeString(timeZone: summary.timeZone)) 〜 \(morning.nightTimeString(timeZone: summary.timeZone))"
+        )
+    }
+
+    func test_weatherAwareRangeText_returnsMorningPartialRangeForCurrentNight() {
+        let referenceDate = makeDate(2026, 4, 2, 12, 0)
+        let evening = makeDate(2026, 4, 2, 23, 45)
+        let morning = makeDate(2026, 4, 3, 0, 0)
+        let summary = NightSummary(
+            date: makeDate(2026, 4, 2, 0, 0),
+            location: CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0),
+            events: [
+                makeEvent(date: evening),
+                makeEvent(date: morning)
+            ],
+            viewingWindows: [],
+            moonPhaseAtMidnight: 0.1,
+            timeZoneIdentifier: "Asia/Tokyo"
+        )
+
+        let hours = [
+            makeWeatherHour(date: makeDate(2026, 4, 3, 0, 0))
+        ]
+
+        XCTAssertEqual(
+            summary.weatherAwareRangeText(
+                nighttimeHours: hours,
+                referenceDate: referenceDate
+            ),
+            "\(morning.nightTimeString(timeZone: summary.timeZone)) 〜 \(morning.addingTimeInterval(15 * 60).nightTimeString(timeZone: summary.timeZone))"
+        )
+    }
+
     func test_starCatalogMakeFillStars_skipsMalformedRows() {
         let stars = StarCatalog.makeFillStars(from: [
             [15.0, -20.0, 1.2, 0.4],

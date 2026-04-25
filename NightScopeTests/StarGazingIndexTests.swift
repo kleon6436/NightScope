@@ -936,4 +936,152 @@ final class StarGazingIndexTests: XCTestCase {
         XCTAssertEqual(idx.constellationScore, 15,
             "暗時間1.25h(>1h)は darkHoursScore=5 + moonScore=10 = 15 になるべき")
     }
+
+    func test_compute_currentNightPartialWeather_usesWeatherData() {
+        let timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 2,
+            hour: 12
+        ))!
+        let nightDate = calendar.startOfDay(for: referenceDate)
+        let location = CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0)
+        let firstEvent = calendar.date(from: DateComponents(year: 2026, month: 4, day: 2, hour: 23, minute: 15))!
+        let secondEvent = calendar.date(from: DateComponents(year: 2026, month: 4, day: 3, hour: 0, minute: 15))!
+        let summary = NightSummary(
+            date: nightDate,
+            location: location,
+            events: [
+                AstroEvent(
+                    date: firstEvent,
+                    galacticCenterAltitude: 28,
+                    galacticCenterAzimuth: 180,
+                    sunAltitude: -20,
+                    moonAltitude: -10,
+                    moonPhase: 0.1
+                ),
+                AstroEvent(
+                    date: secondEvent,
+                    galacticCenterAltitude: 32,
+                    galacticCenterAzimuth: 185,
+                    sunAltitude: -20,
+                    moonAltitude: -10,
+                    moonPhase: 0.1
+                )
+            ],
+            viewingWindows: [
+                ViewingWindow(
+                    start: firstEvent,
+                    end: secondEvent.addingTimeInterval(15 * 60),
+                    peakTime: secondEvent,
+                    peakAltitude: 32,
+                    peakAzimuth: 185
+                )
+            ],
+            moonPhaseAtMidnight: 0.1,
+            timeZoneIdentifier: timeZone.identifier
+        )
+        let weather = DayWeatherSummary(date: nightDate, nighttimeHours: [
+            HourlyWeather(
+                date: calendar.date(from: DateComponents(year: 2026, month: 4, day: 2, hour: 23))!,
+                temperatureCelsius: 12,
+                cloudCoverPercent: 5,
+                precipitationMM: 0,
+                windSpeedKmh: 4,
+                humidityPercent: 40,
+                dewpointCelsius: 2,
+                weatherCode: 0,
+                visibilityMeters: 20_000,
+                windGustsKmh: 8,
+                windSpeedKmh500hpa: nil
+            )
+        ])
+
+        let idx = StarGazingIndex.compute(
+            nightSummary: summary,
+            weather: weather,
+            bortleClass: 3.0,
+            referenceDate: referenceDate
+        )
+
+        XCTAssertTrue(idx.hasWeatherData)
+        XCTAssertGreaterThan(idx.weatherScore, 0)
+    }
+
+    func test_compute_futureNightPartialWeather_fallsBackToNoWeather() {
+        let timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let referenceDate = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 4,
+            day: 2,
+            hour: 12
+        ))!
+        let nightDate = calendar.date(from: DateComponents(year: 2026, month: 4, day: 3))!
+        let location = CLLocationCoordinate2D(latitude: 35.0, longitude: 135.0)
+        let firstEvent = calendar.date(from: DateComponents(year: 2026, month: 4, day: 3, hour: 23, minute: 15))!
+        let secondEvent = calendar.date(from: DateComponents(year: 2026, month: 4, day: 4, hour: 0, minute: 15))!
+        let summary = NightSummary(
+            date: nightDate,
+            location: location,
+            events: [
+                AstroEvent(
+                    date: firstEvent,
+                    galacticCenterAltitude: 28,
+                    galacticCenterAzimuth: 180,
+                    sunAltitude: -20,
+                    moonAltitude: -10,
+                    moonPhase: 0.1
+                ),
+                AstroEvent(
+                    date: secondEvent,
+                    galacticCenterAltitude: 32,
+                    galacticCenterAzimuth: 185,
+                    sunAltitude: -20,
+                    moonAltitude: -10,
+                    moonPhase: 0.1
+                )
+            ],
+            viewingWindows: [
+                ViewingWindow(
+                    start: firstEvent,
+                    end: secondEvent.addingTimeInterval(15 * 60),
+                    peakTime: secondEvent,
+                    peakAltitude: 32,
+                    peakAzimuth: 185
+                )
+            ],
+            moonPhaseAtMidnight: 0.1,
+            timeZoneIdentifier: timeZone.identifier
+        )
+        let weather = DayWeatherSummary(date: nightDate, nighttimeHours: [
+            HourlyWeather(
+                date: calendar.date(from: DateComponents(year: 2026, month: 4, day: 3, hour: 23))!,
+                temperatureCelsius: 12,
+                cloudCoverPercent: 5,
+                precipitationMM: 0,
+                windSpeedKmh: 4,
+                humidityPercent: 40,
+                dewpointCelsius: 2,
+                weatherCode: 0,
+                visibilityMeters: 20_000,
+                windGustsKmh: 8,
+                windSpeedKmh500hpa: nil
+            )
+        ])
+
+        let idx = StarGazingIndex.compute(
+            nightSummary: summary,
+            weather: weather,
+            bortleClass: 3.0,
+            referenceDate: referenceDate
+        )
+
+        XCTAssertFalse(idx.hasWeatherData)
+        XCTAssertEqual(idx.weatherScore, 0)
+    }
 }

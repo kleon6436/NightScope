@@ -287,7 +287,8 @@ struct StarGazingIndex {
     static func compute(
         nightSummary: NightSummary,
         weather: DayWeatherSummary?,
-        bortleClass: Double?
+        bortleClass: Double?,
+        referenceDate: Date = Date()
     ) -> StarGazingIndex {
         // #1: 暗時間ゼロ（白夜等）は観測不能 → 常に 0 点
         guard nightSummary.totalDarkHours > 0 else {
@@ -307,30 +308,36 @@ struct StarGazingIndex {
         let lightPollution = computeLightPollutionScore(bortleClass: bortleClass)
         let hasLP = bortleClass != nil
 
-        if let weather = weather,
-           nightSummary.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours) {
+        if let weatherContext = weather.flatMap({
+            nightSummary.usableWeatherContext(
+                nighttimeHours: $0.nighttimeHours,
+                referenceDate: referenceDate
+            )
+        }) {
+            let scoringSummary = weatherContext.summary
+            let scoringWeather = weatherContext.weather
             // #3: 気象スコアは暗時間帯に対応する時間帯のみで評価
             // 根拠: weatherAwareRangeText と applyBadWeatherCap は isDark なイベントのみを
             //       対象にしている。weatherScore も同じ母集団で評価し、一貫性を保つ。
-            let darkWeather = darkTimeSummary(nightSummary: nightSummary, weather: weather)
-            let weatherPts = darkWeather.map { computeWeatherScore(weather: $0) } ?? computeWeatherScore(weather: weather)
+            let weatherPts = computeWeatherScore(weather: scoringWeather)
             // 合計: 星座(0-30) + 気象(0-40) + 光害(0-30) = 0-100
-            let rawTotal = min(100, constellation + weatherPts + lightPollution)
+            let adjustedConstellation = computeConstellationScore(nightSummary: scoringSummary)
+            let rawTotal = min(100, adjustedConstellation + weatherPts + lightPollution)
             let cappedTotal = applyBadWeatherCap(
                 to: rawTotal,
-                nonWeatherBase: constellation + lightPollution,
+                nonWeatherBase: adjustedConstellation + lightPollution,
                 weatherScore: weatherPts,
-                nightSummary: nightSummary,
-                weather: weather
+                nightSummary: scoringSummary,
+                weather: scoringWeather
             )
             // #2: 月明かりキャップ
-            let moonCapped = applyMoonCap(to: cappedTotal, nightSummary: nightSummary)
+            let moonCapped = applyMoonCap(to: cappedTotal, nightSummary: scoringSummary)
             let bortleCapped = applyBortleCap(to: moonCapped, bortleClass: bortleClass)
 
             return makeIndex(
                 score: bortleCapped,
                 milkyWayScore: mw,
-                constellationScore: constellation,
+                constellationScore: adjustedConstellation,
                 weatherScore: weatherPts,
                 lightPollutionScore: lightPollution,
                 hasWeatherData: true,
@@ -713,19 +720,6 @@ struct StarGazingIndex {
             return min(score, Constants.moonCapSoftScore)
         }
         return score
-    }
-
-    // MARK: - Dark Time Weather Summary
-
-    /// #3: 暗時間帯に対応する HourlyWeather のみで DayWeatherSummary を再構築
-    /// 根拠: weatherScore と applyBadWeatherCap の評価母集団を統一する。
-    private static func darkTimeSummary(
-        nightSummary: NightSummary,
-        weather: DayWeatherSummary
-    ) -> DayWeatherSummary? {
-        let darkHours = weatherHoursDuringDarkTime(nightSummary: nightSummary, weather: weather)
-        guard !darkHours.isEmpty else { return nil }
-        return DayWeatherSummary(date: weather.date, nighttimeHours: darkHours)
     }
 
     // MARK: - Light Pollution Score (0–30)

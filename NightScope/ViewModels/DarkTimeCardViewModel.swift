@@ -6,7 +6,7 @@ struct DarkTimeCardViewModel {
 
     private var hasReliableWeatherCoverage: Bool {
         guard let weather else { return false }
-        return summary.hasReliableWeatherData(nighttimeHours: weather.nighttimeHours)
+        return summary.hasUsableWeatherData(nighttimeHours: weather.nighttimeHours)
     }
 
     var displayText: String {

@@ -229,7 +229,7 @@ final class DetailViewModel: ObservableObject {
         )
         isCurrentWeatherCoverageIncomplete = {
             guard let nightSummary, let currentWeather else { return false }
-            return !nightSummary.hasReliableWeatherData(nighttimeHours: currentWeather.nighttimeHours)
+            return !nightSummary.hasUsableWeatherData(nighttimeHours: currentWeather.nighttimeHours)
         }()
         isCurrentWeatherForecastOutOfRange = appController.weatherService.isForecastOutOfRange(
             for: displayedDate,
