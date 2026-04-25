@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1CFF0A5F464B1B377F40013C"
-               BuildableName = "NightScopeiOS.app"
+               BuildableName = "NightStarScope.app"
                BlueprintName = "NightScopeiOS"
                ReferencedContainer = "container:NightScope.xcodeproj">
             </BuildableReference>
@@ -46,7 +46,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1CFF0A5F464B1B377F40013C"
-            BuildableName = "NightScopeiOS.app"
+            BuildableName = "NightStarScope.app"
             BlueprintName = "NightScopeiOS"
             ReferencedContainer = "container:NightScope.xcodeproj">
          </BuildableReference>
@@ -63,7 +63,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1CFF0A5F464B1B377F40013C"
-            BuildableName = "NightScopeiOS.app"
+            BuildableName = "NightStarScope.app"
             BlueprintName = "NightScopeiOS"
             ReferencedContainer = "container:NightScope.xcodeproj">
          </BuildableReference>
