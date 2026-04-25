@@ -243,11 +243,33 @@
     "BSD 3-Clause" : {
 
     },
+    "BSC5 (CDS VizieR)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BSC5 (CDS VizieR)"
+          }
+        }
+      }
+    },
     "CC BY 4.0" : {
 
     },
     "Copernicus DEM GLO-30 © DLR/ESA" : {
 
+    },
+    "Copernicus DEM GLO-30 License" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copernicus DEM GLO-30 License"
+          }
+        }
+      }
     },
     "Copernicus DEM データ概要" : {
       "extractionState" : "manual",
@@ -256,6 +278,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copernicus DEM Overview"
+          }
+        }
+      }
+    },
+    "Copernicus DEM ライセンス" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copernicus DEM License"
           }
         }
       }

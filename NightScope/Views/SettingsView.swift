@@ -83,12 +83,12 @@ private struct SettingsAboutSections: View {
                 id: "terrain",
                 title: "地形データ",
                 detail: "Copernicus DEM GLO-30 © DLR/ESA",
-                license: "CC BY 4.0",
+                license: "Copernicus DEM GLO-30 License",
                 note: "未配置の場合は一部表示・計算が簡略化されます。",
-                attribution: "Contains modified Copernicus DEM GLO-30 data © European Union, processed by ESA/DLR, licensed under CC BY 4.0.",
+                attribution: "produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved.",
                 links: [
                     SettingsDataSourceLink(title: "Copernicus DEM データ概要", destination: SettingsAboutLinks.copernicusLicense),
-                    SettingsDataSourceLink(title: "CC BY 4.0", destination: SettingsAboutLinks.ccBy40),
+                    SettingsDataSourceLink(title: "Copernicus DEM ライセンス", destination: SettingsAboutLinks.copernicusLicensePDF),
                 ],
                 showsWeatherBadge: false
             ),
@@ -99,7 +99,9 @@ private struct SettingsAboutSections: View {
                 license: "Public Domain",
                 note: nil,
                 attribution: nil,
-                links: [],
+                links: [
+                    SettingsDataSourceLink(title: "BSC5 (CDS VizieR)", destination: SettingsAboutLinks.bsc5Catalog),
+                ],
                 showsWeatherBadge: false
             ),
             SettingsDataSource(
@@ -144,6 +146,8 @@ private enum SettingsAboutLinks {
     static let falchiDOI = URL(string: "https://doi.org/10.5880/GFZ.1.4.2016.001")!
     static let ccBy40 = URL(string: "https://creativecommons.org/licenses/by/4.0/")!
     static let copernicusLicense = URL(string: "https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM")!
+    static let copernicusLicensePDF = URL(string: "https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/DEM/resources/license/License-COPDEM-30.pdf")!
+    static let bsc5Catalog = URL(string: "https://vizier.cds.unistra.fr/viz-bin/VizieR-3?-source=V/50")!
     static let d3CelestialLicense = URL(string: "https://github.com/ofrohn/d3-celestial/blob/master/LICENSE")!
 }
 
