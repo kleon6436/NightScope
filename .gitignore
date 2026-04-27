@@ -39,3 +39,5 @@ build/
 # VS CodeとGitHub Copilotの設定ファイル
 .vscode/
 .github/
+.nvim/
+buildServer.json
