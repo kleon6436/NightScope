@@ -1,6 +1,6 @@
 # NightStarScope
 
-NightScope は、星空観測向けの macOS / iOS アプリです。  
+NightStarScope は、星空観測向けの macOS / iOS アプリです。  
 観測地点・天候・光害・天体情報をまとめて確認し、観測に向いた時間帯を判断しやすくすることを目的としています。
 
 > [!IMPORTANT]
