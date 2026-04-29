@@ -107,100 +107,29 @@ python3 Tools/prepare_srtm.py --input-dir ~/dem_tiles/ \
 > [!NOTE]
 > `elevation_global.bin(.z)` / `elevation_japan.bin(.z)` が存在しない場合、`TerrainService` は nil を返し地形データなし（平坦地扱い）で動作します。ビルド・実行は可能ですが、地平線障害物の計算は行われません。
 
-## 利用上の注意（個人利用 / 将来商用）
+## 利用上の注意
 
 ### 現在採用しているデータソースのライセンス概要
 
-| データソース | ライセンス | 商用利用 | 主な要件 |
-|---|---|---|---|
-| Apple WeatherKit | Apple Weather Terms of Service | ✅ 可（Apple Developer Program 規約範囲内） | Apple Developer Program への参加 |
-| Falchi et al. 2016 World Atlas | CC BY 4.0 | ✅ 可 | 帰属表示（論文・DOI の明示） |
-| Yale BSC5 / CDS VizieR | Public Domain | ✅ 可 | 帰属表示（推奨） |
-| d3-celestial constellation data | BSD 3-Clause | ✅ 可 | ライセンス表示・著作権表示 |
-| Apple MapKit | Apple Developer Program 規約 | ✅ 可（規約の範囲内） | Apple Developer Program への参加 |
-
-全データソースが **Apple Weather Terms of Service / CC BY 4.0 / Public Domain / BSD 3-Clause / Apple Developer Program 規約**で構成されており、商用配布・課金・法人利用においても各規約の条件を守ることで利用可能な状態です。
-
-### App Store 公開向けの補足
-
-- WeatherKit は **天気データを表示する画面ごとに Apple Weather の帰属表示**が必要です。NightScope では主要な天気表示ビューと設定画面で `WeatherAttributionBadge` を表示しています。
-- Falchi データは CC BY 4.0 のため、**著者名・出典・DOI・ライセンス**をアプリ内と配布物で明示してください。
-- Copernicus DEM は CC BY 4.0 相当の扱いとして、**Copernicus / EU / ESA(DLR) 系の帰属**を配布物にも含めてください。
-- d3-celestial は BSD 3-Clause のため、**著作権表示・条件・免責**を保持してください。
-- Apple MapKit / WeatherKit は Apple Developer Program 規約に従い、取得データを独自 API や再配布データとして扱わないでください。
-
-### 個人利用（現状）
-
-- 各データソースの条件を守る前提で利用可能です。
-- WeatherKit は Apple Developer Program への参加が必須です（`WeatherKitService` で対応済み）。
-- 帰属表示はアプリ内「設定 > データソースとクレジット」で行っています。
-
-### 商用化時の確認事項
-
-- Apple WeatherKit の利用規約（Apple Weather Terms of Service）に変更がないことを確認してください。
-- CC BY 4.0 データソースの帰属表示がアプリ内・配布物（App Store ページ等）に含まれていることを確認してください。
-- Apple Developer Program 規約の最新版を確認してください。
-
-## 商用化前チェックリスト
-
-- [ ] Apple WeatherKit の利用規約（Apple Weather Terms of Service）に変更がないことを確認
-- [ ] Falchi World Atlas (CC BY 4.0) の帰属表示（Falchi et al. 2016 / GFZ Data Services / DOI）がアプリ内・配布物に含まれている
-- [ ] Yale BSC5 の帰属表示が設定画面に含まれている
-- [ ] d3-celestial constellation data (BSD 3-Clause) の帰属表示が設定画面や配布物に含まれている
-- [ ] Apple MapKit の利用が Apple Developer Program 規約の範囲内であることを確認
-- [ ] README とアプリ内「設定 > データソースとクレジット」で全帰属が明示されている
-
-## App Store 公開準備の実装状況
-
-| 項目 | 状況 | 備考 |
+| データソース | ライセンス / 規約 | 個人利用時の主な要件 |
 |---|---|---|
-| WeatherKit 帰属表示 | ✅ 実装済み | 主要な天気表示ビューと設定画面で表示 |
-| 外部データソースのクレジット | ✅ 実装済み | 設定画面と README に記載 |
-| Privacy Manifest | ✅ 実装済み | `NightScope/PrivacyInfo.xcprivacy` を両ターゲットに同梱 |
-| Required Reason API | ✅ 実装済み | `UserDefaults` に対して `CA92.1` を申告 |
-| Export Compliance | ✅ 実装済み | `ITSAppUsesNonExemptEncryption = NO` を設定 |
-| App Privacy Details | ⏳ 手動 | App Store Connect で位置情報利用を実態どおり入力 |
-| サポート URL / プライバシーポリシー URL | ⏳ 手動 | 公開 URL を用意して App Store Connect に設定 |
-| 有料アプリ契約 / 税務 / 銀行口座 | ⏳ 手動 | Paid Apps Agreement と価格設定が必要 |
-| App Store Connect アプリ作成 | ⏳ 手動 | Bundle ID 確定後に作成 |
-| スクリーンショット / 説明文 / 審査メモ | ⏳ 草案あり | 下記を初稿として使用可能 |
+| Apple WeatherKit | Apple Weather Terms of Service | Apple Developer Program への参加、画面ごとの帰属表示 |
+| Falchi et al. 2016 World Atlas | CC BY 4.0 | 著者名・出典・DOI・ライセンスの明示 |
+| Copernicus DEM GLO-30 | CC BY 4.0 | Copernicus / EU / ESA(DLR) 系の帰属表示 |
+| Yale BSC5 / CDS VizieR | Public Domain | 帰属表示を推奨 |
+| d3-celestial constellation data | BSD 3-Clause | 著作権表示・条件・免責の保持 |
+| Apple MapKit | Apple Developer Program 規約 | 規約の範囲内で利用 |
 
-## App Store Connect 入力草案
+- 各データソースの条件を守る前提で利用できます。
+- WeatherKit は `WeatherKitService` を通じて利用しており、Apple Developer Program への参加が必要です。
+- 帰属表示はアプリ内「設定 > データソースとクレジット」と、天気表示ビュー内の `WeatherAttributionBadge` で行っています。
+- データ提供元の利用規約や公開内容が更新される可能性があるため、利用前に最新情報を確認してください。
 
-### 説明文（初稿）
+### 利用する権限とセンサー
 
-NightScope は、星空観測に必要な情報を iPhone と Mac でまとめて確認できるアプリです。観測地点ごとの天気、光害、天体情報、観測に向いた時間帯をひとつの画面で把握できます。
-
-- 現在地や任意の地点を選んで観測条件を確認
-- Apple WeatherKit による夜間の天気情報を表示
-- 光害マップと地形データをもとに観測環境を補助表示
-- 星図、観測時間帯、今後の観測候補日を一覧化
-
-### サブタイトル候補
-
-- 星空観測に向く時間と場所をすばやく確認
-
-### キーワード候補
-
-星空,天体観測,天気,光害,星図,夜空,天文
-
-### 審査メモ草案
-
-- 本アプリはログイン不要です。
-- 位置情報は現在地の観測条件表示のためにのみ使用します。
-- iPhone 版では、星図を実景に重ねる機能のためにカメラとモーションセンサーを使用します。
-- 天気データは Apple WeatherKit を利用しています。
-- 光害・地形・星カタログデータはアプリ内バンドルデータを使用しています。
-
-## App Store 公開前の手動チェック
-
-1. Bundle ID を最終確定する（現状: `com.kleon.NightScope` / `com.kleon.NightScopeiOS`）。
-2. App Store Connect で macOS / iOS のアプリレコードを作成する。
-3. 有料アプリ用の契約、税務情報、銀行口座、価格を設定する。
-4. Support URL と Privacy Policy URL を公開し、App Store Connect に登録する。
-5. App Privacy Details に位置情報の利用目的を実態どおり入力する。
-6. iPhone / macOS のスクリーンショットを Release Archive 相当のビルドから撮影する。
-7. Archive を作成し、Organizer の Validate App / privacy report を確認する。
+- 位置情報は、現在地の観測条件を表示するために使用します。
+- iPhone 版では、星図を実景に重ねて表示する機能のためにカメラを使用します。
+- iPhone 版では、端末の向きに合わせて星図を表示するためにモーションセンサーを使用します。
 
 ## 開発メモ
 
