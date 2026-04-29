@@ -33,6 +33,24 @@ build/
 .build/
 .swiftpm/
 
+# Secrets and signing materials
+.env
+.env.*
+!.env.example
+!.env.sample
+*.xcconfig
+!*.example.xcconfig
+!*.sample.xcconfig
+*.p8
+*.p12
+*.pem
+*.key
+*.cer
+*.crt
+*.mobileprovision
+*.jks
+*.keystore
+
 # Claude Code
 .claude/
 
