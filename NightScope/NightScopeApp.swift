@@ -95,10 +95,17 @@ struct NightScopeCommands: Commands {
 @main
 struct NightScopeApp: App {
     @StateObject private var weatherAttributionService = WeatherAttributionService()
+    @StateObject private var observationModePreference = ObservationModePreference()
+    private let appController = AppController()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(
+                dependencies: AppRootDependencies(
+                    appController: appController,
+                    observationModePreference: observationModePreference
+                )
+            )
                 .environmentObject(weatherAttributionService)
         }
         .windowToolbarStyle(.unified(showsTitle: false))
@@ -108,7 +115,7 @@ struct NightScopeApp: App {
         }
 
         Settings {
-            SettingsView()
+            SettingsView(observationModePreference: observationModePreference)
                 .environmentObject(weatherAttributionService)
         }
     }

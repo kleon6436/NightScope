@@ -2,6 +2,11 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("windSpeedUnit") private var windSpeedUnit: String = WindSpeedUnit.kmh.rawValue
+    @ObservedObject private var observationModePreference: ObservationModePreference
+
+    init(observationModePreference: ObservationModePreference = ObservationModePreference()) {
+        self.observationModePreference = observationModePreference
+    }
 
     var body: some View {
         formContent
@@ -20,6 +25,22 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            #if os(macOS)
+            Section("観測モード") {
+                Picker("モード", selection: $observationModePreference.mode) {
+                    ForEach(ObservationMode.allCases) { mode in
+                        Label(L10n.tr(mode.titleKey), systemImage: mode.iconSystemName)
+                            .tag(mode)
+                    }
+                }
+
+                Text(L10n.tr(observationModePreference.mode.descriptionKey))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            #endif
 
             StarMapDisplaySettingsSection()
 

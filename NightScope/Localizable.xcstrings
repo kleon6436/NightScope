@@ -240,9 +240,6 @@
         }
       }
     },
-    "BSD 3-Clause" : {
-
-    },
     "BSC5 (CDS VizieR)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -253,6 +250,9 @@
           }
         }
       }
+    },
+    "BSD 3-Clause" : {
+
     },
     "CC BY 4.0" : {
 
@@ -342,6 +342,363 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opens NightScope settings."
+          }
+        }
+      }
+    },
+    "observation.mode.breakdown.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breakdown shows pre-adjustment values"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内訳はモード補正前の値"
+          }
+        }
+      }
+    },
+    "observation.mode.change" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change observation mode"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "観測モードを変更"
+          }
+        }
+      }
+    },
+    "observation.mode.general.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balances weather, darkness, and light pollution."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天気・暗さ・光害をバランス良く評価します。"
+          }
+        }
+      }
+    },
+    "observation.mode.general.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通常"
+          }
+        }
+      }
+    },
+    "observation.mode.general.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通常"
+          }
+        }
+      }
+    },
+    "observation.mode.meteors.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favors wide clear skies and dark hours for meteor watching."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "広い晴天域と暗時間を重視し、流星観測向けに評価します。"
+          }
+        }
+      }
+    },
+    "observation.mode.meteors.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meteors"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流星群"
+          }
+        }
+      }
+    },
+    "observation.mode.meteors.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meteors"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流星群"
+          }
+        }
+      }
+    },
+    "observation.mode.milkyWay.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prioritizes dark skies, long darkness, and Galactic Center visibility."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "光害の少なさ、暗時間、銀河中心の見やすさを重視します。"
+          }
+        }
+      }
+    },
+    "observation.mode.milkyWay.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Milky Way"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天の川"
+          }
+        }
+      }
+    },
+    "observation.mode.milkyWay.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Milky Way"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天の川"
+          }
+        }
+      }
+    },
+    "observation.mode.moon.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prioritizes lunar viewing by softening moonlight and light-pollution penalties."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月の見やすさを優先し、月明かりと光害の減点を弱めて評価します。"
+          }
+        }
+      }
+    },
+    "observation.mode.moon.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moon"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月"
+          }
+        }
+      }
+    },
+    "observation.mode.moon.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moon"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月"
+          }
+        }
+      }
+    },
+    "observation.mode.photography.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Strict on wind and cloud stability for night-sky imaging sessions."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "風や雲の安定性を重視し、星空撮影向けに厳しめに評価します。"
+          }
+        }
+      }
+    },
+    "observation.mode.photography.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撮影"
+          }
+        }
+      }
+    },
+    "observation.mode.photography.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photography"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撮影"
+          }
+        }
+      }
+    },
+    "observation.mode.planetary.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emphasizes seeing and transparency for planetary observing."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "シーイングと透明度を重視し、惑星観測向けに評価します。"
+          }
+        }
+      }
+    },
+    "observation.mode.planetary.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planets"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "惑星"
+          }
+        }
+      }
+    },
+    "observation.mode.planetary.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planets"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "惑星"
+          }
+        }
+      }
+    },
+    "observation.mode.sectionTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observation Mode"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "観測の目的"
           }
         }
       }
@@ -2721,6 +3078,9 @@
           }
         }
       }
+    },
+    "モード" : {
+
     },
     "やぎ座" : {
       "extractionState" : "manual",
@@ -5386,6 +5746,9 @@
           }
         }
       }
+    },
+    "観測モード" : {
+
     },
     "観測可能時間" : {
       "extractionState" : "manual",

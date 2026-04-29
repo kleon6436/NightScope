@@ -6,17 +6,22 @@ import MapKit
 @MainActor
 struct AppRootDependencies {
     let appController: AppController
+    let observationModePreference: ObservationModePreference
     let sidebarViewModel: SidebarViewModel
     let detailViewModel: DetailViewModel
     let starMapViewModel: StarMapViewModel
 
-    init(appController: AppController) {
+    init(appController: AppController, observationModePreference: ObservationModePreference = ObservationModePreference()) {
         self.appController = appController
+        self.observationModePreference = observationModePreference
         self.sidebarViewModel = SidebarViewModel(
             locationController: appController.locationController,
             lightPollutionService: appController.lightPollutionService
         )
-        self.detailViewModel = DetailViewModel(appController: appController)
+        self.detailViewModel = DetailViewModel(
+            appController: appController,
+            observationModePreference: observationModePreference
+        )
         self.starMapViewModel = StarMapViewModel(appController: appController)
     }
 
@@ -28,6 +33,7 @@ struct AppRootDependencies {
 @MainActor
 final class AppRootStore: ObservableObject {
     let appController: AppController
+    let observationModePreference: ObservationModePreference
     let sidebarViewModel: SidebarViewModel
     let detailViewModel: DetailViewModel
     let starMapViewModel: StarMapViewModel
@@ -37,6 +43,7 @@ final class AppRootStore: ObservableObject {
     init(dependencies: AppRootDependencies? = nil) {
         let dependencies = dependencies ?? .makeDefault()
         self.appController = dependencies.appController
+        self.observationModePreference = dependencies.observationModePreference
         self.sidebarViewModel = dependencies.sidebarViewModel
         self.detailViewModel = dependencies.detailViewModel
         self.starMapViewModel = dependencies.starMapViewModel

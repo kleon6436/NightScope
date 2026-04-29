@@ -33,6 +33,7 @@ struct DetailContentStateResolver {
 final class DetailViewModel: ObservableObject {
     @Published private(set) var nightSummary: NightSummary?
     @Published private(set) var starGazingIndex: StarGazingIndex?
+    @Published private(set) var observationMode: ObservationMode
     @Published private(set) var isCalculating = false
     @Published private(set) var upcomingNights: [NightSummary] = []
     @Published private(set) var upcomingIndexes: [Date: StarGazingIndex] = [:]
@@ -50,13 +51,19 @@ final class DetailViewModel: ObservableObject {
     @Published private(set) var isCurrentWeatherCoverageIncomplete = false
 
     private let appController: AppController
+    private let observationModePreference: ObservationModePreference
     private var cancellables = Set<AnyCancellable>()
 
-    init(appController: AppController) {
+    init(
+        appController: AppController,
+        observationModePreference: ObservationModePreference = ObservationModePreference()
+    ) {
         self.appController = appController
+        self.observationModePreference = observationModePreference
         let initialState = appController.observationState
         self.nightSummary = initialState.nightSummary
         self.starGazingIndex = initialState.starGazingIndex
+        self.observationMode = observationModePreference.mode
         self.isCalculating = initialState.isCalculating
         self.upcomingNights = initialState.upcomingNights
         self.upcomingIndexes = initialState.upcomingIndexes
@@ -138,6 +145,10 @@ final class DetailViewModel: ObservableObject {
 
         appController.lightPollutionService.$fetchFailed
             .assign(to: &$hasLightPollutionError)
+
+        observationModePreference.$mode
+            .removeDuplicates()
+            .assign(to: &$observationMode)
     }
 
     var weatherService: any WeatherProviding {
@@ -146,6 +157,16 @@ final class DetailViewModel: ObservableObject {
 
     var lightPollutionService: LightPollutionService {
         appController.lightPollutionService
+    }
+
+    var displayedStarGazingIndex: StarGazingIndex? {
+        guard let starGazingIndex else { return nil }
+        guard let nightSummary else { return starGazingIndex }
+        return starGazingIndex.adjusted(
+            for: observationMode,
+            nightSummary: nightSummary,
+            weather: currentWeather
+        )
     }
 
     func refreshWeather() async {

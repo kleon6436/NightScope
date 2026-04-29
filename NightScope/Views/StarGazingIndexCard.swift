@@ -94,6 +94,12 @@ struct StarGazingIndexCard: View {
                 Spacer(minLength: 0)
             }
         }
+        if index.isAdjusted {
+            Text(L10n.tr("observation.mode.breakdown.note"))
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
     }
 
     private func subScoreRow(label: String, score: Int, maxScore: Int, color: Color) -> some View {
@@ -131,11 +137,16 @@ struct StarGazingIndexCard: View {
 struct MacStarGazingIndexCard: View {
     let index: StarGazingIndex
     @ObservedObject var lightPollutionViewModel: StarGazingIndexCardViewModel
+    @ObservedObject var observationModePreference: ObservationModePreference
 
     var body: some View {
         let color = index.tier.color
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            CardHeader(icon: AppIcons.Astronomy.starFill, iconColor: color, title: "星空指数")
+            HStack(spacing: Spacing.sm) {
+                CardHeader(icon: AppIcons.Astronomy.starFill, iconColor: color, title: "星空指数")
+                Spacer()
+                observationModeMenu
+            }
 
             HStack(alignment: .center, spacing: Spacing.md) {
                 ScoreArc(score: index.score, color: color)
@@ -165,6 +176,44 @@ struct MacStarGazingIndexCard: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
+    private var observationModeMenu: some View {
+        Menu {
+            ForEach(ObservationMode.allCases) { mode in
+                Button {
+                    observationModePreference.mode = mode
+                } label: {
+                    HStack {
+                        Label(L10n.tr(mode.titleKey), systemImage: mode.iconSystemName)
+                        if observationModePreference.mode == mode {
+                            Spacer()
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                .help(L10n.tr(mode.descriptionKey))
+            }
+        } label: {
+            Label(L10n.tr(observationModePreference.mode.shortTitleKey), systemImage: observationModePreference.mode.iconSystemName)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .padding(.horizontal, Spacing.xs)
+                .padding(.vertical, 4)
+                .background(Color.white.opacity(0.08), in: Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .help(observationModeMenuTooltip)
+        .accessibilityLabel(L10n.tr("observation.mode.change"))
+    }
+
+    private var observationModeMenuTooltip: String {
+        L10n.format(
+            "%@\n%@",
+            L10n.tr("observation.mode.change"),
+            L10n.tr(observationModePreference.mode.descriptionKey)
+        )
+    }
+
     private var inlineBreakdown: some View {
         HStack(spacing: Spacing.xs) {
             inlineScore(label: L10n.tr("星空"), value: "\(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)")
@@ -179,11 +228,15 @@ struct MacStarGazingIndexCard: View {
     }
 
     private var inlineBreakdownTooltip: String {
-        [
+        var parts = [
             "\(L10n.tr("星空")) \(index.constellationScore)/\(StarGazingIndex.maxConstellationScore)",
             "\(L10n.tr("気象")) \(weatherValue)",
             "\(L10n.tr("光害")) \(lightPollutionValue)"
-        ].joined(separator: " • ")
+        ]
+        if observationModePreference.mode != .general {
+            parts.append(L10n.tr("observation.mode.breakdown.note"))
+        }
+        return parts.joined(separator: " • ")
     }
 
     private var weatherValue: String {

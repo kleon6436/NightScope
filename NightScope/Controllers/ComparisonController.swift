@@ -1,0 +1,120 @@
+import Foundation
+import CoreLocation
+
+@MainActor
+final class ComparisonController: ObservableObject {
+    @Published private(set) var matrix: ComparisonMatrix = .empty
+    @Published private(set) var isRefreshing = false
+    @Published var dayCount: Int = 7
+
+    private let favoriteStore: any FavoriteLocationStoring
+    private let weatherService: any WeatherProviding
+    private let lightPollutionService: any LightPollutionProviding
+    private let calculationService: any NightCalculating
+
+    init(
+        favoriteStore: any FavoriteLocationStoring,
+        weatherService: any WeatherProviding,
+        lightPollutionService: any LightPollutionProviding,
+        calculationService: any NightCalculating
+    ) {
+        self.favoriteStore = favoriteStore
+        self.weatherService = weatherService
+        self.lightPollutionService = lightPollutionService
+        self.calculationService = calculationService
+    }
+
+    func refresh(referenceDate: Date = Date()) async {
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        let locations = favoriteStore.loadAll()
+        let dates = Self.makeDates(referenceDate: referenceDate, dayCount: dayCount)
+        matrix = ComparisonMatrix(
+            locations: locations,
+            dates: dates,
+            cellsByID: Dictionary(uniqueKeysWithValues: locations.flatMap { location in
+                dates.map { date in
+                    let cell = ComparisonCell(locationID: location.id, date: date, loadState: .loading)
+                    return (cell.id, cell)
+                }
+            })
+        )
+
+        guard !locations.isEmpty else { return }
+
+        var cellsByID = matrix.cellsByID
+        for location in locations {
+            let timeZone = TimeZone(identifier: location.timeZoneIdentifier) ?? .current
+            let coordinate = CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude)
+            let weatherResult = await weatherService.fetchWeatherSnapshot(
+                latitude: location.latitude,
+                longitude: location.longitude,
+                timeZone: timeZone
+            )
+            let bortleClass = try? await lightPollutionService.fetchBortle(
+                latitude: location.latitude,
+                longitude: location.longitude
+            )
+            let nights = await calculationService.calculateUpcomingNights(
+                from: referenceDate,
+                location: coordinate,
+                timeZone: timeZone,
+                days: dayCount
+            )
+
+            for (offset, date) in dates.enumerated() {
+                let cellID = ComparisonCell.makeID(locationID: location.id, date: date)
+                guard offset < nights.count else {
+                    cellsByID[cellID] = ComparisonCell(
+                        locationID: location.id,
+                        date: date,
+                        bortleClass: bortleClass,
+                        loadState: .failed("Missing night summary")
+                    )
+                    continue
+                }
+
+                let night = nights[offset]
+                let weather = weatherService.summary(
+                    for: night.date,
+                    from: weatherResult.weatherByDate,
+                    timeZone: timeZone
+                )
+                let index = StarGazingIndex.compute(
+                    nightSummary: night,
+                    weather: weather,
+                    bortleClass: bortleClass,
+                    referenceDate: referenceDate
+                )
+                cellsByID[cellID] = ComparisonCell(
+                    locationID: location.id,
+                    date: date,
+                    nightSummary: night,
+                    weather: weather,
+                    bortleClass: bortleClass,
+                    index: index,
+                    loadState: .loaded
+                )
+            }
+        }
+
+        matrix = ComparisonMatrix(locations: locations, dates: dates, cellsByID: cellsByID)
+    }
+
+    func cell(for locationID: UUID, date: Date) -> ComparisonCell? {
+        matrix.cellsByID[ComparisonCell.makeID(locationID: locationID, date: date)]
+    }
+
+    func bestCell(for date: Date) -> ComparisonCell? {
+        matrix.locations
+            .compactMap { cell(for: $0.id, date: date) }
+            .max { ($0.index?.score ?? Int.min) < ($1.index?.score ?? Int.min) }
+    }
+
+    private static func makeDates(referenceDate: Date, dayCount: Int) -> [Date] {
+        let calendar = Calendar(identifier: .gregorian)
+        let start = calendar.startOfDay(for: referenceDate)
+        return (0..<dayCount).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+    }
+}

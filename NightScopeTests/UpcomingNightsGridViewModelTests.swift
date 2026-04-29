@@ -149,4 +149,103 @@ final class UpcomingNightsGridViewModelTests: XCTestCase {
         XCTAssertTrue(label.contains(L10n.format("天気%@", weather.weatherLabel)))
         XCTAssertFalse(label.contains(L10n.tr("天気予報一部のみ")))
     }
+
+    func test_observationModePreference_persistsSelection() {
+        let suiteName = "ObservationModePreferenceTests"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let preference = ObservationModePreference(userDefaults: defaults, key: "observation.mode.test")
+        preference.mode = .photography
+
+        let restored = ObservationModePreference(userDefaults: defaults, key: "observation.mode.test")
+        XCTAssertEqual(restored.mode, .photography)
+    }
+
+    func test_observationModePreference_migratesLegacyDeepSkyToMilkyWay() {
+        let suiteName = "ObservationModePreferenceLegacyMigrationTests"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults.set("deepSky", forKey: "observation.mode.test")
+
+        let restored = ObservationModePreference(userDefaults: defaults, key: "observation.mode.test")
+
+        XCTAssertEqual(restored.mode, .milkyWay)
+        XCTAssertEqual(defaults.string(forKey: "observation.mode.test"), ObservationMode.milkyWay.rawValue)
+    }
+
+    func test_observationModePreference_migratesLegacyLunarPlanetaryToMoon() {
+        let suiteName = "ObservationModePreferenceLegacyLunarPlanetaryMigrationTests"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults.set("lunarPlanetary", forKey: "observation.mode.test")
+
+        let restored = ObservationModePreference(userDefaults: defaults, key: "observation.mode.test")
+
+        XCTAssertEqual(restored.mode, .moon)
+        XCTAssertEqual(defaults.string(forKey: "observation.mode.test"), ObservationMode.moon.rawValue)
+    }
+
+    func test_starGazingIndexForDate_appliesObservationModeAdjustment() async {
+        let preference = ObservationModePreference(
+            userDefaults: UserDefaults(suiteName: #function)!,
+            key: #function
+        )
+        preference.mode = .moon
+
+        let appController = AppController(calculationService: MockNightCalculationService())
+        let detailVM = DetailViewModel(appController: appController, observationModePreference: preference)
+        let vm = UpcomingNightsGridViewModel(detailViewModel: detailVM)
+
+        let nightDate = Date()
+        let night = NightSummary(
+            date: nightDate,
+            location: .init(latitude: 35.6762, longitude: 139.6503),
+            events: [
+                AstroEvent(
+                    date: nightDate,
+                    galacticCenterAltitude: 28,
+                    galacticCenterAzimuth: 180,
+                    sunAltitude: -20,
+                    moonAltitude: 30,
+                    moonPhase: 0.5
+                )
+            ],
+            viewingWindows: [
+                ViewingWindow(
+                    start: nightDate,
+                    end: nightDate.addingTimeInterval(3600),
+                    peakTime: nightDate.addingTimeInterval(1800),
+                    peakAltitude: 30,
+                    peakAzimuth: 180
+                )
+            ],
+            moonPhaseAtMidnight: 0.5
+        )
+        let weather = DayWeatherSummary(date: nightDate, nighttimeHours: [
+            HourlyWeather(
+                date: nightDate,
+                temperatureCelsius: 15,
+                cloudCoverPercent: 10,
+                precipitationMM: 0,
+                windSpeedKmh: 5,
+                humidityPercent: 40,
+                dewpointCelsius: 2,
+                weatherCode: 0,
+                visibilityMeters: 20_000,
+                windGustsKmh: 15,
+                windSpeedKmh500hpa: nil
+            )
+        ])
+        let baseIndex = StarGazingIndex.compute(nightSummary: night, weather: weather, bortleClass: 3.0)
+        let key = ObservationTimeZone.startOfDay(for: night.date, timeZone: detailVM.selectedTimeZone)
+
+        appController.upcomingNights = [night]
+        appController.upcomingIndexes = [key: baseIndex]
+        try? await Task.sleep(nanoseconds: 10_000_000)
+
+        let adjusted = vm.starGazingIndex(for: night.date)
+        XCTAssertNotNil(adjusted)
+        XCTAssertGreaterThan(adjusted?.score ?? 0, baseIndex.score)
+    }
 }

@@ -7,6 +7,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     @Published private(set) var displayNights: [NightSummary] = []
     @Published private(set) var isLoading = false
     @Published private(set) var selectedDate: Date
+    @Published private(set) var observationMode: ObservationMode
     @Published private(set) var upcomingIndexes: [Date: StarGazingIndex]
     @Published private(set) var weatherByDate: [String: DayWeatherSummary]
     @Published private(set) var weatherErrorMessage: String?
@@ -18,6 +19,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     init(detailViewModel: DetailViewModel) {
         self.detailViewModel = detailViewModel
         self.selectedDate = detailViewModel.selectedDate
+        self.observationMode = detailViewModel.observationMode
         self.upcomingIndexes = detailViewModel.upcomingIndexes
         self.weatherByDate = detailViewModel.weatherService.weatherByDate
         self.weatherErrorMessage = detailViewModel.weatherErrorMessage
@@ -32,6 +34,9 @@ final class UpcomingNightsGridViewModel: ObservableObject {
 
         detailViewModel.$selectedDate
             .assign(to: &$selectedDate)
+
+        detailViewModel.$observationMode
+            .assign(to: &$observationMode)
 
         detailViewModel.$upcomingIndexes
             .assign(to: &$upcomingIndexes)
@@ -85,7 +90,17 @@ final class UpcomingNightsGridViewModel: ObservableObject {
 
     func starGazingIndex(for date: Date) -> StarGazingIndex? {
         let startOfDay = ObservationTimeZone.startOfDay(for: date, timeZone: selectedTimeZone)
-        return upcomingIndexes[startOfDay]
+        guard let baseIndex = upcomingIndexes[startOfDay] else { return nil }
+        guard let night = displayNights.first(where: {
+            ObservationTimeZone.isDate($0.date, inSameDayAs: date, timeZone: selectedTimeZone)
+        }) else {
+            return baseIndex
+        }
+        return baseIndex.adjusted(
+            for: observationMode,
+            nightSummary: night,
+            weather: weatherSummary(for: date)
+        )
     }
 
     func isDateSelected(_ date: Date) -> Bool {

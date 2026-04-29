@@ -913,6 +913,81 @@ final class StarGazingIndexTests: XCTestCase {
             "Bortle 6.9(< 7.0)は光害キャップ対象外で高スコアになるべき")
     }
 
+    // MARK: - Observation Mode
+
+    func test_adjusted_generalMode_keepsOriginalScore() {
+        let summary = makeIdealDarkSummary()
+        let weather = makeWeather(cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20, visibility: 25_000, windGusts: 15)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertEqual(idx.adjusted(for: .general, nightSummary: summary, weather: weather).score, idx.score)
+    }
+
+    func test_adjusted_milkyWayMode_capsBrightMoonMoreStrictly() {
+        let summary = makeNightSummary(darkEventCount: 25, moonPhase: 0.196, moonAltitude: 30)
+        let weather = makeWeather(cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20, visibility: 25_000, windGusts: 15)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        let adjusted = idx.adjusted(for: .milkyWay, nightSummary: summary, weather: weather)
+        XCTAssertGreaterThan(idx.score, 49)
+        XCTAssertEqual(adjusted.score, 49)
+    }
+
+    func test_adjusted_meteorsMode_prioritizesWeatherMoreThanGeneral() {
+        let summary = makeIdealDarkSummary(moonPhase: 0.05, moonAltitude: -10)
+        let weather = makeWeather(cloud: 45, precip: 0, wind: 5, humidity: 60, dewpointSpread: 10, visibility: 10_000, windGusts: 15)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        XCTAssertLessThan(idx.adjusted(for: .meteors, nightSummary: summary, weather: weather).score, idx.score)
+    }
+
+    func test_adjusted_milkyWayMode_doesNotExceedBaseScoreUnderUrbanSky() {
+        let summary = makeIdealDarkSummary(moonPhase: 0.02, moonAltitude: -10)
+        let weather = makeWeather(cloud: 5, precip: 0, wind: 4, humidity: 35, dewpointSpread: 18, visibility: 25_000, windGusts: 10)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 9.0)
+        let adjusted = idx.adjusted(for: .milkyWay, nightSummary: summary, weather: weather)
+
+        XCTAssertEqual(idx.score, 49)
+        XCTAssertLessThanOrEqual(adjusted.score, idx.score)
+    }
+
+    func test_adjusted_moonMode_relaxesMoonPenalty() {
+        let summary = makeIdealDarkSummary(moonPhase: 0.5, moonAltitude: 30)
+        let weather = makeWeather(cloud: 10, precip: 0, wind: 5, humidity: 40, dewpointSpread: 20, visibility: 25_000, windGusts: 15)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        let adjusted = idx.adjusted(for: .moon, nightSummary: summary, weather: weather)
+        XCTAssertLessThanOrEqual(idx.score, 49)
+        XCTAssertGreaterThan(adjusted.score, idx.score)
+        XCTAssertGreaterThan(adjusted.score, 74)
+    }
+
+    func test_adjusted_planetaryMode_prioritizesStableAir() {
+        let summary = makeIdealDarkSummary(moonPhase: 0.1, moonAltitude: -10)
+        let weather = makeWeather(cloud: 10, precip: 0, wind: 22, humidity: 40, dewpointSpread: 20, visibility: 25_000, windGusts: 40)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 3.0)
+        let adjusted = idx.adjusted(for: .planetary, nightSummary: summary, weather: weather)
+
+        XCTAssertGreaterThan(idx.score, 64)
+        XCTAssertEqual(adjusted.score, 64)
+    }
+
+    func test_adjusted_planetaryMode_relaxesUrbanLightPollutionPenalty() {
+        let summary = makeIdealDarkSummary(moonPhase: 0.02, moonAltitude: -10)
+        let weather = makeWeather(cloud: 5, precip: 0, wind: 4, humidity: 35, dewpointSpread: 18, visibility: 25_000, windGusts: 10)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 9.0)
+        let adjusted = idx.adjusted(for: .planetary, nightSummary: summary, weather: weather)
+
+        XCTAssertEqual(idx.score, 49)
+        XCTAssertGreaterThan(adjusted.score, idx.score)
+    }
+
+    func test_adjusted_photographyMode_doesNotExceedBaseScoreUnderUrbanSky() {
+        let summary = makeIdealDarkSummary(moonPhase: 0.02, moonAltitude: -10)
+        let weather = makeWeather(cloud: 5, precip: 0, wind: 5, humidity: 40, dewpointSpread: 18, visibility: 25_000, windGusts: 12)
+        let idx = computeIndex(nightSummary: summary, weather: weather, bortleClass: 9.0)
+        let adjusted = idx.adjusted(for: .photography, nightSummary: summary, weather: weather)
+
+        XCTAssertEqual(idx.score, 49)
+        XCTAssertLessThanOrEqual(adjusted.score, idx.score)
+    }
+
     // MARK: - #9 暗時間段差 境界
 
     func test_constellationScore_darkHours1h_exact_getsScore() {

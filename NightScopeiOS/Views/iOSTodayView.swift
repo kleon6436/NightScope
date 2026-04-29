@@ -23,14 +23,19 @@ struct iOSTodayViewModel {
 
 struct iOSTodayView: View {
     @ObservedObject var detailViewModel: DetailViewModel
+    @ObservedObject var observationModePreference: ObservationModePreference
     private let viewModel = iOSTodayViewModel()
     @StateObject private var lightPollutionViewModel: StarGazingIndexCardViewModel
     @StateObject private var weatherViewModel = NightWeatherCardViewModel()
     @State private var presentedSheet: PresentedSheet?
     @State private var calendarDraftDate = Date()
 
-    init(detailViewModel: DetailViewModel) {
+    init(
+        detailViewModel: DetailViewModel,
+        observationModePreference: ObservationModePreference = ObservationModePreference()
+    ) {
         self.detailViewModel = detailViewModel
+        self.observationModePreference = observationModePreference
         _lightPollutionViewModel = StateObject(
             wrappedValue: StarGazingIndexCardViewModel(
                 lightPollutionService: detailViewModel.lightPollutionService
@@ -39,7 +44,7 @@ struct iOSTodayView: View {
     }
 
     private var nightSummary: NightSummary? { detailViewModel.nightSummary }
-    private var starGazingIndex: StarGazingIndex? { detailViewModel.starGazingIndex }
+    private var starGazingIndex: StarGazingIndex? { detailViewModel.displayedStarGazingIndex }
     private var weather: DayWeatherSummary? { detailViewModel.currentWeather }
 
     private var contentState: LoadableContentState {
@@ -146,12 +151,28 @@ struct iOSTodayView: View {
             titleMinimumScaleFactor: 0.9,
             horizontalPadding: Spacing.xs
         ) {
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: AppIcons.Navigation.locationPin)
-                    .font(.subheadline)
-                Text(viewModel.locationText(detailViewModel.locationName))
-                    .font(.subheadline)
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: AppIcons.Navigation.locationPin)
+                        .font(.subheadline)
+                    Text(viewModel.locationText(detailViewModel.locationName))
+                        .font(.subheadline)
+                        .lineLimit(1)
+                }
+
+                Button {
+                    presentedSheet = .observationMode
+                } label: {
+                    Label(L10n.tr(observationModePreference.mode.shortTitleKey), systemImage: observationModePreference.mode.iconSystemName)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .padding(.horizontal, Spacing.xs)
+                        .padding(.vertical, 6)
+                        .background(.thinMaterial, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.tr("observation.mode.change"))
+                .accessibilityHint(L10n.tr(observationModePreference.mode.descriptionKey))
             }
         } trailing: {
             HStack(spacing: Spacing.xs / 2) {
@@ -217,6 +238,11 @@ struct iOSTodayView: View {
                 }
             }
             .presentationDetents([.medium, .large])
+        case .observationMode:
+            NavigationStack {
+                iOSObservationModeSelectionView(observationModePreference: observationModePreference)
+            }
+            .presentationDetents([.medium])
         case .settings:
             iOSSettingsSheetView()
         }
@@ -226,9 +252,46 @@ struct iOSTodayView: View {
 private extension iOSTodayView {
     enum PresentedSheet: String, Identifiable {
         case calendar
+        case observationMode
         case settings
 
         var id: String { rawValue }
+    }
+}
+
+private struct iOSObservationModeSelectionView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var observationModePreference: ObservationModePreference
+
+    var body: some View {
+        List {
+            ForEach(ObservationMode.allCases) { mode in
+                Button {
+                    observationModePreference.mode = mode
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: Spacing.xs) {
+                            Label(L10n.tr(mode.titleKey), systemImage: mode.iconSystemName)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if observationModePreference.mode == mode {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.tint)
+                            }
+                        }
+                        Text(L10n.tr(mode.descriptionKey))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .navigationTitle(L10n.tr("observation.mode.sectionTitle"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

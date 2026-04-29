@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DetailView: View {
     @ObservedObject var viewModel: DetailViewModel
+    @ObservedObject var observationModePreference: ObservationModePreference
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @StateObject private var starGazingIndexCardViewModel: StarGazingIndexCardViewModel
@@ -9,9 +10,14 @@ struct DetailView: View {
     @StateObject private var upcomingGridViewModel: UpcomingNightsGridViewModel
     @ObservedObject var starMapViewModel: StarMapViewModel
 
-    init(viewModel: DetailViewModel, starMapViewModel: StarMapViewModel) {
+    init(
+        viewModel: DetailViewModel,
+        starMapViewModel: StarMapViewModel,
+        observationModePreference: ObservationModePreference
+    ) {
         self.viewModel = viewModel
         self.starMapViewModel = starMapViewModel
+        self.observationModePreference = observationModePreference
         _starGazingIndexCardViewModel = StateObject(wrappedValue: StarGazingIndexCardViewModel(lightPollutionService: viewModel.lightPollutionService))
         _nightWeatherCardViewModel = StateObject(wrappedValue: NightWeatherCardViewModel())
         _upcomingGridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: viewModel))
@@ -123,7 +129,7 @@ struct DetailView: View {
                 Spacer()
             }
 
-            if let index = viewModel.starGazingIndex {
+            if let index = viewModel.displayedStarGazingIndex {
                 Divider()
                 HStack(alignment: .center, spacing: Spacing.sm) {
                     Text("星空観測情報")
@@ -142,7 +148,11 @@ struct DetailView: View {
                         WeatherAttributionBadge()
                     }
                 }
-                MacStarGazingIndexCard(index: index, lightPollutionViewModel: starGazingIndexCardViewModel)
+                MacStarGazingIndexCard(
+                    index: index,
+                    lightPollutionViewModel: starGazingIndexCardViewModel,
+                    observationModePreference: observationModePreference
+                )
             }
 
             GlassEffectContainerCompat {

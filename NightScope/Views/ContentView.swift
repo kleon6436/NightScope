@@ -39,7 +39,8 @@ struct ContentView: View {
         } detail: {
             DetailView(
                 viewModel: rootStore.detailViewModel,
-                starMapViewModel: rootStore.starMapViewModel
+                starMapViewModel: rootStore.starMapViewModel,
+                observationModePreference: rootStore.observationModePreference
             )
         }
         .frame(minWidth: LayoutMacOS.windowMinWidth, minHeight: LayoutMacOS.windowMinHeight)

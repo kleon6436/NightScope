@@ -235,6 +235,21 @@ struct StarGazingIndex {
     }
 
     // MARK: - 各スコアの最大値（UI表示用）
+    /// 指定スコアに差し替えて isAdjusted=true を付けた新しいインスタンスを返す。
+    /// モード補正専用ヘルパー。呼び出し側で init の isAdjusted 引数を直接指定しない。
+    func replacingScore(_ newScore: Int) -> StarGazingIndex {
+        StarGazingIndex(
+            score: newScore,
+            milkyWayScore: milkyWayScore,
+            constellationScore: constellationScore,
+            weatherScore: weatherScore,
+            lightPollutionScore: lightPollutionScore,
+            hasWeatherData: hasWeatherData,
+            hasLightPollutionData: hasLightPollutionData,
+            isAdjusted: true
+        )
+    }
+
     static let maxMilkyWayScore       = 25
     static let maxConstellationScore  = 30
     static let maxWeatherScore        = 40
@@ -247,6 +262,28 @@ struct StarGazingIndex {
     let lightPollutionScore: Int // 0–30 (未取得時は 0)
     let hasWeatherData: Bool
     let hasLightPollutionData: Bool
+    /// 観測モード補正が適用済みかどうか。内訳スコアはベース値のままのため UI で区別する。
+    let isAdjusted: Bool
+
+    init(
+        score: Int,
+        milkyWayScore: Int,
+        constellationScore: Int,
+        weatherScore: Int,
+        lightPollutionScore: Int,
+        hasWeatherData: Bool,
+        hasLightPollutionData: Bool,
+        isAdjusted: Bool = false
+    ) {
+        self.score = score
+        self.milkyWayScore = milkyWayScore
+        self.constellationScore = constellationScore
+        self.weatherScore = weatherScore
+        self.lightPollutionScore = lightPollutionScore
+        self.hasWeatherData = hasWeatherData
+        self.hasLightPollutionData = hasLightPollutionData
+        self.isAdjusted = isAdjusted
+    }
 
     enum Tier {
         case excellent, good, fair, poor, bad

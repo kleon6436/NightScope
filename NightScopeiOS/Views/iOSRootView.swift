@@ -15,7 +15,10 @@ struct iOSRootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            iOSTodayView(detailViewModel: rootStore.detailViewModel)
+            iOSTodayView(
+                detailViewModel: rootStore.detailViewModel,
+                observationModePreference: rootStore.observationModePreference
+            )
                 .tabItem {
                     Label("空模様", systemImage: "moon.stars")
                 }
