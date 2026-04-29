@@ -7,7 +7,6 @@ struct DashboardWindowView: View {
     @StateObject private var viewModel: DashboardViewModel
     @State private var mapSnapshotCache = MapSnapshotCache()
     @State private var isShowingLocationPicker = false
-    @State private var isShowingSearchSheet = false
     @State private var dismissedErrorMessage: String?
     @State private var dismissedSwap: DashboardViewModel.SwappedSelection?
     @AccessibilityFocusState private var isSwapUndoFocused: Bool
@@ -37,12 +36,16 @@ struct DashboardWindowView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
+                    DashboardSearchSection(viewModel: viewModel)
+
                     swapBanner
                     errorBanner
 
                     stateContent
                 }
-                .padding(Spacing.md)
+                .padding(.horizontal, Spacing.md)
+                .padding(.top, Spacing.xs)
+                .padding(.bottom, Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -78,11 +81,6 @@ struct DashboardWindowView: View {
                 isPresented: $isShowingLocationPicker
             )
         }
-        .sheet(isPresented: $isShowingSearchSheet, onDismiss: {
-            viewModel.clearSearch()
-        }) {
-            DashboardSearchSheet(viewModel: viewModel)
-        }
     }
 
     private var headerBar: some View {
@@ -107,12 +105,6 @@ struct DashboardWindowView: View {
             .labelsHidden()
 
             Spacer(minLength: Spacing.md)
-
-            Button {
-                isShowingSearchSheet = true
-            } label: {
-                Label(L10n.tr("地点を検索"), systemImage: "magnifyingglass")
-            }
 
             Button {
                 isShowingLocationPicker = true

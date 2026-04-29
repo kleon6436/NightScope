@@ -3,14 +3,12 @@ import SwiftUI
 import MapKit
 import AppKit
 
-/// 地点検索と登録を行う macOS 用シート。
-struct DashboardSearchSheet: View {
+/// 複数地点ダッシュボードのヘッダー直下に表示するインライン検索セクション。
+struct DashboardSearchSection: View {
     @ObservedObject var viewModel: DashboardViewModel
     @ObservedObject private var searchController: DashboardSearchController
 
-    @Environment(\.dismiss) private var dismiss
     @FocusState private var searchFieldFocused: Bool
-    @State private var dismissedSwap: DashboardViewModel.SwappedSelection?
 
     init(viewModel: DashboardViewModel) {
         self.viewModel = viewModel
@@ -18,31 +16,19 @@ struct DashboardSearchSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            header
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             searchBar
-            inlineSwapBanner
-            content
-        }
-        .padding(Spacing.md)
-        .frame(minWidth: 480, minHeight: 480, idealHeight: 600)
-        .onAppear {
-            searchFieldFocused = true
+            if shouldShowContent {
+                content
+            }
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-            Text(L10n.tr("地点を検索"))
-                .font(.title2.bold())
-
-            Spacer(minLength: 0)
-
-            Button(L10n.tr("閉じる")) {
-                dismiss()
-            }
-            .keyboardShortcut(.cancelAction)
+    private var shouldShowContent: Bool {
+        if !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
         }
+        return searchController.state.phase != .idle
     }
 
     private var searchBar: some View {
@@ -64,6 +50,12 @@ struct DashboardSearchSheet: View {
             .onSubmit(handleSubmit)
             .onChange(of: viewModel.searchText) { _, newValue in
                 viewModel.updateSearchText(newValue)
+            }
+
+            if searchController.state.isSearching {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel(L10n.tr("検索中…"))
             }
 
             if !viewModel.searchText.isEmpty {
@@ -91,128 +83,108 @@ struct DashboardSearchSheet: View {
     }
 
     @ViewBuilder
-    private var inlineSwapBanner: some View {
-        if let swap = viewModel.lastSwap, swap != dismissedSwap {
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .foregroundStyle(Color.accentColor)
-                    .accessibilityHidden(true)
-
-                Text(L10n.format("%@ を外して %@ を追加しました", swap.removedName, swap.addedName))
-                    .lineLimit(2)
-
-                Spacer(minLength: 0)
-
-                Button(L10n.tr("元に戻す")) {
-                    viewModel.undoLastSwap()
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    dismissedSwap = swap
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(L10n.tr("閉じる"))
-            }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.xs)
-            .background(
-                RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
-                    .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
-            )
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(L10n.format("%@ を外して %@ を追加しました", swap.removedName, swap.addedName))
-        }
-    }
-
-    @ViewBuilder
     private var content: some View {
         switch searchController.state.phase {
         case .idle:
-            ContentUnavailableView(
-                L10n.tr("地名を入力してください"),
-                systemImage: "magnifyingglass"
-            )
+            EmptyView()
 
         case .loading:
             if searchController.state.results.isEmpty {
-                loadingEmptyState
+                statusMessageView(L10n.tr("検索中…"))
             } else {
-                resultsList(isLoading: true)
+                resultsList()
             }
 
         case .empty:
-            ContentUnavailableView(
-                L10n.tr("一致する地点が見つかりません"),
-                systemImage: "mappin.slash",
-                description: Text(viewModel.searchText)
-            )
+            statusMessageView(L10n.tr("一致する地点が見つかりません"))
 
         case .failure:
-            DashboardSearchFailureView(
-                message: searchController.state.errorMessage ?? L10n.tr("検索に失敗しました"),
-                onRetry: {
-                    viewModel.updateSearchText(viewModel.searchText)
-                }
-            )
+            failureView(message: searchController.state.errorMessage ?? L10n.tr("検索に失敗しました"))
 
         case .results:
-            resultsList(isLoading: false)
+            resultsList()
         }
     }
 
-    private var loadingEmptyState: some View {
-        VStack(spacing: Spacing.sm) {
-            ProgressView()
-                .controlSize(.small)
-            Text(L10n.tr("検索中…"))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    @ViewBuilder
-    private func resultsList(isLoading: Bool) -> some View {
-        List {
-            ForEach(Array(searchController.state.results.enumerated()), id: \.offset) { _, mapItem in
-                DashboardSearchResultRow(
-                    viewModel: viewModel,
-                    mapItem: mapItem
-                )
-                .listRowSeparator(.visible)
-            }
-        }
-        .listStyle(.inset)
-        .overlay(alignment: .topLeading) {
-            if isLoading {
-                loadingStrip
-                    .padding(.top, 6)
-                    .padding(.leading, 12)
-            }
-        }
-    }
-
-    private var loadingStrip: some View {
+    private func statusMessageView(_ text: String) -> some View {
         HStack(spacing: Spacing.xs) {
-            ProgressView()
-                .controlSize(.mini)
-            Text(L10n.tr("検索中…"))
-                .font(.caption)
+            Text(text)
+                .font(.callout)
                 .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
         .background(
-            Capsule().fill(Color(nsColor: .controlBackgroundColor))
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
+                .fill(Color(nsColor: .controlBackgroundColor))
         )
         .overlay(
-            Capsule().strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
+                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+    }
+
+    private func failureView(message: String) -> some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: AppIcons.Status.warning)
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            Text(message)
+                .font(.callout)
+                .lineLimit(2)
+            Spacer(minLength: 0)
+            Button(L10n.tr("再試行")) {
+                viewModel.updateSearchText(viewModel.searchText)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .background(
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
+                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+        .accessibilityLabel(L10n.format("エラー: %@", message))
+    }
+
+    private static let resultRowEstimatedHeight: CGFloat = 64
+    private static let maxVisibleResultRows: CGFloat = 4
+
+    private func resultsList() -> some View {
+        let items = Array(searchController.state.results.enumerated())
+        let visibleCount = min(CGFloat(items.count), Self.maxVisibleResultRows)
+        let maxHeight = max(Self.resultRowEstimatedHeight, visibleCount * Self.resultRowEstimatedHeight)
+
+        return ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(items, id: \.offset) { index, mapItem in
+                    DashboardSearchResultRow(
+                        viewModel: viewModel,
+                        mapItem: mapItem
+                    )
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+
+                    if index < items.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .frame(maxHeight: maxHeight)
+        .scrollBounceBehavior(.basedOnSize)
+        .background(
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Layout.smallCornerRadius)
+                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
         )
     }
 
@@ -373,23 +345,6 @@ private struct DashboardSearchResultRow: View {
             }
             .buttonStyle(.borderedProminent)
             .accessibilityHint(L10n.tr("お気に入りに追加してリストに加えます"))
-        }
-    }
-}
-
-/// 検索失敗時に再試行アクションを提示するビュー。
-private struct DashboardSearchFailureView: View {
-    let message: String
-    let onRetry: () -> Void
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(L10n.tr("検索に失敗しました"), systemImage: AppIcons.Status.warning)
-        } description: {
-            Text(message)
-        } actions: {
-            Button(L10n.tr("再試行"), action: onRetry)
-                .buttonStyle(.borderedProminent)
         }
     }
 }
