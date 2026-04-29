@@ -9,6 +9,7 @@ struct NightScopeCommands: Commands {
     @FocusedValue(\.refreshAction) private var refreshAction: (() -> Void)?
     @FocusedValue(\.focusSearchAction) private var focusSearchAction: (() -> Void)?
     @FocusedValue(\.currentLocationAction) private var currentLocationAction: (() -> Void)?
+    @Environment(\.openWindow) private var openWindow
 
     private var observationCalendar: Calendar {
         ObservationTimeZone.gregorianCalendar(timeZone: observationTimeZone ?? .current)
@@ -87,6 +88,13 @@ struct NightScopeCommands: Commands {
             .keyboardShortcut("r", modifiers: .command)
             .disabled(refreshAction == nil)
         }
+
+        CommandGroup(after: .windowList) {
+            Button(L10n.tr("複数地点ダッシュボード")) {
+                openWindow(id: "dashboard")
+            }
+            .keyboardShortcut("d", modifiers: [.command, .shift])
+        }
     }
 }
 
@@ -95,16 +103,40 @@ struct NightScopeCommands: Commands {
 @main
 struct NightScopeApp: App {
     @StateObject private var weatherAttributionService = WeatherAttributionService()
-    @StateObject private var observationModePreference = ObservationModePreference()
-    private let appController = AppController()
+    @StateObject private var observationModePreference: ObservationModePreference
+    private let appController: AppController
+    private let rootDependencies: AppRootDependencies
+    private let dashboardSceneDependencies: DashboardSceneDependencies
+
+    init() {
+        let observationModePreference = ObservationModePreference()
+        let appController = AppController()
+        let comparisonController = ComparisonController(
+            favoriteStore: appController.favoriteStore,
+            weatherService: appController.weatherService,
+            lightPollutionService: appController.lightPollutionService,
+            calculationService: appController.calculationService
+        )
+        let dashboardCommandBridge = DashboardCommandBridge()
+
+        self._observationModePreference = StateObject(wrappedValue: observationModePreference)
+        self.appController = appController
+        self.rootDependencies = AppRootDependencies(
+            appController: appController,
+            observationModePreference: observationModePreference,
+            comparisonController: comparisonController,
+            dashboardCommandBridge: dashboardCommandBridge
+        )
+        self.dashboardSceneDependencies = DashboardSceneDependencies(
+            appController: appController,
+            dashboardCommandBridge: dashboardCommandBridge
+        )
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView(
-                dependencies: AppRootDependencies(
-                    appController: appController,
-                    observationModePreference: observationModePreference
-                )
+                dependencies: rootDependencies
             )
                 .environmentObject(weatherAttributionService)
         }
@@ -113,6 +145,14 @@ struct NightScopeApp: App {
             CommandGroup(replacing: .newItem) {}
             NightScopeCommands()
         }
+
+        #if os(macOS)
+        WindowGroup(id: "dashboard") {
+            DashboardWindowView(dependencies: dashboardSceneDependencies)
+                .environmentObject(weatherAttributionService)
+        }
+        .windowToolbarStyle(.unified(showsTitle: true))
+        #endif
 
         Settings {
             SettingsView(observationModePreference: observationModePreference)

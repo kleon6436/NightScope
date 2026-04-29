@@ -4,6 +4,9 @@
     "" : {
 
     },
+    " " : {
+
+    },
     "--" : {
 
     },
@@ -109,6 +112,28 @@
         }
       }
     },
+    "%@ をお気に入りから削除し、ダッシュボードからも外します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@ from favorites and the dashboard."
+          }
+        }
+      }
+    },
+    "%@ を外して %@ を追加しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed %@ and added %@"
+          }
+        }
+      }
+    },
     "%@。現在時刻 %@。%@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -182,6 +207,28 @@
     "%lld/100" : {
 
     },
+    "+ 登録" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+ Add"
+          }
+        }
+      }
+    },
+    "6件まで選択できます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up to 6 locations can be selected"
+          }
+        }
+      }
+    },
     "9日予報" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -227,7 +274,15 @@
       }
     },
     "Apple Weather" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Weather"
+          }
+        }
+      }
     },
     "Apple WeatherKit を使用します。" : {
       "extractionState" : "manual",
@@ -236,6 +291,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uses Apple WeatherKit."
+          }
+        }
+      }
+    },
+    "Bortle %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bortle %@"
           }
         }
       }
@@ -306,6 +372,50 @@
     },
     "d3-celestial LICENSE" : {
 
+    },
+    "dashboard.cell.failedAccessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@, failed to load, %@"
+          }
+        }
+      }
+    },
+    "dashboard.cell.loadedAccessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@, score %d, %@"
+          }
+        }
+      }
+    },
+    "dashboard.cell.loadedFallbackAccessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@, %@"
+          }
+        }
+      }
+    },
+    "dashboard.cell.loadingAccessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@, loading"
+          }
+        }
+      }
     },
     "Falchi DOI" : {
 
@@ -735,6 +845,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Failed to build the URL."
+          }
+        }
+      }
+    },
+    "Weather data sources" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other data sources"
           }
         }
       }
@@ -1438,7 +1559,26 @@
       }
     },
     "お気に入りから削除" : {
-
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from favorites"
+          }
+        }
+      }
+    },
+    "お気に入りから削除しますか？" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this favorite?"
+          }
+        }
+      }
     },
     "お気に入りに追加" : {
       "extractionState" : "manual",
@@ -1451,6 +1591,17 @@
         }
       }
     },
+    "お気に入りに追加してリストに加えます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adds to favorites and the list"
+          }
+        }
+      }
+    },
     "お気に入りの場所: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1458,6 +1609,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Favorite location: %@"
+          }
+        }
+      }
+    },
+    "お気に入り地点がありません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No favorite locations"
           }
         }
       }
@@ -1902,6 +2064,17 @@
         }
       }
     },
+    "この日の最良地点" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best location for this night"
+          }
+        }
+      }
+    },
     "この日は天気予報の対象外です" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1931,6 +2104,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The rear camera is unavailable in this environment, so the standard star map background is shown."
+          }
+        }
+      }
+    },
+    "これ以上選択できません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can't select any more"
           }
         }
       }
@@ -2166,6 +2350,34 @@
         }
       }
     },
+    "スコア %d" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score %d"
+          }
+        }
+      }
+    },
+    "スコア順" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort by score"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スコア順"
+          }
+        }
+      }
+    },
     "スピカ" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2250,6 +2462,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tau Scorpii"
+          }
+        }
+      }
+    },
+    "ダッシュボードのデータ取得に失敗しました" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to load dashboard data"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダッシュボードのデータ取得に失敗しました"
           }
         }
       }
@@ -3024,6 +3253,28 @@
         }
       }
     },
+    "メインウィンドウで開く" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in the main window"
+          }
+        }
+      }
+    },
+    "メインウィンドウのサイドバーから追加してください" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add some from the main sidebar"
+          }
+        }
+      }
+    },
     "メグレズ" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3148,6 +3399,17 @@
         }
       }
     },
+    "リストに追加" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to list"
+          }
+        }
+      }
+    },
     "りゅう座" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3210,6 +3472,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aquila"
+          }
+        }
+      }
+    },
+    "一致する地点が見つかりません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matching locations"
           }
         }
       }
@@ -3357,6 +3630,17 @@
         }
       }
     },
+    "今夜の観測ウィンドウ" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viewing window tonight"
+          }
+        }
+      }
+    },
     "今夜の観測データがありません" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3489,6 +3773,17 @@
         }
       }
     },
+    "元に戻す" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
+          }
+        }
+      }
+    },
     "光害" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3566,6 +3861,17 @@
         }
       }
     },
+    "光害レベル: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light pollution: %@"
+          }
+        }
+      }
+    },
     "光害レベル: Bortle %.0f" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3639,6 +3945,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fetching the latest data."
+          }
+        }
+      }
+    },
+    "最良日順" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best night first"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最良日順"
           }
         }
       }
@@ -3885,6 +4208,28 @@
         }
       }
     },
+    "地名を入力してください" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a place name"
+          }
+        }
+      }
+    },
+    "地名検索" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location search"
+          }
+        }
+      }
+    },
     "地図" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3892,6 +4237,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Map"
+          }
+        }
+      }
+    },
+    "地図サムネイル" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map thumbnail"
+          }
+        }
+      }
+    },
+    "地図サムネイルの取得に失敗しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to load map thumbnail"
           }
         }
       }
@@ -4008,6 +4375,89 @@
     },
     "地形データ状態: %@" : {
 
+    },
+    "地点が選択されていません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No locations selected"
+          }
+        }
+      }
+    },
+    "地点を検索" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search for a location"
+          }
+        }
+      }
+    },
+    "並び順" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort by"
+          }
+        }
+      }
+    },
+    "地点を選択" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose locations"
+          }
+        }
+      }
+    },
+    "地点を選択 (%d/%d)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose locations (%d/%d)"
+          }
+        }
+      }
+    },
+    "地点を選択して比較します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose locations to compare"
+          }
+        }
+      }
+    },
+    "地点名" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location name"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地点名"
+          }
+        }
+      }
     },
     "場所" : {
       "extractionState" : "manual",
@@ -4614,6 +5064,17 @@
         }
       }
     },
+    "既にお気に入りに登録されています" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already in favorites"
+          }
+        }
+      }
+    },
     "日付" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5186,6 +5647,17 @@
         }
       }
     },
+    "検索に失敗しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search failed"
+          }
+        }
+      }
+    },
     "検索中…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5439,6 +5911,17 @@
         }
       }
     },
+    "登録済み" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already saved"
+          }
+        }
+      }
+    },
     "視野 %.0f°" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5644,6 +6127,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Calibrate"
+          }
+        }
+      }
+    },
+    "複数地点ダッシュボード" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multi-Location Dashboard"
           }
         }
       }
@@ -5926,6 +6420,17 @@
         }
       }
     },
+    "選択上限に達しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selection limit reached"
+          }
+        }
+      }
+    },
     "選択中" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5955,6 +6460,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The galactic center above the horizon does not overlap with astronomical darkness."
+          }
+        }
+      }
+    },
+    "閉じる" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
           }
         }
       }

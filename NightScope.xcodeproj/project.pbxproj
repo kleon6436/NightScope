@@ -20,6 +20,7 @@
 		2F634825E4145753F51108E9 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
 		477B2E3CB5355CA1BA5757D3 /* ViewingWindowsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F16 /* ViewingWindowsSection.swift */; };
 		4F871C5177B328F9DFC5EEAA /* FavoriteLocationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA0C4060B1252A05AA86C03 /* FavoriteLocationStore.swift */; };
+		DDB100000000000000002011 /* DashboardSearchController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000002013 /* DashboardSearchController.swift */; };
 		54A5C1BEDE1E30CC826A7F87 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18B76F2F791309007949F3 /* SettingsView.swift */; };
 		6444E5ACCDE32CC8CFC28AF6 /* MapTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */; };
 		6C1674E82F8E7B7500AF040A /* ObservationTimeZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1674E72F8E7B7500AF040A /* ObservationTimeZone.swift */; };
@@ -150,6 +151,19 @@
 		CC0000000000000000B12101 /* TerrainProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F21 /* TerrainProfile.swift */; };
 		CC0000000000000000B12102 /* TerrainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F22 /* TerrainService.swift */; };
 		CDE0B61ACA19A82237AAC59A /* FavoriteLocationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA0C4060B1252A05AA86C03 /* FavoriteLocationStore.swift */; };
+		DDB100000000000000002001 /* DashboardCommandBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001001 /* DashboardCommandBridge.swift */; };
+		DDB100000000000000002002 /* DashboardCommandBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001001 /* DashboardCommandBridge.swift */; };
+		DDB100000000000000002003 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001002 /* DashboardViewModel.swift */; };
+		DDB100000000000000002004 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001002 /* DashboardViewModel.swift */; };
+		DDB100000000000000002005 /* MapSnapshotCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001003 /* MapSnapshotCache.swift */; };
+		DDB100000000000000002006 /* MapSnapshotCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001003 /* MapSnapshotCache.swift */; };
+		DDB100000000000000002007 /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001004 /* DashboardViewModelTests.swift */; };
+		DDB100000000000000002008 /* ComparisonMatrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C21A9833046DD44B1100A11 /* ComparisonMatrix.swift */; };
+		DDB100000000000000002009 /* ComparisonController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C21A9833046DD44B1100A12 /* ComparisonController.swift */; };
+		DDB10000000000000000200A /* DashboardLocationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001005 /* DashboardLocationCard.swift */; };
+		DDB10000000000000000200B /* DashboardLocationPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001006 /* DashboardLocationPickerSheet.swift */; };
+		DDB10000000000000000200D /* DashboardSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001008 /* DashboardSearchSheet.swift */; };
+		DDB10000000000000000200C /* DashboardWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001007 /* DashboardWindowView.swift */; };
 		D1A100000000000000000002 /* StarMapDisplaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A100000000000000000001 /* StarMapDisplaySettings.swift */; };
 		D1A100000000000000000003 /* StarMapDisplaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A100000000000000000001 /* StarMapDisplaySettings.swift */; };
 		D1A100000000000000000005 /* StarMapDisplaySettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A100000000000000000004 /* StarMapDisplaySettingsSection.swift */; };
@@ -235,6 +249,14 @@
 		AA0000000000000000002F26 /* AppRootDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRootDependencies.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F27 /* WeatherServiceSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceSupport.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F28 /* LocationControllerSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationControllerSupport.swift; sourceTree = "<group>"; };
+		DDB100000000000000001001 /* DashboardCommandBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/Controllers/DashboardCommandBridge.swift; sourceTree = "<group>"; };
+		DDB100000000000000001002 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/ViewModels/DashboardViewModel.swift; sourceTree = "<group>"; };
+		DDB100000000000000001003 /* MapSnapshotCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/Controllers/MapSnapshotCache.swift; sourceTree = "<group>"; };
+		DDB100000000000000001004 /* DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeTests/DashboardViewModelTests.swift; sourceTree = "<group>"; };
+		DDB100000000000000001005 /* DashboardLocationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLocationCard.swift; sourceTree = "<group>"; };
+		DDB100000000000000001006 /* DashboardLocationPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLocationPickerSheet.swift; sourceTree = "<group>"; };
+		DDB100000000000000001008 /* DashboardSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSearchSheet.swift; sourceTree = "<group>"; };
+		DDB100000000000000001007 /* DashboardWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardWindowView.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F01 /* DetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F02 /* SidebarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingNightsGridViewModel.swift; sourceTree = "<group>"; };
@@ -280,6 +302,7 @@
 		BB0000000000000000007F01 /* constellations_iau.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = constellations_iau.json; sourceTree = "<group>"; };
 		D0E51B35725701CA2DB51488 /* iOSMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSMapView.swift; sourceTree = "<group>"; };
 		D1A100000000000000000001 /* StarMapDisplaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapDisplaySettings.swift; sourceTree = "<group>"; };
+		DDB100000000000000002013 /* DashboardSearchController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSearchController.swift; sourceTree = "<group>"; };
 		D1A100000000000000000004 /* StarMapDisplaySettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapDisplaySettingsSection.swift; sourceTree = "<group>"; };
 		E1A0B1000000000000000001 /* iOSPreviewSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSPreviewSupport.swift; sourceTree = "<group>"; };
 		E2B700000000000000000001 /* ObservationHeatBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservationHeatBarView.swift; sourceTree = "<group>"; };
@@ -421,6 +444,7 @@
 				0C21A9833046DD44B1100A12 /* ComparisonController.swift */,
 				AA0000000000000000002F05 /* LocationController.swift */,
 				AA0000000000000000002F28 /* LocationControllerSupport.swift */,
+				DDB100000000000000002013 /* DashboardSearchController.swift */,
 				AA0000000000000000002F27 /* WeatherServiceSupport.swift */,
 				AEF100000000000000000001 /* WeatherKitService.swift */,
 				AEF100000000000000000002 /* WeatherKitServiceSupport.swift */,
@@ -440,6 +464,10 @@
 				D1A100000000000000000004 /* StarMapDisplaySettingsSection.swift */,
 				E2B700000000000000000001 /* ObservationHeatBarView.swift */,
 				AA0000000000000000002F07 /* ContentView.swift */,
+				DDB100000000000000001005 /* DashboardLocationCard.swift */,
+				DDB100000000000000001006 /* DashboardLocationPickerSheet.swift */,
+				DDB100000000000000001008 /* DashboardSearchSheet.swift */,
+				DDB100000000000000001007 /* DashboardWindowView.swift */,
 				AA0000000000000000002F08 /* SidebarView.swift */,
 				AA0000000000000000002F09 /* DetailView.swift */,
 				AA0000000000000000002F13 /* StarGazingIndexCard.swift */,
@@ -689,6 +717,9 @@
 				DDDBBCFA5705F923909101C5 /* NightCalculationService.swift in Sources */,
 				AEF100000000000000000021 /* WeatherKitService.swift in Sources */,
 				AEF100000000000000000022 /* WeatherKitServiceSupport.swift in Sources */,
+				DDB100000000000000002008 /* ComparisonMatrix.swift in Sources */,
+				DDB100000000000000002009 /* ComparisonController.swift in Sources */,
+				DDB100000000000000002002 /* DashboardCommandBridge.swift in Sources */,
 				BD26966CB632FA724659667D /* LightPollutionService.swift in Sources */,
 				C71CDD3E6ABE68E1AA626B3E /* LocationController.swift in Sources */,
 				C71CDD3E6ABE68E1AA626B3F /* LocationControllerSupport.swift in Sources */,
@@ -755,6 +786,14 @@
 				AA0000000000000000002B27 /* WeatherServiceSupport.swift in Sources */,
 				AEF100000000000000000011 /* WeatherKitService.swift in Sources */,
 				AEF100000000000000000012 /* WeatherKitServiceSupport.swift in Sources */,
+				DDB100000000000000002005 /* MapSnapshotCache.swift in Sources */,
+				DDB100000000000000002003 /* DashboardViewModel.swift in Sources */,
+				DDB100000000000000002011 /* DashboardSearchController.swift in Sources */,
+				DDB100000000000000002001 /* DashboardCommandBridge.swift in Sources */,
+				DDB10000000000000000200A /* DashboardLocationCard.swift in Sources */,
+				DDB10000000000000000200B /* DashboardLocationPickerSheet.swift in Sources */,
+				DDB10000000000000000200D /* DashboardSearchSheet.swift in Sources */,
+				DDB10000000000000000200C /* DashboardWindowView.swift in Sources */,
 				AA0000000000000000002B18 /* NightCalculationService.swift in Sources */,
 				0C21A9833046DD44B1100A02 /* ComparisonController.swift in Sources */,
 				AA0000000000000000002B12 /* LightPollutionService.swift in Sources */,
@@ -818,6 +857,7 @@
 				AA000000000000000000TB14 /* SearchResultsLayoutTests.swift in Sources */,
 				AA000000000000000000TB15 /* CalendarViewTests.swift in Sources */,
 				0C21A9833046DD44B1100A03 /* ComparisonControllerTests.swift in Sources */,
+				DDB100000000000000002007 /* DashboardViewModelTests.swift in Sources */,
 				E2B1BBFAE453C3FC09374E13 /* FavoriteLocationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

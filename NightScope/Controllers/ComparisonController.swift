@@ -24,11 +24,11 @@ final class ComparisonController: ObservableObject {
         self.calculationService = calculationService
     }
 
-    func refresh(referenceDate: Date = Date()) async {
+    func refresh(referenceDate: Date = Date(), locations: [FavoriteLocation]? = nil) async {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        let locations = favoriteStore.loadAll()
+        let locations = locations ?? favoriteStore.loadAll()
         let dates = Self.makeDates(referenceDate: referenceDate, dayCount: dayCount)
         matrix = ComparisonMatrix(
             locations: locations,
@@ -41,10 +41,61 @@ final class ComparisonController: ObservableObject {
             })
         )
 
-        guard !locations.isEmpty else { return }
+        let computed = await computeMatrix(referenceDate: referenceDate, locations: locations)
+        matrix = computed
+    }
 
-        var cellsByID = matrix.cellsByID
+    func computeMatrix(referenceDate: Date = Date(), locations: [FavoriteLocation]? = nil) async -> ComparisonMatrix {
+        let locations = locations ?? favoriteStore.loadAll()
+        return await Self.computeMatrix(
+            referenceDate: referenceDate,
+            locations: locations,
+            dayCount: dayCount,
+            weatherService: weatherService,
+            lightPollutionService: lightPollutionService,
+            calculationService: calculationService
+        )
+    }
+
+    func cell(for locationID: UUID, date: Date) -> ComparisonCell? {
+        matrix.cellsByID[ComparisonCell.makeID(locationID: locationID, date: date)]
+    }
+
+    func bestCell(for date: Date) -> ComparisonCell? {
+        matrix.locations
+            .compactMap { cell(for: $0.id, date: date) }
+            .max { ($0.index?.score ?? Int.min) < ($1.index?.score ?? Int.min) }
+    }
+
+    private static func makeDates(referenceDate: Date, dayCount: Int) -> [Date] {
+        let calendar = Calendar(identifier: .gregorian)
+        let start = calendar.startOfDay(for: referenceDate)
+        return (0..<dayCount).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+    }
+
+    static func computeMatrix(
+        referenceDate: Date,
+        locations: [FavoriteLocation],
+        dayCount: Int,
+        weatherService: any WeatherProviding,
+        lightPollutionService: any LightPollutionProviding,
+        calculationService: any NightCalculating
+    ) async -> ComparisonMatrix {
+        let dates = makeDates(referenceDate: referenceDate, dayCount: dayCount)
+        var cellsByID = Dictionary(uniqueKeysWithValues: locations.flatMap { location in
+            dates.map { date in
+                let cell = ComparisonCell(locationID: location.id, date: date, loadState: .loading)
+                return (cell.id, cell)
+            }
+        })
+
+        guard !locations.isEmpty else {
+            return ComparisonMatrix(locations: [], dates: dates, cellsByID: [:])
+        }
+
         for location in locations {
+            guard !Task.isCancelled else { break }
+
             let timeZone = TimeZone(identifier: location.timeZoneIdentifier) ?? .current
             let coordinate = CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude)
             let weatherResult = await weatherService.fetchWeatherSnapshot(
@@ -70,7 +121,7 @@ final class ComparisonController: ObservableObject {
                         locationID: location.id,
                         date: date,
                         bortleClass: bortleClass,
-                        loadState: .failed("Missing night summary")
+                        loadState: .failed(L10n.tr("取得失敗"))
                     )
                     continue
                 }
@@ -99,22 +150,6 @@ final class ComparisonController: ObservableObject {
             }
         }
 
-        matrix = ComparisonMatrix(locations: locations, dates: dates, cellsByID: cellsByID)
-    }
-
-    func cell(for locationID: UUID, date: Date) -> ComparisonCell? {
-        matrix.cellsByID[ComparisonCell.makeID(locationID: locationID, date: date)]
-    }
-
-    func bestCell(for date: Date) -> ComparisonCell? {
-        matrix.locations
-            .compactMap { cell(for: $0.id, date: date) }
-            .max { ($0.index?.score ?? Int.min) < ($1.index?.score ?? Int.min) }
-    }
-
-    private static func makeDates(referenceDate: Date, dayCount: Int) -> [Date] {
-        let calendar = Calendar(identifier: .gregorian)
-        let start = calendar.startOfDay(for: referenceDate)
-        return (0..<dayCount).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        return ComparisonMatrix(locations: locations, dates: dates, cellsByID: cellsByID)
     }
 }

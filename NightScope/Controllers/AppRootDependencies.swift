@@ -10,24 +10,48 @@ struct AppRootDependencies {
     let sidebarViewModel: SidebarViewModel
     let detailViewModel: DetailViewModel
     let starMapViewModel: StarMapViewModel
+    let comparisonController: ComparisonController
+    let dashboardCommandBridge: DashboardCommandBridge
 
-    init(appController: AppController, observationModePreference: ObservationModePreference = ObservationModePreference()) {
+    init(
+        appController: AppController,
+        observationModePreference: ObservationModePreference = ObservationModePreference(),
+        comparisonController: ComparisonController? = nil,
+        dashboardCommandBridge: DashboardCommandBridge? = nil
+    ) {
         self.appController = appController
         self.observationModePreference = observationModePreference
         self.sidebarViewModel = SidebarViewModel(
             locationController: appController.locationController,
-            lightPollutionService: appController.lightPollutionService
+            lightPollutionService: appController.lightPollutionService,
+            favoriteStore: appController.favoriteStore
         )
         self.detailViewModel = DetailViewModel(
             appController: appController,
             observationModePreference: observationModePreference
         )
         self.starMapViewModel = StarMapViewModel(appController: appController)
+        self.comparisonController = comparisonController ?? ComparisonController(
+            favoriteStore: appController.favoriteStore,
+            weatherService: appController.weatherService,
+            lightPollutionService: appController.lightPollutionService,
+            calculationService: appController.calculationService
+        )
+        self.dashboardCommandBridge = dashboardCommandBridge ?? DashboardCommandBridge()
+        appController.bindDashboardCommandBridge(self.dashboardCommandBridge) { [detailViewModel] date in
+            detailViewModel.selectedDate = date
+        }
     }
 
     static func makeDefault() -> AppRootDependencies {
         AppRootDependencies(appController: AppController())
     }
+}
+
+@MainActor
+struct DashboardSceneDependencies {
+    let appController: AppController
+    let dashboardCommandBridge: DashboardCommandBridge
 }
 
 @MainActor
@@ -37,6 +61,8 @@ final class AppRootStore: ObservableObject {
     let sidebarViewModel: SidebarViewModel
     let detailViewModel: DetailViewModel
     let starMapViewModel: StarMapViewModel
+    let comparisonController: ComparisonController
+    let dashboardCommandBridge: DashboardCommandBridge
     
     @Published private(set) var selectedDate: Date = Date()
 
@@ -47,6 +73,8 @@ final class AppRootStore: ObservableObject {
         self.sidebarViewModel = dependencies.sidebarViewModel
         self.detailViewModel = dependencies.detailViewModel
         self.starMapViewModel = dependencies.starMapViewModel
+        self.comparisonController = dependencies.comparisonController
+        self.dashboardCommandBridge = dependencies.dashboardCommandBridge
         
         // detailViewModel の日付変化を AppRootStore に伝播させ ContentView を再描画させる
         dependencies.detailViewModel.$selectedDate

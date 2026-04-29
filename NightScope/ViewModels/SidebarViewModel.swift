@@ -106,6 +106,15 @@ final class SidebarViewModel: ObservableObject {
         self.selectedTimeZone = locationController.selectedTimeZone
         self.favorites = favoriteStore.loadAll()
 
+        // FavoriteLocationStore は他画面（複数地点ダッシュボード等）からも更新されるため
+        // publisher を購読してサイドバーの favorites を常に同期する。
+        favoriteStore.locationsPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] favorites in
+                self?.favorites = favorites
+            }
+            .store(in: &cancellables)
+
         // LocationProviding / LightPollutionProviding は @MainActor プロトコルであり、
         // concrete 実装も @MainActor のため、upstream publisher は必ずメインスレッドで発火する。
         // receive(on: DispatchQueue.main) は不要。

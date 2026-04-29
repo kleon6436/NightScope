@@ -143,6 +143,7 @@ private struct WeatherSymbolVisual: View {
 /// full: 設定画面用（大きめ + 法的情報リンク）
 struct WeatherAttributionBadge: View {
     enum Style { case compact, full }
+    private static let legalURL = URL(string: "https://weatherkit.apple.com/legal-attribution.html")!
 
     var style: Style = .compact
 
@@ -162,24 +163,52 @@ struct WeatherAttributionBadge: View {
                 case .full:
                     VStack(alignment: .leading, spacing: 4) {
                         combinedMark(url: logoURL, height: 12)
-                        Link("法的情報・著作権", destination: data.legalPageURL)
+                        Link(L10n.tr("法的情報・著作権"), destination: data.legalPageURL)
                             .font(.caption2)
                     }
                 }
             } else {
-                Text("Apple Weather")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                fallbackAttribution
             }
         }
         .task { await attributionService.loadIfNeeded() }
+    }
+
+    @ViewBuilder
+    private var fallbackAttribution: some View {
+        switch style {
+        case .compact:
+            HStack(spacing: 4) {
+                Image(systemName: "cloud.sun.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(L10n.tr("Apple Weather"))
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                Link(L10n.tr("Weather data sources"), destination: Self.legalURL)
+                    .font(.caption2)
+            }
+        case .full:
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "cloud.sun.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(L10n.tr("Apple Weather"))
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                }
+                Link(L10n.tr("Weather data sources"), destination: Self.legalURL)
+                    .font(.caption2)
+            }
+        }
     }
 
     private func combinedMark(url: URL, height: CGFloat) -> some View {
         AsyncImage(url: url) { image in
             image.resizable().scaledToFit()
         } placeholder: {
-            Text("Apple Weather")
+            Text(L10n.tr("Apple Weather"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }

@@ -1,4 +1,6 @@
 import SwiftUI
+#if os(macOS)
+#endif
 
 struct ContentView: View {
     @StateObject private var rootStore: AppRootStore

@@ -1,6 +1,9 @@
 import Foundation
 import Combine
 import CoreLocation
+#if os(macOS)
+import AppKit
+#endif
 
 @MainActor
 final class AppController: ObservableObject {
@@ -70,12 +73,15 @@ final class AppController: ObservableObject {
     @Published private(set) var observationState = ObservationState()
 
     // MARK: - Private State
-    private let calculationService: NightCalculating
+    let favoriteStore: any FavoriteLocationStoring
+    let calculationService: NightCalculating
     private var calculationTask: Task<Void, Never>?
     private var upcomingTask: Task<Void, Never>?
     private var locationTask: Task<Void, Never>?
     private var externalDataTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
+    private var dashboardCommandBridgeCancellable: AnyCancellable?
+    private var dashboardSelectionDateHandler: ((Date) -> Void)?
     private var isApplyingLocationRefresh = false
     private var hasStarted = false
     private var lastObservedTimeZone: TimeZone
@@ -90,6 +96,7 @@ final class AppController: ObservableObject {
         self.locationController = locationController ?? LocationController()
         self.weatherService = weatherService ?? WeatherKitService()
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
+        self.favoriteStore = FavoriteLocationStore()
         self.calculationService = calculationService ?? NightCalculationService()
         self.lastObservedTimeZone = self.locationController.selectedTimeZone
         self.selectedDate = ObservationTimeZone.startOfDay(
@@ -103,6 +110,16 @@ final class AppController: ObservableObject {
         // StarMapViewModel が初回 _compute を実行する前に準備を完了させる。
         Task.detached(priority: .background) {
             _ = StarCatalog.stars.count
+        }
+    }
+
+    func bindDashboardCommandBridge(
+        _ bridge: DashboardCommandBridge,
+        onSelectDate: ((Date) -> Void)? = nil
+    ) {
+        dashboardSelectionDateHandler = onSelectDate
+        dashboardCommandBridgeCancellable = bridge.selectionPublisher.sink { [weak self] selection in
+            self?.handleDashboardSelection(selection)
         }
     }
 
@@ -203,6 +220,16 @@ final class AppController: ObservableObject {
             guard let self else { return }
             await self.refreshExternalData(using: context)
         }
+    }
+
+    func bringMainWindowToFront() {
+        #if os(macOS)
+        if #available(macOS 14, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        #endif
     }
 
     // MARK: - Calculation
@@ -676,6 +703,17 @@ final class AppController: ObservableObject {
                 timeZone: context.timeZone
             )
         )
+    }
+
+    private func handleDashboardSelection(_ selection: DashboardSelection) {
+        locationController.selectCoordinate(
+            CLLocationCoordinate2D(
+                latitude: selection.location.latitude,
+                longitude: selection.location.longitude
+            )
+        )
+        dashboardSelectionDateHandler?(selection.date)
+        bringMainWindowToFront()
     }
 }
 

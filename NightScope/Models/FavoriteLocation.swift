@@ -1,6 +1,6 @@
 import Foundation
 
-struct FavoriteLocation: Identifiable, Codable, Equatable {
+struct FavoriteLocation: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var name: String
     var latitude: Double
