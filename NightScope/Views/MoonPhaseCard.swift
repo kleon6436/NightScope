@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 月相と月齢から観測への影響を示すカード。
 struct MoonPhaseCard: View {
     let summary: NightSummary
 

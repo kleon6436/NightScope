@@ -27,6 +27,7 @@ struct ConstellationSegment: Decodable {
 }
 
 /// 星座エントリ (日本語名 + 英語名 + 中心座標 + 星座線セグメント群)
+/// 星座名、表示用座標、星座線セグメントをまとめたエントリ。
 struct ConstellationEntry {
     let japaneseName: String
     let englishName: String
@@ -34,6 +35,7 @@ struct ConstellationEntry {
     let centerDec: Double
     let segments: [ConstellationSegment]
 
+    /// 一部の IAU 英語名をアプリ内の表示慣例に合わせて正規化する。
     static func normalizedEnglishDisplayName(_ name: String) -> String {
         switch name {
         case "Boötes":
@@ -51,6 +53,7 @@ struct ConstellationEntry {
         Self.normalizedEnglishDisplayName(englishName)
     }
 
+    /// 現在の表示言語に応じて、日本語名か英語名のどちらを出すか決める。
     func resolvedDisplayName(localizedJapaneseName: String, preferredLanguage: String?) -> String {
         let prefersJapanese = preferredLanguage?.hasPrefix("ja") == true
         if localizedJapaneseName != japaneseName {
@@ -70,6 +73,7 @@ struct ConstellationEntry {
 
 // MARK: - Constellation Catalog
 
+/// バンドル内の星座データを読み込むエントリポイント。
 enum ConstellationData {
     private struct ResourceEntry: Decodable {
         let japaneseName: String
@@ -86,6 +90,7 @@ enum ConstellationData {
 
     static let constellations: [ConstellationEntry] = loadConstellations()
 
+    /// constellations_iau.json をデコードして星座一覧を組み立てる。
     private static func loadConstellations() -> [ConstellationEntry] {
         guard let resourceURL = Bundle.main.url(forResource: "constellations_iau", withExtension: "json") else {
             assertionFailure("constellations_iau.json がバンドルされていません")

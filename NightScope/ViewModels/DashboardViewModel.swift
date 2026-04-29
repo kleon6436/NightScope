@@ -4,6 +4,7 @@ import Foundation
 import MapKit
 
 @MainActor
+/// ダッシュボードの地点比較、検索、選択状態を管理する ViewModel。
 protocol ComparisonControlling: AnyObject {
     var matrix: ComparisonMatrix { get }
     var dayCount: Int { get set }
@@ -15,7 +16,9 @@ protocol ComparisonControlling: AnyObject {
 extension ComparisonController: ComparisonControlling {}
 
 @MainActor
+/// 複数地点の比較カードと検索状態をまとめて制御する。
 final class DashboardViewModel: ObservableObject {
+    /// 比較結果の並び順を表す。
     enum SortKey: String, CaseIterable, Identifiable {
         case score
         case name
@@ -35,6 +38,7 @@ final class DashboardViewModel: ObservableObject {
         }
     }
 
+    /// 置き換えられた選択を元に戻すための情報。
     struct SwappedSelection: Equatable, Sendable {
         let removedID: UUID
         let removedName: String
@@ -42,6 +46,7 @@ final class DashboardViewModel: ObservableObject {
         let addedName: String
     }
 
+    /// すでに存在した地点か、新規登録かを表す。
     enum RegistrationOutcome: Equatable, Sendable {
         case alreadyExisted(existingID: UUID)
         case registered(newID: UUID, swap: SwappedSelection?)
@@ -76,6 +81,7 @@ final class DashboardViewModel: ObservableObject {
     private var refreshGeneration = 0
     private var didApplyInitialSelection = false
 
+    /// お気に入りストアと比較コントローラを接続し、初期状態を読み込む。
     init(
         comparisonController: some ComparisonControlling,
         favoriteStore: some FavoriteLocationStoring
@@ -101,6 +107,8 @@ final class DashboardViewModel: ObservableObject {
 
     var canSelectMore: Bool { selectedIDs.count < Self.maxSelection }
 
+    /// 保存済みのお気に入りを読み直して、選択状態と整合させる。
+    /// 保存済みのお気に入りを読み直して、選択状態と整合させる。
     func reloadFavorites() {
         applyFavorites(favoriteStore.loadAll(), triggerRefresh: false)
     }
@@ -141,6 +149,8 @@ final class DashboardViewModel: ObservableObject {
         await task.value
     }
 
+    /// 選択済み地点をトグルする。
+    /// 選択済み地点をトグルする。
     func toggleSelection(_ id: UUID) {
         if selectedIDs.contains(id) {
             selectedIDs.remove(id)
@@ -179,6 +189,8 @@ final class DashboardViewModel: ObservableObject {
         )
     }
 
+    /// 新しいお気に入りを登録し、そのまま比較対象に含める。
+    /// 新しいお気に入りを登録し、そのまま比較対象に含める。
     func registerAndSelect(
         coordinate: CLLocationCoordinate2D,
         name: String,
@@ -207,6 +219,8 @@ final class DashboardViewModel: ObservableObject {
         favoriteStore.save(updated)
     }
 
+    /// 直近の入れ替えを取り消す。
+    /// 直近の入れ替えを取り消す。
     func undoLastSwap() {
         guard let pending = pendingSwaps.popLast() else { return }
         pending.resetTask.cancel()
@@ -356,6 +370,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func setLastSwap(_ swap: SwappedSelection) {
+        // 一定時間だけ undo を許可し、期限切れ後は自動で候補を外す。
         let id = UUID()
         let resetTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(5))
@@ -381,6 +396,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func requestRefresh(referenceDate: Date = Date()) -> Task<Void, Never> {
+        // 連続更新では古い計算結果を捨て、最新の選択状態だけを反映する。
         refreshTask?.cancel()
         refreshGeneration += 1
         let generation = refreshGeneration
@@ -420,6 +436,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func existingFavorite(near coordinate: CLLocationCoordinate2D) -> FavoriteLocation? {
+        // 近接座標は同一地点として扱い、重複登録を防ぐ。
         let targetLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
 
         return availableFavorites.first { favorite in
@@ -429,6 +446,7 @@ final class DashboardViewModel: ObservableObject {
     }
 
     private func coordinate(for mapItem: MKMapItem) -> CLLocationCoordinate2D {
+        // iOS / macOS の対応差を吸収し、常に同じ座標取得経路を使う。
         if #available(iOS 26, macOS 26, *) {
             return mapItem.location.coordinate
         } else {

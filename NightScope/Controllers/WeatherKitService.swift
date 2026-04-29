@@ -5,11 +5,13 @@ import WeatherKit
 
 // WeatherKit.WeatherService と module 名を明示して Apple SDK 側を参照する。
 
+/// WeatherKit から取得した予報を NightScope 用の状態へ変換する。
 @MainActor
 final class WeatherKitService: ObservableObject, WeatherProviding {
 
     // MARK: - Internal location context
 
+    /// 取得対象の地点情報をひとまとめにする。
     private struct LocationContext {
         let latitude: Double
         let longitude: Double
@@ -44,6 +46,7 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
 
     // MARK: - WeatherProviding: fetch
 
+    /// 指定地点の予報を取得し、公開状態へ反映する。
     func fetchWeather(latitude: Double, longitude: Double, timeZone: TimeZone) async {
         let context = LocationContext(latitude: latitude, longitude: longitude, timeZone: timeZone)
         let fallback = cachedWeatherByDate(for: context.locationKey)
@@ -61,6 +64,7 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
         await currentTask?.value
     }
 
+    /// 取得結果を副作用なしで返すスナップショット版。
     func fetchWeatherSnapshot(latitude: Double, longitude: Double, timeZone: TimeZone) async -> WeatherFetchResult {
         let context = LocationContext(latitude: latitude, longitude: longitude, timeZone: timeZone)
         return await loadWeather(
@@ -69,6 +73,7 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
         )
     }
 
+    /// 取得結果をキャッシュと公開状態へ同期する。
     func applyFetchResult(_ result: WeatherFetchResult) {
         activeLocationKey = result.locationKey
         activeTimeZoneIdentifier = result.timeZoneIdentifier
@@ -82,6 +87,7 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
 
     // MARK: - WeatherProviding: query helpers
 
+    /// 現在の観測地・タイムゾーンで日別要約を引く。
     func summary(for date: Date) -> DayWeatherSummary? {
         summary(for: date, from: weatherByDate, timeZone: activeTimeZone)
     }
@@ -112,6 +118,7 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
         Self.makeDateKeyFormatter(timeZone: timeZone).string(from: date)
     }
 
+    /// 観測地切り替え前に既存キャッシュを再利用可能な形へ寄せる。
     func prepareForLocationChange(latitude: Double, longitude: Double, timeZone: TimeZone) {
         currentTask?.cancel()
         prepareForLocationChange(
@@ -170,6 +177,7 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
 
     // MARK: - WeatherKit fetch
 
+    /// WeatherKit から取得したデータを共有形式へ正規化する。
     private func loadWeather(
         context: LocationContext,
         fallbackWeatherByDate: [String: DayWeatherSummary]
@@ -232,6 +240,7 @@ final class WeatherKitService: ObservableObject, WeatherProviding {
 
     // MARK: - Night grouping
 
+    /// 24時間予報を夜間区間ごとに束ねる。
     private func groupNightHours(
         _ hourWeathers: [HourWeather],
         coordinate: CLLocationCoordinate2D,

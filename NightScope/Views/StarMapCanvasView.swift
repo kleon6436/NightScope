@@ -20,6 +20,7 @@ struct StarMapCanvasView: View {
         var id: Double { azimuthDegrees }
     }
 
+    /// 星座ラベルを重ねる際に使う候補情報。
     struct ConstellationLabelCandidate: Equatable {
         let name: String
         let anchor: CGPoint

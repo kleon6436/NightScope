@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 選択中の日付に対する詳細情報をまとめるメイン詳細ビュー。
 struct DetailView: View {
     @ObservedObject var viewModel: DetailViewModel
     @ObservedObject var observationModePreference: ObservationModePreference

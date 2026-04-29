@@ -1,5 +1,6 @@
 import Foundation
 
+/// 流星群 1 件分の観測カタログ情報。
 struct MeteorShower: Identifiable {
     let id: String
     let name: String          // 表示名（日本語）
@@ -18,6 +19,7 @@ struct MeteorShower: Identifiable {
 
 // MARK: - Major Meteor Showers Catalog
 
+/// 主要流星群の静的カタログ。
 enum MeteorShowerCatalog {
     static let all: [MeteorShower] = [
         MeteorShower(id: "quadrantids",   name: "しぶんぎ座流星群",   radiantRA: 230.1, radiantDec: 48.5,  peakMonth:  1, peakDay:  4, activityDays: 2,  zhr: 120, symbol: "✦"),
@@ -31,6 +33,7 @@ enum MeteorShowerCatalog {
     ]
 
     // 指定日時付近でアクティブな流星群を返す（最大3件）
+    /// 指定日時に活動中の流星群を ZHR の高い順で返す。
     static func active(on date: Date, timeZone: TimeZone = .current) -> [MeteorShower] {
         let cal = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let month = cal.component(.month, from: date)
@@ -45,6 +48,7 @@ enum MeteorShowerCatalog {
     }
 
     // 次の流星群（極大日が最も近い）
+    /// 指定日時以降で最も近い極大日の流星群を返す。
     static func next(after date: Date, timeZone: TimeZone = .current) -> (shower: MeteorShower, daysUntilPeak: Int)? {
         let cal   = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
         let month = cal.component(.month, from: date)

@@ -3,6 +3,7 @@ import Combine
 import CoreLocation
 import MapKit
 
+/// アプリのルートで共有する依存関係を一括生成する。
 @MainActor
 struct AppRootDependencies {
     let appController: AppController
@@ -13,6 +14,7 @@ struct AppRootDependencies {
     let comparisonController: ComparisonController
     let dashboardCommandBridge: DashboardCommandBridge
 
+    /// AppController を起点に各 ViewModel と補助コントローラを組み立てる。
     init(
         appController: AppController,
         observationModePreference: ObservationModePreference = ObservationModePreference(),
@@ -43,17 +45,20 @@ struct AppRootDependencies {
         }
     }
 
+    /// 標準構成の依存関係を生成する。
     static func makeDefault() -> AppRootDependencies {
         AppRootDependencies(appController: AppController())
     }
 }
 
+/// Dashboard シーンへ渡す最小構成の依存関係。
 @MainActor
 struct DashboardSceneDependencies {
     let appController: AppController
     let dashboardCommandBridge: DashboardCommandBridge
 }
 
+/// ルート依存関係を保持し、ViewModel 間の購読をまとめて管理する。
 @MainActor
 final class AppRootStore: ObservableObject {
     let appController: AppController
@@ -82,6 +87,7 @@ final class AppRootStore: ObservableObject {
     }
 }
 
+/// アプリの各 ViewModel が共有する地点選択インターフェース。
 @MainActor
 protocol LocationProviding: AnyObject, ObservableObject {
     var selectedLocation: CLLocationCoordinate2D { get set }

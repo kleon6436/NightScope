@@ -5,6 +5,7 @@ import CoreMedia
 import CoreMotion
 import UIKit
 
+/// 星空タブの操作状態を header overlay に渡す。
 struct iOSStarMapControlState {
     let displaySettings: StarMapDisplaySettings
     let canEnableGyroMode: Bool
@@ -16,6 +17,7 @@ struct iOSStarMapControlState {
     let displayedCameraNotice: CameraNotice?
 }
 
+/// 星空タブの上部に重ねる操作パネル。
 struct iOSStarMapHeaderOverlay: View {
     let controlState: iOSStarMapControlState
     let onOpenDisplaySettings: () -> Void
@@ -142,6 +144,7 @@ struct iOSStarMapHeaderOverlay: View {
     }
 }
 
+/// 星空表示設定を編集する sheet。
 struct iOSStarMapDisplaySettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -165,6 +168,7 @@ struct iOSStarMapDisplaySettingsSheetView: View {
     }
 }
 
+/// カメラ関連の注意メッセージを表示するカード。
 private struct iOSStarMapNoticeCard: View {
     let notice: CameraNotice
     let onOpenSettings: () -> Void
@@ -193,6 +197,7 @@ private struct iOSStarMapNoticeCard: View {
     }
 }
 
+/// カメラ利用可否やエラーメッセージをまとめた通知。
 struct CameraNotice: Equatable {
     let symbolName: String
     let title: String
@@ -231,6 +236,7 @@ struct CameraNotice: Equatable {
 }
 
 @MainActor
+/// CoreMotion と CLLocationManager を使って向き情報を管理する。
 final class StarMapMotionController: NSObject, ObservableObject {
     private let motionManager = CMMotionManager()
     private let headingManager = CLLocationManager()
@@ -329,7 +335,7 @@ final class StarMapMotionController: NSObject, ObservableObject {
     }
 }
 
-// MARK: - CLLocationManagerDelegate
+// MARK: - 位置情報デリゲート
 
 extension StarMapMotionController: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
@@ -344,6 +350,7 @@ extension StarMapMotionController: CLLocationManagerDelegate {
 }
 
 @MainActor
+/// AVFoundation のカメラセッションを管理する。
 final class StarMapCameraController: NSObject, ObservableObject {
     @Published private(set) var authorizationStatus: AVAuthorizationStatus
     @Published private(set) var hasCameraHardware: Bool
@@ -599,6 +606,7 @@ final class StarMapCameraController: NSObject, ObservableObject {
     }
 }
 
+/// AVCaptureVideoPreviewLayer を SwiftUI で使うためのラッパー。
 struct StarMapCameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     let screenOrientation: StarMapScreenOrientation
@@ -622,6 +630,7 @@ struct StarMapCameraPreviewView: UIViewRepresentable {
         )
     }
 
+    /// 端末の向きとカメラプレビュー回転を同期する UIView。
     final class PreviewView: UIView {
         private var screenOrientation: StarMapScreenOrientation = .portrait
         private var videoDevice: AVCaptureDevice?
@@ -699,6 +708,7 @@ struct StarMapCameraPreviewView: UIViewRepresentable {
     }
 }
 
+/// UIInterfaceOrientation から星空表示用の向きを得る。
 extension UIInterfaceOrientation {
     var starMapScreenOrientation: StarMapScreenOrientation {
         switch self {

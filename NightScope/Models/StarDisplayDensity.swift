@@ -1,11 +1,13 @@
 import Foundation
 
+/// 星図で表示する恒星数の密度プリセット。
 enum StarDisplayDensity: String, CaseIterable, Identifiable {
     case maximum
     case large
     case medium
     case small
 
+    /// UserDefaults に保存するキー。
     static let defaultsKey = "starDisplayDensity"
 
     var id: String { rawValue }
@@ -27,6 +29,7 @@ enum StarDisplayDensity: String, CaseIterable, Identifiable {
         L10n.format("%@（%@）", title, magnitudeLabel)
     }
 
+    /// この密度で表示対象に含める限界等級。
     var maxMagnitude: Double {
         switch self {
         case .maximum: 7.5
@@ -38,6 +41,7 @@ enum StarDisplayDensity: String, CaseIterable, Identifiable {
 
     static let defaultValue: StarDisplayDensity = .maximum
 
+    /// 保存済み設定を読み込み、未設定時は既定値を返す。
     static func load(from defaults: UserDefaults = .standard) -> StarDisplayDensity {
         StarDisplayDensity(rawValue: defaults.string(forKey: defaultsKey) ?? "") ?? defaultValue
     }

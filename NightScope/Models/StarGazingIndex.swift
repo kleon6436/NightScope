@@ -1,5 +1,6 @@
 import Foundation
 
+/// 観測条件を 0〜100 点で統合した星空指数。
 struct StarGazingIndex {
     private enum Constants {
         /// 光害スコア最大値。全体100点中の30点（旧10点から引き上げ）。
@@ -285,6 +286,7 @@ struct StarGazingIndex {
         self.isAdjusted = isAdjusted
     }
 
+    /// 総合点を表示用の段階に丸めた区分。
     enum Tier {
         case excellent, good, fair, poor, bad
     }

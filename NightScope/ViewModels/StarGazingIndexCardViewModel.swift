@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 
+/// 光害取得状態を星空指数カードへ伝える ViewModel。
 @MainActor
 final class StarGazingIndexCardViewModel: ObservableObject {
     @Published private(set) var isLoading: Bool = false
@@ -14,6 +15,7 @@ final class StarGazingIndexCardViewModel: ObservableObject {
         setupBindings()
     }
 
+    /// 光害サービスの状態をそのままカードの表示状態へ反映する。
     private func setupBindings() {
         lightPollutionService.$isLoading
             .assign(to: &$isLoading)

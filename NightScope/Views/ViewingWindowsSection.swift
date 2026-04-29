@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 天の川の見頃と観測可能時間帯を並べて示すセクション。
 struct ViewingWindowsSection: View {
     let summary: NightSummary
 
@@ -20,6 +21,7 @@ struct ViewingWindowsSection: View {
     }
 }
 
+/// 1 つの観測ウィンドウをカードとして包む。
 private struct ViewingWindowCard: View {
     let window: ViewingWindow
     let timeZone: TimeZone
@@ -33,6 +35,7 @@ private struct ViewingWindowCard: View {
     }
 }
 
+/// 天の川のベストウィンドウだけを抜き出す要約カード。
 struct MilkyWaySummaryCard: View {
     let summary: NightSummary
 
@@ -57,6 +60,7 @@ struct MilkyWaySummaryCard: View {
     }
 }
 
+/// 時刻・仰角・方角を横並びで表示する共通カード内容。
 struct ViewingWindowCardContent: View {
     let window: ViewingWindow
     let timeZone: TimeZone
@@ -94,6 +98,7 @@ struct ViewingWindowCardContent: View {
     }
 }
 
+/// 観測に適した時間帯がない場合の空状態カード。
 struct ViewingWindowsEmptyStateCardContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -109,6 +114,7 @@ struct ViewingWindowsEmptyStateCardContent: View {
 
 // MARK: - Direction Indicator (Compass)
 
+/// 方角とピーク方位の関係をコンパスで示す。
 private struct DirectionIndicator: View {
     let azimuth: Double
 

@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// アプリ全体の表示設定とデータソース情報をまとめる設定画面。
 struct SettingsView: View {
     @AppStorage("windSpeedUnit") private var windSpeedUnit: String = WindSpeedUnit.kmh.rawValue
     @ObservedObject private var observationModePreference: ObservationModePreference
@@ -74,6 +75,7 @@ private struct SettingsAboutView: View {
     }
 }
 
+/// 帰属表示とバージョン情報をまとめた補助セクション。
 private struct SettingsAboutSections: View {
     private var dataSources: [SettingsDataSource] {
         [

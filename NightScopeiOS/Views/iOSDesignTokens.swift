@@ -1,11 +1,14 @@
 import SwiftUI
 
+/// iOS 向け View 全体で共有する余白・サイズ・表示閾値。
 enum IOSDesignTokens {
+    /// 今日タブのカードサイズ。
     enum Today {
         static let summaryCardMinHeight: CGFloat = 140
         static let loadingCardHeights: [CGFloat] = [summaryCardMinHeight, summaryCardMinHeight, summaryCardMinHeight]
     }
 
+    /// 星空タブの地平線オーバーレイ。
     enum StarMap {
         static let horizonOverlayStyle = StarMapCanvasView.HorizonOverlayStyle(
             groundFillColor: Color(red: 0.31, green: 0.33, blue: 0.37),
@@ -17,11 +20,13 @@ enum IOSDesignTokens {
         )
     }
 
+    /// 予報タブの一覧レイアウト。
     enum Forecast {
         static let rowSpacing: CGFloat = Spacing.sm
         static let loadingMinHeight: CGFloat = 220
     }
 
+    /// 場所タブの検索・地図レイアウト。
     enum Location {
         static let searchResultsMaxHeight: CGFloat = 104
         static let estimatedSearchResultRowHeight: CGFloat = 52
@@ -36,6 +41,7 @@ enum IOSDesignTokens {
         static let favoritesMaxHeight: CGFloat = estimatedFavoriteRowHeight * CGFloat(favoritesVisibleCount)
     }
 
+    /// 夜カードの行レイアウト。
     enum NightRow {
         static let cardMinHeight: CGFloat = 80
         static let cardHorizontalPadding: CGFloat = Layout.cardPadding

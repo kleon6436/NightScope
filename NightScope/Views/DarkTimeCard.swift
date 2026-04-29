@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 暗い時間の長さと観測可能時間をまとめて示すカード。
 struct DarkTimeCard: View {
     let summary: NightSummary
     let weather: DayWeatherSummary?
@@ -53,7 +54,7 @@ struct DarkTimeCard: View {
 }
 
 // MARK: - Dark Time Arc Gauge
-
+/// 暗い時間の総量を半円ゲージで可視化する補助ビュー。
 private struct DarkTimeArc: View {
     let darkHours: Double
 

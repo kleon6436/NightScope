@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 9日予報の 1 行分を表示するカード。
 struct iOSNightCardRow: View {
     let night: NightSummary
     let index: StarGazingIndex?
@@ -79,6 +80,7 @@ struct iOSNightCardRow: View {
     }
 
     private var metadataSection: some View {
+        // 夜カードの情報は moon / weather / range を同じ行にまとめる。
         HStack(alignment: .firstTextBaseline, spacing: IOSDesignTokens.NightRow.metadataGroupSpacing) {
             moonMetadataItem
             weatherMetadataItem

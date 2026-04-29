@@ -1,6 +1,7 @@
 import SwiftUI
 
 @MainActor
+/// 予報タブの各行に必要な表示状態をまとめる。
 struct iOSForecastRowModel {
     let night: NightSummary
     let index: StarGazingIndex?
@@ -15,7 +16,9 @@ struct iOSForecastRowModel {
 }
 
 @MainActor
+/// 予報タブの表示状態計算と選択操作をまとめる。
 struct iOSForecastViewModel {
+    // 状態判定は詳細画面と同じ resolver に寄せて、分岐を二重管理しない。
     private let stateResolver = DetailContentStateResolver()
 
     func displayState(hasDisplayNights: Bool, isUpcomingLoading: Bool) -> LoadableContentState {
@@ -49,16 +52,19 @@ struct iOSForecastViewModel {
 
     func selectNight(_ date: Date, using gridViewModel: UpcomingNightsGridViewModel, selectedTab: Binding<Int>) {
         gridViewModel.setSelectedDate(date)
+        // 予報行の選択後は今夜タブへ戻して、詳細をすぐ確認できるようにする。
         selectedTab.wrappedValue = 0
     }
 }
 
+/// 9日予報タブの一覧画面。
 struct iOSForecastView: View {
     @ObservedObject var detailViewModel: DetailViewModel
     @Binding var selectedTab: Int
     private let viewModel = iOSForecastViewModel()
     @StateObject private var gridViewModel: UpcomingNightsGridViewModel
 
+    /// 詳細画面の ViewModel とタブ選択状態を受け取る。
     init(detailViewModel: DetailViewModel, selectedTab: Binding<Int>) {
         self.detailViewModel = detailViewModel
         self._selectedTab = selectedTab

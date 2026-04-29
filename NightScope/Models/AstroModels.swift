@@ -3,6 +3,8 @@ import CoreLocation
 
 // MARK: - Models
 
+/// 1つの時刻における天文イベントの観測条件を表すモデル。
+/// - Note: 各角度は度数法で保持する。
 struct AstroEvent: Identifiable {
     let id = UUID()
     let date: Date
@@ -23,6 +25,7 @@ struct AstroEvent: Identifiable {
 }
 
 /// 星空マップの視野方向（サイドバーマップのオーバーレイに使用）
+/// 星空マップの視野方向を表す補助モデル。
 struct ViewingDirection: Equatable {
     /// 画面中心が向く方位角 (度, 0=北, 90=東)
     let azimuth: Double
@@ -32,6 +35,7 @@ struct ViewingDirection: Equatable {
     let isActive: Bool
 }
 
+/// 銀河中心が観測しやすい時間帯を表すウィンドウ。
 struct ViewingWindow {
     let start: Date
     let end: Date
@@ -57,6 +61,7 @@ struct ViewingWindow {
     }
 }
 
+/// 1夜分の天文条件と観測可能時間をまとめた集計モデル。
 struct NightSummary {
     private typealias WeatherByHour = [Date: HourlyWeather]
 
@@ -65,6 +70,7 @@ struct NightSummary {
     let events: [AstroEvent]
     let viewingWindows: [ViewingWindow]
     let moonPhaseAtMidnight: Double
+    /// 日付計算に使う IANA タイムゾーン識別子。
     let timeZoneIdentifier: String
 
     init(
@@ -83,6 +89,7 @@ struct NightSummary {
         self.timeZoneIdentifier = timeZoneIdentifier
     }
 
+    /// `timeZoneIdentifier` が無効な場合は現在のタイムゾーンに退避する。
     var timeZone: TimeZone {
         TimeZone(identifier: timeZoneIdentifier) ?? .current
     }
@@ -443,6 +450,7 @@ struct NightSummary {
 
 // MARK: - Planet Position
 
+/// 太陽系天体の見かけの位置と光度を表すモデル。
 struct PlanetPosition: Identifiable {
     let name: String
     let altitude: Double          // degrees (-90〜90)

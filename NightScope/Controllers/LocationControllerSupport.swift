@@ -2,10 +2,12 @@ import Combine
 import CoreLocation
 import MapKit
 
+/// 地点検索を外部サービスへ委譲する。
 protocol LocationSearchServicing: Sendable {
     func search(query: String) async throws -> [MKMapItem]
 }
 
+/// MKLocalSearch を使う標準検索実装。
 struct MKLocationSearchService: LocationSearchServicing {
     func search(query: String) async throws -> [MKMapItem] {
         let request = MKLocalSearch.Request()
@@ -15,6 +17,7 @@ struct MKLocationSearchService: LocationSearchServicing {
     }
 }
 
+/// 検索 UI の表示状態を保持する。
 struct LocationSearchState {
     enum Phase: Equatable {
         case idle
@@ -54,11 +57,13 @@ struct LocationSearchState {
     }
 }
 
+/// 解決済みの地点名とタイムゾーン識別子。
 struct ResolvedLocationDetails: Sendable, Equatable {
     let name: String
     let timeZoneIdentifier: String?
 }
 
+/// MKMapItem から表示名とタイムゾーンを抽出する。
 enum MapItemLocationDetailsExtractor {
     static func details(from item: MKMapItem) -> ResolvedLocationDetails {
         let coordinate: CLLocationCoordinate2D
@@ -99,6 +104,7 @@ enum MapItemLocationDetailsExtractor {
     }
 }
 
+/// 緯度経度から近似タイムゾーンを推定する。
 enum ApproximateTimeZoneResolver {
     static func bestIdentifier(
         for coordinate: CLLocationCoordinate2D,
@@ -301,10 +307,12 @@ private struct TimeZoneHeuristic {
     }
 }
 
+/// 逆ジオコーディングで地点名を解決する。
 protocol LocationNameResolving: Sendable {
     func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails
 }
 
+/// CLLocation / MKReverseGeocodingRequest を使う標準実装。
 struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
     func resolveDetails(for coordinate: CLLocationCoordinate2D) async -> ResolvedLocationDetails {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
@@ -344,6 +352,7 @@ struct ReverseGeocodingLocationNameResolver: LocationNameResolving {
     }
 }
 
+/// 選択地点の永続化レイヤー。
 protocol LocationStorage: AnyObject {
     var latitude: Double? { get set }
     var longitude: Double? { get set }
@@ -351,9 +360,11 @@ protocol LocationStorage: AnyObject {
     var timeZoneIdentifier: String? { get set }
 }
 
+/// UserDefaults に地点情報を保存する実装。
 final class UserDefaultsLocationStorage: LocationStorage {
     private let userDefaults: UserDefaults
 
+    /// UserDefaults バックエンドを指定して初期化する。
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
     }

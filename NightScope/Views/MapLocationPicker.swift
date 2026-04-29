@@ -37,6 +37,7 @@ private struct MapContainerView<Content: View>: View {
 
 // MARK: - NSViewRepresentable wrapper for MKMapView
 
+/// MKMapView を SwiftUI へ橋渡しする representable。
 struct MapKitViewRepresentable: NSViewRepresentable {
     let pinCoordinate: CLLocationCoordinate2D?
     var onTap: (CLLocationCoordinate2D) -> Void
@@ -112,6 +113,7 @@ struct MapKitViewRepresentable: NSViewRepresentable {
 
 // MARK: - MapLocationPicker view
 
+/// 地点選択のための地図 UI と補助ボタンをまとめたビュー。
 struct MapLocationPicker: View, Equatable {
     let selectedCoordinate: CLLocationCoordinate2D
     let onSelect: (CLLocationCoordinate2D) -> Void

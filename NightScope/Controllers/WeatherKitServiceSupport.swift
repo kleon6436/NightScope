@@ -4,6 +4,8 @@ import CoreLocation
 
 // MARK: - WeatherCondition → WMO code mapper
 
+/// WeatherKit の WeatherCondition を WMO 天気コードへ変換する。
+/// WMO コードは表示文言とアイコン名の共通基準として使う。
 enum WeatherConditionMapper {
     /// WeatherKit の WeatherCondition を WMO 天気コードへ変換する。
     /// 対応表は DayWeatherSummary.weatherIconName / weatherLabel が使う WMO コード体系に準拠。

@@ -1,5 +1,6 @@
 import Foundation
 
+/// 観測目的に応じた星空指数の重み付けモード。
 enum ObservationMode: String, CaseIterable, Identifiable, Sendable {
     case general
     case milkyWay
@@ -24,6 +25,7 @@ enum ObservationMode: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// 各評価軸の寄与率をモードごとに切り替える。
     var weights: ObservationModeWeights {
         switch self {
         case .general:
@@ -42,6 +44,7 @@ enum ObservationMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// 観測モードごとの評価軸ウェイト。
 struct ObservationModeWeights: Sendable {
     let constellation: Double
     let weather: Double
@@ -49,6 +52,7 @@ struct ObservationModeWeights: Sendable {
     let milkyWay: Double
 }
 
+/// UserDefaults と同期する観測モードの保存用ラッパー。
 final class ObservationModePreference: ObservableObject {
     static let storageKey = "observation.mode"
 
@@ -61,6 +65,7 @@ final class ObservationModePreference: ObservableObject {
     private let userDefaults: UserDefaults
     private let key: String
 
+    /// 保存済み値を復元し、旧キーも互換維持のため補正する。
     init(userDefaults: UserDefaults = .standard, key: String = "observation.mode") {
         self.userDefaults = userDefaults
         self.key = key
@@ -76,6 +81,7 @@ final class ObservationModePreference: ObservableObject {
 }
 
 private extension ObservationMode {
+    /// 旧バージョンの保存値を現在のモードへ寄せて復元する。
     static func restoredMode(from rawValue: String) -> ObservationMode {
         if let mode = ObservationMode(rawValue: rawValue) {
             return mode

@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 夜間の天気概況をまとめたカード。
 struct NightWeatherCard: View {
     let weather: DayWeatherSummary?
     let isLoading: Bool
@@ -113,6 +114,7 @@ struct NightWeatherCard: View {
 
 // MARK: - Weather Symbol Visual
 
+/// 天気アイコンまたは読み込み中インジケータを描く。
 private struct WeatherSymbolVisual: View {
     let weather: DayWeatherSummary?
     let isLoading: Bool

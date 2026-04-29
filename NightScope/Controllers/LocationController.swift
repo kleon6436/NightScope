@@ -2,13 +2,16 @@ import Combine
 import CoreLocation
 import MapKit
 
+/// 選択地点、検索、現在地取得、タイムゾーン解決をまとめて管理する。
 @MainActor
 final class LocationController: NSObject, ObservableObject, LocationProviding {
+    /// タイムゾーンが確定済みか暫定かを区別する。
     private enum TimeZoneSelectionSource: Equatable {
         case confirmed
         case provisional
     }
 
+    /// 地点確定時の入力をまとめた内部リクエスト。
     private struct SelectionRequest {
         let coordinate: CLLocationCoordinate2D
         let fallbackName: String?
@@ -144,6 +147,7 @@ final class LocationController: NSObject, ObservableObject, LocationProviding {
 
     // MARK: - Init
 
+    /// 永続化・検索・名称解決の依存関係を注入する。
     init(
         storage: LocationStorage = UserDefaultsLocationStorage(),
         searchService: LocationSearchServicing = MKLocationSearchService(),

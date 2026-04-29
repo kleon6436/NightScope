@@ -5,6 +5,7 @@ private let logger = Logger(subsystem: "com.nightscope", category: "StarCatalog"
 
 // MARK: - Star Model
 
+/// 恒星 1 件のカタログデータ。
 struct Star {
     let name: String        // 日本語名 (明るい星のみ)
     let ra: Double          // 赤経 (度, J2000.0)
@@ -24,9 +25,11 @@ struct Star {
 // 合計 25,771 星
 // 座標は J2000.0 赤道座標 (赤経 deg, 赤緯 deg)
 
+/// 表示用の恒星カタログを組み立てる。
 enum StarCatalog {
     static let stars: [Star] = namedStars + fillStars
 
+    /// stars_fill.json の数値配列を `Star` 配列へ変換する。
     static func makeFillStars(from entries: [[Double]]) -> [Star] {
         let malformedRowCount = entries.reduce(into: 0) { count, row in
             if row.count < 3 {

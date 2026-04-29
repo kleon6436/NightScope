@@ -5,6 +5,7 @@ import os
 import AppKit
 import MapKit
 
+/// 指定座標の MapSnapshot をメモ化し、重複生成を避ける。
 @MainActor
 final class MapSnapshotCache {
     private let cache = NSCache<NSString, NSImage>()
@@ -15,6 +16,7 @@ final class MapSnapshotCache {
         cache.countLimit = 64
     }
 
+    /// 同一条件の要求は既存タスクとキャッシュを再利用する。
     func snapshot(
         latitude: Double,
         longitude: Double,
@@ -56,6 +58,7 @@ final class MapSnapshotCache {
         return image
     }
 
+    /// MKMapSnapshotter を使って実画像を生成する。
     private func generateSnapshot(
         latitude: Double,
         longitude: Double,
@@ -96,6 +99,7 @@ final class MapSnapshotCache {
         )
     }
 
+    /// 座標・サイズ・スパンからキャッシュキーを作る。
     private func cacheKey(
         latitude: Double,
         longitude: Double,

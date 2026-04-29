@@ -2,6 +2,7 @@
 import SwiftUI
 import CoreLocation
 
+/// 複数地点ダッシュボードで表示対象を選び直すシート。
 struct DashboardLocationPickerSheet: View {
     @ObservedObject var viewModel: DashboardViewModel
     @Binding var isPresented: Bool
@@ -99,6 +100,7 @@ struct DashboardLocationPickerSheet: View {
     }
 }
 
+/// お気に入り地点を選択用に整形する行ビュー。
 private struct DashboardLocationPickerRow: View {
     let favorite: FavoriteLocation
     let accessibilityHint: String?

@@ -7,6 +7,7 @@ import UIKit
 #endif
 import MapKit
 
+/// 光害データ取得時の代表的なエラー。
 enum LightPollutionServiceError: Error, LocalizedError {
     case noData
 
@@ -15,6 +16,7 @@ enum LightPollutionServiceError: Error, LocalizedError {
     }
 }
 
+/// Bortle 値の取得と公開状態を扱う。
 @MainActor
 protocol LightPollutionProviding: AnyObject, ObservableObject {
     var bortleClass: Double? { get }
@@ -40,6 +42,7 @@ enum LightPollutionBundleDataSource {
     }
 }
 
+/// 人工輝度から Bortle スケールへ変換する。
 struct BortleScaleConverter {
     private enum Constants {
         /// 自然夜空輝度 (mcd/m²)。Bortle 換算の基準値。
@@ -259,6 +262,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         static let cacheRadiusDegrees = 0.05
     }
 
+    /// 直近の取得結果と UI 反映用フラグをまとめる。
     struct FetchResult {
         let bortleClass: Double?
         let fetchFailed: Bool
@@ -286,12 +290,14 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         self.scaleConverter = scaleConverter
     }
 
+    /// 観測地変更前に、表示中の光害状態を初期化する。
     func prepareForLocationChange() {
         isLoading = false
         fetchFailed = false
         bortleClass = nil
     }
 
+    /// 指定座標の光害データを非同期取得する。
     func fetch(latitude: Double, longitude: Double) async {
         isLoading = true
         fetchFailed = false
@@ -299,6 +305,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         applyFetchResult(result)
     }
 
+    /// 取得可否だけを返すスナップショット版。
     func fetchSnapshot(latitude: Double, longitude: Double) async -> FetchResult {
         // 同じ座標（0.05度以内 ≈ 5km）では再取得しない（光害は静的データ）
         if let lastFetchResult,
@@ -324,6 +331,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         }
     }
 
+    /// 取得結果を公開状態へ反映する。
     func applyFetchResult(_ result: FetchResult) {
         bortleClass = result.bortleClass
         fetchFailed = result.fetchFailed
@@ -331,6 +339,7 @@ final class LightPollutionService: ObservableObject, LightPollutionProviding {
         isLoading = false
     }
 
+    /// バンドルデータから Bortle 値を直接算出する。
     func fetchBortle(latitude: Double, longitude: Double) async throws -> Double {
         guard let grid = gridData else {
             throw LightPollutionServiceError.noData

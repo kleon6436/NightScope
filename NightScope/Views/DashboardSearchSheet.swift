@@ -3,6 +3,7 @@ import SwiftUI
 import MapKit
 import AppKit
 
+/// 地点検索と登録を行う macOS 用シート。
 struct DashboardSearchSheet: View {
     @ObservedObject var viewModel: DashboardViewModel
     @ObservedObject private var searchController: DashboardSearchController
@@ -224,6 +225,7 @@ struct DashboardSearchSheet: View {
     }
 }
 
+/// 検索結果の 1 行を、登録状態に応じて分岐表示する。
 private struct DashboardSearchResultRow: View {
     @ObservedObject var viewModel: DashboardViewModel
     let mapItem: MKMapItem
@@ -375,6 +377,7 @@ private struct DashboardSearchResultRow: View {
     }
 }
 
+/// 検索失敗時に再試行アクションを提示するビュー。
 private struct DashboardSearchFailureView: View {
     let message: String
     let onRetry: () -> Void

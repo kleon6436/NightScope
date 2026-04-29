@@ -2,8 +2,10 @@ import SwiftUI
 import Combine
 import CoreLocation
 
+/// 未来数夜の表示と選択状態を管理する ViewModel。
 @MainActor
 final class UpcomingNightsGridViewModel: ObservableObject {
+    /// カレンダーグリッドに表示する夜間データ。
     @Published private(set) var displayNights: [NightSummary] = []
     @Published private(set) var isLoading = false
     @Published private(set) var selectedDate: Date
@@ -16,6 +18,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
     private let detailViewModel: DetailViewModel
     private var cancellables = Set<AnyCancellable>()
 
+    /// 詳細画面の状態をそのまま監視して、一覧へ反映する。
     init(detailViewModel: DetailViewModel) {
         self.detailViewModel = detailViewModel
         self.selectedDate = detailViewModel.selectedDate
@@ -64,21 +67,25 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         detailViewModel.selectedDate = date
     }
 
+    /// 指定日の天気サマリーを、詳細画面と同じキー規則で引く。
     func weatherSummary(for date: Date) -> DayWeatherSummary? {
         let key = detailViewModel.weatherService.dateKey(date, timeZone: selectedTimeZone)
         return weatherByDate[key]
     }
 
+    /// 天気データが夜間を通して使えるかを判定する。
     func hasReliableWeatherData(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
         guard let weather else { return false }
         return night.hasUsableWeatherData(nighttimeHours: weather.nighttimeHours)
     }
 
+    /// 途中までしか評価できない天気データかを判定する。
     func hasPartialWeatherData(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
         guard let weather else { return false }
         return !night.hasUsableWeatherData(nighttimeHours: weather.nighttimeHours)
     }
 
+    /// 予報対象外かどうかを判定する。
     func isForecastOutOfRange(for night: NightSummary, weather: DayWeatherSummary?) -> Bool {
         guard weather == nil else { return false }
         return detailViewModel.weatherService.isForecastOutOfRange(
@@ -88,6 +95,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         )
     }
 
+    /// 選択日での星空指数を返す。
     func starGazingIndex(for date: Date) -> StarGazingIndex? {
         let startOfDay = ObservationTimeZone.startOfDay(for: date, timeZone: selectedTimeZone)
         guard let baseIndex = upcomingIndexes[startOfDay] else { return nil }
@@ -103,14 +111,17 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         )
     }
 
+    /// 指定日が現在の選択日かを返す。
     func isDateSelected(_ date: Date) -> Bool {
         ObservationTimeZone.isDate(date, inSameDayAs: selectedDate, timeZone: selectedTimeZone)
     }
 
+    /// 現在の選択日が今日かを返す。
     func isSelectedDateToday(referenceDate: Date = Date()) -> Bool {
         ObservationTimeZone.isDateInToday(selectedDate, timeZone: selectedTimeZone, referenceDate: referenceDate)
     }
 
+    /// 夜間範囲の表示用テキストを組み立てる。
     func observableRangeText(night: NightSummary, weather: DayWeatherSummary?) -> String {
         // 暗時間ゼロ（白夜等）は専用テキスト
         if night.totalDarkHours <= 0 {
@@ -123,6 +134,7 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         return night.darkRangeText.isEmpty ? "—" : night.darkRangeText
     }
 
+    /// カード全体の VoiceOver 用ラベルを作る。
     func cardAccessibilityLabel(night: NightSummary, weather: DayWeatherSummary?, index: StarGazingIndex?) -> String {
         var parts: [String] = []
         parts.append(DateFormatters.fullDateString(from: night.date, timeZone: selectedTimeZone))
@@ -143,10 +155,12 @@ final class UpcomingNightsGridViewModel: ObservableObject {
         return parts.joined(separator: "、")
     }
 
+    /// 天気コードからアイコン色を決める。
     func weatherIconColor(code: Int) -> Color {
         WeatherPresentation.color(forWeatherCode: code)
     }
 
+    /// 未来日が不足している場合のプレースホルダーを作る。
     func placeholderNight(at offset: Int) -> NightSummary {
         let baseDate = ObservationTimeZone.startOfDay(for: selectedDate, timeZone: selectedTimeZone)
         let date = ObservationTimeZone.date(byAdding: .day, value: offset, to: baseDate, timeZone: selectedTimeZone) ?? baseDate

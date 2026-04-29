@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 星空マップで使うレイヤーや表示密度をまとめて調整するセクション。
 struct StarMapDisplaySettingsSection: View {
     @AppStorage(StarDisplayDensity.defaultsKey)
     private var starDisplayDensityRaw: String = StarDisplayDensity.defaultValue.rawValue

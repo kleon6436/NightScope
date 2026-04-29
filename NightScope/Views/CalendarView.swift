@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 選択中の日付を月単位で切り替えられるカレンダービュー。
 struct CalendarView: View {
     struct WeekdayHeaderItem: Identifiable, Equatable {
         let id: Int
@@ -135,6 +136,7 @@ struct CalendarView: View {
     }
 }
 
+/// 1日分のセルを表すボタンビュー。
 struct CalendarDayCell: View {
     let date: Date
     let timeZone: TimeZone

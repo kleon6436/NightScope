@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 各タブ上部で使う共通ヘッダー。
 struct iOSTabHeaderView<Subtitle: View, Trailing: View>: View {
     let title: String
     let titleColor: Color
@@ -65,6 +66,7 @@ struct iOSTabHeaderView<Subtitle: View, Trailing: View>: View {
     }
 }
 
+/// Material パネルの背景と境界線を共通化する ViewModifier。
 private struct iOSMaterialPanelModifier: ViewModifier {
     let material: Material
     let cornerRadius: CGFloat
@@ -84,6 +86,7 @@ private struct iOSMaterialPanelModifier: ViewModifier {
 }
 
 extension View {
+    /// Material パネルの見た目を簡単に適用する。
     func iOSMaterialPanel(
         material: Material = .thinMaterial,
         cornerRadius: CGFloat = Layout.smallCornerRadius,

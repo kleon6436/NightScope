@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 今後 9 日分の夜間条件をカードグリッドで並べるビュー。
 struct UpcomingNightsGrid: View {
     @ObservedObject var viewModel: UpcomingNightsGridViewModel
     private let placeholderCardCount = 4

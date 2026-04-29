@@ -597,6 +597,7 @@ enum WeatherPresentation {
 
 // MARK: - Forecast Card Presentation
 
+/// 予報カードに表示する短縮ラベルや補助文をまとめる。
 struct ForecastCardPresentation {
     let night: NightSummary
     let weather: DayWeatherSummary?
@@ -700,6 +701,7 @@ extension FocusedValues {
 
 // MARK: - WindSpeedUnit
 
+/// 風速表示の単位を切り替えるための列挙型。
 enum WindSpeedUnit: String, CaseIterable, Identifiable {
     case kmh  = "km/h"
     case ms   = "m/s"

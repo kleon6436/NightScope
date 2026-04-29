@@ -2,8 +2,8 @@ import SwiftUI
 @preconcurrency import AVFoundation
 import UIKit
 
-// MARK: - iOSStarMapView
-
+// MARK: - 星空ビュー
+/// 星空マップとカメラ背景、操作パネルを統合する画面。
 struct iOSStarMapView: View {
     @ObservedObject var viewModel: StarMapViewModel
 
@@ -99,6 +99,7 @@ struct iOSStarMapView: View {
 
     private var backgroundLayer: some View {
         ZStack {
+            // カメラ背景を切り替えても、セッション再構成を避けるため preview は保持する。
             if cameraSessionState.shouldKeepPreviewAttached {
                 ZStack {
                     StarMapCameraPreviewView(
@@ -137,7 +138,7 @@ struct iOSStarMapView: View {
         )
     }
 
-    // MARK: - Bottom Control Panel
+    // MARK: - 下部コントロール
 
     private var bottomControlPanel: some View {
         VStack(spacing: Spacing.xs) {
@@ -162,6 +163,7 @@ struct iOSStarMapView: View {
     }
 
     private var cardinalOverlayBottomInset: CGFloat {
+        // 下部パネルの実高さを使って、方位ラベルが重ならないようにする。
         max(
             StarMapLayout.cardinalLabelBottomInset,
             bottomControlPanelHeight + bottomControlBottomPadding
@@ -374,7 +376,7 @@ struct iOSStarMapView: View {
         isPresentingDisplaySettings = true
     }
 
-    // MARK: - CoreMotion
+    // MARK: - CoreMotion 制御
 
     private func handleGyroChange() {
         syncMotionState()
@@ -569,7 +571,7 @@ struct iOSStarMapView: View {
     }
 }
 
-// MARK: - Preview
+// MARK: - プレビュー
 
 #Preview {
     let appController = AppController()

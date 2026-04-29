@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 
+/// Dashboard 上の地点検索入力を遅延実行付きで管理する。
 @MainActor
 final class DashboardSearchController: ObservableObject {
     @Published private(set) var state: LocationSearchState = .idle
@@ -9,10 +10,12 @@ final class DashboardSearchController: ObservableObject {
     private var searchTask: Task<Void, Never>?
     private var latestQuery: String = ""
 
+    /// 検索サービスを注入する。
     init(searchService: any LocationSearchServicing = MKLocationSearchService()) {
         self.searchService = searchService
     }
 
+    /// クエリを正規化し、短時間の連続入力をまとめて検索する。
     func search(query: String) {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedQuery.isEmpty else {
@@ -51,6 +54,7 @@ final class DashboardSearchController: ObservableObject {
         }
     }
 
+    /// 検索状態と進行中タスクを破棄する。
     func clear() {
         searchTask?.cancel()
         searchTask = nil

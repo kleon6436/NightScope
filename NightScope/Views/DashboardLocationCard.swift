@@ -3,6 +3,7 @@ import SwiftUI
 import CoreLocation
 import AppKit
 
+/// ダッシュボード上で 1 地点分の比較結果を表示するカード。
 struct DashboardLocationCard: View {
     @ObservedObject var viewModel: DashboardViewModel
     let location: FavoriteLocation
@@ -130,6 +131,7 @@ struct DashboardLocationCard: View {
     }
 }
 
+/// 地点の周辺を静的サムネイルで示すマップ画像。
 private struct DashboardMapThumbnail: View {
     let latitude: Double
     let longitude: Double
@@ -192,6 +194,7 @@ private struct DashboardMapThumbnail: View {
     }
 }
 
+/// 各日付の比較スコアと補助情報を 1 列で示すセル。
 private struct DashboardDayColumn: View {
     let location: FavoriteLocation
     let date: Date

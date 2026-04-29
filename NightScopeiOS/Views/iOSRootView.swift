@@ -1,12 +1,14 @@
 import SwiftUI
 import UIKit
 
+/// iOS 版の主要画面を TabView でまとめるルート View。
 struct iOSRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var rootStore: AppRootStore
     @State private var selectedTab = 0
     @State private var hasHandledCurrentActiveState = false
 
+    /// AppRootStore を外部から差し替えられるようにする。
     @MainActor
     init(dependencies: AppRootDependencies? = nil) {
         let dependencies = dependencies ?? .makeDefault()
@@ -14,6 +16,7 @@ struct iOSRootView: View {
     }
 
     var body: some View {
+        // 主要な画面遷移はタブに集約し、各画面の責務を分ける。
         TabView(selection: $selectedTab) {
             iOSTodayView(
                 detailViewModel: rootStore.detailViewModel,
@@ -53,6 +56,7 @@ struct iOSRootView: View {
             handleActiveSceneIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            // 日付境界の変化はシーン復帰とは別経路で反映する。
             guard scenePhase == .active else { return }
             rootStore.appController.handleSceneDidBecomeActive(refreshExternalData: false)
         }

@@ -2,6 +2,7 @@
 import SwiftUI
 import AppKit
 
+/// 複数地点ダッシュボードの macOS ウィンドウ本体。
 struct DashboardWindowView: View {
     @StateObject private var viewModel: DashboardViewModel
     @State private var mapSnapshotCache = MapSnapshotCache()

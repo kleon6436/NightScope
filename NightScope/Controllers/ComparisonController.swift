@@ -1,10 +1,12 @@
 import Foundation
 import CoreLocation
 
+/// 保存済み地点の夜間条件を日単位で比較するコントローラ。
 @MainActor
 final class ComparisonController: ObservableObject {
     @Published private(set) var matrix: ComparisonMatrix = .empty
     @Published private(set) var isRefreshing = false
+    /// 比較に含める日数。
     @Published var dayCount: Int = 7
 
     private let favoriteStore: any FavoriteLocationStoring
@@ -12,6 +14,7 @@ final class ComparisonController: ObservableObject {
     private let lightPollutionService: any LightPollutionProviding
     private let calculationService: any NightCalculating
 
+    /// 比較対象のデータソースを注入する。
     init(
         favoriteStore: any FavoriteLocationStoring,
         weatherService: any WeatherProviding,
@@ -24,6 +27,7 @@ final class ComparisonController: ObservableObject {
         self.calculationService = calculationService
     }
 
+    /// 現在の保存地点で比較マトリクスを再構築する。
     func refresh(referenceDate: Date = Date(), locations: [FavoriteLocation]? = nil) async {
         isRefreshing = true
         defer { isRefreshing = false }
@@ -45,6 +49,7 @@ final class ComparisonController: ObservableObject {
         matrix = computed
     }
 
+    /// 再利用しやすい純粋計算として比較マトリクスを返す。
     func computeMatrix(referenceDate: Date = Date(), locations: [FavoriteLocation]? = nil) async -> ComparisonMatrix {
         let locations = locations ?? favoriteStore.loadAll()
         return await Self.computeMatrix(
@@ -57,10 +62,12 @@ final class ComparisonController: ObservableObject {
         )
     }
 
+    /// 指定地点・指定日のセルを返す。
     func cell(for locationID: UUID, date: Date) -> ComparisonCell? {
         matrix.cellsByID[ComparisonCell.makeID(locationID: locationID, date: date)]
     }
 
+    /// 指定日における最良セルを返す。
     func bestCell(for date: Date) -> ComparisonCell? {
         matrix.locations
             .compactMap { cell(for: $0.id, date: date) }
@@ -73,6 +80,7 @@ final class ComparisonController: ObservableObject {
         return (0..<dayCount).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
     }
 
+    /// 保存済み地点ごとの夜間条件をまとめて評価する。
     static func computeMatrix(
         referenceDate: Date,
         locations: [FavoriteLocation],

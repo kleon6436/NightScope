@@ -1,6 +1,8 @@
 import SwiftUI
 
+/// 星図描画に必要な天体位置をまとめて計算するユーティリティ。
 enum StarMapComputation {
+    /// 1 回の描画に必要な計算結果のスナップショット。
     struct Snapshot: Sendable {
         let lat: Double
         let lst: Double
@@ -41,6 +43,7 @@ enum StarMapComputation {
 
         for index in catalog.indices {
             let star = catalog[index]
+            // 表示密度と地平線下のカットオフを満たす星だけを残す。
             guard star.magnitude <= magnitudeLimit else { continue }
             let (altitude, azimuth) = MilkyWayCalculator.altAzFast(
                 ra: star.ra,
@@ -170,6 +173,7 @@ enum StarMapComputation {
         let step: Double = 5
 
         for longitude in stride(from: 0.0, to: 360.0, by: step) {
+            // 銀河面が十分に見える区間だけを点列として残す。
             let equatorialCenter = MilkyWayCalculator.galacticToEquatorial(l: longitude, b: 0)
             let (altitudeCenter, azimuthCenter) = MilkyWayCalculator.altAzFast(
                 ra: equatorialCenter.ra,

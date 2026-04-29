@@ -1,6 +1,7 @@
 import SwiftUI
 
 extension StarMapCanvasView {
+    /// ピンチ操作中の視野角を一時表示する。
     struct PinchFOVOverlayView: View {
         let displayFov: Double
 
@@ -19,6 +20,7 @@ extension StarMapCanvasView {
         }
     }
 
+    /// 方角ラベルを画面下端に並べる。
     struct CardinalOverlayView: View {
         let placements: [CardinalOverlayPlacement]
         let overlayY: Double
@@ -41,6 +43,7 @@ extension StarMapCanvasView {
         }
     }
 
+    /// ジャイロモード中の向きと仰角を示す。
     struct GyroModeIndicatorView: View {
         let azimuth: Double
         let altitude: Double

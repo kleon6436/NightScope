@@ -1,6 +1,7 @@
 import SwiftUI
 
 @MainActor
+/// 今日タブの表示状態と補助処理をまとめる。
 struct iOSTodayViewModel {
     private let stateResolver = DetailContentStateResolver()
 
@@ -21,6 +22,7 @@ struct iOSTodayViewModel {
     }
 }
 
+/// 今夜の観測サマリーを表示するメイン画面。
 struct iOSTodayView: View {
     @ObservedObject var detailViewModel: DetailViewModel
     @ObservedObject var observationModePreference: ObservationModePreference
@@ -30,6 +32,7 @@ struct iOSTodayView: View {
     @State private var presentedSheet: PresentedSheet?
     @State private var calendarDraftDate = Date()
 
+    /// 詳細画面の ViewModel と観測モード設定を受け取る。
     init(
         detailViewModel: DetailViewModel,
         observationModePreference: ObservationModePreference = ObservationModePreference()
@@ -69,6 +72,7 @@ struct iOSTodayView: View {
                 sheetView(for: sheet)
             }
             .safeAreaInset(edge: .bottom) {
+                // エラー表示を常設するため、下端の安全領域にオーバーレイを差し込む。
                 DetailErrorOverlay(
                     weatherErrorMessage: detailViewModel.weatherErrorMessage,
                     hasLightPollutionError: detailViewModel.hasLightPollutionError,
@@ -79,7 +83,7 @@ struct iOSTodayView: View {
         }
     }
 
-    // MARK: - Subviews
+    // MARK: - サブビュー
 
     @ViewBuilder
     private var contentSection: some View {
@@ -250,6 +254,7 @@ struct iOSTodayView: View {
 }
 
 private extension iOSTodayView {
+    /// sheet の種類を識別する。
     enum PresentedSheet: String, Identifiable {
         case calendar
         case observationMode
@@ -259,6 +264,7 @@ private extension iOSTodayView {
     }
 }
 
+/// 観測モードの選択を行う sheet。
 private struct iOSObservationModeSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var observationModePreference: ObservationModePreference
@@ -295,6 +301,7 @@ private struct iOSObservationModeSelectionView: View {
     }
 }
 
+/// 設定画面を表示する sheet。
 private struct iOSSettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
 

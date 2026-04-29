@@ -2,22 +2,27 @@ import SwiftUI
 import CoreLocation
 import MapKit
 
+/// 詳細画面プレビュー用の状態切り替え。
 enum IOSPreviewDetailState {
     case loading
     case empty
     case content
 }
 
+/// 場所画面プレビュー用の状態切り替え。
 enum IOSPreviewLocationState {
     case loading
     case empty
     case content
 }
 
+/// プレビュー向けの ViewModel を状態別に組み立てる。
 @MainActor
 enum IOSPreviewFactory {
+    /// 今夜タブのプレビュー用 ViewModel を返す。
     static func detailViewModel(for state: IOSPreviewDetailState) -> DetailViewModel {
         let appController = AppController()
+        // プレビューは毎回同じ基準日時を使って、見た目の比較をしやすくする。
         let date = previewDate
         appController.selectedDate = date
         appController.locationController.locationName = "富士山五合目"
@@ -80,6 +85,7 @@ enum IOSPreviewFactory {
         return DetailViewModel(appController: appController)
     }
 
+    /// 場所タブのプレビュー用 ViewModel を返す。
     static func sidebarViewModel(for state: IOSPreviewLocationState) -> SidebarViewModel {
         let locationController = LocationController()
         let lightPollutionService = LightPollutionService()
@@ -114,12 +120,14 @@ enum IOSPreviewFactory {
         return sidebarViewModel
     }
 
+    /// プレビューの基準にする日時。
     private static var previewDate: Date {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: Date())
         return calendar.date(byAdding: .hour, value: 21, to: startOfDay) ?? Date()
     }
 
+    /// プレビューで共通利用する座標。
     private static var previewCoordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: 35.3606, longitude: 138.7274)
     }
@@ -132,6 +140,7 @@ enum IOSPreviewFactory {
         return formatter.string(from: date)
     }
 
+    /// 検索結果プレビュー用の MKMapItem を生成する。
     private static func makeMapItem(name: String, latitude: Double, longitude: Double) -> MKMapItem {
         let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         let mapItem: MKMapItem
@@ -144,6 +153,7 @@ enum IOSPreviewFactory {
         return mapItem
     }
 
+    /// 連続した夜のプレビューを作る。
     private static func makeUpcomingNights(from baseDate: Date) -> [NightSummary] {
         let calendar = Calendar.current
         return (0..<5).compactMap { offset in
@@ -154,6 +164,7 @@ enum IOSPreviewFactory {
         }
     }
 
+    /// 観測ウィンドウ付きの夜空サマリーを組み立てる。
     private static func makeNightSummary(date: Date, hasViewingWindow: Bool) -> NightSummary {
         let calendar = Calendar.current
         let eventDate = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: date) ?? date
@@ -186,6 +197,7 @@ enum IOSPreviewFactory {
         )
     }
 
+    /// 夜間の weather UI を再現するためのサンプル天気を作る。
     private static func makeWeatherSummary(date: Date, avgCloudCover: Double, weatherCode: Int) -> DayWeatherSummary {
         let calendar = Calendar.current
         let hour21 = calendar.date(bySettingHour: 21, minute: 0, second: 0, of: date) ?? date

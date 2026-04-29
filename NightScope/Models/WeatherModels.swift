@@ -2,6 +2,7 @@ import Foundation
 
 // MARK: - Models
 
+/// 1 時間単位の天気情報を保持するモデル。
 struct HourlyWeather {
     let date: Date
     let temperatureCelsius: Double
@@ -19,6 +20,7 @@ struct HourlyWeather {
     let windSpeedKmh500hpa: Double?
 }
 
+/// 夜間の天気を集計し、観測可否に使いやすい指標へ変換する。
 struct DayWeatherSummary {
     private struct Aggregates {
         let cloudSum: Double

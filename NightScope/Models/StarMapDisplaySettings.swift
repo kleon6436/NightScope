@@ -1,5 +1,6 @@
 import Foundation
 
+/// 星図オーバーレイの表示項目をまとめた設定。
 struct StarMapDisplaySettings: Equatable {
     static let showsConstellationLinesDefaultsKey = "starMapShowsConstellationLines"
     static let showsConstellationLabelsDefaultsKey = "starMapShowsConstellationLabels"

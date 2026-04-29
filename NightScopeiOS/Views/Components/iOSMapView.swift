@@ -2,8 +2,7 @@ import SwiftUI
 import MapKit
 import UIKit
 
-// MARK: - UIViewRepresentable wrapper for MKMapView (iOS)
-
+/// MKMapView を SwiftUI から扱う iOS 専用ラッパー。
 struct iOSMapView: UIViewRepresentable {
     let pinCoordinate: CLLocationCoordinate2D?
     var onTap: (CLLocationCoordinate2D) -> Void
@@ -33,6 +32,7 @@ struct iOSMapView: UIViewRepresentable {
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
         context.coordinator.parent = self
+        // iOS 側では同じ MKMapView を再利用し、差分だけを coordinator 経由で反映する。
         MapKitViewSharedLogic.applyMapUpdate(
             on: uiView,
             state: context.coordinator.state,

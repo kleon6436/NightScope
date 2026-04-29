@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 import Combine
 
+/// 位置入力のソースを表す。
 enum LocationInputMode: String, CaseIterable, Identifiable {
     case map
     case lightPollutionMap
@@ -10,12 +11,15 @@ enum LocationInputMode: String, CaseIterable, Identifiable {
 }
 
 @MainActor
+/// サイドバーの検索・お気に入り・位置情報を同期する ViewModel。
 final class SidebarViewModel: ObservableObject {
+    /// 検索結果確定時に入力欄へ名前を残すかどうか。
     enum SearchTextSelectionBehavior {
         case fillSelectionName
         case clear
     }
 
+    /// サイドバー内での検索結果の表示状態。
     enum SearchPresentation {
         case hidden
         case loading([MKMapItem])
@@ -85,6 +89,7 @@ final class SidebarViewModel: ObservableObject {
         }
     }
 
+    /// 各サービスの状態を購読し、サイドバーの表示状態へ反映する。
     init(
         locationController: some LocationProviding,
         lightPollutionService: some LightPollutionProviding,
@@ -262,6 +267,7 @@ final class SidebarViewModel: ObservableObject {
     }
 
     private func applyPendingLocationUpdateBehavior() {
+        // 選択確定後に検索欄をどう戻すかを、直前の意図に従って一度だけ反映する。
         let behavior = pendingLocationUpdateBehavior ?? .clearSearch
         pendingLocationUpdateBehavior = nil
 

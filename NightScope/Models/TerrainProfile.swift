@@ -12,6 +12,7 @@ struct TerrainProfile {
     /// 正値 = 山稜が空を遮る高さ、負値 = 地平線より低い
     let horizonAngles: [Double]
 
+    /// 5° 刻み 72 点のサンプル配列だけを受け付ける。
     init(horizonAngles: [Double]) {
         precondition(
             horizonAngles.count == Constants.sampleCount,

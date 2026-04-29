@@ -5,8 +5,10 @@ import CoreLocation
 import AppKit
 #endif
 
+/// アプリ全体の観測状態と外部データ更新を統括するコントローラ。
 @MainActor
 final class AppController: ObservableObject {
+    /// View 層へ公開する観測状態のスナップショット。
     struct ObservationState {
         var selectedDate = Date()
         var nightSummary: NightSummary?
@@ -17,18 +19,21 @@ final class AppController: ObservableObject {
         var isUpcomingLoading = false
     }
 
+    /// 観測地変更時に再計算へ渡す入力条件。
     struct LocationRefreshRequest {
         let selectedDate: Date
         let coordinate: CLLocationCoordinate2D
         let timeZoneIdentifier: String
     }
 
+    /// 観測地更新時に、どこまで画面状態へ反映するかを表す。
     enum LocationRefreshDisposition: Equatable {
         case discard
         case applyAll
         case applyLocationDataOnly
     }
 
+    /// 観測地変更後にまとめて反映する計算結果と外部データ。
     struct LocationRefreshPayload {
         let nightSummary: NightSummary
         let upcomingNights: [NightSummary]
@@ -38,6 +43,7 @@ final class AppController: ObservableObject {
         let upcomingIndexes: [Date: StarGazingIndex]
     }
 
+    /// 現在選択中の座標・タイムゾーンをひとまとめにした内部コンテキスト。
     private struct SelectedLocationContext {
         let coordinate: CLLocationCoordinate2D
         let timeZone: TimeZone

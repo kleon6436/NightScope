@@ -4,6 +4,7 @@ import Combine
 
 // MARK: - 共通結果型
 
+/// WeatherKit / HTTP 取得結果を共通形式で保持する。
 struct WeatherFetchResult {
     let weatherByDate: [String: DayWeatherSummary]
     let errorMessage: String?
@@ -12,6 +13,7 @@ struct WeatherFetchResult {
     let timeZoneIdentifier: String
 }
 
+/// 天気データ取得の失敗理由を利用者向け文言へ変換する。
 enum WeatherServiceError: Error, LocalizedError {
     case invalidURL
     case invalidResponse(statusCode: Int)
@@ -35,6 +37,7 @@ enum WeatherServiceError: Error, LocalizedError {
     }
 }
 
+/// 天気取得・参照・切り替え処理の共通インターフェース。
 @MainActor
 protocol WeatherProviding: AnyObject, ObservableObject, Sendable {
     var weatherByDate: [String: DayWeatherSummary] { get }
@@ -55,5 +58,4 @@ protocol WeatherProviding: AnyObject, ObservableObject, Sendable {
     func dateKey(_ date: Date, timeZone: TimeZone) -> String
     func prepareForLocationChange(latitude: Double, longitude: Double, timeZone: TimeZone)
 }
-
 

@@ -46,6 +46,7 @@ private final class TileLoadResultHandler: @unchecked Sendable {
 
 // MARK: - LightPollutionTileOverlay
 
+/// バンドル済み光害グリッドを MKTileOverlay として描画する。
 final class LightPollutionTileOverlay: MKTileOverlay {
 
     private enum OverlayConfig {

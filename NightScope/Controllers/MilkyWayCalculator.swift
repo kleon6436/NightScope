@@ -3,6 +3,7 @@ import CoreLocation
 
 // MARK: - Calculator
 
+/// 銀河系中心の可視性と夜間観測ウィンドウを計算する天文ユーティリティ。
 enum MilkyWayCalculator {
     enum Constants {
         static let sampleIntervalMinutes = 15

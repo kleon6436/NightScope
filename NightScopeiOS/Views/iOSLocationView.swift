@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 import UIKit
 
+/// 場所検索、現在地取得、地図選択、お気に入り管理をまとめた画面。
 struct iOSLocationView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -10,6 +11,7 @@ struct iOSLocationView: View {
     @State private var locationInputMode: LocationInputMode = .map
 
     private var showLightPollution: Bool {
+        // モード切り替えでも同じ地図を使うため、表示の差分だけをここで判定する。
         locationInputMode == .lightPollutionMap
     }
 
@@ -101,7 +103,7 @@ struct iOSLocationView: View {
         }
     }
 
-    // MARK: - Search Results
+    // MARK: - 検索結果
 
     private var searchResultsList: some View {
         iOSLocationSearchResultsSection(
@@ -163,7 +165,7 @@ struct iOSLocationView: View {
         )
     }
 
-    // MARK: - Map
+    // MARK: - 地図
 
     private var mapArea: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -194,7 +196,7 @@ struct iOSLocationView: View {
         )
     }
 
-    // MARK: - Bottom Bar
+    // MARK: - 下部バー
 
     private var bottomBar: some View {
         VStack(spacing: Spacing.sm) {
@@ -307,12 +309,14 @@ struct iOSLocationView: View {
     }
 
     private var mapAreaMinHeight: CGFloat {
+        // 検索中や検索結果表示中は地図を少し縮めて、入力領域を優先する。
         usesCompactMapLayout
             ? IOSDesignTokens.Location.compactMapHeight
             : IOSDesignTokens.Location.defaultMapHeight
     }
 }
 
+/// 検索結果の表示状態ごとに View を切り替える。
 private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
     let presentation: SidebarViewModel.SearchPresentation
     let searchResultsContent: ([MKMapItem]) -> ResultsContent
@@ -363,6 +367,7 @@ private struct iOSLocationSearchResultsSection<ResultsContent: View>: View {
     }
 }
 
+/// 検索バーの入力・クリア操作をまとめる。
 private struct LocationSearchField: View {
     @Binding var searchText: String
     let isSearching: Bool
@@ -402,15 +407,18 @@ private struct LocationSearchField: View {
     }
 }
 
+/// お気に入り一覧を表示する。
 private struct iOSFavoritesSection: View {
     @ObservedObject var viewModel: SidebarViewModel
     let onSelect: (FavoriteLocation) -> Void
 
     private var needsScroll: Bool {
+        // 表示件数が多いときだけ ScrollView を有効にして、短い一覧の高さを無駄に伸ばさない。
         viewModel.favorites.count > IOSDesignTokens.Location.favoritesVisibleCount
     }
 
     private var favoritesListHeight: CGFloat {
+        // 高さを固定して、行数変化で下部バー全体が大きく揺れないようにする。
         let rowHeight = IOSDesignTokens.Location.estimatedFavoriteRowHeight
         let contentHeight = CGFloat(viewModel.favorites.count) * rowHeight
         return min(contentHeight, IOSDesignTokens.Location.favoritesMaxHeight)
@@ -493,6 +501,7 @@ private struct iOSFavoritesSection: View {
 }
 
 private extension iOSLocationView {
+    // 検索語の更新と search presentation の同期をまとめる。
     var searchTextBinding: Binding<String> {
         Binding(
             get: { sidebarViewModel.searchText },

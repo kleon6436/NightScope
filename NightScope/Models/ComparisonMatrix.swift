@@ -1,6 +1,8 @@
 import Foundation
 
+/// 比較表の 1 セルに対応する、地点×日付の集計結果。
 struct ComparisonCell: Identifiable {
+    /// 取得状態と失敗理由を保持する。
     enum LoadState: Equatable {
         case idle
         case loading
@@ -36,11 +38,13 @@ struct ComparisonCell: Identifiable {
         self.loadState = loadState
     }
 
+    /// 地点 ID と日付を元に安定したセル ID を生成する。
     static func makeID(locationID: UUID, date: Date) -> String {
         "\(locationID.uuidString)|\(Int(date.timeIntervalSince1970))"
     }
 }
 
+/// 観測地点と日付を二次元に並べた比較データ。
 struct ComparisonMatrix {
     let locations: [FavoriteLocation]
     let dates: [Date]

@@ -1,6 +1,7 @@
 import Foundation
 
 extension StarGazingIndex {
+    /// 観測モードに合わせて既存の星空指数を再重み付けする。
     func adjusted(for mode: ObservationMode, nightSummary: NightSummary, weather: DayWeatherSummary?) -> StarGazingIndex {
         guard mode != .general else { return self }
 

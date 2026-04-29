@@ -1,31 +1,38 @@
 import Foundation
 import CoreLocation
 
+/// 星空マップで使う夜間時刻の変換ロジックをまとめる。
 enum StarMapDateLogic {
+    /// 夜間スライダー用の夜間範囲。
     struct NightRange {
         let startMinutes: Double
         let durationMinutes: Double
     }
 
+    /// 日時をタイムゾーン基準の 0-1439 分へ変換する。
     static func clockMinutes(for date: Date, timeZone: TimeZone) -> Double {
         let components = ObservationTimeZone.gregorianCalendar(timeZone: timeZone)
             .dateComponents([.hour, .minute], from: date)
         return Double((components.hour ?? 0) * 60 + (components.minute ?? 0))
     }
 
+    /// 2 つの日時が同じ暦日かをタイムゾーン込みで判定する。
     static func isSameCalendarDay(_ lhs: Date, _ rhs: Date, timeZone: TimeZone) -> Bool {
         ObservationTimeZone.gregorianCalendar(timeZone: timeZone).isDate(lhs, inSameDayAs: rhs)
     }
 
+    /// 夜間開始時刻からのオフセットを、実際の時刻へ戻す。
     static func nightOffsetToRealMinutes(_ offset: Double, nightStartMinutes: Double) -> Double {
         let real = nightStartMinutes + offset
         return real.truncatingRemainder(dividingBy: 1_440)
     }
 
+    /// 夜間スライダーで選べる最大オフセットを返す。
     static func maxSelectableNightOffset(nightDurationMinutes: Double) -> Double {
         max(0, min(nightDurationMinutes, 1_439))
     }
 
+    /// 実時刻を夜間開始からのオフセットへ正規化する。
     static func realMinutesToNightOffset(
         _ realMinutes: Double,
         nightStartMinutes: Double,
@@ -36,6 +43,7 @@ enum StarMapDateLogic {
         return max(0, min(maxSelectableNightOffset(nightDurationMinutes: nightDurationMinutes), offset))
     }
 
+    /// 日没・日出から、その日の観測用夜間範囲を算出する。
     static func nightRange(
         for date: Date,
         location: CLLocationCoordinate2D,
@@ -62,6 +70,7 @@ enum StarMapDateLogic {
         )
     }
 
+    /// 表示用の日付を、観測日に属する実日付へ変換する。
     static func observationDate(
         for presentationDate: Date,
         timeZone: TimeZone,
@@ -76,6 +85,7 @@ enum StarMapDateLogic {
         return calendar.date(byAdding: .day, value: -1, to: startOfDay) ?? startOfDay
     }
 
+    /// 選択日と参照時刻から、表示に使う日時を解決する。
     static func resolvedPresentationDate(
         for selectedDate: Date,
         referenceDate: Date,
@@ -112,6 +122,7 @@ enum StarMapDateLogic {
         )
     }
 
+    /// 分単位の時刻を、指定日の Date として組み立てる。
     static func date(bySettingClockMinutes minutes: Double, on date: Date, timeZone: TimeZone) -> Date? {
         let normalizedMinutes = ((Int(minutes.rounded()) % 1_440) + 1_440) % 1_440
         return ObservationTimeZone.gregorianCalendar(timeZone: timeZone).date(
@@ -122,6 +133,7 @@ enum StarMapDateLogic {
         )
     }
 
+    /// 夜間スライダーの観測日をまたぐ時刻補正を加味して Date を返す。
     static func date(
         bySettingClockMinutes minutes: Double,
         onObservationDate observationDate: Date,

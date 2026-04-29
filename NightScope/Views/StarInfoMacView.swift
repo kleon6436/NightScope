@@ -58,6 +58,7 @@ struct StarInfoMacView: View {
         return StarMapPresentation.azimuthName(for: az) + String(format: " %.1f°", az)
     }
 
+    /// 各項目を行単位で揃え、値を読み取りやすくする。
     private func infoRow(icon: String, label: String, value: String) -> some View {
         HStack {
             Label(label, systemImage: icon)

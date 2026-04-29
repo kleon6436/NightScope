@@ -213,6 +213,7 @@ actor TerrainService {
 
     static let shared = TerrainService()
 
+    /// 同一座標の結果を再利用して地形プロファイル生成を抑制する。
     private let cache = NSCache<NSString, NSArray>()
     private let globalData: ElevationGridData?
     private let highResData: ElevationGridData?

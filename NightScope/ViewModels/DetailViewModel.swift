@@ -1,13 +1,16 @@
 import SwiftUI
 import Combine
 
+/// 画面に表示する状態を「読み込み中 / 空 / 表示可」に畳み込む。
 enum LoadableContentState: Equatable {
     case loading
     case empty
     case content
 }
 
+/// 詳細画面のカード表示可否をまとめて判定する。
 struct DetailContentStateResolver {
+    /// 直近予報の読み込み状況から、予報カードの表示状態を返す。
     func forecastState(hasDisplayNights: Bool, isUpcomingLoading: Bool) -> LoadableContentState {
         if isUpcomingLoading && !hasDisplayNights {
             return .loading
@@ -18,6 +21,7 @@ struct DetailContentStateResolver {
         return .content
     }
 
+    /// 当日の詳細表示に必要な夜間データの有無を判定する。
     func todayState(isCalculating: Bool, summary: NightSummary?) -> LoadableContentState {
         if isCalculating && summary == nil {
             return .loading
@@ -30,14 +34,22 @@ struct DetailContentStateResolver {
 }
 
 @MainActor
+/// 観測日の詳細情報と再計算状態を管理する ViewModel。
 final class DetailViewModel: ObservableObject {
+    /// 現在表示している当日詳細の元データ。
     @Published private(set) var nightSummary: NightSummary?
+    /// 調整後の星空指数。
     @Published private(set) var starGazingIndex: StarGazingIndex?
+    /// 選択中の観測モード。
     @Published private(set) var observationMode: ObservationMode
+    /// 再計算中かどうか。
     @Published private(set) var isCalculating = false
+    /// 予報対象の未来数日分。
     @Published private(set) var upcomingNights: [NightSummary] = []
+    /// 日付ごとの星空指数キャッシュ。
     @Published private(set) var upcomingIndexes: [Date: StarGazingIndex] = [:]
     @Published var selectedDate: Date
+    /// 表示上の観測日。再計算中は一時的に前回表示を保持する。
     @Published private(set) var displayedDate: Date
     @Published private(set) var locationName: String = ""
     @Published private(set) var hasWeatherError: Bool = false
@@ -54,6 +66,7 @@ final class DetailViewModel: ObservableObject {
     private let observationModePreference: ObservationModePreference
     private var cancellables = Set<AnyCancellable>()
 
+    /// AppController の観測状態を詳細画面向けに同期する。
     init(
         appController: AppController,
         observationModePreference: ObservationModePreference = ObservationModePreference()
@@ -169,34 +182,41 @@ final class DetailViewModel: ObservableObject {
         )
     }
 
+    /// 天気情報を再取得する。
     func refreshWeather() async {
         await appController.refreshWeather()
     }
 
+    /// 光害情報を再取得する。
     func refreshLightPollution() async {
         await appController.refreshLightPollution()
     }
 
+    /// 当日詳細に必要な外部データをまとめて更新する。
     func refreshExternalData() async {
         await appController.refreshExternalData()
     }
 
+    /// 未来予報を再計算する。
     func refreshForecast() async {
         await appController.recalculateUpcomingAndWait()
     }
 
+    /// バックグラウンドで天気再取得を行う。
     func retryWeatherInBackground() {
         Task {
             await refreshWeather()
         }
     }
 
+    /// バックグラウンドで光害再取得を行う。
     func retryLightPollutionInBackground() {
         Task {
             await refreshLightPollution()
         }
     }
 
+    /// バックグラウンドで予報再計算を行う。
     func retryForecastInBackground() {
         Task {
             await refreshForecast()
@@ -220,6 +240,7 @@ final class DetailViewModel: ObservableObject {
     private func shouldPreserveDisplayedSummary(
         during state: AppController.ObservationState
     ) -> Bool {
+        // 同じ地点・同じタイムゾーンで日付だけ変わった場合は、再計算中も前回表示を残す。
         guard state.isCalculating,
               state.nightSummary == nil,
               let displayedSummary = nightSummary else {
@@ -241,6 +262,7 @@ final class DetailViewModel: ObservableObject {
     }
 
     private func updateDisplayedContentState() {
+        // 表示中の日付に対応する天気と星空指数を、観測タイムゾーン基準で揃える。
         displayedDate = effectiveDisplayDate
         let weatherByDate = appController.weatherService.weatherByDate
         currentWeather = appController.weatherService.summary(

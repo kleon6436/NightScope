@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 太陽と月の影響度を時間軸で示す観測ヒートバー。
 struct ObservationHeatBarView: View {
     struct LegendItem: Equatable, Identifiable {
         let label: String
@@ -18,6 +19,7 @@ struct ObservationHeatBarView: View {
     var body: some View {
         if !observationConditionTimeline.isEmpty {
             GeometryReader { proxy in
+                // スライダー位置をバー幅へ正規化し、現在時刻の位置を重ねる。
                 let indicatorX = max(0, min(1, sliderFraction)) * proxy.size.width
 
                 ZStack(alignment: .leading) {

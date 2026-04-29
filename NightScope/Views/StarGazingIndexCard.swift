@@ -5,6 +5,7 @@ private enum StarGazingIndexCardMetrics {
     static let starSpacing: CGFloat = 4
 }
 
+/// 星空指数を 1 枚のカードに要約して表示する。
 struct StarGazingIndexCard: View {
     let index: StarGazingIndex
     @ObservedObject var lightPollutionViewModel: StarGazingIndexCardViewModel
@@ -134,6 +135,7 @@ struct StarGazingIndexCard: View {
 }
 
 #if os(macOS)
+/// macOS では観測モードの切り替えを同じカード内で提供する。
 struct MacStarGazingIndexCard: View {
     let index: StarGazingIndex
     @ObservedObject var lightPollutionViewModel: StarGazingIndexCardViewModel
@@ -282,6 +284,7 @@ struct MacStarGazingIndexCard: View {
 
 // MARK: - Score Arc Canvas
 
+/// 星の段階評価とラベルをまとめる補助ビュー。
 private struct StarTierSummary: View {
     let index: StarGazingIndex
     let color: Color
@@ -312,6 +315,7 @@ private struct StarTierSummary: View {
     }
 }
 
+/// 0〜100 点のスコアを半円ゲージとして描画する。
 private struct ScoreArc: View {
     let score: Int
     let color: Color

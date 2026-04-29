@@ -1,6 +1,7 @@
 import MapKit
 
 @MainActor
+/// MapKit の同期・オーバーレイ更新ロジックを共有するための補助 API。
 enum MapKitViewSharedLogic {
     private enum Config {
         static let minCenterCoordinateDistance: CLLocationDistance = 100
@@ -243,6 +244,7 @@ enum MapKitViewSharedLogic {
 /// サイドバーマップで視野方向を示す扇形ポリゴンオーバーレイ。
 final class ViewingDirectionOverlay: MKPolygon {}
 
+/// MapKit の delegate 状態とプログラム更新の抑止を管理する。
 @MainActor
 final class MapKitCoordinatorState {
     private static let pendingIgnoreResetDelay: Duration = .milliseconds(500)

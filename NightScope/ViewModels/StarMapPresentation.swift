@@ -3,6 +3,7 @@ import CoreLocation
 import Combine
 import SwiftUI
 
+/// BV 色指数から恒星の見た目の色を近似する。
 func _starColorForBV(_ bvIndex: Double?) -> Color {
     guard let bv = bvIndex else { return .white }
     let table: [(bv: Double, r: Double, g: Double, b: Double)] = [
@@ -33,6 +34,7 @@ func _starColorForBV(_ bvIndex: Double?) -> Color {
     return .white
 }
 
+/// 描画対象の恒星 1 件分の座標と色を保持する。
 struct StarPosition {
     let star: Star
     let altitude: Double
@@ -40,6 +42,7 @@ struct StarPosition {
     let precomputedColor: Color
 }
 
+/// 銀河面の帯を描くためのサンプル点。
 struct MilkyWayBandPoint: Sendable {
     let az: Double
     let alt: Double
@@ -47,6 +50,7 @@ struct MilkyWayBandPoint: Sendable {
     let li: Double
 }
 
+/// 星座線の 2 点を水平座標系へ変換した結果。
 struct ConstellationLineAltAz {
     let startAlt: Double
     let startAz: Double
@@ -54,6 +58,7 @@ struct ConstellationLineAltAz {
     let endAz: Double
 }
 
+/// 星座ラベルを配置する水平座標系の位置。
 struct ConstellationLabelAltAz {
     let alt: Double
     let az: Double

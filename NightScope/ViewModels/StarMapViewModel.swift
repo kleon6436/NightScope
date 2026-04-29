@@ -3,6 +3,7 @@ import CoreLocation
 import Combine
 import SwiftUI
 
+/// 星空マップの設定と現在値を配信する依存関係。
 @MainActor
 struct StarMapSettingsDependency {
     let currentSettings: () -> StarMapDisplaySettings
@@ -19,6 +20,7 @@ struct StarMapSettingsDependency {
     )
 }
 
+/// 地形プロファイル取得の差し替え可能な依存関係。
 struct StarMapTerrainDependency: Sendable {
     let fetchProfile: @Sendable (_ latitude: Double, _ longitude: Double) async -> TerrainProfile?
 
@@ -29,6 +31,7 @@ struct StarMapTerrainDependency: Sendable {
     )
 }
 
+/// 星空描画に必要なスナップショット計算の依存関係。
 struct StarMapComputationDependency: Sendable {
     let computeSnapshot: @Sendable (
         _ latitude: Double,
@@ -55,6 +58,7 @@ struct StarMapComputationDependency: Sendable {
     )
 }
 
+/// 地形取得の進捗状態。
 enum StarMapTerrainFetchState: Equatable {
     case idle
     case loading
@@ -86,6 +90,7 @@ enum StarMapTerrainFetchState: Equatable {
     }
 }
 
+/// 画面向きに応じたスクリーン座標系を表す。
 enum StarMapScreenOrientation: Sendable {
     case portrait
     case portraitUpsideDown
@@ -115,6 +120,7 @@ enum StarMapScreenOrientation: Sendable {
     }
 }
 
+/// カメラの画角から、描画上で見える水平視野角を求める。
 struct StarMapCameraFieldOfView: Equatable, Sendable {
     let diagonalDegrees: Double
     let sensorWidth: Int32
@@ -174,6 +180,7 @@ struct StarMapCameraFieldOfView: Equatable, Sendable {
     }
 }
 
+/// カメラセッションを維持すべきかを表す状態。
 struct StarMapCameraSessionState: Equatable, Sendable {
     let isGyroMode: Bool
     let isBackgroundEnabled: Bool
@@ -194,6 +201,7 @@ struct StarMapCameraSessionState: Equatable, Sendable {
     }
 }
 
+/// プレビューの向きを画面向きへ合わせるための回転角。
 enum StarMapCameraPreviewRotation {
     static func fallbackAngle(for screenOrientation: StarMapScreenOrientation) -> CGFloat {
         switch screenOrientation {
@@ -209,6 +217,7 @@ enum StarMapCameraPreviewRotation {
     }
 }
 
+/// カメラ有効/無効の切り替え順を識別する世代番号付き状態。
 struct StarMapCameraSessionActivationState: Sendable {
     private(set) var generation: UInt = 0
     private(set) var isActive = false
@@ -225,12 +234,14 @@ struct StarMapCameraSessionActivationState: Sendable {
     }
 }
 
+/// 1 時刻ぶんの観測条件を記録する。
 struct StarMapObservationConditionSample: Equatable {
     let moonAltitude: Double
     let moonPhase: Double
     let sunAltitude: Double
 }
 
+/// Core Motion の回転行列を、描画用の east-north-up 座標へ変換する。
 struct StarMapMotionMatrix {
     let m11: Double
     let m12: Double
@@ -260,6 +271,7 @@ struct StarMapMotionMatrix {
     }
 }
 
+/// 方位・仰角・ロールを表す、カメラ姿勢の正規化済み表現。
 struct StarMapMotionPose: Equatable {
     let azimuth: Double
     let altitude: Double
@@ -408,6 +420,7 @@ struct StarMapMotionPose: Equatable {
 // MARK: - ViewModel
 
 @MainActor
+/// 星空マップの描画状態、観測日時、視点操作をまとめて管理する。
 final class StarMapViewModel: ObservableObject {
 
     // MARK: - Celestial object positions

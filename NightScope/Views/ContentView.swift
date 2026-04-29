@@ -2,6 +2,7 @@ import SwiftUI
 #if os(macOS)
 #endif
 
+/// アプリ全体のルートとなる split view 画面。
 struct ContentView: View {
     @StateObject private var rootStore: AppRootStore
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
