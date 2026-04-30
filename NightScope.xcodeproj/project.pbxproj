@@ -73,6 +73,7 @@
 		AA0000000000000000002B08 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F08 /* SidebarView.swift */; };
 		AA0000000000000000002B09 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F09 /* DetailView.swift */; };
 		AA0000000000000000002B10 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
+		AA0000000000000000002B30 /* MeteorShowerCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F30 /* MeteorShowerCalendarView.swift */; };
 		AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F11 /* MapLocationPicker.swift */; };
 		AA0000000000000000002B12 /* LightPollutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F12 /* LightPollutionService.swift */; };
 		AA0000000000000000002B13 /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
@@ -192,6 +193,7 @@
 		F6CD4B6B293C9471C424C02A /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
 		FC01B28AAAA3D24EA5E24686 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
 		FCBBDF3EB1CA5D5B3BE17896 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
+		FCBB0001B1CA5D5B3BE17896 /* MeteorShowerCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F30 /* MeteorShowerCalendarView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -248,6 +250,7 @@
 		AA0000000000000000002F08 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F09 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F10 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
+		AA0000000000000000002F30 /* MeteorShowerCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeteorShowerCalendarView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F11 /* MapLocationPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapLocationPicker.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F12 /* LightPollutionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightPollutionService.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F13 /* StarGazingIndexCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexCard.swift; sourceTree = "<group>"; };
@@ -497,6 +500,7 @@
 				AA0000000000000000002F17 /* UpcomingNightsGrid.swift */,
 				AA0000000000000000002F19 /* UIConstants.swift */,
 				AA0000000000000000002F10 /* CalendarView.swift */,
+				AA0000000000000000002F30 /* MeteorShowerCalendarView.swift */,
 				AA0000000000000000002F11 /* MapLocationPicker.swift */,
 				BB0000000000000000002F22 /* StarMapCanvasView.swift */,
 				BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */,
@@ -759,6 +763,7 @@
 				B66ECDD7AD401F013891BF8E /* StarGazingIndexCardViewModel.swift in Sources */,
 				78F344DDA7638AEE2C53BABF /* UIConstants.swift in Sources */,
 				FCBBDF3EB1CA5D5B3BE17896 /* CalendarView.swift in Sources */,
+				FCBB0001B1CA5D5B3BE17896 /* MeteorShowerCalendarView.swift in Sources */,
 				983D7E6CD2271870DD1E8E6D /* StarGazingIndexCard.swift in Sources */,
 				6ECB4F746F4502FCE2C97515 /* DarkTimeCard.swift in Sources */,
 				E28982699FDE76BC460B3CE0 /* WeatherCard.swift in Sources */,
@@ -841,6 +846,7 @@
 				E2B700000000000000000002 /* ObservationHeatBarView.swift in Sources */,
 				AA0000000000000000002B19 /* UIConstants.swift in Sources */,
 				AA0000000000000000002B10 /* CalendarView.swift in Sources */,
+				AA0000000000000000002B30 /* MeteorShowerCalendarView.swift in Sources */,
 				AA0000000000000000002B11 /* MapLocationPicker.swift in Sources */,
 				AA0000000000000000003B01 /* DetailViewModel.swift in Sources */,
 				AA0000000000000000003B02 /* SidebarViewModel.swift in Sources */,

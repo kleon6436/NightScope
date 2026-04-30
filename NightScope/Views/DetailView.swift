@@ -74,6 +74,7 @@ struct DetailView: View {
                     isSummaryRefreshing: viewModel.isCalculating
                 )
                 UpcomingNightsGrid(viewModel: upcomingGridViewModel)
+                MeteorShowerCalendarView(selectedDate: viewModel.selectedDate)
             }
             .padding(Spacing.md)
         }

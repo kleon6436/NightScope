@@ -4122,6 +4122,12 @@
         }
       }
     },
+    "最大 約%@/h" : {
+
+    },
+    "最大 約%lld/h" : {
+
+    },
     "最大高度 %.0f°" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5170,6 +5176,17 @@
         }
       }
     },
+    "年間スケジュール" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annual Schedule"
+          }
+        }
+      }
+    },
     "快晴" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5962,6 +5979,9 @@
         }
       }
     },
+    "極大: %@" : {
+
+    },
     "権限ダイアログの完了後に背景を切り替えます" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6046,6 +6066,27 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "active"
+          }
+        }
+      }
+    },
+    "活動期間: %@ 〜 %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "活動期間: %1$@ 〜 %2$@"
+          }
+        }
+      }
+    },
+    "流星群カレンダー" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meteor Shower Calendar"
           }
         }
       }
@@ -6841,6 +6882,17 @@
       }
     },
     "選択中" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected"
+          }
+        }
+      }
+    },
+    "選択日" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {

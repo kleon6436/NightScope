@@ -84,6 +84,7 @@ struct iOSForecastView: View {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     headerSection
                     contentByState
+                    MeteorShowerCalendarView(selectedDate: detailViewModel.selectedDate)
                     if displayState == .content {
                         WeatherAttributionBadge()
                             .frame(maxWidth: .infinity, alignment: .trailing)
