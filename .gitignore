@@ -54,9 +54,8 @@ build/
 # Claude Code
 .claude/
 
-# VS CodeとGitHub Copilotの設定ファイル
+# VS Codeとneovimの設定ファイル
 .vscode/
-.github/
 .nvim/
 buildServer.json
 
