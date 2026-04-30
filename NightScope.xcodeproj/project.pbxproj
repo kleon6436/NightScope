@@ -34,6 +34,14 @@
 		6ECB4F746F4502FCE2C97515 /* DarkTimeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F20 /* DarkTimeCard.swift */; };
 		6FC7FC5F38B1C25572A8CC78 /* SidebarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F02 /* SidebarViewModel.swift */; };
 		7084008268A492409EA18561 /* MilkyWayCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000001F03 /* MilkyWayCalculator.swift */; };
+		AA0000000000000000004B01 /* AstroPhotoCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F12 /* AstroPhotoCalculator.swift */; };
+		AA0000000000000000004B02 /* AstroPhotoCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F12 /* AstroPhotoCalculator.swift */; };
+		AA0000000000000000004B03 /* AstroPhotoSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F11 /* AstroPhotoSettings.swift */; };
+		AA0000000000000000004B04 /* AstroPhotoSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F11 /* AstroPhotoSettings.swift */; };
+		AA0000000000000000004B05 /* AstroPhotoCalculatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F13 /* AstroPhotoCalculatorViewModel.swift */; };
+		AA0000000000000000004B06 /* AstroPhotoCalculatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F13 /* AstroPhotoCalculatorViewModel.swift */; };
+		AA0000000000000000004B07 /* AstroPhotoCalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F14 /* AstroPhotoCalculatorView.swift */; };
+		AA0000000000000000004B08 /* AstroPhotoCalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F14 /* AstroPhotoCalculatorView.swift */; };
 		726077AD15C19C005AB769DB /* AstroModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F01 /* AstroModels.swift */; };
 		78BC796E939B65C3054D3651 /* FavoriteLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A5FD175A6FD4FA2071B5F37 /* FavoriteLocation.swift */; };
 		78F344DDA7638AEE2C53BABF /* UIConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F19 /* UIConstants.swift */; };
@@ -103,6 +111,7 @@
 		AA000000000000000000TB13 /* UpcomingNightsGridViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF13 /* UpcomingNightsGridViewModelTests.swift */; };
 		AA000000000000000000TB14 /* SearchResultsLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF14 /* SearchResultsLayoutTests.swift */; };
 		AA000000000000000000TB15 /* CalendarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF15 /* CalendarViewTests.swift */; };
+		AA000000000000000000TB16 /* AstroPhotoCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF16 /* AstroPhotoCalculatorTests.swift */; };
 		AEF100000000000000000011 /* WeatherKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF100000000000000000001 /* WeatherKitService.swift */; };
 		AEF100000000000000000012 /* WeatherKitServiceSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF100000000000000000002 /* WeatherKitServiceSupport.swift */; };
 		AEF100000000000000000021 /* WeatherKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF100000000000000000001 /* WeatherKitService.swift */; };
@@ -227,6 +236,10 @@
 		AA0000000000000000001F06 /* NightScope.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NightScope.entitlements; sourceTree = "<group>"; };
 		AA0000000000000000001F08 /* NightStarScope.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightStarScope.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000002F01 /* AstroModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModels.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F11 /* AstroPhotoSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoSettings.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F12 /* AstroPhotoCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoCalculator.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F13 /* AstroPhotoCalculatorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoCalculatorViewModel.swift; sourceTree = "<group>"; };
+		AA0000000000000000004F14 /* AstroPhotoCalculatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoCalculatorView.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F02 /* WeatherModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherModels.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F03 /* StarGazingIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndex.swift; sourceTree = "<group>"; };
 		AA0000000000000000002F04 /* AppController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppController.swift; sourceTree = "<group>"; };
@@ -271,6 +284,7 @@
 		AA000000000000000000TF04 /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF05 /* AstroModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroModelsTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF06 /* ViewModelTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTestSupport.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF16 /* AstroPhotoCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoCalculatorTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF07 /* StarMapViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapViewModelTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF08 /* LocationControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationControllerTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF09 /* NightScopeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NightScopeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -419,6 +433,7 @@
 				6C1674E72F8E7B7500AF040A /* ObservationTimeZone.swift */,
 				A0F100000000000000000001 /* Localization.swift */,
 				AA0000000000000000002F01 /* AstroModels.swift */,
+				AA0000000000000000004F11 /* AstroPhotoSettings.swift */,
 				AA0000000000000000002F02 /* WeatherModels.swift */,
 				AA0000000000000000002F03 /* StarGazingIndex.swift */,
 				14E29A763046C8DBB1100A11 /* ObservationMode.swift */,
@@ -440,6 +455,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000001F03 /* MilkyWayCalculator.swift */,
+				AA0000000000000000004F12 /* AstroPhotoCalculator.swift */,
 				AA0000000000000000002F04 /* AppController.swift */,
 				AA0000000000000000002F26 /* AppRootDependencies.swift */,
 				AA0000000000000000002F18 /* NightCalculationService.swift */,
@@ -463,6 +479,7 @@
 				6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */,
 				F1A2B3C4D5E6F708192A3B4C /* MapKitViewSharedLogic.swift */,
 				6C18B76F2F791309007949F3 /* SettingsView.swift */,
+				AA0000000000000000004F14 /* AstroPhotoCalculatorView.swift */,
 				D1A100000000000000000004 /* StarMapDisplaySettingsSection.swift */,
 				E2B700000000000000000001 /* ObservationHeatBarView.swift */,
 				AA0000000000000000002F07 /* ContentView.swift */,
@@ -497,6 +514,7 @@
 				AA000000000000000000TF04 /* AppControllerTests.swift */,
 				AA000000000000000000TF05 /* AstroModelsTests.swift */,
 				AA000000000000000000TF06 /* ViewModelTestSupport.swift */,
+				AA000000000000000000TF16 /* AstroPhotoCalculatorTests.swift */,
 				AA000000000000000000TF07 /* StarMapViewModelTests.swift */,
 				AA000000000000000000TF08 /* LocationControllerTests.swift */,
 				AA000000000000000000TF10 /* SidebarViewModelTests.swift */,
@@ -521,6 +539,7 @@
 				AA0000000000000000003F05 /* NightWeatherCardViewModel.swift */,
 				AA0000000000000000003F06 /* DarkTimeCardViewModel.swift */,
 				AA0000000000000000003F07 /* ViewingWindowsSectionViewModel.swift */,
+				AA0000000000000000004F13 /* AstroPhotoCalculatorViewModel.swift */,
 				BB0000000000000000003F08 /* StarMapViewModel.swift */,
 				BB0000000000000000003F09 /* StarMapPresentation.swift */,
 				BB0000000000000000003F0B /* StarMapDateLogic.swift */,
@@ -708,6 +727,10 @@
 				E60A49CD1BC946E763B3AAC6 /* iOSNightCardRow.swift in Sources */,
 				29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */,
 				726077AD15C19C005AB769DB /* AstroModels.swift in Sources */,
+				AA0000000000000000004B01 /* AstroPhotoCalculator.swift in Sources */,
+				AA0000000000000000004B03 /* AstroPhotoSettings.swift in Sources */,
+				AA0000000000000000004B06 /* AstroPhotoCalculatorViewModel.swift in Sources */,
+				AA0000000000000000004B07 /* AstroPhotoCalculatorView.swift in Sources */,
 				7BA722D255FEC71D78109ED2 /* WeatherModels.swift in Sources */,
 				8A2E00716A7CF7F2FBDBA8C9 /* StarGazingIndex.swift in Sources */,
 				14E29A763046C8DBB1100A01 /* ObservationMode.swift in Sources */,
@@ -775,7 +798,11 @@
 				A0F100000000000000000002 /* Localization.swift in Sources */,
 				6C18B7702F791309007949F3 /* SettingsView.swift in Sources */,
 				AA0000000000000000001B03 /* MilkyWayCalculator.swift in Sources */,
+				AA0000000000000000004B02 /* AstroPhotoCalculator.swift in Sources */,
 				AA0000000000000000002B01 /* AstroModels.swift in Sources */,
+				AA0000000000000000004B04 /* AstroPhotoSettings.swift in Sources */,
+				AA0000000000000000004B05 /* AstroPhotoCalculatorViewModel.swift in Sources */,
+				AA0000000000000000004B08 /* AstroPhotoCalculatorView.swift in Sources */,
 				AA0000000000000000002B02 /* WeatherModels.swift in Sources */,
 				6CD4ED0F2F83B99000ECC17B /* MapTileOverlay.swift in Sources */,
 				F1A2B3C4D5E6F708192A3B02 /* MapKitViewSharedLogic.swift in Sources */,
@@ -852,6 +879,7 @@
 				AA000000000000000000TB04 /* AppControllerTests.swift in Sources */,
 				AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */,
 				AA000000000000000000TB06 /* ViewModelTestSupport.swift in Sources */,
+				AA000000000000000000TB16 /* AstroPhotoCalculatorTests.swift in Sources */,
 				AA000000000000000000TB07 /* StarMapViewModelTests.swift in Sources */,
 				AA000000000000000000TB08 /* LocationControllerTests.swift in Sources */,
 				AA000000000000000000TB10 /* SidebarViewModelTests.swift in Sources */,
