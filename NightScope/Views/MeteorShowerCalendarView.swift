@@ -161,6 +161,7 @@ private struct ShowerTimelineRow: View {
     let selectedDOY: Int
 
     @State private var isHovered = false
+    @State private var showDetail = false
 
     var body: some View {
         GeometryReader { geo in
@@ -180,12 +181,20 @@ private struct ShowerTimelineRow: View {
         }
         .contentShape(Rectangle())
         .background(isHovered ? Color.primary.opacity(0.06) : Color.clear)
+#if os(macOS)
         .onHover { isHovered = $0 }
         .overlay(alignment: .bottomTrailing) {
             if isHovered {
                 hoverTooltip
             }
         }
+#endif
+#if os(iOS)
+        .onTapGesture { showDetail = true }
+        .sheet(isPresented: $showDetail) {
+            MeteorShowerDetailSheet(shower: shower)
+        }
+#endif
         .zIndex(isHovered ? 10 : 0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityDescription)
@@ -350,4 +359,45 @@ private enum CalendarStyle {
             .padding()
     }
     .frame(width: 600, height: 400)
+}
+
+// MARK: - MeteorShowerDetailSheet
+
+private struct MeteorShowerDetailSheet: View {
+    let shower: MeteorShower
+
+    var body: some View {
+        let start = dateLabel(month: shower.activityStartMonth, day: shower.activityStartDay)
+        let end   = dateLabel(month: shower.activityEndMonth,   day: shower.activityEndDay)
+        let peak  = dateLabel(month: shower.peakMonth,          day: shower.peakDay)
+
+        VStack(spacing: 16) {
+            Text(shower.localizedName)
+                .font(.title2.bold())
+                .padding(.bottom, 8)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.circle.fill")
+                        .foregroundStyle(shower.intensity.color)
+                    Text("極大: \(peak)")
+                        .font(.headline)
+                }
+
+                Text("活動期間: \(start) 〜 \(end)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text("最大 約\(shower.zhr)/h")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .presentationDetents([.fraction(0.25)])
+    }
+
+    private func dateLabel(month: Int, day: Int) -> String {
+        L10n.format("%d月%d日", month, day)
+    }
 }
