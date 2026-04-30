@@ -11,9 +11,7 @@ struct iOSStarMapView: View {
     @StateObject private var cameraController = StarMapCameraController()
     @State private var isCameraBackgroundEnabled = false
     @State private var isPresentingDisplaySettings = false
-    @State private var isPresentingCompassCalibration = false
     @State private var isRequestingCameraPermission = false
-    @State private var lastRawAzimuth: Double = 0
     @State private var cameraNotice: CameraNotice?
     @State private var cameraPermissionRequestID = 0
     @State private var bottomControlPanelHeight: CGFloat = 0
@@ -81,19 +79,7 @@ struct iOSStarMapView: View {
             handleCameraErrorChange(newMessage)
         }
         .sheet(isPresented: $isPresentingDisplaySettings) {
-            iOSStarMapDisplaySettingsSheetView()
-        }
-        .confirmationDialog(
-            L10n.tr("コンパスキャリブレーション"),
-            isPresented: $isPresentingCompassCalibration,
-            titleVisibility: .visible
-        ) {
-            Button(L10n.tr("補正する")) {
-                calibrateCompass()
-            }
-            Button(L10n.tr("キャンセル"), role: .cancel) {}
-        } message: {
-            Text(L10n.tr("デバイスを真北に向けた状態で「補正する」を押すと、現在の向きを 0° として方位角を補正します。"))
+            iOSStarMapDisplaySettingsSheetView(motionController: motionController)
         }
     }
 
@@ -133,8 +119,7 @@ struct iOSStarMapView: View {
             onOpenDisplaySettings: openDisplaySettings,
             onToggleCameraBackground: toggleCameraBackground,
             onToggleGyroMode: toggleGyroMode,
-            onOpenSettings: openAppSettings,
-            onCalibrateCompass: { isPresentingCompassCalibration = true }
+            onOpenSettings: openAppSettings
         )
     }
 
@@ -391,7 +376,6 @@ struct iOSStarMapView: View {
         motionController.updateScreenOrientation(screenOrientation)
         motionController.start(
             onPoseUpdate: { pose in
-                lastRawAzimuth = pose.azimuth
                 let offset = UserDefaults.standard.double(
                     forKey: StarMapDisplaySettings.compassAzimuthOffsetDefaultsKey
                 )
@@ -405,15 +389,6 @@ struct iOSStarMapView: View {
                 viewModel.isGyroMode = false
             }
         )
-    }
-
-    private func calibrateCompass() {
-        // ユーザーが真北を向いた状態でのオフセットを計算する（現在の方位角を 0° に補正）
-        var newOffset = -lastRawAzimuth
-        // -180 〜 180 の範囲に正規化
-        if newOffset < -180 { newOffset += 360 }
-        if newOffset > 180 { newOffset -= 360 }
-        UserDefaults.standard.set(newOffset, forKey: StarMapDisplaySettings.compassAzimuthOffsetDefaultsKey)
     }
 
     private func stopMotion() {

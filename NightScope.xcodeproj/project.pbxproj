@@ -129,6 +129,7 @@
 		BB0000000000000000005B04 /* iOSStarMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F01 /* iOSStarMapView.swift */; };
 		BB0000000000000000005B05 /* ConstellationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F23 /* ConstellationData.swift */; };
 		BB0000000000000000005B06 /* MeteorShowerData.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000002F25 /* MeteorShowerData.swift */; };
+		CC0000000000000000002A01 /* iOSCompassCalibrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000001A01 /* iOSCompassCalibrationView.swift */; };
 		BB0000000000000000005B07 /* iOSDesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000004F02 /* iOSDesignTokens.swift */; };
 		BB0000000000000000005B08 /* StarMapPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F09 /* StarMapPresentation.swift */; };
 		BB0000000000000000005B09 /* StarDisplayDensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000003F0A /* StarDisplayDensity.swift */; };
@@ -296,6 +297,7 @@
 		BB0000000000000000003F0C /* StarMapComputation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapComputation.swift; sourceTree = "<group>"; };
 		BB0000000000000000004F01 /* iOSStarMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSStarMapView.swift; sourceTree = "<group>"; };
 		BB0000000000000000004F02 /* iOSDesignTokens.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSDesignTokens.swift; sourceTree = "<group>"; };
+		CC0000000000000000001A01 /* iOSCompassCalibrationView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSCompassCalibrationView.swift; sourceTree = "<group>"; };
 		BB0000000000000000004F10 /* iOSTabHeaderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSTabHeaderView.swift; sourceTree = "<group>"; };
 		BB0000000000000000006F01 /* elevation_japan.bin.z */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = elevation_japan.bin.z; sourceTree = "<group>"; };
 		BB0000000000000000006F02 /* elevation_global.bin.z */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = elevation_global.bin.z; sourceTree = "<group>"; };
@@ -552,6 +554,7 @@
 			children = (
 				94893EBD94DD9539C7C86561 /* iOSNightCardRow.swift */,
 				D0E51B35725701CA2DB51488 /* iOSMapView.swift */,
+				CC0000000000000000001A01 /* iOSCompassCalibrationView.swift */,
 				BB0000000000000000004F10 /* iOSTabHeaderView.swift */,
 			);
 			path = Components;
@@ -700,6 +703,7 @@
 				12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */,
 				C3624AC873043476C6CD9CD9 /* iOSLocationView.swift in Sources */,
 				1A2B3C4D5E6F708192A3B4C5 /* iOSStarMapSupport.swift in Sources */,
+				CC0000000000000000002A01 /* iOSCompassCalibrationView.swift in Sources */,
 				BB0000000000000000005B10 /* iOSTabHeaderView.swift in Sources */,
 				E60A49CD1BC946E763B3AAC6 /* iOSNightCardRow.swift in Sources */,
 				29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */,

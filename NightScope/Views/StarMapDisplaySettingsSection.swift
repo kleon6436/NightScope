@@ -14,8 +14,6 @@ struct StarMapDisplaySettingsSection: View {
     private var showsMeteorShowers: Bool = StarMapDisplaySettings.defaultValue.showsMeteorShowers
     @AppStorage(StarMapDisplaySettings.showsMilkyWayDefaultsKey)
     private var showsMilkyWay: Bool = StarMapDisplaySettings.defaultValue.showsMilkyWay
-    @AppStorage(StarMapDisplaySettings.compassAzimuthOffsetDefaultsKey)
-    private var compassAzimuthOffset: Double = 0
 
     var body: some View {
         Section(L10n.tr("星空マップ")) {
@@ -57,28 +55,6 @@ struct StarMapDisplaySettingsSection: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 4)
-        }
-
-        Section(L10n.tr("コンパスキャリブレーション")) {
-            HStack {
-                Text(L10n.tr("方位角オフセット"))
-                Spacer()
-                Text(L10n.format("%.1f°", compassAzimuthOffset))
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            Slider(
-                value: $compassAzimuthOffset,
-                in: -10...10,
-                step: 0.5
-            ) {
-                Text(L10n.tr("方位角オフセット"))
-            }
-            .tint(.accentColor)
-
-            Text(L10n.tr("ジャイロモードの方位角のズレを補正します。星空マップ上のキャリブレーションボタンで北を基準に自動設定することもできます。"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 

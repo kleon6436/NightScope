@@ -10,6 +10,9 @@
     "--" : {
 
     },
+    "-180°" : {
+
+    },
     "\"%@\" の検索に失敗しました。%@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -273,6 +276,9 @@
         }
       }
     },
+    "180°" : {
+
+    },
     "Apple Weather" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -417,10 +423,16 @@
         }
       }
     },
+    "E" : {
+
+    },
     "Falchi DOI" : {
 
     },
     "Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness (GFZ Data Services)" : {
+
+    },
+    "N" : {
 
     },
     "NightScope" : {
@@ -827,6 +839,9 @@
     "Public Domain" : {
 
     },
+    "S" : {
+
+    },
     "Unknown" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -848,6 +863,9 @@
           }
         }
       }
+    },
+    "W" : {
+
     },
     "Weather data sources" : {
       "extractionState" : "manual",
@@ -2119,6 +2137,17 @@
         }
       }
     },
+    "コンパス" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compass"
+          }
+        }
+      }
+    },
     "コンパスキャリブレーション" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2273,17 +2302,6 @@
         }
       }
     },
-    "ジャイロモードの方位角のズレを補正します。星空マップ上のキャリブレーションボタンで北を基準に自動設定することもできます。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adjusts the azimuth offset to compensate for gyro drift. You can also auto-calibrate using the calibration button on the star map."
-          }
-        }
-      }
-    },
     "ジャイロモード中に実景と星図を重ねるには、設定から NightScope のカメラアクセスを許可してください。" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2291,6 +2309,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Allow NightScope camera access in Settings to overlay the live view in gyro mode."
+          }
+        }
+      }
+    },
+    "ジャイロ操作が有効なときに補正できます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibration is available when gyro mode is on"
           }
         }
       }
@@ -2670,13 +2699,24 @@
         }
       }
     },
-    "デバイスを真北に向けた状態で「補正する」を押すと、現在の向きを 0° として方位角を補正します。" : {
+    "デバイスを真北に向けた状態で「現在の向きで補正」をタップすると、その方向を 0°（北）として補正します。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Point your device toward true north, then tap Calibrate to correct the azimuth to 0°."
+            "value" : "Point the device toward true north, then tap \"Calibrate to Current Direction\" to set that direction as 0° (north)."
+          }
+        }
+      }
+    },
+    "デバイスを真北に向けた状態でタップしてください" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Point the device toward true north before tapping"
           }
         }
       }
@@ -3553,6 +3593,17 @@
         }
       }
     },
+    "並び順" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort by"
+          }
+        }
+      }
+    },
     "中" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3769,6 +3820,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Location access is denied. Allow NightScope location access in Settings."
+          }
+        }
+      }
+    },
+    "低い（±%d°）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poor (±%d°)"
+          }
+        }
+      }
+    },
+    "保存済みの補正オフセットを削除します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removes the saved calibration offset"
           }
         }
       }
@@ -4394,17 +4467,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search for a location"
-          }
-        }
-      }
-    },
-    "並び順" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sort by"
           }
         }
       }
@@ -5042,17 +5104,6 @@
         }
       }
     },
-    "方位角オフセット" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Azimuth Offset"
-          }
-        }
-      }
-    },
     "方角%@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5372,6 +5423,17 @@
         }
       }
     },
+    "普通（±%d°）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fair (±%d°)"
+          }
+        }
+      }
+    },
     "晴れ" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5588,6 +5650,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Jupiter"
+          }
+        }
+      }
+    },
+    "未設定" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Set"
           }
         }
       }
@@ -5823,13 +5896,13 @@
         }
       }
     },
-    "現在の向きを北として方位角を補正します" : {
+    "現在の向きで補正" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Corrects the azimuth using the current orientation as north"
+            "value" : "Calibrate to Current Direction"
           }
         }
       }
@@ -5841,6 +5914,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save the current location to favorites"
+          }
+        }
+      }
+    },
+    "現在の方位角" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Azimuth"
           }
         }
       }
@@ -5918,6 +6002,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Already saved"
+          }
+        }
+      }
+    },
+    "磁気精度" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Magnetic Accuracy"
           }
         }
       }
@@ -6043,6 +6138,17 @@
         }
       }
     },
+    "良好（±%d°）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good (±%d°)"
+          }
+        }
+      }
+    },
     "色で太陽や月の影響を含む観測条件の強さを示します" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6120,13 +6226,24 @@
         }
       }
     },
-    "補正する" : {
+    "補正オフセット" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Calibrate"
+            "value" : "Calibration Offset"
+          }
+        }
+      }
+    },
+    "補正をリセット" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Calibration"
           }
         }
       }

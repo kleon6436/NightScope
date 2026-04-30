@@ -24,7 +24,6 @@ struct iOSStarMapHeaderOverlay: View {
     let onToggleCameraBackground: () -> Void
     let onToggleGyroMode: () -> Void
     let onOpenSettings: () -> Void
-    let onCalibrateCompass: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -46,9 +45,6 @@ struct iOSStarMapHeaderOverlay: View {
                 HStack(spacing: Spacing.xs / 2) {
                     displaySettingsButton
                     cameraBackgroundButton
-                    if controlState.isGyroMode {
-                        compassCalibrationButton
-                    }
                     gyroToggleButton
                 }
             }
@@ -57,18 +53,6 @@ struct iOSStarMapHeaderOverlay: View {
                 iOSStarMapNoticeCard(notice: notice, onOpenSettings: onOpenSettings)
             }
         }
-    }
-
-    private var compassCalibrationButton: some View {
-        Button(action: onCalibrateCompass) {
-            Image(systemName: "location.north.line")
-                .font(.headline)
-                .frame(width: 44, height: 44)
-        }
-        .glassButtonStyle()
-        .help(L10n.tr("コンパスキャリブレーション"))
-        .accessibilityLabel(L10n.tr("コンパスキャリブレーション"))
-        .accessibilityHint(L10n.tr("現在の向きを北として方位角を補正します"))
     }
 
     private var displaySettingsButton: some View {
@@ -146,12 +130,20 @@ struct iOSStarMapHeaderOverlay: View {
 
 /// 星空表示設定を編集する sheet。
 struct iOSStarMapDisplaySettingsSheetView: View {
+    let motionController: StarMapMotionController
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             Form {
                 StarMapDisplaySettingsSection()
+                Section(L10n.tr("コンパス")) {
+                    NavigationLink {
+                        iOSCompassCalibrationView(motionController: motionController)
+                    } label: {
+                        Label(L10n.tr("コンパスキャリブレーション"), systemImage: "location.north.fill")
+                    }
+                }
             }
             .formStyle(.grouped)
             .navigationTitle(L10n.tr("星空の表示設定"))
@@ -246,6 +238,13 @@ final class StarMapMotionController: NSObject, ObservableObject {
     /// `xTrueNorthZVertical` では CoreMotion が WMM 補正済みのため不要。
     private var latestMagneticDeclination: Double?
 
+    /// 最新の方位角（平滑化済み・磁気偏角補正済み・ユーザーオフセット未適用）。キャリブレーション UI が参照する。
+    @Published private(set) var calibrationAzimuth: Double = 0
+    /// 磁気精度（度単位、低いほど精度良好）。`xTrueNorthZVertical` 使用時は nil。
+    @Published private(set) var headingAccuracy: Double? = nil
+    /// モーション更新が稼働中かどうか。キャリブレーションボタンの有効/無効制御に使う。
+    @Published private(set) var isMotionActive: Bool = false
+
     var canEnableGyroMode: Bool {
         motionManager.isDeviceMotionAvailable && preferredReferenceFrame != nil
     }
@@ -319,6 +318,8 @@ final class StarMapMotionController: NSObject, ObservableObject {
 
             let smoothedPose = StarMapMotionPose.smoothed(previous: self.lastPose, next: correctedPose)
             self.lastPose = smoothedPose
+            self.calibrationAzimuth = smoothedPose.azimuth
+            if !self.isMotionActive { self.isMotionActive = true }
             onPoseUpdate(smoothedPose)
         }
     }
@@ -332,6 +333,10 @@ final class StarMapMotionController: NSObject, ObservableObject {
         headingManager.stopUpdatingHeading()
         lastPose = nil
         latestMagneticDeclination = nil
+        isMotionActive = false
+        headingAccuracy = nil
+        // calibrationAzimuth はリセットしない。次回 start() 後の最初のコールバックで isMotionActive が
+        // true になるまで補正ボタンは無効状態のまま保持されるため、古い値で誤補正するリスクはない。
     }
 }
 
@@ -343,8 +348,10 @@ extension StarMapMotionController: CLLocationManagerDelegate {
 
         // 磁気偏角 = 真北 − 磁気北。rawPose.azimuth（磁気北基準）に加算することで真北基準へ補正する。
         let declination = newHeading.trueHeading - newHeading.magneticHeading
+        let accuracy = newHeading.headingAccuracy
         Task { @MainActor [weak self] in
             self?.latestMagneticDeclination = declination
+            self?.headingAccuracy = accuracy >= 0 ? accuracy : nil
         }
     }
 }

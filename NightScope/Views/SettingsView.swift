@@ -46,6 +46,14 @@ struct SettingsView: View {
             StarMapDisplaySettingsSection()
 
             #if os(iOS)
+            Section(L10n.tr("コンパス")) {
+                NavigationLink {
+                    iOSCompassCalibrationStandaloneView()
+                } label: {
+                    Label(L10n.tr("コンパスキャリブレーション"), systemImage: "location.north.fill")
+                }
+            }
+
             Section("情報") {
                 NavigationLink {
                     SettingsAboutView()
