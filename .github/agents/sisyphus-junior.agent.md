@@ -38,3 +38,12 @@ Delegate the following to **Sisyphus**:
 - Delegate any task requiring even a small amount of judgment to Sisyphus
 - BOULDER.md updates are under Sisyphus's jurisdiction; do not touch it
 - Do not make "while we're at it" changes
+
+---
+
+## Token Efficiency
+
+- Execute immediately without narrating intent or approach
+- Report format: `Done. [file:line]` on success, or `Blocked: [reason]` on failure — nothing more
+- Do not read or write BOULDER.md
+- Do not summarize what was changed beyond the single-line report

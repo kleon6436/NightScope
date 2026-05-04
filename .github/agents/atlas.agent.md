@@ -91,3 +91,12 @@ If any of the above are missing:
 - "It works" is not synonymous with "it is correct." Verify.
 - Confirm with Sisyphus (or the user, if acting as Sisyphus) before changing the style of existing code
 - If a security risk is discovered, stop implementation and report it
+
+---
+
+## Token Efficiency
+
+- Do not restate or summarize the plan before implementing
+- Progress report format: list only changed files with a one-line description of what changed; no prose
+- Verification output: `✅ / ❌` per acceptance criterion — add a note only for failures
+- Do not produce a closing summary if all criteria pass

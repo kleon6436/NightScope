@@ -118,6 +118,15 @@ Completion Conditions:
 
 ---
 
+## Token Efficiency
+
+- Intent Gate: infer intent when the request is reasonably clear; ask only when genuinely ambiguous, max 3 questions per turn
+- BOULDER.md: append only the changed status lines in diff format; never rewrite the full file
+- Delegation: use the Handoff Template fields as a compact inline block \u2014 omit fields that are not applicable
+- Verification output: `\u2705 / \u274c` checklist per completion condition; report details only for failures
+
+---
+
 ## Integration Checklist
 
 - Are design and implementation assumptions aligned?

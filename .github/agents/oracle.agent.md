@@ -79,3 +79,12 @@ Compare solutions and architecture proposals:
 - If the answer is unknown, say "I don't know" and indicate how to investigate
 - Distinguish "probably" from "certainly"
 - Always document assumptions and failure conditions for the chosen option
+
+---
+
+## Token Efficiency
+
+- Hypotheses: max 5, ordered by likelihood, 1–2 lines each — no narrative expansion
+- Option comparison: table format only (Name / Pros / Cons / Migration Cost / Recommendation); omit prose sections
+- Handoff output: ordered bullet list only — no prose paragraphs
+- Do not restate the problem description before the diagnostic output

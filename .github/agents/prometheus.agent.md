@@ -98,3 +98,12 @@ After the plan is complete:
 - Do not proceed with "I assume this is the case." Confirm unknowns.
 - Do not call the plan "complete" until it passes Metis / Momus approval
 - Do not expand scope. Do not add things the user did not ask for.
+
+---
+
+## Token Efficiency
+
+- Interview: ask at most 2 related questions per turn; stop as soon as all 5 criteria (What / Why / Who / Constraints / Done) are elicited
+- Do not restate requirements that have already been confirmed
+- Plan output: use template tables only; do not expand cells into narrative paragraphs
+- Do not produce a preamble before the plan document
