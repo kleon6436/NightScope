@@ -86,7 +86,7 @@ xcodebuild -quiet -project NightScope.xcodeproj -target NightScopeiOS \
 - Always plan with `prometheus` and run `metis` gap analysis before implementing.
 - Always have important changes reviewed by `momus`.
 
-### Agent List (10 agents)
+### Agent List (12 agents)
 
 **Discipline Layer**
 
@@ -94,7 +94,7 @@ xcodebuild -quiet -project NightScope.xcodeproj -target NightScopeiOS \
 |-------|--------|------|
 | `sisyphus` | Claude Sonnet 4.6 | Main orchestrator. Intent analysis, delegation, verification, integration, BOULDER.md management |
 | `sisyphus-junior` | GPT-5 mini | Lightweight orchestrator. Dedicated to typos, single-line changes, and small tasks |
-| `prometheus` | Claude Sonnet 4.6 | Strategic planner. Requirements gathering, acceptance criteria, plan creation. Does not write code |
+| `prometheus` | GPT-5.4 mini | Strategic planner. Requirements gathering, acceptance criteria, plan creation. Does not write code |
 | `hephaestus` | GPT-5.3-Codex | Autonomous deep worker. Self-contained explore→plan→execute→verify cycle. Explicit activation only |
 
 **Specialized Layer**
@@ -103,9 +103,11 @@ xcodebuild -quiet -project NightScope.xcodeproj -target NightScopeiOS \
 |-------|--------|------|
 | `oracle` | GPT-5.4 | Top-level consultant. Complex debugging, architecture decisions. Explicit activation only when the path forward is unclear |
 | `librarian` | GPT-5 mini | Evidence-based researcher. Official docs, GitHub examples. URL/permalink required |
-| `explore` | Grok Code Fast 1 | Fast codebase scanner. Parallel activation allowed. Read-only |
+| `explore` | GPT-5 mini | Fast codebase scanner. Parallel activation allowed. Read-only |
 | `metis` | GPT-5.4 mini | Plan consultant. Catches ambiguity, gaps, and incorrect assumptions in the planning phase |
-| `momus` | GPT-5.4 | Relentless verifier. Comprehensive code review, test quality, security (OWASP Top 10) |
+| `metis-deep` | GPT-5.4 | Deep plan consultant. For plans spanning multiple services, data model changes, security constraints, migration/rollback strategy, or 3+ open questions |
+| `momus` | GPT-5.4 mini | Relentless verifier. Comprehensive code review, test quality, security (OWASP Top 10) |
+| `momus-deep` | GPT-5.4 | Security-focused verifier. For changes touching auth, data deletion, external input, concurrency, or secrets |
 | `atlas` | GPT-5.4 mini | Implementer. Executes verified plans. Also handles CI/CD and deployment |
 
 ### Category Quick Reference
@@ -113,12 +115,15 @@ xcodebuild -quiet -project NightScope.xcodeproj -target NightScopeiOS \
 | Category | Example Tasks | Recommended Agent | Recommended Model |
 |---------|---------|-----------|----------|
 | quick | typo, single-line fix, config value change | `sisyphus-junior` | GPT-5 mini |
-| plan | requirements, planning, acceptance criteria | `prometheus` | Claude Sonnet 4.6 |
+| plan | requirements, planning, acceptance criteria | `prometheus` | GPT-5.4 mini |
 | deep | autonomous large-scale implementation | `hephaestus` | GPT-5.3-Codex |
 | ultrabrain | architecture decisions, complex debugging | `oracle` | GPT-5.4 |
 | writing | documentation, research, cited answers | `librarian` | GPT-5 mini |
-| search | codebase grep, dependency analysis | `explore` | Grok Code Fast 1 |
-| review | code quality, testing, security | `momus` | GPT-5.4 |
+| search | codebase grep, dependency analysis | `explore` | GPT-5 mini |
+| plan-review | plan gap analysis (standard) | `metis` | GPT-5.4 mini |
+| plan-review-deep | plan gap analysis (multi-service / data model / security / rollout) | `metis-deep` | GPT-5.4 |
+| review | code quality, testing, security | `momus` | GPT-5.4 mini |
+| review-deep | security-sensitive changes (auth / data deletion / external input / concurrency / secrets) | `momus-deep` | GPT-5.4 |
 | implement | implementation, fixes, CI/CD | `atlas` | GPT-5.4 mini |
 | visual-engineering | UI/UX, accessibility | `atlas` (using Gemini 3.1 Pro) | Gemini 3.1 Pro |
 
@@ -126,7 +131,7 @@ xcodebuild -quiet -project NightScope.xcodeproj -target NightScopeiOS \
 
 - **High cost (evaluate each time)**: Claude Sonnet 4.6 / GPT-5.4 / GPT-5.3-Codex — limit to complex reasoning, critical design decisions, and large-scale implementation
 - **Medium cost (use actively)**: GPT-5.4 mini / Gemini 3.1 Pro — planning assistance, implementation, visual tasks
-- **Low cost (use freely)**: GPT-5 mini / Grok Code Fast 1 — small tasks, search, research
+- **Low cost (use freely)**: GPT-5 mini — small tasks, search, research
 
 > `atlas` uses GPT-5.4 mini for lighter cases; consider switching to Claude Sonnet 4.6 for large-scale refactoring or implementations that must closely follow existing conventions.
 
