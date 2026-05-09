@@ -91,6 +91,48 @@ final class NightWeatherCardViewModel: ObservableObject {
         L10n.tr("再試行してください")
     }
 
+    // MARK: - Dew Risk
+
+    /// 天気サマリーの結露リスクレベルを返す。データなし時のみ nil。
+    func dewRisk(_ weather: DayWeatherSummary?) -> DewRiskLevel? {
+        weather?.dewRiskLevel
+    }
+
+    func showDewRiskWarning(_ weather: DayWeatherSummary?) -> Bool {
+        dewRisk(weather) != nil
+    }
+
+    func dewRiskLabel(_ weather: DayWeatherSummary?) -> String {
+        switch dewRisk(weather) {
+        case .high:   return L10n.tr("dew.risk.high")
+        case .medium: return L10n.tr("dew.risk.medium")
+        case .low:    return L10n.tr("dew.risk.low")
+        default:      return ""
+        }
+    }
+
+    func dewRiskIconName(_ weather: DayWeatherSummary?) -> String {
+        "drop.triangle.fill"
+    }
+
+    func dewRiskColor(_ weather: DayWeatherSummary?) -> Color {
+        switch dewRisk(weather) {
+        case .high:   return Color(red: 0.9, green: 0.2, blue: 0.2)
+        case .medium: return .orange
+        case .low:    return .green
+        default:      return .secondary
+        }
+    }
+
+    func dewRiskAccessibilityLabel(_ weather: DayWeatherSummary?) -> String {
+        switch dewRisk(weather) {
+        case .high:   return L10n.tr("dew.risk.accessibility.high")
+        case .medium: return L10n.tr("dew.risk.accessibility.medium")
+        case .low:    return L10n.tr("dew.risk.accessibility.low")
+        default:      return ""
+        }
+    }
+
     /// 状態に応じた VoiceOver 用説明文を組み立てる。
     func accessibilityDescription(
         weather: DayWeatherSummary?,
@@ -117,6 +159,6 @@ final class NightWeatherCardViewModel: ObservableObject {
             L10n.format("weather.precipitation.compact", L10n.number(w.maxPrecipitation, fractionDigits: 1)),
             L10n.format("weather.cloudCover.compact", L10n.percent(w.avgCloudCover)),
             formatWindSpeed(w.avgWindSpeed)
-        )
+        ) + (showDewRiskWarning(w) ? "。\(dewRiskAccessibilityLabel(w))" : "")
     }
 }

@@ -7067,6 +7067,108 @@
           }
         }
       }
+    },
+    "dew.risk.accessibility.high" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High risk of dew on optical equipment"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "光学機器の結露リスクが高い状態です"
+          }
+        }
+      }
+    },
+    "dew.risk.accessibility.low" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low risk of dew on optical equipment"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "光学機器の結露リスクは低い状態です"
+          }
+        }
+      }
+    },
+    "dew.risk.accessibility.medium" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moderate risk of dew on optical equipment"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "光学機器の結露リスクがあります"
+          }
+        }
+      }
+    },
+    "dew.risk.high" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dew risk: High"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結露リスク: 高"
+          }
+        }
+      }
+    },
+    "dew.risk.low" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dew risk: Low"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結露リスク: 低"
+          }
+        }
+      }
+    },
+    "dew.risk.medium" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dew risk: Medium"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結露リスク: 中"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

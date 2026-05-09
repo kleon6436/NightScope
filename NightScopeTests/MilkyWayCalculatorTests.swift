@@ -365,4 +365,6 @@ final class MilkyWayCalculatorTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - planets in NightSummary テストは削除済み（Feature #1 Planet Visibility を撤去）
 }

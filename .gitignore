@@ -61,3 +61,6 @@ buildServer.json
 
 # Idea
 docs/FEATURE_IDEAS.md
+
+# Agent session state (Copilot / Sisyphus)
+BOULDER.md

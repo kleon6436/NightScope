@@ -38,6 +38,7 @@ Delegate the following to **Sisyphus**:
 - Delegate any task requiring even a small amount of judgment to Sisyphus
 - BOULDER.md updates are under Sisyphus's jurisdiction; do not touch it
 - Do not make "while we're at it" changes
+- Even for trivial edits, follow `skills/senior-engineer-standard/SKILL.md`: no obvious-restating comments, no AI-slop patterns
 
 ---
 

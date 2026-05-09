@@ -55,6 +55,16 @@ struct NightWeatherCard: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if viewModel.showDewRiskWarning(weather) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: viewModel.dewRiskIconName(weather))
+                            .foregroundStyle(viewModel.dewRiskColor(weather))
+                        Text(viewModel.dewRiskLabel(weather))
+                            .foregroundStyle(viewModel.dewRiskColor(weather))
+                    }
+                    .font(.body)
+                    .lineLimit(1)
+                }
             } else if isCoverageIncomplete {
                 Text(viewModel.partialCoverageTitle())
                     .font(.headline)

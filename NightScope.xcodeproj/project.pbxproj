@@ -192,6 +192,7 @@
 		FC01B28AAAA3D24EA5E24686 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
 		FCBB0001B1CA5D5B3BE17896 /* MeteorShowerCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F30 /* MeteorShowerCalendarView.swift */; };
 		FCBBDF3EB1CA5D5B3BE17896 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
+AA000000000000000000TB17 /* WeatherModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF17 /* WeatherModelsTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -326,6 +327,7 @@
 		E874E471E7767792A4000D47 /* iOSRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSRootView.swift; sourceTree = "<group>"; };
 		E9018ABBBB27AE209C8B4401 /* FavoriteLocationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FavoriteLocationTests.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F708192A3B4C /* MapKitViewSharedLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitViewSharedLogic.swift; sourceTree = "<group>"; };
+AA000000000000000000TF17 /* WeatherModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherModelsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -525,6 +527,7 @@
 				AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */,
 				AA000000000000000000TF02 /* StarGazingIndexTests.swift */,
 				AA000000000000000000TF03 /* WeatherServiceTests.swift */,
+				AA000000000000000000TF17 /* WeatherModelsTests.swift */,
 				AA000000000000000000TF04 /* AppControllerTests.swift */,
 				AA000000000000000000TF05 /* AstroModelsTests.swift */,
 				AA000000000000000000TF06 /* ViewModelTestSupport.swift */,
@@ -892,6 +895,7 @@
 				AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */,
 				AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */,
 				AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */,
+				AA000000000000000000TB17 /* WeatherModelsTests.swift in Sources */,
 				AA000000000000000000TB04 /* AppControllerTests.swift in Sources */,
 				AA000000000000000000TB05 /* AstroModelsTests.swift in Sources */,
 				AA000000000000000000TB06 /* ViewModelTestSupport.swift in Sources */,

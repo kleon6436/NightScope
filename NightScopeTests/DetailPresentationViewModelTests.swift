@@ -381,16 +381,16 @@ final class NightWeatherCardViewModelTests: XCTestCase {
             isForecastOutOfRange: false,
             isCoverageIncomplete: false
         )
-        XCTAssertEqual(
-            desc,
-            L10n.format(
-                "weather.night.accessibility.metrics",
-                vm.weatherLabel(weather),
-                L10n.format("weather.precipitation.compact", L10n.number(weather.maxPrecipitation, fractionDigits: 1)),
-                L10n.format("weather.cloudCover.compact", L10n.percent(weather.avgCloudCover)),
-                vm.formatWindSpeed(weather.avgWindSpeed)
-            )
+        let base = L10n.format(
+            "weather.night.accessibility.metrics",
+            vm.weatherLabel(weather),
+            L10n.format("weather.precipitation.compact", L10n.number(weather.maxPrecipitation, fractionDigits: 1)),
+            L10n.format("weather.cloudCover.compact", L10n.percent(weather.avgCloudCover)),
+            vm.formatWindSpeed(weather.avgWindSpeed)
         )
+        // makeDayWeatherSummary uses temp=15, dewpoint=2 → spread=13 → .low risk
+        let expected = base + "。\(vm.dewRiskAccessibilityLabel(weather))"
+        XCTAssertEqual(desc, expected)
     }
 }
 
