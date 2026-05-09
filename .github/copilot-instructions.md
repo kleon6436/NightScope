@@ -190,3 +190,26 @@ For detailed development guidelines per platform, refer to the following instruc
 | **Quality & Security** | `security-practices` / `cicd-deployment` / `performance-optimization` / `apple-app-store-submission` |
 | **Engineering Discipline** | `senior-engineer-standard` |
 | **Internationalization** | `i18n-localization` |
+
+## MCP Tools
+
+### Context7 (`mcp_io_github_ups_*`)
+
+Context7 is an MCP that provides up-to-date library documentation for LLMs. Use it whenever researching a library, framework, or SDK — especially when the training data may be outdated or you are unsure of the current API.
+
+**When to use**
+
+- Looking up the current API or behavior of a library/framework
+- Verifying usage examples against the latest docs before writing code
+- Any task where `librarian` or another agent needs external documentation
+
+**How to use**
+
+1. Call `mcp_io_github_ups_resolve-library-id` with the library name (e.g. `"next.js"`) to get its Context7-compatible ID.
+2. Call `mcp_io_github_ups_get-library-docs` with that ID (and an optional `topic`) to retrieve up-to-date documentation snippets.
+3. Use the returned content as the authoritative reference when writing or reviewing code.
+
+**Important**
+
+- Always prefer Context7 docs over training-data assumptions for versioned APIs.
+- These tools are deferred; load them with `tool_search` before use if they are not already available in the current session.
