@@ -546,6 +546,9 @@
     "Falchi et al. 2016 – World Atlas of Artificial Night Sky Brightness (GFZ Data Services)" : {
 
     },
+    "iCloud 同期" : {
+
+    },
     "macOS・iPhone でお気に入りが共有されます。変更は次回起動後に反映されます。" : {
 
     },
@@ -1769,6 +1772,9 @@
           }
         }
       }
+    },
+    "お気に入り地点を同期する" : {
+
     },
     "カウス・オーストラリス" : {
       "extractionState" : "manual",
