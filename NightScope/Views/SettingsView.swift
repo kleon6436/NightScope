@@ -3,6 +3,7 @@ import SwiftUI
 /// アプリ全体の表示設定とデータソース情報をまとめる設定画面。
 struct SettingsView: View {
     @AppStorage("windSpeedUnit") private var windSpeedUnit: String = WindSpeedUnit.kmh.rawValue
+    @AppStorage("iCloudSyncEnabled") private var iCloudSyncEnabled: Bool = false
     @ObservedObject private var observationModePreference: ObservationModePreference
 
     init(observationModePreference: ObservationModePreference = ObservationModePreference()) {
@@ -19,6 +20,15 @@ struct SettingsView: View {
 
     private var formContent: some View {
         Form {
+            Section("iCloud 同期") {
+                Toggle("お気に入り地点を同期する", isOn: $iCloudSyncEnabled)
+                if iCloudSyncEnabled {
+                    Text("macOS・iPhone でお気に入りが共有されます。変更は次回起動後に反映されます。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("天気表示") {
                 Picker("風速単位", selection: $windSpeedUnit) {
                     ForEach(WindSpeedUnit.allCases) { unit in

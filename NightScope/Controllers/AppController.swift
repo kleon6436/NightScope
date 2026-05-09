@@ -102,7 +102,7 @@ final class AppController: ObservableObject {
         self.locationController = locationController ?? LocationController()
         self.weatherService = weatherService ?? WeatherKitService()
         self.lightPollutionService = lightPollutionService ?? LightPollutionService()
-        self.favoriteStore = FavoriteLocationStore()
+        self.favoriteStore = Self.makeFavoriteStore()
         self.calculationService = calculationService ?? NightCalculationService()
         self.lastObservedTimeZone = self.locationController.selectedTimeZone
         self.selectedDate = ObservationTimeZone.startOfDay(
@@ -134,6 +134,42 @@ final class AppController: ObservableObject {
         upcomingTask?.cancel()
         locationTask?.cancel()
         externalDataTask?.cancel()
+    }
+
+    // MARK: - Private Factory
+
+    /// iCloud 同期設定に応じて適切な FavoriteLocationStore を生成する。
+    /// iCloud が有効なときは初回マイグレーションも実行する。
+    private static func makeFavoriteStore() -> any FavoriteLocationStoring {
+        let iCloudEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
+        guard iCloudEnabled else {
+            return FavoriteLocationStore()
+        }
+
+        let store = iCloudFavoriteLocationStore()
+        migrateLocalFavoritesToICloudIfNeeded(iCloudStore: store)
+        return store
+    }
+
+    /// UserDefaults のお気に入りを iCloud KVStore へ一度だけ移行する（idempotent）。
+    private static func migrateLocalFavoritesToICloudIfNeeded(iCloudStore: iCloudFavoriteLocationStore) {
+        let migrationKey = "favorites.icloud.migrated.v1"
+        guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
+
+        // iCloud 側がすでにデータを持っている場合は seed しない
+        guard iCloudStore.loadAll().isEmpty else {
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            return
+        }
+
+        // ローカル UserDefaults にデータがある場合のみ seed する
+        let localStore = FavoriteLocationStore()
+        let localFavorites = localStore.loadAll()
+        if !localFavorites.isEmpty {
+            iCloudStore.save(localFavorites)
+        }
+
+        UserDefaults.standard.set(true, forKey: migrationKey)
     }
 
     // MARK: - Public Methods
