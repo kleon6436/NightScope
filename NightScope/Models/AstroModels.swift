@@ -35,6 +35,15 @@ struct ViewingDirection: Equatable {
     let isActive: Bool
 }
 
+// MARK: - Direction Utility
+
+/// 方位角 (0–360°) を 16 方位名（22.5° 刻み）に変換する共通ヘルパー。
+private func directionName(for azimuth: Double) -> String {
+    let names = ["北","北北東","北東","東北東","東","東南東","南東","南南東","南","南南西","南西","西南西","西","西北西","北西","北北西"]
+    let index = Int((azimuth + 11.25) / 22.5) % 16
+    return L10n.tr(names[index])
+}
+
 /// 銀河中心が観測しやすい時間帯を表すウィンドウ。
 struct ViewingWindow {
     let start: Date
@@ -44,13 +53,7 @@ struct ViewingWindow {
     let peakAzimuth: Double
     var duration: TimeInterval { end.timeIntervalSince(start) }
 
-    /// 16方位名（22.5° 刻み）
-    private static let directionNames = ["北","北北東","北東","東北東","東","東南東","南東","南南東","南","南南西","南西","西南西","西","西北西","北西","北北西"]
-
-    var peakDirectionName: String {
-        let index = Int((peakAzimuth + 11.25) / 22.5) % 16
-        return L10n.tr(Self.directionNames[index])
-    }
+    var peakDirectionName: String { directionName(for: peakAzimuth) }
 
     func accessibilityDescription(timeZone: TimeZone = .current) -> String {
         let timeRange = L10n.format("%@から%@", start.nightTimeString(timeZone: timeZone), end.nightTimeString(timeZone: timeZone))
@@ -448,6 +451,14 @@ struct NightSummary {
     }
 }
 
+// MARK: - Altitude Sample
+
+/// 夜間高度チャート用の 1 サンプル。
+struct AltitudeSample {
+    let time: Date
+    let altitude: Double
+}
+
 // MARK: - Planet Night Summary
 
 /// 1夜分の惑星可視情報。
@@ -464,11 +475,68 @@ struct PlanetNightSummary: Identifiable {
     let peakAltitude: Double
     /// 南中時（南中なければ最大高度時）の等級
     let magnitude: Double
+    /// 出時の方位角 (0–360°)。夜間に出ない場合は nil
+    let riseAzimuth: Double?
+    /// 南中（最大高度）時の方位角 (0–360°)。高度サンプルが得られない場合は nil
+    let transitAzimuth: Double?
+    /// 没時の方位角 (0–360°)。夜間に没しない場合は nil
+    let setAzimuth: Double?
+    /// 18:00–06:00 の高度サンプル列（グラフ用）
+    let altitudeSamples: [AltitudeSample]
+
+    init(
+        name: String,
+        riseTime: Date?,
+        transitTime: Date?,
+        setTime: Date?,
+        peakAltitude: Double,
+        magnitude: Double,
+        riseAzimuth: Double?          = nil,
+        transitAzimuth: Double?       = nil,
+        setAzimuth: Double?           = nil,
+        altitudeSamples: [AltitudeSample] = []
+    ) {
+        self.name            = name
+        self.riseTime        = riseTime
+        self.transitTime     = transitTime
+        self.setTime         = setTime
+        self.peakAltitude    = peakAltitude
+        self.magnitude       = magnitude
+        self.riseAzimuth     = riseAzimuth
+        self.transitAzimuth  = transitAzimuth
+        self.setAzimuth      = setAzimuth
+        self.altitudeSamples = altitudeSamples
+    }
 
     var id: String { name }
     var localizedName: String { L10n.tr(name) }
     /// 実用的な観測可能判定: 夜間に 10° 超の高度に達する
     var isVisibleTonight: Bool { peakAltitude > 10.0 }
+
+    /// 南中方位の 16 方位名。高度サンプルが得られない場合は nil
+    var transitDirectionName: String? { transitAzimuth.map { directionName(for: $0) } }
+    /// 出方位の 16 方位名。夜間に出ない場合は nil
+    var riseDirectionName: String? { riseAzimuth.map { directionName(for: $0) } }
+    /// 没方位の 16 方位名。夜間に没しない場合は nil
+    var setDirectionName: String? { setAzimuth.map { directionName(for: $0) } }
+
+    /// 出方位の表示用文字列。夜間に出ない場合は `"—"` を返す。
+    func riseAzimuthLabel() -> String {
+        guard let az = riseAzimuth, let dir = riseDirectionName else { return "—" }
+        return L10n.format("%d° %@", Int(az), dir)
+    }
+
+    /// 南中方位の表示用文字列。サンプルがない場合は `"—"` を返す。
+    func transitAzimuthLabel() -> String {
+        guard let az = transitAzimuth, let dir = transitDirectionName else { return "—" }
+        return L10n.format("%d° %@", Int(az), dir)
+    }
+
+    /// 没方位の表示用文字列。夜間に没しない場合は `"—"` を返す。
+    func setAzimuthLabel() -> String {
+        guard let az = setAzimuth, let dir = setDirectionName else { return "—" }
+        return L10n.format("%d° %@", Int(az), dir)
+    }
 
     var observationDifficulty: ObservationDifficulty {
         guard isVisibleTonight else { return .telescope }

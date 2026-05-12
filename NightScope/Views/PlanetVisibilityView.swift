@@ -1,5 +1,8 @@
 import SwiftUI
 import CoreLocation
+#if os(iOS)
+import Charts
+#endif
 
 // MARK: - PlanetVisibilityView
 
@@ -176,6 +179,9 @@ private struct PlanetRow: View {
             Text(L10n.format("最大高度 %.1f°", summary.peakAltitude))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+            Text(summary.transitAzimuthLabel())
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -226,17 +232,53 @@ private struct PlanetDetailSheet: View {
                 .padding(.bottom, 8)
 
             VStack(alignment: .leading, spacing: 12) {
-                infoRow(label: "出",   value: summary.riseTime?.nightTimeString(timeZone: timeZone)    ?? "—")
-                infoRow(label: "南中", value: summary.transitTime?.nightTimeString(timeZone: timeZone) ?? "—")
-                infoRow(label: "没",   value: summary.setTime?.nightTimeString(timeZone: timeZone)     ?? "—")
+                infoRow(label: "出",      value: summary.riseTime?.nightTimeString(timeZone: timeZone) ?? "—")
+                infoRow(label: "出 方位", value: summary.riseAzimuthLabel())
+                infoRow(label: "南中",    value: summary.transitTime?.nightTimeString(timeZone: timeZone) ?? "—")
+                infoRow(label: "南中 方位", value: summary.transitAzimuthLabel())
+                infoRow(label: "没",      value: summary.setTime?.nightTimeString(timeZone: timeZone) ?? "—")
+                infoRow(label: "没 方位", value: summary.setAzimuthLabel())
                 infoRow(label: "最大高度", value: String(format: "%.1f°", summary.peakAltitude))
                 infoRow(label: "等級",    value: String(format: "%.1f",   summary.magnitude))
                 infoRow(label: "観測難易度", value: summary.observationDifficulty.localizedLabel)
             }
+
+#if os(iOS)
+            altitudeChart
+#endif
         }
         .padding()
-        .presentationDetents([.fraction(0.3)])
+        .presentationDetents([.medium, .large])
     }
+
+#if os(iOS)
+    private var altitudeChart: some View {
+        Chart {
+            ForEach(summary.altitudeSamples, id: \.time) { sample in
+                LineMark(
+                    x: .value("時刻", sample.time),
+                    y: .value("高度", sample.altitude)
+                )
+            }
+            RuleMark(y: .value("地平線", 0.0))
+                .foregroundStyle(.secondary)
+            RuleMark(y: .value("観測閾値", 10.0))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 2]))
+                .foregroundStyle(.orange)
+        }
+        .chartYScale(domain: .automatic(includesZero: true))
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .hour, count: 3)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.hour(.defaultDigits(amPM: .omitted)))
+            }
+        }
+        // 観測地タイムゾーンを適用して、rise/transit/set 時刻と一致させる
+        .environment(\.timeZone, timeZone)
+        .frame(height: 140)
+        .padding(.top, 8)
+    }
+#endif
 
     private func infoRow(label: String, value: String) -> some View {
         HStack {

@@ -634,10 +634,10 @@ enum MilkyWayCalculator {
             let nightEnd   = calendar.date(byAdding: .hour, value: 6,  to: nextDay)
         else { return [] }
 
-        let intervalSec: TimeInterval = 600  // 10 分
+        let intervalSec: TimeInterval = 900  // 15 分
         let sampleCount = Int(nightEnd.timeIntervalSince(nightStart) / intervalSec) + 1
 
-        typealias Sample = (time: Date, alt: Double, mag: Double)
+        typealias Sample = (time: Date, alt: Double, az: Double, mag: Double)
         var timeSeries: [String: [Sample]] = [:]
 
         for i in 0..<sampleCount {
@@ -645,19 +645,26 @@ enum MilkyWayCalculator {
             let jd  = julianDate(from: t)
             let lst = localSiderealTime(jd: jd, longitude: location.longitude)
             for pos in planetPositions(jd: jd, latitude: location.latitude, lst: lst) {
-                timeSeries[pos.name, default: []].append((t, pos.altitude, pos.magnitude))
+                timeSeries[pos.name, default: []].append((t, pos.altitude, pos.azimuth, pos.magnitude))
             }
         }
 
         return timeSeries.map { name, samples in
-            let peakSample = samples.max(by: { $0.alt < $1.alt })
+            let peakSample  = samples.max(by: { $0.alt < $1.alt })
+            let rising      = firstHorizonRising(in: samples)
+            let setting     = lastHorizonSetting(in: samples, after: peakSample?.time ?? nightStart)
+            let altSamples  = samples.map { AltitudeSample(time: $0.time, altitude: $0.alt) }
             return PlanetNightSummary(
                 name: name,
-                riseTime:    firstHorizonRising(in: samples),
-                transitTime: peakSample?.time,
-                setTime:     lastHorizonSetting(in: samples, after: peakSample?.time ?? nightStart),
-                peakAltitude: peakSample?.alt ?? -90.0,
-                magnitude:    peakSample?.mag ?? 99.0
+                riseTime:        rising?.time,
+                transitTime:     peakSample?.time,
+                setTime:         setting?.time,
+                peakAltitude:    peakSample?.alt    ?? -90.0,
+                magnitude:       peakSample?.mag    ?? 99.0,
+                riseAzimuth:     rising?.azimuth,
+                transitAzimuth:  peakSample?.az,
+                setAzimuth:      setting?.azimuth,
+                altitudeSamples: altSamples
             )
         }
         .sorted {
@@ -666,30 +673,42 @@ enum MilkyWayCalculator {
         }
     }
 
-    /// 最初の地平線上昇交差時刻（負→正）を線形補間で返す。
+    /// 方位角の円周補間（0/360° 跨ぎを正しく処理する）。
+    static func interpolateAzimuth(_ az0: Double, _ az1: Double, frac: Double) -> Double {
+        var delta = az1 - az0
+        if delta >  180 { delta -= 360 }
+        if delta < -180 { delta += 360 }
+        var result = az0 + frac * delta
+        result = result.truncatingRemainder(dividingBy: 360)
+        return result < 0 ? result + 360 : result
+    }
+
+    /// 最初の地平線上昇交差点（負→正）の時刻と方位角を線形補間で返す。
     private static func firstHorizonRising(
-        in samples: [(time: Date, alt: Double, mag: Double)]
-    ) -> Date? {
+        in samples: [(time: Date, alt: Double, az: Double, mag: Double)]
+    ) -> (time: Date, azimuth: Double)? {
         for i in 1..<samples.count {
             let prev = samples[i - 1], curr = samples[i]
             guard prev.alt < 0, curr.alt >= 0 else { continue }
             let frac = -prev.alt / (curr.alt - prev.alt)
-            return prev.time.addingTimeInterval(frac * curr.time.timeIntervalSince(prev.time))
+            let time = prev.time.addingTimeInterval(frac * curr.time.timeIntervalSince(prev.time))
+            return (time, interpolateAzimuth(prev.az, curr.az, frac: frac))
         }
         return nil
     }
 
-    /// pivot 以降の最後の地平線下降交差時刻（正→負）を線形補間で返す。
+    /// pivot 以降の最後の地平線下降交差点（正→負）の時刻と方位角を線形補間で返す。
     private static func lastHorizonSetting(
-        in samples: [(time: Date, alt: Double, mag: Double)],
+        in samples: [(time: Date, alt: Double, az: Double, mag: Double)],
         after pivot: Date
-    ) -> Date? {
-        var result: Date?
+    ) -> (time: Date, azimuth: Double)? {
+        var result: (time: Date, azimuth: Double)?
         for i in 1..<samples.count {
             let prev = samples[i - 1], curr = samples[i]
             guard prev.time >= pivot, prev.alt >= 0, curr.alt < 0 else { continue }
             let frac = -prev.alt / (curr.alt - prev.alt)
-            result = prev.time.addingTimeInterval(frac * curr.time.timeIntervalSince(prev.time))
+            let time = prev.time.addingTimeInterval(frac * curr.time.timeIntervalSince(prev.time))
+            result = (time, interpolateAzimuth(prev.az, curr.az, frac: frac))
         }
         return result
     }
