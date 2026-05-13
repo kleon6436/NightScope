@@ -539,8 +539,12 @@ enum DateFormatters {
         .string(from: date)
     }
 
-    static func yearMonthDayWeekdayString(from date: Date, timeZone: TimeZone = .current) -> String {
-        FormatterFactory.localizedDate(template: "yMMMMEEEEd", timeZone: timeZone).string(from: date)
+    static func yearMonthDayWeekdayString(
+        from date: Date,
+        timeZone: TimeZone = .current,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        FormatterFactory.localizedDate(template: "yMMMMEEEEd", timeZone: timeZone, locale: locale).string(from: date)
     }
     
     static func yearMonthDayWeekdayStringWithoutWeekday(from date: Date, timeZone: TimeZone = .current) -> String {

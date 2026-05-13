@@ -7,6 +7,9 @@
     " " : {
 
     },
+    " ▍" : {
+
+    },
     "--" : {
 
     },
@@ -290,6 +293,108 @@
     },
     "180°" : {
 
+    },
+    "advice.card.regenerate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regenerate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再生成"
+          }
+        }
+      }
+    },
+    "advice.card.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate beginner-friendly observing advice based on tonight's conditions."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今夜の条件をもとに、初心者向けの観測アドバイスを生成します。"
+          }
+        }
+      }
+    },
+    "advice.card.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Observation Advice"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI観測アドバイス"
+          }
+        }
+      }
+    },
+    "advice.error.generation_failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to generate AI advice."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AIアドバイスを生成できませんでした。"
+          }
+        }
+      }
+    },
+    "advice.error.timeout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timed out while generating AI advice."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AIアドバイスの生成がタイムアウトしました。"
+          }
+        }
+      }
+    },
+    "advice.error.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI advisor is not available on this device."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AIアドバイザーはこのデバイスでは利用できません。"
+          }
+        }
+      }
     },
     "Apple Weather" : {
       "extractionState" : "manual",

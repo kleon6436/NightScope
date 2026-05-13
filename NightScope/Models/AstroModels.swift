@@ -142,6 +142,10 @@ struct NightSummary {
         moonPhaseAtMidnight < 0.25 || moonPhaseAtMidnight > 0.75
     }
 
+    var moonIllumination: Double {
+        (1.0 - cos(moonPhaseAtMidnight * 2.0 * .pi)) / 2.0
+    }
+
     var totalDarkHours: Double {
         let count = events.filter { $0.isDark }.count
         return Double(count) * 15.0 / 60.0

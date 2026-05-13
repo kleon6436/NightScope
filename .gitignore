@@ -53,6 +53,8 @@ build/
 
 # Claude Code
 .claude/
+.omc/
+.omx/
 
 # VS Codeとneovimの設定ファイル
 .vscode/

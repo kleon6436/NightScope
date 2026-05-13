@@ -29,6 +29,7 @@ struct iOSTodayView: View {
     private let viewModel = iOSTodayViewModel()
     @StateObject private var lightPollutionViewModel: StarGazingIndexCardViewModel
     @StateObject private var weatherViewModel = NightWeatherCardViewModel()
+    @StateObject private var advisorViewModel: ObservationAdvisorViewModel
     @State private var presentedSheet: PresentedSheet?
     @State private var calendarDraftDate = Date()
 
@@ -44,6 +45,7 @@ struct iOSTodayView: View {
                 lightPollutionService: detailViewModel.lightPollutionService
             )
         )
+        _advisorViewModel = StateObject(wrappedValue: ObservationAdvisorViewModel())
     }
 
     private var nightSummary: NightSummary? { detailViewModel.nightSummary }
@@ -79,6 +81,9 @@ struct iOSTodayView: View {
                     retryWeatherAction: detailViewModel.retryWeatherInBackground,
                     retryLightPollutionAction: detailViewModel.retryLightPollutionInBackground
                 )
+            }
+            .task(id: advisorTriggerKey) {
+                updateObservationAdvice()
             }
         }
     }
@@ -116,6 +121,11 @@ struct iOSTodayView: View {
                     lightPollutionViewModel: lightPollutionViewModel
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if let input = observationAdvisorInput {
+                iOSObservationAdviceCard(viewModel: advisorViewModel, input: input)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             DarkTimeCard(summary: summary, weather: weather)
@@ -250,6 +260,57 @@ struct iOSTodayView: View {
         case .settings:
             iOSSettingsSheetView()
         }
+    }
+}
+
+private extension iOSTodayView {
+    var observationAdvisorInput: ObservationAdvisorInput? {
+        guard let summary = nightSummary,
+              let index = starGazingIndex else {
+            return nil
+        }
+
+        return ObservationAdvisorInputBuilder.build(
+            nightSummary: summary,
+            index: index,
+            weather: weather,
+            bortleClass: detailViewModel.lightPollutionService.bortleClass,
+            locationName: detailViewModel.locationName,
+            timeZone: detailViewModel.selectedTimeZone
+        )
+    }
+
+    var advisorTriggerKey: String {
+        guard let summary = nightSummary,
+              let index = starGazingIndex else {
+            return "advisor-missing"
+        }
+
+        let weatherKey = weather.map {
+            "\($0.weatherLabel)-\(Int($0.avgCloudCover.rounded()))-\(Int($0.avgWindSpeed.rounded()))"
+        } ?? "weather:nil"
+        let bortleKey = detailViewModel.lightPollutionService.bortleClass.map {
+            String(format: "%.1f", $0)
+        } ?? "bortle:nil"
+        let dayKey = Int(summary.date.timeIntervalSince1970 / 86_400)
+
+        return [
+            String(dayKey),
+            String(index.score),
+            String(index.weatherScore),
+            weatherKey,
+            bortleKey,
+            detailViewModel.locationName,
+            detailViewModel.selectedTimeZone.identifier
+        ].joined(separator: "|")
+    }
+
+    func updateObservationAdvice() {
+        guard let input = observationAdvisorInput else {
+            advisorViewModel.cancel()
+            return
+        }
+        advisorViewModel.generate(input: input)
     }
 }
 

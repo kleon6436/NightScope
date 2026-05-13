@@ -9,6 +9,7 @@ struct DetailView: View {
     @StateObject private var starGazingIndexCardViewModel: StarGazingIndexCardViewModel
     @StateObject private var nightWeatherCardViewModel: NightWeatherCardViewModel
     @StateObject private var upcomingGridViewModel: UpcomingNightsGridViewModel
+    @StateObject private var advisorViewModel: ObservationAdvisorViewModel
     @ObservedObject var starMapViewModel: StarMapViewModel
     @State private var isAstroPhotoOpen = false
 
@@ -23,6 +24,7 @@ struct DetailView: View {
         _starGazingIndexCardViewModel = StateObject(wrappedValue: StarGazingIndexCardViewModel(lightPollutionService: viewModel.lightPollutionService))
         _nightWeatherCardViewModel = StateObject(wrappedValue: NightWeatherCardViewModel())
         _upcomingGridViewModel = StateObject(wrappedValue: UpcomingNightsGridViewModel(detailViewModel: viewModel))
+        _advisorViewModel = StateObject(wrappedValue: ObservationAdvisorViewModel())
     }
 
     var body: some View {
@@ -61,6 +63,9 @@ struct DetailView: View {
         }
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasWeatherError)
         .animation(reduceMotion ? .none : .standard, value: viewModel.hasLightPollutionError)
+        .task(id: advisorTriggerKey) {
+            updateObservationAdvice()
+        }
     }
 
     private func detailContent(summary: NightSummary) -> some View {
@@ -73,6 +78,9 @@ struct DetailView: View {
                     isWeatherLoading: viewModel.isWeatherLoading,
                     isSummaryRefreshing: viewModel.isCalculating
                 )
+                if let input = observationAdvisorInput {
+                    ObservationAdviceCard(viewModel: advisorViewModel, input: input)
+                }
                 UpcomingNightsGrid(viewModel: upcomingGridViewModel)
                 MeteorShowerCalendarView(selectedDate: viewModel.selectedDate)
                 PlanetVisibilityView(
@@ -196,6 +204,56 @@ struct DetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    private var observationAdvisorInput: ObservationAdvisorInput? {
+        guard let summary = viewModel.nightSummary,
+              let index = viewModel.displayedStarGazingIndex else {
+            return nil
+        }
+
+        return ObservationAdvisorInputBuilder.build(
+            nightSummary: summary,
+            index: index,
+            weather: viewModel.currentWeather,
+            bortleClass: viewModel.lightPollutionService.bortleClass,
+            locationName: viewModel.locationName,
+            timeZone: viewModel.selectedTimeZone
+        )
+    }
+
+    private var advisorTriggerKey: String {
+        guard let summary = viewModel.nightSummary,
+              let index = viewModel.displayedStarGazingIndex else {
+            return "advisor-missing"
+        }
+
+        let weather = viewModel.currentWeather
+        let weatherKey = weather.map {
+            "\($0.weatherLabel)-\(Int($0.avgCloudCover.rounded()))-\(Int($0.avgWindSpeed.rounded()))"
+        } ?? "weather:nil"
+        let bortleKey = viewModel.lightPollutionService.bortleClass.map {
+            String(format: "%.1f", $0)
+        } ?? "bortle:nil"
+        let dayKey = Int(summary.date.timeIntervalSince1970 / 86_400)
+
+        return [
+            String(dayKey),
+            String(index.score),
+            String(index.weatherScore),
+            weatherKey,
+            bortleKey,
+            viewModel.locationName,
+            viewModel.selectedTimeZone.identifier
+        ].joined(separator: "|")
+    }
+
+    private func updateObservationAdvice() {
+        guard let input = observationAdvisorInput else {
+            advisorViewModel.cancel()
+            return
+        }
+        advisorViewModel.generate(input: input)
     }
 }
 

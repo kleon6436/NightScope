@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		00162992377780D5DE3995BD /* UpcomingNightsGridViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F03 /* UpcomingNightsGridViewModel.swift */; };
+		04C543AB48645C86951265DE /* ObservationAdvisorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2274D5B63FA53AAF40055E /* ObservationAdvisorViewModel.swift */; };
 		05B006658CE59CC2B7E60657 /* FavoriteLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A5FD175A6FD4FA2071B5F37 /* FavoriteLocation.swift */; };
 		0C21A9833046DD44B1100A01 /* ComparisonMatrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C21A9833046DD44B1100A11 /* ComparisonMatrix.swift */; };
 		0C21A9833046DD44B1100A02 /* ComparisonController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C21A9833046DD44B1100A12 /* ComparisonController.swift */; };
@@ -15,10 +16,14 @@
 		12716A5CFA05D4A9733EB7C0 /* iOSForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */; };
 		14E29A763046C8DBB1100A01 /* ObservationMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14E29A763046C8DBB1100A11 /* ObservationMode.swift */; };
 		14E29A763046C8DBB1100A02 /* StarGazingIndex+Mode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14E29A763046C8DBB1100A12 /* StarGazingIndex+Mode.swift */; };
+		15AC41CBCC1C1DBC611100CE /* ObservationAdvisorInputBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 273CF9C5BAF8A19CD9647DD2 /* ObservationAdvisorInputBuilder.swift */; };
+		17FA0E9DCE59289B5F6D2F03 /* ObservationAdvisorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738F147B3FD3D30245014E71 /* ObservationAdvisorService.swift */; };
 		1A2B3C4D5E6F708192A3B4C5 /* iOSStarMapSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F708192A3B4C4 /* iOSStarMapSupport.swift */; };
+		29439492FBB6330AD2C1A28C /* iOSObservationAdviceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48955933797D456E9FF10C87 /* iOSObservationAdviceCard.swift */; };
 		29624CDBDF973E033D5A20FC /* iOSMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E51B35725701CA2DB51488 /* iOSMapView.swift */; };
 		2F634825E4145753F51108E9 /* DetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000003F01 /* DetailViewModel.swift */; };
 		477B2E3CB5355CA1BA5757D3 /* ViewingWindowsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F16 /* ViewingWindowsSection.swift */; };
+		4B25322B8D00132E41C5C122 /* ObservationAdvisorInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47F16640345F9EC740C375E /* ObservationAdvisorInput.swift */; };
 		4F871C5177B328F9DFC5EEAA /* FavoriteLocationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA0C4060B1252A05AA86C03 /* FavoriteLocationStore.swift */; };
 		54A5C1BEDE1E30CC826A7F87 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18B76F2F791309007949F3 /* SettingsView.swift */; };
 		6444E5ACCDE32CC8CFC28AF6 /* MapTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */; };
@@ -41,6 +46,7 @@
 		824FD5CAFE4F9BD597800662 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 816BFE2E87B5441281342EF9 /* Assets.xcassets */; };
 		8386FEB6D2C20C41B5B5B4F8 /* AppController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F04 /* AppController.swift */; };
 		8A2E00716A7CF7F2FBDBA8C9 /* StarGazingIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F03 /* StarGazingIndex.swift */; };
+		8F7351C9A15449FAC35810E4 /* ObservationAdvisorViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1421579CFF20984F582B235 /* ObservationAdvisorViewModelTests.swift */; };
 		91F8C0F8D6AA500B2E697662 /* iOSTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C88010FC1657FBB75579A3E /* iOSTodayView.swift */; };
 		983D7E6CD2271870DD1E8E6D /* StarGazingIndexCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F13 /* StarGazingIndexCard.swift */; };
 		A0F100000000000000000002 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0F100000000000000000001 /* Localization.swift */; };
@@ -97,7 +103,6 @@
 		AA0000000000000000004B07 /* AstroPhotoCalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F14 /* AstroPhotoCalculatorView.swift */; };
 		AA0000000000000000004B08 /* AstroPhotoCalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000004F14 /* AstroPhotoCalculatorView.swift */; };
 		AA000000000000000000TB01 /* MilkyWayCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */; };
-		AA000000000000000000TB20 /* PlanetVisibilitySummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF20 /* PlanetVisibilitySummaryTests.swift */; };
 		AA000000000000000000TB02 /* StarGazingIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF02 /* StarGazingIndexTests.swift */; };
 		AA000000000000000000TB03 /* WeatherServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF03 /* WeatherServiceTests.swift */; };
 		AA000000000000000000TB04 /* AppControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF04 /* AppControllerTests.swift */; };
@@ -113,8 +118,10 @@
 		AA000000000000000000TB15 /* CalendarViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF15 /* CalendarViewTests.swift */; };
 		AA000000000000000000TB16 /* AstroPhotoCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF16 /* AstroPhotoCalculatorTests.swift */; };
 		AA000000000000000000TB17 /* WeatherModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF17 /* WeatherModelsTests.swift */; };
+		AA000000000000000000TB20 /* PlanetVisibilitySummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000TF20 /* PlanetVisibilitySummaryTests.swift */; };
 		AA9B7CDA3046C922B1100A01 /* ObservationMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14E29A763046C8DBB1100A11 /* ObservationMode.swift */; };
 		AA9B7CDA3046C922B1100A02 /* StarGazingIndex+Mode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14E29A763046C8DBB1100A12 /* StarGazingIndex+Mode.swift */; };
+		ADFC27704C1E29CC8B83162D /* ObservationAdviceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00AC14BF35B8A1BBCE59A96E /* ObservationAdviceCard.swift */; };
 		AEF100000000000000000011 /* WeatherKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF100000000000000000001 /* WeatherKitService.swift */; };
 		AEF100000000000000000012 /* WeatherKitServiceSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF100000000000000000002 /* WeatherKitServiceSupport.swift */; };
 		AEF100000000000000000021 /* WeatherKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEF100000000000000000001 /* WeatherKitService.swift */; };
@@ -168,12 +175,14 @@
 		D1A100000000000000000003 /* StarMapDisplaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A100000000000000000001 /* StarMapDisplaySettings.swift */; };
 		D1A100000000000000000005 /* StarMapDisplaySettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A100000000000000000004 /* StarMapDisplaySettingsSection.swift */; };
 		D1A100000000000000000006 /* StarMapDisplaySettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A100000000000000000004 /* StarMapDisplaySettingsSection.swift */; };
+		D48DDFB2487D6B3F11F21156 /* ObservationAdvisorInputBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44CE03CCF477C8291BE4265 /* ObservationAdvisorInputBuilderTests.swift */; };
 		D75EF08B6B443B5D2CE817E5 /* NightScopeiOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E10951ADCBC5CEF800EE18 /* NightScopeiOSApp.swift */; };
-		DDB100000000000000002001 /* NightScope/Controllers/DashboardCommandBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001001 /* NightScope/Controllers/DashboardCommandBridge.swift */; };
-		DDB100000000000000002002 /* NightScope/Controllers/DashboardCommandBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001001 /* NightScope/Controllers/DashboardCommandBridge.swift */; };
-		DDB100000000000000002003 /* NightScope/ViewModels/DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001002 /* NightScope/ViewModels/DashboardViewModel.swift */; };
-		DDB100000000000000002005 /* NightScope/Controllers/MapSnapshotCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001003 /* NightScope/Controllers/MapSnapshotCache.swift */; };
-		DDB100000000000000002007 /* NightScopeTests/DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001004 /* NightScopeTests/DashboardViewModelTests.swift */; };
+		DC3552013A12E2ED2174B8C6 /* ObservationAdvisorInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47F16640345F9EC740C375E /* ObservationAdvisorInput.swift */; };
+		DDB100000000000000002001 /* DashboardCommandBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001001 /* DashboardCommandBridge.swift */; };
+		DDB100000000000000002002 /* DashboardCommandBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001001 /* DashboardCommandBridge.swift */; };
+		DDB100000000000000002003 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001002 /* DashboardViewModel.swift */; };
+		DDB100000000000000002005 /* MapSnapshotCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001003 /* MapSnapshotCache.swift */; };
+		DDB100000000000000002007 /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001004 /* DashboardViewModelTests.swift */; };
 		DDB100000000000000002008 /* ComparisonMatrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C21A9833046DD44B1100A11 /* ComparisonMatrix.swift */; };
 		DDB100000000000000002009 /* ComparisonController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C21A9833046DD44B1100A12 /* ComparisonController.swift */; };
 		DDB10000000000000000200A /* DashboardLocationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001005 /* DashboardLocationCard.swift */; };
@@ -182,6 +191,7 @@
 		DDB10000000000000000200D /* DashboardSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000001008 /* DashboardSearchSheet.swift */; };
 		DDB100000000000000002011 /* DashboardSearchController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB100000000000000002013 /* DashboardSearchController.swift */; };
 		DDDBBCFA5705F923909101C5 /* NightCalculationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F18 /* NightCalculationService.swift */; };
+		DDF76BF265D9CD8568BDD679 /* ObservationAdvisorInputBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 273CF9C5BAF8A19CD9647DD2 /* ObservationAdvisorInputBuilder.swift */; };
 		E1A0B1000000000000000002 /* iOSPreviewSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0B1000000000000000001 /* iOSPreviewSupport.swift */; };
 		E28982699FDE76BC460B3CE0 /* WeatherCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F15 /* WeatherCard.swift */; };
 		E2B1BBFAE453C3FC09374E13 /* FavoriteLocationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9018ABBBB27AE209C8B4401 /* FavoriteLocationTests.swift */; };
@@ -192,10 +202,12 @@
 		F1A2B3C4D5E6F708192A3B01 /* MapKitViewSharedLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B4C /* MapKitViewSharedLogic.swift */; };
 		F1A2B3C4D5E6F708192A3B02 /* MapKitViewSharedLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F708192A3B4C /* MapKitViewSharedLogic.swift */; };
 		F6CD4B6B293C9471C424C02A /* MoonPhaseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F14 /* MoonPhaseCard.swift */; };
+		F7A7389617962715C8FD12CF /* ObservationAdvisorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2274D5B63FA53AAF40055E /* ObservationAdvisorViewModel.swift */; };
 		FC01B28AAAA3D24EA5E24686 /* UpcomingNightsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F17 /* UpcomingNightsGrid.swift */; };
 		FCBB0001B1CA5D5B3BE17896 /* MeteorShowerCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F30 /* MeteorShowerCalendarView.swift */; };
 		FCBB0001B1CA5D5B3BE17897 /* PlanetVisibilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F31 /* PlanetVisibilityView.swift */; };
 		FCBBDF3EB1CA5D5B3BE17896 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000002F10 /* CalendarView.swift */; };
+		FF7EEB3C6BBEB0384CF21178 /* ObservationAdvisorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738F147B3FD3D30245014E71 /* ObservationAdvisorService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -209,6 +221,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00AC14BF35B8A1BBCE59A96E /* ObservationAdviceCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObservationAdviceCard.swift; sourceTree = "<group>"; };
 		0968461A07DC0ABA1D12D91B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		0A5FD175A6FD4FA2071B5F37 /* FavoriteLocation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FavoriteLocation.swift; sourceTree = "<group>"; };
 		0C21A9833046DD44B1100A11 /* ComparisonMatrix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonMatrix.swift; sourceTree = "<group>"; };
@@ -217,15 +230,19 @@
 		14E29A763046C8DBB1100A11 /* ObservationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservationMode.swift; sourceTree = "<group>"; };
 		14E29A763046C8DBB1100A12 /* StarGazingIndex+Mode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StarGazingIndex+Mode.swift"; sourceTree = "<group>"; };
 		1A2B3C4D5E6F708192A3B4C4 /* iOSStarMapSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSStarMapSupport.swift; sourceTree = "<group>"; };
+		273CF9C5BAF8A19CD9647DD2 /* ObservationAdvisorInputBuilder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObservationAdvisorInputBuilder.swift; sourceTree = "<group>"; };
 		2C4FF1AF217AF56546E11BB3 /* iOSLocationView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSLocationView.swift; sourceTree = "<group>"; };
 		2FA0C4060B1252A05AA86C03 /* FavoriteLocationStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FavoriteLocationStore.swift; sourceTree = "<group>"; };
+		3A2274D5B63FA53AAF40055E /* ObservationAdvisorViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObservationAdvisorViewModel.swift; sourceTree = "<group>"; };
 		3C88010FC1657FBB75579A3E /* iOSTodayView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSTodayView.swift; sourceTree = "<group>"; };
+		48955933797D456E9FF10C87 /* iOSObservationAdviceCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSObservationAdviceCard.swift; sourceTree = "<group>"; };
 		6C1674E72F8E7B7500AF040A /* ObservationTimeZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservationTimeZone.swift; sourceTree = "<group>"; };
 		6C18B76F2F791309007949F3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6CD4ED0E2F83B99000ECC17B /* MapTileOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapTileOverlay.swift; sourceTree = "<group>"; };
 		6CFBFDEA2F78B7080018A9E5 /* NightScope.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = NightScope.icon; sourceTree = "<group>"; };
 		6D4A1F7B2E9C4100A1B2C3D3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6FE64AD88B8F4595D25E01FF /* iOSForecastView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSForecastView.swift; sourceTree = "<group>"; };
+		738F147B3FD3D30245014E71 /* ObservationAdvisorService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObservationAdvisorService.swift; sourceTree = "<group>"; };
 		79E10951ADCBC5CEF800EE18 /* NightScopeiOSApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightScopeiOSApp.swift; sourceTree = "<group>"; };
 		7E945580091B1E2051F32062 /* NightStarScope.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NightStarScope.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		816BFE2E87B5441281342EF9 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -233,6 +250,7 @@
 		9645065BBBF802A955B5582A /* NightScopeiOS.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NightScopeiOS.entitlements; sourceTree = "<group>"; };
 		A0F100000000000000000001 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		A0F100000000000000000004 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A1421579CFF20984F582B235 /* ObservationAdvisorViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObservationAdvisorViewModelTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B0F /* GeoStateValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeoStateValidator.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F01 /* NightScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeApp.swift; sourceTree = "<group>"; };
 		AA0000000000000000001F03 /* MilkyWayCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculator.swift; sourceTree = "<group>"; };
@@ -277,7 +295,6 @@
 		AA0000000000000000004F13 /* AstroPhotoCalculatorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoCalculatorViewModel.swift; sourceTree = "<group>"; };
 		AA0000000000000000004F14 /* AstroPhotoCalculatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoCalculatorView.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF01 /* MilkyWayCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilkyWayCalculatorTests.swift; sourceTree = "<group>"; };
-		AA000000000000000000TF20 /* PlanetVisibilitySummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanetVisibilitySummaryTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF02 /* StarGazingIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarGazingIndexTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF03 /* WeatherServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherServiceTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF04 /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
@@ -294,6 +311,7 @@
 		AA000000000000000000TF15 /* CalendarViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarViewTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF16 /* AstroPhotoCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AstroPhotoCalculatorTests.swift; sourceTree = "<group>"; };
 		AA000000000000000000TF17 /* WeatherModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherModelsTests.swift; sourceTree = "<group>"; };
+		AA000000000000000000TF20 /* PlanetVisibilitySummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanetVisibilitySummaryTests.swift; sourceTree = "<group>"; };
 		AEF100000000000000000001 /* WeatherKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherKitService.swift; sourceTree = "<group>"; };
 		AEF100000000000000000002 /* WeatherKitServiceSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherKitServiceSupport.swift; sourceTree = "<group>"; };
 		BB0000000000000000002F21 /* StarCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarCatalog.swift; sourceTree = "<group>"; };
@@ -319,10 +337,12 @@
 		D0E51B35725701CA2DB51488 /* iOSMapView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = iOSMapView.swift; sourceTree = "<group>"; };
 		D1A100000000000000000001 /* StarMapDisplaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapDisplaySettings.swift; sourceTree = "<group>"; };
 		D1A100000000000000000004 /* StarMapDisplaySettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMapDisplaySettingsSection.swift; sourceTree = "<group>"; };
-		DDB100000000000000001001 /* NightScope/Controllers/DashboardCommandBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/Controllers/DashboardCommandBridge.swift; sourceTree = "<group>"; };
-		DDB100000000000000001002 /* NightScope/ViewModels/DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/ViewModels/DashboardViewModel.swift; sourceTree = "<group>"; };
-		DDB100000000000000001003 /* NightScope/Controllers/MapSnapshotCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/Controllers/MapSnapshotCache.swift; sourceTree = "<group>"; };
-		DDB100000000000000001004 /* NightScopeTests/DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeTests/DashboardViewModelTests.swift; sourceTree = "<group>"; };
+		D44CE03CCF477C8291BE4265 /* ObservationAdvisorInputBuilderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObservationAdvisorInputBuilderTests.swift; sourceTree = "<group>"; };
+		D47F16640345F9EC740C375E /* ObservationAdvisorInput.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObservationAdvisorInput.swift; sourceTree = "<group>"; };
+		DDB100000000000000001001 /* DashboardCommandBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/Controllers/DashboardCommandBridge.swift; sourceTree = "<group>"; };
+		DDB100000000000000001002 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/ViewModels/DashboardViewModel.swift; sourceTree = "<group>"; };
+		DDB100000000000000001003 /* MapSnapshotCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScope/Controllers/MapSnapshotCache.swift; sourceTree = "<group>"; };
+		DDB100000000000000001004 /* DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScopeTests/DashboardViewModelTests.swift; sourceTree = "<group>"; };
 		DDB100000000000000001005 /* DashboardLocationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLocationCard.swift; sourceTree = "<group>"; };
 		DDB100000000000000001006 /* DashboardLocationPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLocationPickerSheet.swift; sourceTree = "<group>"; };
 		DDB100000000000000001007 /* DashboardWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardWindowView.swift; sourceTree = "<group>"; };
@@ -372,10 +392,10 @@
 		6C4997172FAADEE7003112A7 /* Recovered References */ = {
 			isa = PBXGroup;
 			children = (
-				DDB100000000000000001003 /* NightScope/Controllers/MapSnapshotCache.swift */,
-				DDB100000000000000001002 /* NightScope/ViewModels/DashboardViewModel.swift */,
-				DDB100000000000000001001 /* NightScope/Controllers/DashboardCommandBridge.swift */,
-				DDB100000000000000001004 /* NightScopeTests/DashboardViewModelTests.swift */,
+				DDB100000000000000001003 /* MapSnapshotCache.swift */,
+				DDB100000000000000001002 /* DashboardViewModel.swift */,
+				DDB100000000000000001001 /* DashboardCommandBridge.swift */,
+				DDB100000000000000001004 /* DashboardViewModelTests.swift */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -403,6 +423,7 @@
 				2C4FF1AF217AF56546E11BB3 /* iOSLocationView.swift */,
 				BB0000000000000000004F01 /* iOSStarMapView.swift */,
 				1A2B3C4D5E6F708192A3B4C4 /* iOSStarMapSupport.swift */,
+				48955933797D456E9FF10C87 /* iOSObservationAdviceCard.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -467,6 +488,7 @@
 				BB0000000000000000002F23 /* ConstellationData.swift */,
 				BB0000000000000000002F25 /* MeteorShowerData.swift */,
 				0A5FD175A6FD4FA2071B5F37 /* FavoriteLocation.swift */,
+				D47F16640345F9EC740C375E /* ObservationAdvisorInput.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -489,6 +511,8 @@
 				AA0000000000000000002F12 /* LightPollutionService.swift */,
 				AA0000000000000000002F22 /* TerrainService.swift */,
 				2FA0C4060B1252A05AA86C03 /* FavoriteLocationStore.swift */,
+				738F147B3FD3D30245014E71 /* ObservationAdvisorService.swift */,
+				273CF9C5BAF8A19CD9647DD2 /* ObservationAdvisorInputBuilder.swift */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -523,6 +547,7 @@
 				BB0000000000000000002F22 /* StarMapCanvasView.swift */,
 				BB0000000000000000002F29 /* StarMapCanvasOverlays.swift */,
 				BB0000000000000000002F24 /* StarInfoMacView.swift */,
+				00AC14BF35B8A1BBCE59A96E /* ObservationAdviceCard.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -549,6 +574,8 @@
 				AA000000000000000000TF15 /* CalendarViewTests.swift */,
 				0C21A9833046DD44B1100A13 /* ComparisonControllerTests.swift */,
 				E9018ABBBB27AE209C8B4401 /* FavoriteLocationTests.swift */,
+				D44CE03CCF477C8291BE4265 /* ObservationAdvisorInputBuilderTests.swift */,
+				A1421579CFF20984F582B235 /* ObservationAdvisorViewModelTests.swift */,
 			);
 			path = NightScopeTests;
 			sourceTree = "<group>";
@@ -568,6 +595,7 @@
 				BB0000000000000000003F09 /* StarMapPresentation.swift */,
 				BB0000000000000000003F0B /* StarMapDateLogic.swift */,
 				BB0000000000000000003F0C /* StarMapComputation.swift */,
+				3A2274D5B63FA53AAF40055E /* ObservationAdvisorViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -770,7 +798,7 @@
 				AEF100000000000000000022 /* WeatherKitServiceSupport.swift in Sources */,
 				DDB100000000000000002008 /* ComparisonMatrix.swift in Sources */,
 				DDB100000000000000002009 /* ComparisonController.swift in Sources */,
-				DDB100000000000000002002 /* NightScope/Controllers/DashboardCommandBridge.swift in Sources */,
+				DDB100000000000000002002 /* DashboardCommandBridge.swift in Sources */,
 				BD26966CB632FA724659667D /* LightPollutionService.swift in Sources */,
 				C71CDD3E6ABE68E1AA626B3E /* LocationController.swift in Sources */,
 				C71CDD3E6ABE68E1AA626B3F /* LocationControllerSupport.swift in Sources */,
@@ -812,6 +840,11 @@
 				05B006658CE59CC2B7E60657 /* FavoriteLocation.swift in Sources */,
 				CDE0B61ACA19A82237AAC59A /* FavoriteLocationStore.swift in Sources */,
 				D1A100000000000000000006 /* StarMapDisplaySettingsSection.swift in Sources */,
+				29439492FBB6330AD2C1A28C /* iOSObservationAdviceCard.swift in Sources */,
+				DC3552013A12E2ED2174B8C6 /* ObservationAdvisorInput.swift in Sources */,
+				FF7EEB3C6BBEB0384CF21178 /* ObservationAdvisorService.swift in Sources */,
+				15AC41CBCC1C1DBC611100CE /* ObservationAdvisorInputBuilder.swift in Sources */,
+				04C543AB48645C86951265DE /* ObservationAdvisorViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -843,10 +876,10 @@
 				AA0000000000000000002B27 /* WeatherServiceSupport.swift in Sources */,
 				AEF100000000000000000011 /* WeatherKitService.swift in Sources */,
 				AEF100000000000000000012 /* WeatherKitServiceSupport.swift in Sources */,
-				DDB100000000000000002005 /* NightScope/Controllers/MapSnapshotCache.swift in Sources */,
-				DDB100000000000000002003 /* NightScope/ViewModels/DashboardViewModel.swift in Sources */,
+				DDB100000000000000002005 /* MapSnapshotCache.swift in Sources */,
+				DDB100000000000000002003 /* DashboardViewModel.swift in Sources */,
 				DDB100000000000000002011 /* DashboardSearchController.swift in Sources */,
-				DDB100000000000000002001 /* NightScope/Controllers/DashboardCommandBridge.swift in Sources */,
+				DDB100000000000000002001 /* DashboardCommandBridge.swift in Sources */,
 				DDB10000000000000000200A /* DashboardLocationCard.swift in Sources */,
 				DDB10000000000000000200B /* DashboardLocationPickerSheet.swift in Sources */,
 				DDB10000000000000000200D /* DashboardSearchSheet.swift in Sources */,
@@ -894,6 +927,11 @@
 				0C21A9833046DD44B1100A01 /* ComparisonMatrix.swift in Sources */,
 				78BC796E939B65C3054D3651 /* FavoriteLocation.swift in Sources */,
 				4F871C5177B328F9DFC5EEAA /* FavoriteLocationStore.swift in Sources */,
+				4B25322B8D00132E41C5C122 /* ObservationAdvisorInput.swift in Sources */,
+				17FA0E9DCE59289B5F6D2F03 /* ObservationAdvisorService.swift in Sources */,
+				DDF76BF265D9CD8568BDD679 /* ObservationAdvisorInputBuilder.swift in Sources */,
+				F7A7389617962715C8FD12CF /* ObservationAdvisorViewModel.swift in Sources */,
+				ADFC27704C1E29CC8B83162D /* ObservationAdviceCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -919,8 +957,10 @@
 				AA000000000000000000TB14 /* SearchResultsLayoutTests.swift in Sources */,
 				AA000000000000000000TB15 /* CalendarViewTests.swift in Sources */,
 				0C21A9833046DD44B1100A03 /* ComparisonControllerTests.swift in Sources */,
-				DDB100000000000000002007 /* NightScopeTests/DashboardViewModelTests.swift in Sources */,
+				DDB100000000000000002007 /* DashboardViewModelTests.swift in Sources */,
 				E2B1BBFAE453C3FC09374E13 /* FavoriteLocationTests.swift in Sources */,
+				D48DDFB2487D6B3F11F21156 /* ObservationAdvisorInputBuilderTests.swift in Sources */,
+				8F7351C9A15449FAC35810E4 /* ObservationAdvisorViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
