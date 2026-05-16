@@ -454,11 +454,11 @@ final class StarMapCameraController: NSObject, ObservableObject {
             do {
                 let input = try AVCaptureDeviceInput(device: device)
                 session.beginConfiguration()
-                defer { session.commitConfiguration() }
                 session.sessionPreset = .high
 
                 if session.inputs.isEmpty {
                     guard session.canAddInput(input) else {
+                        session.commitConfiguration()
                         Task { @MainActor in
                             self.hasConfiguredSession = false
                             self.isConfiguringSession = false
@@ -468,6 +468,16 @@ final class StarMapCameraController: NSObject, ObservableObject {
                     }
 
                     session.addInput(input)
+                }
+
+                session.commitConfiguration()
+
+                // Raise exposure for nighttime stargazing
+                if device.isExposureModeSupported(.continuousAutoExposure),
+                   (try? device.lockForConfiguration()) != nil {
+                    device.exposureMode = .continuousAutoExposure
+                    device.setExposureTargetBias(min(1.5, device.maxExposureTargetBias), completionHandler: nil)
+                    device.unlockForConfiguration()
                 }
 
                 let cameraFieldOfView = Self.makeCameraFieldOfView(for: device)

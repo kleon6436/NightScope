@@ -98,9 +98,9 @@ struct iOSStarMapView: View {
 
                     LinearGradient(
                         colors: [
-                            Color.black.opacity(0.52),
-                            Color.black.opacity(0.18),
-                            Color.black.opacity(0.42)
+                            Color.black.opacity(0.28),
+                            Color.black.opacity(0.08),
+                            Color.black.opacity(0.22)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
