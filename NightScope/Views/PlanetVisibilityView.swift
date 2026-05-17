@@ -226,29 +226,35 @@ private struct PlanetDetailSheet: View {
     let timeZone: TimeZone
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text(summary.localizedName)
-                .font(.title2.bold())
-                .padding(.bottom, 8)
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 16) {
+                Text(summary.localizedName)
+                    .font(.title2.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.bottom, 8)
 
-            VStack(alignment: .leading, spacing: 12) {
-                infoRow(label: "出",      value: summary.riseTime?.nightTimeString(timeZone: timeZone) ?? "—")
-                infoRow(label: "出 方位", value: summary.riseAzimuthLabel())
-                infoRow(label: "南中",    value: summary.transitTime?.nightTimeString(timeZone: timeZone) ?? "—")
-                infoRow(label: "南中 方位", value: summary.transitAzimuthLabel())
-                infoRow(label: "没",      value: summary.setTime?.nightTimeString(timeZone: timeZone) ?? "—")
-                infoRow(label: "没 方位", value: summary.setAzimuthLabel())
-                infoRow(label: "最大高度", value: String(format: "%.1f°", summary.peakAltitude))
-                infoRow(label: "等級",    value: String(format: "%.1f",   summary.magnitude))
-                infoRow(label: "観測難易度", value: summary.observationDifficulty.localizedLabel)
-            }
+                VStack(alignment: .leading, spacing: 12) {
+                    infoRow(label: "出",      value: summary.riseTime?.nightTimeString(timeZone: timeZone) ?? "—")
+                    infoRow(label: "出 方位", value: summary.riseAzimuthLabel())
+                    infoRow(label: "南中",    value: summary.transitTime?.nightTimeString(timeZone: timeZone) ?? "—")
+                    infoRow(label: "南中 方位", value: summary.transitAzimuthLabel())
+                    infoRow(label: "没",      value: summary.setTime?.nightTimeString(timeZone: timeZone) ?? "—")
+                    infoRow(label: "没 方位", value: summary.setAzimuthLabel())
+                    infoRow(label: "最大高度", value: String(format: "%.1f°", summary.peakAltitude))
+                    infoRow(label: "等級",    value: String(format: "%.1f",   summary.magnitude))
+                    infoRow(label: "観測難易度", value: summary.observationDifficulty.localizedLabel)
+                }
 
 #if os(iOS)
-            altitudeChart
+                altitudeChart
 #endif
+            }
+            .padding()
         }
-        .padding()
         .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationContentInteraction(.resizes)
     }
 
 #if os(iOS)
@@ -284,9 +290,13 @@ private struct PlanetDetailSheet: View {
         HStack {
             Text(L10n.tr(label))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer()
             Text(value)
                 .font(.body.monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
     }
 }
